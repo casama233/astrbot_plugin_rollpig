@@ -26,10 +26,10 @@ jobs:
           ref: agent/fix-audit-findings-v2.4.0
           fetch-depth: 0
 
-      - name: Detect post-review patch
+      - name: Detect final review patch
         id: guard
         run: |
-          if [ -f scripts/post_review_fixes.py ]; then
+          if [ -f scripts/final_review_fixes.py ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -44,8 +44,8 @@ jobs:
       - name: Apply guarded corrections
         if: steps.guard.outputs.run == 'true'
         run: |
-          python -m py_compile scripts/post_review_fixes.py
-          python scripts/post_review_fixes.py
+          python -m py_compile scripts/final_review_fixes.py
+          python scripts/final_review_fixes.py
 
       - name: Validate corrected source
         if: steps.guard.outputs.run == 'true'
@@ -59,8 +59,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f scripts/post_review_fixes.py
+          git rm -f scripts/final_review_fixes.py
           git add -A
           git diff --cached --check
-          git commit -m "fix: address post-review regressions"
+          git commit -m "fix: isolate legacy identity reads"
           git push origin HEAD:agent/fix-audit-findings-v2.4.0
