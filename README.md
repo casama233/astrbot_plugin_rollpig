@@ -1,12 +1,13 @@
 <div align="center">
 
-![astrbot_plugin_rollpig](https://raw.githubusercontent.com/MegSopern/astrbot_plugin_rollpig/main/logo.png)
+![astrbot_plugin_rollpig](https://raw.githubusercontent.com/casama233/astrbot_plugin_rollpig/main/logo.png)
 
 # astrbot_plugin_rollpig
 _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 今日小猪 ✨_ 
 
 本仓库是基于 `MegSopern/astrbot_plugin_rollpig` 的功能增强维护分支。保留原作者
 Bear_lele、MegSopern 的署名与 MIT License；增强分支由 casama233 继续维护。
+上游项目：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)。
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -23,7 +24,7 @@ Bear_lele、MegSopern 的署名与 MIT License；增强分支由 casama233 继�
 ```bash
 # 克隆仓库到插件目录
 cd /AstrBot/data/plugins
-git clone https://github.com/MegSopern/astrbot_plugin_rollpig
+git clone https://github.com/casama233/astrbot_plugin_rollpig
 
 # 控制台重启AstrBot
 ```
@@ -135,4 +136,4 @@ astrbot_plugin_rollpig/
 
 本项目采用 [MIT 许可证](LICENSE) 开源，详情请查阅许可证文件
 
-![Star History Chart](https://api.star-history.com/svg?repos=MegSopern/astrbot_plugin_rollpig&type)
+![Star History Chart](https://api.star-history.com/svg?repos=casama233/astrbot_plugin_rollpig&type)
