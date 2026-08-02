@@ -11,7 +11,7 @@ Bear_lele、MegSopern 的署名与 MIT License；增强分支由 casama233 继�
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![AstrBot](https://img.shields.io/badge/AstrBot-3.4%2B-orange.svg)](https://github.com/Soulter/AstrBot)
+[![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-orange.svg)](https://github.com/Soulter/AstrBot)
 [![GitHub](https://img.shields.io/badge/作者-MegSopern-pink)](https://github.com/MegSopern)
 ![动态访问量](https://count.kjchmc.cn/get/@astrbot_plugin_rollpig?theme=gelbooru)
 
@@ -136,3 +136,15 @@ astrbot_plugin_rollpig/
 本项目采用 [MIT 许可证](LICENSE) 开源，详情请查阅许可证文件
 
 ![Star History Chart](https://api.star-history.com/svg?repos=casama233/astrbot_plugin_rollpig&type)
+
+
+## 2.4.0 稳定性与安全更新
+
+- 今日抽取改为单事务写入，避免并发造成今日结果与永久图鉴不一致。
+- `@他人` 仅查看已有结果，不再替对方抽取，也不能绕过被吃惩罚。
+- 用户与群组 ID 加入平台命名空间；旧数据在读取时保持兼容。
+- JSON 损坏时保留 `.corrupt-*` 副本，并优先尝试 `.bak` 恢复。
+- AI 文案增加可配置超时并按小猪分片加锁，避免单次模型卡住全部请求。
+- 云资源限制重定向主机、拒绝私网解析、限制图片像素，并边下载边落盘。
+- 管理页写操作增加同源与 CSRF 校验；缩略图改用压缩 PNG，降低响应体积。
+- 新增每日边界时区配置，并修正图片句柄与裁剪行为。

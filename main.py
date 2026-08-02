@@ -2,12 +2,17 @@ import asyncio
 import base64
 import datetime
 import hashlib
+import importlib
 import io
+import ipaddress
 import json
+import os
+import secrets
+import shutil
+import socket
 import math
 import random
 import re
-import shutil
 import tempfile
 import threading
 import time
@@ -15,6 +20,7 @@ import uuid
 from collections import Counter
 from pathlib import Path
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
@@ -82,7 +88,28 @@ class RollPigPlugin(Star):
         self.config = config or {}
 
         # 配置项
-        self.admins_id: list[str] = context.get_config().get("admins_id", [])
+        self.admins_id: set[str] = {
+            str(item).strip()
+            for item in context.get_config().get("admins_id", [])
+            if str(item).strip()
+        }
+        timezone_name = str(self.config.get("timezone", "local") or "local").strip()
+        self.timezone_name = timezone_name
+        try:
+            self.timezone = (
+                self._now().tzinfo
+                if timezone_name.lower() in {"", "local", "system"}
+                else ZoneInfo(timezone_name)
+            )
+        except ZoneInfoNotFoundError:
+            logger.warning(f"未知时区 {timezone_name}，已回退系统时区")
+            self.timezone = self._now().tzinfo
+            self.timezone_name = "local"
+        try:
+            ai_timeout = float(self.config.get("ai_generation_timeout_seconds", 45))
+        except (TypeError, ValueError):
+            ai_timeout = 45
+        self.ai_generation_timeout = min(120.0, max(5.0, ai_timeout))
         self.at_view_pig: bool = self.config.get("at_view_pig", False)
         self.enable_new_pig_pity: bool = self.config.get(
             "enable_new_pig_pity", True
@@ -194,7 +221,10 @@ class RollPigPlugin(Star):
         self._pighub_thumbnail_failures: dict[str, float] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
-        self._ai_roast_copy_lock = asyncio.Lock()
+        self._daily_draw_lock = asyncio.Lock()
+        self._page_write_lock = asyncio.Lock()
+        self._ai_roast_copy_locks: dict[str, asyncio.Lock] = {}
+        self._csrf_token = secrets.token_urlsafe(32)
         self._background_task: asyncio.Task | None = None
         self._manual_sync_task: asyncio.Task | None = None
         self._pighub_images: list[dict] = []
@@ -313,6 +343,146 @@ class RollPigPlugin(Star):
             except RuntimeError:
                 logger.info("当前尚无事件循环，将在手动同步时检查云端资源")
 
+
+    def _now(self) -> datetime.datetime:
+        """Return timezone-aware plugin time."""
+        return datetime.datetime.now(self.timezone)
+
+    def _today(self) -> datetime.date:
+        return self._now().date()
+
+    def _platform_namespace(self, event: AstrMessageEvent) -> str:
+        if self._is_whatsapp_event(event):
+            return "whatsapp"
+        platform_meta = getattr(event, "platform_meta", None)
+        candidates = (
+            getattr(event, "platform_name", None),
+            getattr(platform_meta, "name", None),
+            getattr(platform_meta, "id", None),
+            platform_meta,
+            getattr(getattr(event, "message_obj", None), "type", None),
+        )
+        for value in candidates:
+            text = str(value or "").strip().lower()
+            if text and text not in {"none", "unknown"}:
+                return re.sub(r"[^a-z0-9_.-]+", "-", text).strip("-") or "unknown"
+        return "unknown"
+
+    @staticmethod
+    def _legacy_identity(value: str) -> str:
+        text = str(value or "")
+        match = re.fullmatch(r"v2\|[^|]+\|(?:user|group)\|(.*)", text)
+        return match.group(1) if match else text
+
+    def _namespace_identity(self, event: AstrMessageEvent, value: str, kind: str) -> str:
+        raw = str(value or "").strip()
+        if not raw or raw.startswith("v2|"):
+            return raw
+        return f"v2|{self._platform_namespace(event)}|{kind}|{raw}"
+
+    def _identity_candidates(self, value: str) -> tuple[str, ...]:
+        value = str(value or "").strip()
+        legacy = self._legacy_identity(value)
+        return (value,) if legacy == value else (value, legacy)
+
+    def _storage_user_key(self, user_id: str) -> str:
+        candidates = self._identity_candidates(str(user_id))
+        users = getattr(self, "history", {}).get("users", {})
+        for candidate in candidates:
+            if candidate in users:
+                return candidate
+        penalties = getattr(self, "roast_state", {}).get("eaten_penalties", {})
+        for candidate in candidates:
+            if isinstance(penalties, dict) and candidate in penalties:
+                return candidate
+        return candidates[0]
+
+    def _storage_group_key(self, group_id: str) -> str:
+        candidates = self._identity_candidates(str(group_id))
+        daily = getattr(self, "history", {}).get("daily", {})
+        for day in daily.values() if isinstance(daily, dict) else ():
+            groups = day.get("groups", {}) if isinstance(day, dict) else {}
+            for candidate in candidates:
+                if isinstance(groups, dict) and candidate in groups:
+                    return candidate
+        return candidates[0]
+
+    def _is_admin_id(self, event: AstrMessageEvent, user_id: str) -> bool:
+        candidates = set(self._identity_candidates(user_id))
+        candidates.add(self._namespace_identity(event, self._legacy_identity(user_id), "user"))
+        return bool(candidates.intersection(self.admins_id))
+
+    def _ai_roast_lock(self, pig_id: str) -> asyncio.Lock:
+        key = str(pig_id or "__unknown__")
+        lock = self._ai_roast_copy_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._ai_roast_copy_locks[key] = lock
+        return lock
+
+    def _request_csrf_token(self, request_obj, payload=None) -> str:
+        try:
+            header = str(request_obj.headers.get("X-RollPig-CSRF", "") or "")
+            if header:
+                return header
+            return (
+                str(payload.get("__rollpig_csrf", "") or "")
+                if isinstance(payload, dict)
+                else ""
+            )
+        except Exception:
+            return ""
+
+    def _is_authorized_write_request(self, request_obj, payload=None) -> bool:
+        return self._is_same_origin_request(request_obj) and secrets.compare_digest(
+            self._request_csrf_token(request_obj, payload), self._csrf_token
+        )
+
+    @staticmethod
+    def _is_public_ip(address: str) -> bool:
+        try:
+            ip = ipaddress.ip_address(address)
+        except ValueError:
+            return False
+        return not (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        )
+
+    async def _validate_remote_target(self, url: str, allowed_hosts: set[str] | None = None) -> None:
+        parsed = urlsplit(url)
+        host = str(parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not host or parsed.username or parsed.password:
+            raise ValueError("远程地址必须是无凭据的 HTTPS URL")
+        if allowed_hosts is not None and host not in allowed_hosts:
+            raise ValueError(f"远程跳转到未授权主机：{host}")
+        try:
+            infos = await asyncio.to_thread(socket.getaddrinfo, host, 443, type=socket.SOCK_STREAM)
+        except OSError as exc:
+            raise ValueError(f"无法解析远程主机：{host}") from exc
+        addresses = {str(item[4][0]).split("%", 1)[0] for item in infos}
+        if not addresses or any(not self._is_public_ip(item) for item in addresses):
+            raise ValueError(f"远程主机解析到非公网地址：{host}")
+
+    @staticmethod
+    def _validate_image_dimensions(raw: bytes, label: str = "图片") -> None:
+        try:
+            with PILImage.open(io.BytesIO(raw)) as image:
+                width, height = image.size
+                if width < 1 or height < 1:
+                    raise ValueError(f"{label}尺寸无效")
+                if width > 8192 or height > 8192 or width * height > 25_000_000:
+                    raise ValueError(f"{label}尺寸过大，最高支持 8192×8192 / 2500 万像素")
+                image.verify()
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError(f"{label}内容无效") from exc
+
     def _load_font(
         self, font_candidates: list[str | Path], size: int, purpose: str
     ) -> ImageFont.FreeTypeFont | None:
@@ -389,7 +559,7 @@ class RollPigPlugin(Star):
 
     def _image_palette(self, now: datetime.datetime | None = None) -> dict[str, tuple[int, int, int] | bool]:
         """返回图片卡片的日／夜配色；自动模式在 19:00 至次日 06:59 使用夜色。"""
-        current = now or datetime.datetime.now().astimezone()
+        current = now or self._now()
         is_night = (
             self.image_theme == "dark"
             or (self.image_theme == "auto" and (current.hour >= 19 or current.hour < 7))
@@ -455,47 +625,71 @@ class RollPigPlugin(Star):
         draw.text((x, y), text, fill=fill, font=font)
 
     def load_json(self, path: Path, default):
-        """
-        加载JSON文件\n
-        :param path: 文件路径
-        :param default: 默认值（文件不存在或解析失败时使用）
-        :return: 解析后的数据对象
-        """
+        """Load JSON without destroying malformed user data."""
+        path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps(default, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            return default
+            self.save_json(path, default)
+            return json.loads(json.dumps(default, ensure_ascii=False))
         try:
             return json.loads(path.read_text("utf-8"))
-        except json.JSONDecodeError:
-            logger.error(f"JSON文件解析失败，重置为默认值：{path}")
-            path.write_text(
-                json.dumps(default, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            return default
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+            stamp = self._now().strftime("%Y%m%d-%H%M%S")
+            corrupt = path.with_name(f"{path.name}.corrupt-{stamp}")
+            try:
+                shutil.copy2(path, corrupt)
+            except OSError as backup_exc:
+                logger.error(f"JSON 损坏且备份失败：{path} ({backup_exc})")
+            backup = path.with_name(f"{path.name}.bak")
+            if backup.exists():
+                try:
+                    restored = json.loads(backup.read_text("utf-8"))
+                    logger.error(f"JSON 解析失败，已从备份恢复：{path}；损坏副本：{corrupt}")
+                    self.save_json(path, restored)
+                    return restored
+                except Exception:
+                    pass
+            logger.error(f"JSON 解析失败，已保留损坏副本并重建默认值：{path} ({exc})")
+            self.save_json(path, default)
+            return json.loads(json.dumps(default, ensure_ascii=False))
 
     def save_json(self, path: Path, data):
-        """
-        保存JSON数据\n
-        :param path: 文件路径
-        :param data: 数据对象
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(data, ensure_ascii=False, indent=2)
+        self.save_json_batch({path: data})
+
+    def save_json_batch(self, updates: dict[Path, object]) -> None:
+        """Atomically stage a related set of JSON files and roll back on replacement failure."""
+        staged: dict[Path, Path] = {}
+        backups: dict[Path, Path] = {}
+        replaced: list[Path] = []
         with self._data_lock:
-            with tempfile.NamedTemporaryFile(
-                "w",
-                encoding="utf-8",
-                dir=path.parent,
-                prefix=f".{path.name}.",
-                suffix=".tmp",
-                delete=False,
-            ) as tmp:
-                tmp.write(payload)
-                tmp_path = Path(tmp.name)
-            tmp_path.replace(path)
+            try:
+                for raw_path, data in updates.items():
+                    path = Path(raw_path)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    payload = json.dumps(data, ensure_ascii=False, indent=2)
+                    with tempfile.NamedTemporaryFile(
+                        "w", encoding="utf-8", dir=path.parent,
+                        prefix=f".{path.name}.", suffix=".tmp", delete=False,
+                    ) as tmp:
+                        tmp.write(payload)
+                        tmp.flush()
+                        os.fsync(tmp.fileno())
+                        staged[path] = Path(tmp.name)
+                    backup = path.with_name(f"{path.name}.bak")
+                    if path.exists():
+                        shutil.copy2(path, backup)
+                        backups[path] = backup
+                for path, tmp_path in staged.items():
+                    os.replace(tmp_path, path)
+                    replaced.append(path)
+            except Exception:
+                for path in reversed(replaced):
+                    backup = backups.get(path)
+                    if backup and backup.exists():
+                        shutil.copy2(backup, path)
+                raise
+            finally:
+                for tmp_path in staged.values():
+                    tmp_path.unlink(missing_ok=True)
 
     def _validate_pig_records(self, records) -> list[dict]:
         """校验并复制一份图鉴记录，避免坏云包污染运行中快照。"""
@@ -705,21 +899,31 @@ class RollPigPlugin(Star):
     async def _download_limited_once(
         self, client: httpx.AsyncClient, url: str, max_size: int
     ) -> bytes:
-        total = 0
-        chunks: list[bytes] = []
-        async with client.stream("GET", url) as response:
-            response.raise_for_status()
-            if response.url.scheme != "https":
-                raise ValueError(f"远程地址发生了非 HTTPS 跳转：{url}")
-            length = response.headers.get("Content-Length")
-            if length and length.isdigit() and int(length) > max_size:
-                raise ValueError(f"远程文件超过大小上限：{url}")
-            async for chunk in response.aiter_bytes():
-                total += len(chunk)
-                if total > max_size:
-                    raise ValueError(f"远程文件超过大小上限：{url}")
-                chunks.append(chunk)
-        return b"".join(chunks)
+        current = url
+        original_host = str(urlsplit(url).hostname or "").lower()
+        allowed_hosts = {original_host, "pighub.top"}
+        for _ in range(4):
+            await self._validate_remote_target(current, allowed_hosts)
+            async with client.stream("GET", current) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = str(response.headers.get("Location", "") or "")
+                    if not location:
+                        raise ValueError("远程跳转缺少 Location")
+                    current = urljoin(current, location)
+                    continue
+                response.raise_for_status()
+                length = response.headers.get("Content-Length")
+                if length and length.isdigit() and int(length) > max_size:
+                    raise ValueError(f"远程文件超过大小上限：{current}")
+                total = 0
+                chunks: list[bytes] = []
+                async for chunk in response.aiter_bytes():
+                    total += len(chunk)
+                    if total > max_size:
+                        raise ValueError(f"远程文件超过大小上限：{current}")
+                    chunks.append(chunk)
+                return b"".join(chunks)
+        raise ValueError("远程地址跳转次数过多")
 
     def _new_http_client(
         self,
@@ -745,7 +949,7 @@ class RollPigPlugin(Star):
                 write=timeout_seconds,
                 pool=max(15, timeout_seconds),
             ),
-            "follow_redirects": follow_redirects,
+            "follow_redirects": False,
             "headers": {"User-Agent": self.USER_AGENT},
             "trust_env": self.resource_use_system_proxy,
         }
@@ -870,21 +1074,31 @@ class RollPigPlugin(Star):
                                 raise ValueError("云资源包总大小超过 128 MiB")
                         return filename, data
 
-                    downloads = await asyncio.gather(
-                        *(fetch_image(meta) for meta in image_metas)
-                    )
-                    filenames = [filename for filename, _ in downloads]
+                    async def fetch_and_store(meta):
+                        filename, data = await fetch_image(meta)
+                        self._validate_image_dimensions(data, filename)
+                        await asyncio.to_thread(
+                            (staging_images / filename).write_bytes, data
+                        )
+                        return filename
+
+                    tasks = [
+                        asyncio.create_task(fetch_and_store(meta))
+                        for meta in image_metas
+                    ]
+                    filenames: list[str] = []
+                    try:
+                        for task in asyncio.as_completed(tasks):
+                            filenames.append(await task)
+                    except Exception:
+                        for task in tasks:
+                            task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        raise
                     if len(filenames) != len(set(filenames)):
                         raise ValueError("云资源 manifest 存在重复图片文件名")
-                    for filename, data in downloads:
-                        try:
-                            with PILImage.open(io.BytesIO(data)) as image:
-                                image.verify()
-                        except Exception as exc:
-                            raise ValueError(f"图片内容无效：{filename}") from exc
-                        (staging_images / filename).write_bytes(data)
                     pig_ids = {item["id"] for item in pigs}
-                    image_ids = {Path(name).stem for name, _ in downloads}
+                    image_ids = {Path(name).stem for name in filenames}
                     missing = pig_ids.difference(image_ids)
                     if missing:
                         raise ValueError(
@@ -1072,8 +1286,7 @@ class RollPigPlugin(Star):
     @staticmethod
     def _make_pighub_thumbnail(raw: bytes, size: int) -> tuple[dict, bytes]:
         """校验远端图片后生成固定尺寸 PNG 与 Canvas RGBA 像素。"""
-        with PILImage.open(io.BytesIO(raw)) as source:
-            source.verify()
+        RollPigPlugin._validate_image_dimensions(raw, "PigHub 图片")
         with PILImage.open(io.BytesIO(raw)) as source:
             method = getattr(PILImage, "Resampling", PILImage).LANCZOS
             thumb = ImageOps.fit(
@@ -1179,7 +1392,7 @@ class RollPigPlugin(Star):
         save: bool = True,
     ) -> bool:
         """记录每日抽取和永久解锁。一天同一用户只统计一次。"""
-        draw_date = draw_date or datetime.date.today().isoformat()
+        draw_date = draw_date or self._today().isoformat()
         pig_id = str(pig_data.get("id") or "").strip()
         if not pig_id:
             return False
@@ -1244,8 +1457,12 @@ class RollPigPlugin(Star):
             return True
 
     def _get_user_collection(self, user_id: str) -> dict:
-        user = self.history.get("users", {}).get(str(user_id), {})
-        return user if isinstance(user, dict) else {}
+        users = self.history.get("users", {})
+        for candidate in self._identity_candidates(str(user_id)):
+            user = users.get(candidate, {})
+            if isinstance(user, dict) and user:
+                return user
+        return {}
 
     def _reload_catalog(self):
         self.pig_list = self.load_json(self.catalog_path, [])
@@ -1275,7 +1492,12 @@ class RollPigPlugin(Star):
 
     def _get_daily_pig(self, user_id: str, date_value: datetime.date) -> dict | None:
         day = self.history.get("daily", {}).get(date_value.isoformat(), {})
-        pig_id = str(day.get("records", {}).get(str(user_id), ""))
+        records = day.get("records", {})
+        pig_id = ""
+        for candidate in self._identity_candidates(str(user_id)):
+            pig_id = str(records.get(candidate, ""))
+            if pig_id:
+                break
         if not pig_id:
             return None
         return self._find_catalog_pig(pig_id) or self.history.get(
@@ -1296,9 +1518,8 @@ class RollPigPlugin(Star):
                 return original, True
         return self._get_daily_pig(user_key, date_value), False
 
-    @staticmethod
-    def _event_group_id(event: AstrMessageEvent) -> str:
-        """返回群 ID；私聊或适配器未提供时返回空字符串。"""
+    def _event_group_id(self, event: AstrMessageEvent) -> str:
+        """Return a platform-namespaced group ID; private chats return an empty string."""
         try:
             group_id = str(event.get_group_id() or "")
         except (AttributeError, TypeError):
@@ -1310,9 +1531,13 @@ class RollPigPlugin(Star):
                 chat_jid = str(raw_message.get("chatJid") or "")
                 if chat_jid.endswith("@g.us"):
                     group_id = chat_jid
-        if group_id.endswith("@g.us") and RollPigPlugin._is_whatsapp_event(event):
-            return group_id.split("@", 1)[0]
-        return group_id
+        if group_id.endswith("@g.us") and self._is_whatsapp_event(event):
+            group_id = group_id.split("@", 1)[0]
+        if not group_id:
+            return ""
+        return self._storage_group_key(
+            self._namespace_identity(event, group_id, "group")
+        )
 
     @staticmethod
     def _normalise_platform_user_id(value) -> str:
@@ -1356,17 +1581,29 @@ class RollPigPlugin(Star):
 
     @staticmethod
     def _whatsapp_lid_to_pn(value: str) -> str:
-        """从 WhatsApp 适配器的运行时映射解析 LID；适配器未安装时安全返回原值。"""
+        """Resolve WhatsApp LID through a public adapter hook when available."""
         raw = str(value or "").strip()
         if not raw.lower().endswith("@lid"):
             return raw
         try:
-            from astrbot_plugin_whatsapp_adapter.whatsapp_adapter import _LID_PN_CACHE
-
-            mapped = _LID_PN_CACHE.get(raw) or _LID_PN_CACHE.get(raw.lower())
-            return str(mapped or raw)
+            module = importlib.import_module(
+                "astrbot_plugin_whatsapp_adapter.whatsapp_adapter"
+            )
+            for name in ("resolve_lid_to_pn", "get_phone_number_for_lid"):
+                resolver = getattr(module, name, None)
+                if callable(resolver):
+                    mapped = resolver(raw)
+                    if mapped:
+                        return str(mapped)
+            # Compatibility only: old adapter releases expose no public resolver.
+            cache = getattr(module, "_LID_PN_CACHE", None)
+            if isinstance(cache, dict):
+                mapped = cache.get(raw) or cache.get(raw.lower())
+                if mapped:
+                    return str(mapped)
         except Exception:
-            return raw
+            pass
+        return raw
 
     def _identity_exists(self, user_id: str) -> bool:
         """检查旧版或当前数据是否已经使用某个用户键，避免升级时重复抽取。"""
@@ -1393,8 +1630,10 @@ class RollPigPlugin(Star):
     def _canonical_user_id(self, event: AstrMessageEvent, value) -> str:
         """统一 WhatsApp 的手机号、PN JID、LID JID，跨消息段稳定识别同一用户。"""
         result = self._normalise_platform_user_id(value)
-        if not result or not self._is_whatsapp_event(event):
+        if not result:
             return result
+        if not self._is_whatsapp_event(event):
+            return self._namespace_identity(event, result, "user")
         resolved = self._whatsapp_lid_to_pn(result)
         lowered = resolved.lower()
         if lowered.endswith(("@s.whatsapp.net", "@c.us", "@lid")):
@@ -1408,8 +1647,8 @@ class RollPigPlugin(Star):
             if legacy_digits and legacy_digits != canonical:
                 if self._identity_exists(legacy_digits) and not self._identity_exists(canonical):
                     return legacy_digits
-            return canonical
-        return resolved
+            return self._namespace_identity(event, canonical, "user")
+        return self._namespace_identity(event, resolved, "user")
 
     def _event_sender_id(self, event: AstrMessageEvent) -> str:
         """读取并规范化发送者 ID，覆盖 WhatsApp LID 仅作为回退 ID 的情况。"""
@@ -1593,9 +1832,9 @@ class RollPigPlugin(Star):
         self, group_id: str, user_id: str, draw_date: str | None = None
     ) -> int:
         """记录群聊中实际被烤的一次结果，返回该用户当日累计次数。"""
-        draw_date = draw_date or datetime.date.today().isoformat()
+        draw_date = draw_date or self._today().isoformat()
         key = self._roast_count_key(draw_date, group_id, user_id)
-        cutoff = (datetime.date.today() - datetime.timedelta(days=8)).isoformat()
+        cutoff = (self._today() - datetime.timedelta(days=8)).isoformat()
         with self._data_lock:
             counts = self.roast_state.setdefault("daily_roast_counts", {})
             if not isinstance(counts, dict):
@@ -1615,7 +1854,7 @@ class RollPigPlugin(Star):
         """昨天被烤达到阈值的成员，今天自动获得普通烧烤保护。"""
         if not self.enable_roast_protection:
             return False, 0
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        yesterday = (self._today() - datetime.timedelta(days=1)).isoformat()
         key = self._roast_count_key(yesterday, group_id, user_id)
         counts = self.roast_state.get("daily_roast_counts", {})
         count = int(counts.get(key, 0) or 0) if isinstance(counts, dict) else 0
@@ -1636,16 +1875,16 @@ class RollPigPlugin(Star):
             or self.history.get("pig_snapshots", {}).get("eaten")
             or self.EATEN_PIG_FALLBACK
         )
-        today = datetime.date.today().isoformat()
-        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        today = self._today().isoformat()
+        tomorrow = (self._today() + datetime.timedelta(days=1)).isoformat()
         today_cache = self.load_json(self.today_path, {"date": "", "records": {}})
         if today_cache.get("date") != today:
             return None
         with self._data_lock:
+            storage_id = self._storage_user_key(str(user_id))
             records = today_cache.setdefault("records", {})
-            previous_pig = records.get(str(user_id))
-            records[str(user_id)] = dict(eaten)
-            self.save_json(self.today_path, today_cache)
+            previous_pig = records.get(storage_id)
+            records[storage_id] = dict(eaten)
 
             daily = self.history.setdefault("daily", {})
             day = daily.setdefault(
@@ -1653,31 +1892,30 @@ class RollPigPlugin(Star):
                 {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
             )
             daily_records = day.setdefault("records", {})
-            original_id = str(daily_records.get(str(user_id)) or "")
+            original_id = str(daily_records.get(storage_id) or "")
             if not original_id and isinstance(previous_pig, dict):
                 original_id = str(previous_pig.get("id") or "")
             if original_id and original_id != "eaten":
-                day.setdefault("eaten_originals", {}).setdefault(str(user_id), original_id)
-            daily_records[str(user_id)] = "eaten"
+                day.setdefault("eaten_originals", {}).setdefault(storage_id, original_id)
+            daily_records[storage_id] = "eaten"
             self.history.setdefault("pig_snapshots", {})["eaten"] = dict(eaten)
-            self.save_json(self.history_path, self.history)
 
             penalties = self.roast_state.setdefault("eaten_penalties", {})
             if not isinstance(penalties, dict):
                 penalties = {}
                 self.roast_state["eaten_penalties"] = penalties
-            penalties[str(user_id)] = {"due_date": tomorrow, "failed": False}
+            penalties[storage_id] = {"due_date": tomorrow, "failed": False}
             events = self.roast_state.setdefault("eaten_events", {})
             if not isinstance(events, dict):
                 events = {}
                 self.roast_state["eaten_events"] = events
-            events[self._roast_count_key(today, group_id, str(user_id))] = {
+            events[self._roast_count_key(today, group_id, storage_id)] = {
                 "actor_id": str(actor_id),
                 "outcome": outcome,
                 "at": int(time.time()),
             }
             # 仅保留可用于昨天／今天日报与次日惩罚的近期记录。
-            cutoff = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
+            cutoff = (self._today() - datetime.timedelta(days=2)).isoformat()
             self.roast_state["eaten_events"] = {
                 key: value
                 for key, value in events.items()
@@ -1689,7 +1927,13 @@ class RollPigPlugin(Star):
                 if isinstance(value, dict)
                 and str(value.get("due_date") or "") >= today
             }
-            self._save_roast_state()
+            self.save_json_batch(
+                {
+                    self.today_path: today_cache,
+                    self.history_path: self.history,
+                    self.roast_state_path: self.roast_state,
+                }
+            )
         return dict(eaten)
 
     def _consume_eaten_penalty(self, user_id: str, today: str) -> bool:
@@ -1699,12 +1943,13 @@ class RollPigPlugin(Star):
             if not isinstance(penalties, dict):
                 penalties = {}
                 self.roast_state["eaten_penalties"] = penalties
-            entry = penalties.get(str(user_id))
+            storage_id = self._storage_user_key(str(user_id))
+            entry = penalties.get(storage_id)
             if not isinstance(entry, dict):
                 return False
             due_date = str(entry.get("due_date") or "")
             if due_date < today:
-                penalties.pop(str(user_id), None)
+                penalties.pop(storage_id, None)
                 self._save_roast_state()
                 return False
             if due_date != today:
@@ -1713,10 +1958,10 @@ class RollPigPlugin(Star):
                 return True
             if random.randrange(100) < self.eaten_next_day_failure_percent:
                 entry["failed"] = True
-                penalties[str(user_id)] = entry
+                penalties[storage_id] = entry
                 self._save_roast_state()
                 return True
-            penalties.pop(str(user_id), None)
+            penalties.pop(storage_id, None)
             self._save_roast_state()
         return False
 
@@ -1739,14 +1984,14 @@ class RollPigPlugin(Star):
 
     def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
-        key = f"{datetime.date.today().isoformat()}:{actor_id}"
+        key = f"{self._today().isoformat()}:{actor_id}"
         with self._data_lock:
             used = self.roast_state.setdefault("daily_backdoors", {})
             if used.get(key):
                 return False
             used[key] = True
             # 只保留近期数据，避免状态文件无限增长。
-            cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+            cutoff = (self._today() - datetime.timedelta(days=7)).isoformat()
             self.roast_state["daily_backdoors"] = {
                 item: value
                 for item, value in used.items()
@@ -1764,7 +2009,7 @@ class RollPigPlugin(Star):
 
     def _recent_ai_roast_copies(self, pig_id: str) -> tuple[dict[str, str], bool]:
         """返回指定小猪近七天文案，并清理整个缓存中的过期或损坏项。"""
-        today = datetime.date.today()
+        today = self._today()
         cutoff = (today - datetime.timedelta(days=6)).isoformat()
         today_text = today.isoformat()
         copies_root = self.ai_roast_copies.get("copies")
@@ -1804,8 +2049,8 @@ class RollPigPlugin(Star):
         pig_id = str(pig.get("id") or "").strip()
         if not pig_id:
             return await self._generate_ai_roast_copy(event, pig)
-        today = datetime.date.today().isoformat()
-        async with self._ai_roast_copy_lock:
+        today = self._today().isoformat()
+        async with self._ai_roast_lock(pig_id):
             with self._data_lock:
                 recent, changed = self._recent_ai_roast_copies(pig_id)
                 if changed:
@@ -1849,20 +2094,24 @@ class RollPigPlugin(Star):
             if callable(get_provider_id) and callable(llm_generate) and umo:
                 provider_id = await get_provider_id(umo=umo)
                 if provider_id:
-                    response = await llm_generate(
-                        chat_provider_id=provider_id, prompt=prompt
+                    response = await asyncio.wait_for(
+                        llm_generate(chat_provider_id=provider_id, prompt=prompt),
+                        timeout=self.ai_generation_timeout,
                     )
             if response is None:
                 provider = self.context.get_using_provider()
                 if provider is None:
                     return None
-                response = await provider.text_chat(
-                    prompt=prompt,
-                    session_id=None,
-                    contexts=[],
-                    image_urls=[],
-                    func_tool=None,
-                    system_prompt="",
+                response = await asyncio.wait_for(
+                    provider.text_chat(
+                        prompt=prompt,
+                        session_id=None,
+                        contexts=[],
+                        image_urls=[],
+                        func_tool=None,
+                        system_prompt="",
+                    ),
+                    timeout=self.ai_generation_timeout,
                 )
             text = str(getattr(response, "completion_text", "") or "").strip()
             text = re.sub(r"^\s*(?:文案|料理文案|答案)\s*[：:]\s*", "", text)
@@ -1902,7 +2151,7 @@ class RollPigPlugin(Star):
                 func_tool=None,
                 system_prompt="",
             ),
-            timeout=60,
+            timeout=self.ai_generation_timeout,
         )
         text = str(getattr(response, "completion_text", "") or "").strip()
         text = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text, flags=re.IGNORECASE)
@@ -1959,7 +2208,7 @@ class RollPigPlugin(Star):
         if target_id == actor_id:
             await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
             return
-        target_pig = self._get_daily_pig(target_id, datetime.date.today())
+        target_pig = self._get_daily_pig(target_id, self._today())
         reason = self._roast_block_reason(target_pig)
         if reason:
             await event.send(event.plain_result(reason))
@@ -1985,7 +2234,7 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。"))
             return
         if result == "backlash":
-            actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+            actor_pig = self._get_daily_pig(actor_id, self._today())
             actor_reason = self._roast_block_reason(actor_pig)
             if actor_reason:
                 await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
@@ -2015,7 +2264,7 @@ class RollPigPlugin(Star):
         if target_id == actor_id:
             await event.send(event.plain_result("不能吃自己；今天已经够饿了。"))
             return
-        actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+        actor_pig = self._get_daily_pig(actor_id, self._today())
         actor_reason = self._roast_block_reason(actor_pig)
         if actor_reason:
             await event.send(
@@ -2024,7 +2273,7 @@ class RollPigPlugin(Star):
                 )
             )
             return
-        target_pig = self._get_daily_pig(target_id, datetime.date.today())
+        target_pig = self._get_daily_pig(target_id, self._today())
         target_reason = self._roast_block_reason(target_pig)
         if target_reason:
             await event.send(event.plain_result(target_reason))
@@ -2105,20 +2354,13 @@ class RollPigPlugin(Star):
         avatar_path = self.find_image_file(pig_id)
         if avatar_path:
             try:
-                avatar = PILImage.open(avatar_path)
-                avatar.thumbnail((avatar_w, avatar_h))
-                # 居中裁剪（保证正方形，适配新尺寸：280/2=140）
-                if avatar.size != (avatar_w, avatar_h):
-                    center_x = avatar.width // 2
-                    center_y = avatar.height // 2
-                    half = self.AVATAR_SIZE // 2
-                    crop_box = (
-                        center_x - half,
-                        center_y - half,
-                        center_x + half,
-                        center_y + half,
+                with PILImage.open(avatar_path) as source:
+                    method = getattr(PILImage, "Resampling", PILImage).LANCZOS
+                    avatar = ImageOps.fit(
+                        ImageOps.exif_transpose(source).convert("RGBA"),
+                        (avatar_w, avatar_h),
+                        method,
                     )
-                    avatar = avatar.crop(crop_box)
             except Exception as e:
                 logger.error(f"加载小猪图片失败：{str(e)}")
                 avatar = None
@@ -2152,6 +2394,10 @@ class RollPigPlugin(Star):
                 current_line = char
         if current_line:
             analysis_lines.append(current_line)
+        max_analysis_lines = 6
+        if len(analysis_lines) > max_analysis_lines:
+            analysis_lines = analysis_lines[:max_analysis_lines]
+            analysis_lines[-1] = analysis_lines[-1].rstrip("…") + "…"
         # 计算解析总高度
         analysis_total_h = len(analysis_lines) * line_height
 
@@ -2404,7 +2650,7 @@ class RollPigPlugin(Star):
 
     def render_weekly_summary(self, user_id: str) -> Path:
         palette = self._image_palette()
-        today = datetime.date.today()
+        today = self._today()
         monday = today - datetime.timedelta(days=today.weekday())
         canvas = PILImage.new("RGB", (900, 1080), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
@@ -2477,7 +2723,7 @@ class RollPigPlugin(Star):
             ("慢烤照烧", "低温慢烤锁住快乐，再刷上一层闪亮好运。"),
             ("香草熔岩", "表面平静，内心滚烫，是今天最有戏的小猪料理。"),
         ]
-        seed = f"{user_id}:{datetime.date.today().isoformat()}:{pig.get('id')}"
+        seed = f"{user_id}:{self._today().isoformat()}:{pig.get('id')}"
         digest = hashlib.sha256(seed.encode("utf-8")).digest()
         recipe, copy = recipes[digest[0] % len(recipes)]
         if ai_copy:
@@ -2511,6 +2757,9 @@ class RollPigPlugin(Star):
                 current = candidate
         if current:
             lines.append(current)
+        if len(lines) > 3:
+            lines = lines[:3]
+            lines[-1] = lines[-1].rstrip("…") + "…"
         for index, line in enumerate(lines):
             line_w, _ = self._get_text_size(line, body_font)
             draw.text(((800 - line_w) // 2, 705 + index * 42), line, font=body_font, fill=palette["roast_body"])
@@ -2667,54 +2916,75 @@ class RollPigPlugin(Star):
         },
     )
     async def roll_pig(self, event: AstrMessageEvent):
-        """抽取今日小猪／今日小豬"""
-        today_str = datetime.date.today().isoformat()
-        user_id = self._event_sender_id(event)
-        is_self_draw = True
+        """Draw for self; mentioning another user is strictly read-only."""
+        today_str = self._today().isoformat()
+        actor_id = self._event_sender_id(event)
+        target_id = actor_id
+        viewing_other = False
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
-                await event.send(event.plain_result("一次只能抽取一个小猪哦！"))
+                await event.send(event.plain_result("一次只能查看一个小猪哦！"))
                 return
             if at_ids:
-                if at_ids[0] not in self.admins_id:
-                    user_id = at_ids[0]
-                    is_self_draw = False
-                else:
+                target_id = at_ids[0]
+                viewing_other = target_id != actor_id
+                if self._is_admin_id(event, target_id):
                     await event.send(event.plain_result("你这只小猪，不许对主人不敬！"))
                     return
-        if is_self_draw and self._consume_eaten_penalty(str(user_id), today_str):
-            await event.send(
-                event.plain_result(
-                    "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+
+        async with self._daily_draw_lock:
+            today_cache = self.load_json(
+                self.today_path, {"date": "", "records": {}}
+            )
+            if today_cache.get("date") != today_str:
+                today_cache = {"date": today_str, "records": {}}
+            user_records = today_cache.setdefault("records", {})
+            existing = next(
+                (
+                    user_records[candidate]
+                    for candidate in self._identity_candidates(target_id)
+                    if candidate in user_records
+                ),
+                None,
+            )
+            if viewing_other:
+                if not existing:
+                    await event.send(
+                        event.plain_result("对方今天还没有抽取小猪；查看不会替对方抽取。")
+                    )
+                    return
+                await self.send_rendered_pig(event, existing, target_id)
+                return
+
+            if self._consume_eaten_penalty(str(actor_id), today_str):
+                await event.send(
+                    event.plain_result(
+                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+                    )
                 )
-            )
-            return
-        today_cache = self.load_json(self.today_path, {"date": "", "records": {}})
-        if today_cache.get("date") != today_str:
-            today_cache = {"date": today_str, "records": {}}
-        user_records = today_cache["records"]
+                return
+            if existing:
+                await self.send_rendered_pig(event, existing, actor_id)
+                return
+            if not self.pig_list:
+                await event.send(event.plain_result("小猪信息加载失败，请检查后台报错！"))
+                return
 
-        if user_id in user_records:
-            pig = user_records[user_id]
+            storage_id = self._storage_user_key(actor_id)
+            pig = self._choose_daily_pig(storage_id)
+            user_records[storage_id] = pig
             self._record_unlock(
-                user_id, pig, today_str, group_id=self._event_group_id(event)
+                storage_id,
+                pig,
+                today_str,
+                group_id=self._event_group_id(event),
+                save=False,
             )
-            await self.send_rendered_pig(event, pig, user_id)
-            return
-
-        if not self.pig_list:
-            await event.send(event.plain_result("小猪信息加载失败，请检查后台报错！"))
-            return
-
-        pig = self._choose_daily_pig(user_id)
-        user_records[user_id] = pig
-        self.save_json(self.today_path, today_cache)
-        self._record_unlock(
-            user_id, pig, today_str, group_id=self._event_group_id(event)
-        )
-
-        await self.send_rendered_pig(event, pig, user_id)
+            self.save_json_batch(
+                {self.today_path: today_cache, self.history_path: self.history}
+            )
+        await self.send_rendered_pig(event, pig, actor_id)
 
     @filter.command(
         "我的猪圈",
@@ -2762,7 +3032,7 @@ class RollPigPlugin(Star):
     async def yesterday_pig(self, event: AstrMessageEvent):
         """查看昨天抽到的小猪。"""
         pig = self._get_daily_pig(
-            self._event_sender_id(event), datetime.date.today() - datetime.timedelta(days=1)
+            self._event_sender_id(event), self._today() - datetime.timedelta(days=1)
         )
         if not pig:
             await event.send(event.plain_result("昨天没有找到你的小猪记录。"))
@@ -2781,7 +3051,7 @@ class RollPigPlugin(Star):
         if not self.pig_list:
             await event.send(event.plain_result("小猪图鉴为空。"))
             return
-        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        tomorrow = self._today() + datetime.timedelta(days=1)
         user_id = self._event_sender_id(event)
         digest = hashlib.sha256(f"{user_id}:{tomorrow.isoformat()}".encode()).digest()
         pig = self.pig_list[int.from_bytes(digest[:4], "big") % len(self.pig_list)]
@@ -2885,7 +3155,7 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("今日烤猪功能已在配置中关闭。"))
             return
         user_id = self._event_sender_id(event)
-        pig = self._get_daily_pig(user_id, datetime.date.today())
+        pig = self._get_daily_pig(user_id, self._today())
         reason = self._roast_block_reason(pig)
         if reason:
             if not pig:
@@ -2914,7 +3184,7 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("随机烤群友只能在群聊中使用。"))
             return
         actor_id = self._event_sender_id(event)
-        today = datetime.date.today()
+        today = self._today()
         day = self.history.get("daily", {}).get(today.isoformat(), {})
         members = day.get("groups", {}).get(group_id, [])
         candidates = []
@@ -2955,18 +3225,18 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("随机吃群友只能在群聊中使用。"))
             return
         actor_id = self._event_sender_id(event)
-        actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+        actor_pig = self._get_daily_pig(actor_id, self._today())
         if self._roast_block_reason(actor_pig):
             await event.send(event.plain_result("你得先有一只可行动的今日小猪。"))
             return
-        day = self.history.get("daily", {}).get(datetime.date.today().isoformat(), {})
+        day = self.history.get("daily", {}).get(self._today().isoformat(), {})
         members = day.get("groups", {}).get(group_id, [])
         candidates = []
         for user_id in members if isinstance(members, list) else []:
             user_id = str(user_id)
             if user_id == actor_id:
                 continue
-            pig = self._get_daily_pig(user_id, datetime.date.today())
+            pig = self._get_daily_pig(user_id, self._today())
             protected, _ = self._roast_protection_status(group_id, user_id)
             if not self._roast_block_reason(pig) and not protected:
                 candidates.append(user_id)
@@ -2986,7 +3256,7 @@ class RollPigPlugin(Star):
         if not group_id:
             await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
             return
-        today = datetime.date.today().isoformat()
+        today = self._today().isoformat()
         day = self.history.get("daily", {}).get(today, {})
         members = day.get("groups", {}).get(group_id, [])
         victims = self._daily_eaten_victims(group_id, today)
@@ -3025,12 +3295,12 @@ class RollPigPlugin(Star):
         is_super_phrase = "强行点火" in raw or "強行點火" in raw
         actor_id = self._event_sender_id(event)
         if is_super_phrase:
-            if actor_id not in {str(item) for item in self.admins_id}:
+            if not self._is_admin_id(event, actor_id):
                 await event.send(event.plain_result("「强行点火」仅限 AstrBot 超级管理员使用。"))
                 return
         target_id = self._extract_roast_target_id(event, args)
         group_id = self._event_group_id(event)
-        target_pig = self._get_daily_pig(target_id, datetime.date.today()) if target_id else None
+        target_pig = self._get_daily_pig(target_id, self._today()) if target_id else None
         if not group_id:
             await event.send(event.plain_result("烤群友只能在群聊中使用。"))
             return
@@ -3105,21 +3375,21 @@ class RollPigPlugin(Star):
         await event.send(event.chain_result(msg_chain))
 
     def _is_same_origin_request(self, request) -> bool:
-        host = request.headers.get("Host", "") if request else ""
-        origin = request.headers.get("Origin", "") if request else ""
-        referer = request.headers.get("Referer", "") if request else ""
-        sec_fetch_site = request.headers.get("Sec-Fetch-Site", "") if request else ""
-        if sec_fetch_site and sec_fetch_site not in {
-            "same-origin",
-            "same-site",
-            "none",
-        }:
+        if not request:
             return False
-        if origin:
-            return host and origin.split("://", 1)[-1].split("/", 1)[0] == host
-        if referer:
-            return host and referer.split("://", 1)[-1].split("/", 1)[0] == host
-        return sec_fetch_site == "none"
+        host = str(request.headers.get("Host", "") or "").lower()
+        origin = str(request.headers.get("Origin", "") or "")
+        referer = str(request.headers.get("Referer", "") or "")
+        sec_fetch_site = str(request.headers.get("Sec-Fetch-Site", "") or "").lower()
+        if not host or (
+            sec_fetch_site and sec_fetch_site not in {"same-origin", "same-site"}
+        ):
+            return False
+        source = origin or referer
+        if not source:
+            return False
+        parsed = urlsplit(source)
+        return parsed.scheme in {"http", "https"} and parsed.netloc.lower() == host
 
     def _catalog_aggregates(self) -> tuple[Counter, Counter]:
         draws: Counter = Counter()
@@ -3132,13 +3402,15 @@ class RollPigPlugin(Star):
 
     @staticmethod
     def _rgba_pixel_payload(image: PILImage.Image, size: int) -> dict:
-        """返回保留透明通道的 Canvas 像素，绕过沙箱中的图片 URL。"""
+        """Return a compressed PNG data URL for dashboard canvases."""
         method = getattr(PILImage, "Resampling", PILImage).LANCZOS
         fitted = ImageOps.fit(image.convert("RGBA"), (size, size), method)
+        output = io.BytesIO()
+        fitted.save(output, "PNG", optimize=True)
         return {
             "width": size,
             "height": size,
-            "rgba": base64.b64encode(fitted.tobytes()).decode("ascii"),
+            "png": base64.b64encode(output.getvalue()).decode("ascii"),
         }
 
     def _thumbnail_pixels(self, pig_id: str) -> dict:
@@ -3217,7 +3489,8 @@ class RollPigPlugin(Star):
     async def page_overview(self):
         """管理面板：总体指标、趋势与热门小猪。"""
         try:
-            today = datetime.date.today()
+            await asyncio.sleep(0)
+            today = self._today()
             users = self.history.get("users", {})
             catalog_ids = {str(pig.get("id")) for pig in self.pig_list}
             total_users = len(users)
@@ -3275,6 +3548,7 @@ class RollPigPlugin(Star):
                         },
                         "trend": trend,
                         "top_pigs": top_pigs,
+                        "csrf_token": self._csrf_token,
                     },
                 }
             )
@@ -3311,7 +3585,7 @@ class RollPigPlugin(Star):
                 pig_id = str(item.get("id") or "")
                 item.update(
                     {
-                        "thumbnail": self._thumbnail_pixels(pig_id),
+                        "thumbnail": await asyncio.to_thread(self._thumbnail_pixels, pig_id),
                         "draws": draws[pig_id],
                         "collectors": collectors[pig_id],
                         "custom_image": any(
@@ -3339,9 +3613,9 @@ class RollPigPlugin(Star):
     async def page_pig_suggest(self):
         """管理面板：为 PigHub 小猪生成可编辑的描述与文案草稿。"""
         try:
-            if not self._is_same_origin_request(request):
-                return self._jsonify({"status": "error", "message": "请求来源无效"})
             payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if not isinstance(payload, dict):
                 return self._jsonify({"status": "error", "message": "请求数据无效"})
             name = str(payload.get("name") or "").strip()
@@ -3364,9 +3638,9 @@ class RollPigPlugin(Star):
     async def page_pig_save(self):
         """管理面板：校验、标准化图片，并新增或修改完整小猪资料。"""
         try:
-            if not self._is_same_origin_request(request):
-                return self._jsonify({"status": "error", "message": "请求来源无效"})
             payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if not isinstance(payload, dict):
                 return self._jsonify({"status": "error", "message": "请求数据无效"})
             original_id = str(payload.get("original_id") or "").strip()
@@ -3440,8 +3714,12 @@ class RollPigPlugin(Star):
                 tombstones.discard(pig_id)
                 if normalized_image:
                     self._write_custom_image(pig_id, normalized_image)
-                self.save_json(self.local_overrides_path, overrides)
-                self.save_json(self.tombstones_path, sorted(tombstones))
+                self.save_json_batch(
+                    {
+                        self.local_overrides_path: overrides,
+                        self.tombstones_path: sorted(tombstones),
+                    }
+                )
                 self._reload_catalog_layers()
             logger.info(f"管理页{'编辑' if existing else '新增'}小猪：{pig_id}")
             return self._jsonify(
@@ -3459,9 +3737,9 @@ class RollPigPlugin(Star):
     async def page_pig_delete(self):
         """管理面板：删除目录记录；历史解锁统计保留。"""
         try:
-            if not self._is_same_origin_request(request):
-                return self._jsonify({"status": "error", "message": "请求来源无效"})
             payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             pig_id = str(payload.get("id") if isinstance(payload, dict) else "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
@@ -3478,8 +3756,12 @@ class RollPigPlugin(Star):
                     for item in self.load_json(self.tombstones_path, [])
                 }
                 tombstones.add(pig_id)
-                self.save_json(self.local_overrides_path, overrides)
-                self.save_json(self.tombstones_path, sorted(tombstones))
+                self.save_json_batch(
+                    {
+                        self.local_overrides_path: overrides,
+                        self.tombstones_path: sorted(tombstones),
+                    }
+                )
                 for ext in self.IMAGE_EXTENSIONS:
                     (self.custom_image_dir / f"{pig_id}.{ext}").unlink(
                         missing_ok=True
@@ -3502,8 +3784,9 @@ class RollPigPlugin(Star):
     async def page_resource_sync(self):
         """管理面板：在后台同步，避免两百张图片阻塞 Dashboard 请求。"""
         try:
-            if not self._is_same_origin_request(request):
-                return self._jsonify({"status": "error", "message": "请求来源无效"})
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if self._manual_sync_task and not self._manual_sync_task.done():
                 return self._jsonify(
                     {
