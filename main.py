@@ -66,9 +66,15 @@ class RollPigPlugin(Star):
     ROAST_HUMAN_NAMES = {"人类", "人類"}
     ROAST_EATEN_NAMES = {"吃掉了"}
     ROAST_COOKED_NAMES = {"猪油", "豬油", "熟食形态", "熟食形態"}
+    EATEN_PIG_FALLBACK = {
+        "id": "eaten",
+        "name": "吃掉了",
+        "description": "你来晚了",
+        "analysis": "盘子空空如也；今天的小猪已经被不知名的力量吃掉了。",
+    }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/1.8 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -88,6 +94,7 @@ class RollPigPlugin(Star):
         self.pity_step_percent = min(50, max(0, pity_step))
         self.enable_roast: bool = self.config.get("enable_roast", True)
         self.enable_group_roast: bool = self.config.get("enable_group_roast", True)
+        self.enable_group_eat: bool = self.config.get("enable_group_eat", True)
         self.enable_ai_roast_copy: bool = self.config.get("enable_ai_roast_copy", False)
         self.enable_roast_protection: bool = self.config.get(
             "enable_roast_protection", True
@@ -99,6 +106,18 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             protection_threshold = 3
         self.roast_protection_threshold = min(20, max(1, protection_threshold))
+        try:
+            eat_success_percent = int(self.config.get("eat_success_percent", 15))
+        except (TypeError, ValueError):
+            eat_success_percent = 15
+        self.eat_success_percent = min(80, max(1, eat_success_percent))
+        try:
+            eaten_penalty_percent = int(
+                self.config.get("eaten_next_day_failure_percent", 20)
+            )
+        except (TypeError, ValueError):
+            eaten_penalty_percent = 20
+        self.eaten_next_day_failure_percent = min(80, max(1, eaten_penalty_percent))
         try:
             cooldown_hours = float(
                 self.config.get(
@@ -208,6 +227,8 @@ class RollPigPlugin(Star):
                 "cooldowns": {},
                 "daily_backdoors": {},
                 "daily_roast_counts": {},
+                "eaten_penalties": {},
+                "eaten_events": {},
             },
         )
         self.ai_roast_copies = self.load_json(
@@ -1455,6 +1476,109 @@ class RollPigPlugin(Star):
             "普通烧烤会被拦截；后门强制模式仍可突破保护。"
         )
 
+    def _replace_today_with_eaten(
+        self, user_id: str, group_id: str, actor_id: str, outcome: str
+    ) -> dict | None:
+        """将当天结果替换为「吃掉了」，登记次日抽取惩罚及日报候选。"""
+        eaten = (
+            self._find_catalog_pig("eaten")
+            or self.history.get("pig_snapshots", {}).get("eaten")
+            or self.EATEN_PIG_FALLBACK
+        )
+        today = datetime.date.today().isoformat()
+        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        today_cache = self.load_json(self.today_path, {"date": "", "records": {}})
+        if today_cache.get("date") != today:
+            return None
+        with self._data_lock:
+            records = today_cache.setdefault("records", {})
+            records[str(user_id)] = dict(eaten)
+            self.save_json(self.today_path, today_cache)
+
+            daily = self.history.setdefault("daily", {})
+            day = daily.setdefault(
+                today,
+                {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
+            )
+            day.setdefault("records", {})[str(user_id)] = "eaten"
+            self.history.setdefault("pig_snapshots", {})["eaten"] = dict(eaten)
+            self.save_json(self.history_path, self.history)
+
+            penalties = self.roast_state.setdefault("eaten_penalties", {})
+            if not isinstance(penalties, dict):
+                penalties = {}
+                self.roast_state["eaten_penalties"] = penalties
+            penalties[str(user_id)] = {"due_date": tomorrow, "failed": False}
+            events = self.roast_state.setdefault("eaten_events", {})
+            if not isinstance(events, dict):
+                events = {}
+                self.roast_state["eaten_events"] = events
+            events[self._roast_count_key(today, group_id, str(user_id))] = {
+                "actor_id": str(actor_id),
+                "outcome": outcome,
+                "at": int(time.time()),
+            }
+            # 仅保留可用于昨天／今天日报与次日惩罚的近期记录。
+            cutoff = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
+            self.roast_state["eaten_events"] = {
+                key: value
+                for key, value in events.items()
+                if self._roast_count_date(key) >= cutoff
+            }
+            self.roast_state["eaten_penalties"] = {
+                item: value
+                for item, value in penalties.items()
+                if isinstance(value, dict)
+                and str(value.get("due_date") or "") >= today
+            }
+            self._save_roast_state()
+        return dict(eaten)
+
+    def _consume_eaten_penalty(self, user_id: str, today: str) -> bool:
+        """在次日首次抽猪时判定吃掉惩罚；失败后锁定到当天结束。"""
+        with self._data_lock:
+            penalties = self.roast_state.setdefault("eaten_penalties", {})
+            if not isinstance(penalties, dict):
+                penalties = {}
+                self.roast_state["eaten_penalties"] = penalties
+            entry = penalties.get(str(user_id))
+            if not isinstance(entry, dict):
+                return False
+            due_date = str(entry.get("due_date") or "")
+            if due_date < today:
+                penalties.pop(str(user_id), None)
+                self._save_roast_state()
+                return False
+            if due_date != today:
+                return False
+            if bool(entry.get("failed")):
+                return True
+            if random.randrange(100) < self.eaten_next_day_failure_percent:
+                entry["failed"] = True
+                penalties[str(user_id)] = entry
+                self._save_roast_state()
+                return True
+            penalties.pop(str(user_id), None)
+            self._save_roast_state()
+        return False
+
+    def _daily_eaten_victims(self, group_id: str, draw_date: str) -> list[str]:
+        """读取当日群日报可用的被吃成员；同一成员只出现一次。"""
+        events = self.roast_state.get("eaten_events", {})
+        if not isinstance(events, dict):
+            return []
+        victims: list[str] = []
+        for key in events:
+            try:
+                date_value, event_group, user_id = json.loads(key)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if str(date_value) == draw_date and str(event_group) == group_id:
+                user_id = str(user_id)
+                if user_id not in victims:
+                    victims.append(user_id)
+        return victims
+
     def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
         key = f"{datetime.date.today().isoformat()}:{actor_id}"
@@ -1668,6 +1792,66 @@ class RollPigPlugin(Star):
         await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
         self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
+
+    async def _eat_group_target(
+        self, event: AstrMessageEvent, target_id: str
+    ) -> None:
+        """低概率吃群友；无论成败都会让实际被吃者进入当天 eaten 状态。"""
+        actor_id = str(event.get_sender_id())
+        group_id = self._event_group_id(event)
+        if not group_id:
+            await event.send(event.plain_result("吃群友只能在群聊中使用。"))
+            return
+        if not target_id:
+            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            return
+        if target_id == actor_id:
+            await event.send(event.plain_result("不能吃自己；今天已经够饿了。"))
+            return
+        actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+        actor_reason = self._roast_block_reason(actor_pig)
+        if actor_reason:
+            await event.send(
+                event.plain_result(
+                    "你得先有一只可行动的今日小猪。" if not actor_pig else actor_reason
+                )
+            )
+            return
+        target_pig = self._get_daily_pig(target_id, datetime.date.today())
+        target_reason = self._roast_block_reason(target_pig)
+        if target_reason:
+            await event.send(event.plain_result(target_reason))
+            return
+        protected, roast_count = self._roast_protection_status(group_id, target_id)
+        if protected:
+            await event.send(event.plain_result(self._roast_protection_message(roast_count)))
+            return
+
+        if random.randrange(100) < self.eat_success_percent:
+            eaten = self._replace_today_with_eaten(
+                target_id, group_id, actor_id, "eat_success"
+            )
+            if not eaten:
+                await event.send(event.plain_result("吃群友状态写入失败，请稍后再试。"))
+                return
+            await self._send_with_mention(
+                event,
+                target_id,
+                " 🍴 被吃群友成功命中，今天变成「吃掉了」；明天抽猪可能失败。",
+            )
+            return
+
+        eaten = self._replace_today_with_eaten(
+            actor_id, group_id, actor_id, "eat_failure"
+        )
+        if not eaten:
+            await event.send(event.plain_result("吃群友状态写入失败，请稍后再试。"))
+            return
+        await self._send_with_mention(
+            event,
+            actor_id,
+            " 🍴 吃群友失败，反而把自己吃掉了；明天抽猪可能失败。",
+        )
 
     def find_image_file(self, pig_id: str) -> Path | None:
         """
@@ -2151,6 +2335,9 @@ class RollPigPlugin(Star):
                     ("/今日烤猪", "把今天的小猪做成趣味料理卡"),
                     ("/烤群友 @某人", "60/30/10·8h冷却；昨日过度被烤会受保护"),
                     ("/随机烤群友", "从今天在本群抽过猪的群友中随机挑选"),
+                    ("/吃群友 @某人", f"{self.eat_success_percent}%成功；失败会把自己吃掉，保护同样生效"),
+                    ("/随机吃群友", "随机点名可吃群友；成功或失败都会出现吃掉状态"),
+                    ("/猪圈日报", "显示今日抽猪、被吃人数与随机「可怜被吃」"),
                     ("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
                 ],
             ),
@@ -2162,7 +2349,7 @@ class RollPigPlugin(Star):
                 ],
             ),
         ]
-        width, height = 900, 1510
+        width, height = 900, 1700
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         # 帮助卡固定使用插件内置粗体：AstrBot 容器缺少完整 CJK 系统字体时，
@@ -2266,6 +2453,7 @@ class RollPigPlugin(Star):
         """抽取今日小猪／今日小豬"""
         today_str = datetime.date.today().isoformat()
         user_id = event.get_sender_id()
+        is_self_draw = True
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
@@ -2274,9 +2462,17 @@ class RollPigPlugin(Star):
             if at_ids:
                 if at_ids[0] not in self.admins_id:
                     user_id = at_ids[0]
+                    is_self_draw = False
                 else:
                     await event.send(event.plain_result("你这只小猪，不许对主人不敬！"))
                     return
+        if is_self_draw and self._consume_eaten_penalty(str(user_id), today_str):
+            await event.send(
+                event.plain_result(
+                    "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+                )
+            )
+            return
         today_cache = self.load_json(self.today_path, {"date": "", "records": {}})
         if today_cache.get("date") != today_str:
             today_cache = {"date": today_str, "records": {}}
@@ -2521,6 +2717,72 @@ class RollPigPlugin(Star):
         # 先公布抽中的目标；即使随后逃脱或反噬，群里也知道本次随机点名的是谁。
         await self._send_with_mention(event, target_id, " 🎲 被随机烤群友抽中了。")
         await self._roast_group_target(event, target_id)
+
+    @filter.command("吃群友", alias={"吃群友"})
+    async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
+        """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
+        if not self.enable_group_eat:
+            await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
+            return
+        target_id = self._extract_roast_target_id(event, args)
+        await self._eat_group_target(event, target_id)
+
+    @filter.command("随机吃群友", alias={"隨機吃群友"})
+    async def eat_random_group_member(self, event: AstrMessageEvent):
+        """从当天当前群可被吃的成员中随机选择一位。"""
+        if not self.enable_group_eat:
+            await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
+            return
+        group_id = self._event_group_id(event)
+        if not group_id:
+            await event.send(event.plain_result("随机吃群友只能在群聊中使用。"))
+            return
+        actor_id = str(event.get_sender_id())
+        actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+        if self._roast_block_reason(actor_pig):
+            await event.send(event.plain_result("你得先有一只可行动的今日小猪。"))
+            return
+        day = self.history.get("daily", {}).get(datetime.date.today().isoformat(), {})
+        members = day.get("groups", {}).get(group_id, [])
+        candidates = []
+        for user_id in members if isinstance(members, list) else []:
+            user_id = str(user_id)
+            if user_id == actor_id:
+                continue
+            pig = self._get_daily_pig(user_id, datetime.date.today())
+            protected, _ = self._roast_protection_status(group_id, user_id)
+            if not self._roast_block_reason(pig) and not protected:
+                candidates.append(user_id)
+        if not candidates:
+            await event.send(
+                event.plain_result("今天本群没有可吃的群友：可能都已被吃、是特殊形态或受保护。")
+            )
+            return
+        target_id = random.choice(candidates)
+        await self._send_with_mention(event, target_id, " 🎲 被随机吃群友盯上了。")
+        await self._eat_group_target(event, target_id)
+
+    @filter.command("猪圈日报", alias={"豬圈日報", "今日猪圈日报", "今日豬圈日報"})
+    async def pigsty_daily_report(self, event: AstrMessageEvent):
+        """输出当前群当天的简要猪圈日报，并随机点名一位可怜被吃。"""
+        group_id = self._event_group_id(event)
+        if not group_id:
+            await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
+            return
+        today = datetime.date.today().isoformat()
+        day = self.history.get("daily", {}).get(today, {})
+        members = day.get("groups", {}).get(group_id, [])
+        victims = self._daily_eaten_victims(group_id, today)
+        await event.send(
+            event.plain_result(
+                f"🐖 【猪圈日报】\n今日抽猪：{len(members) if isinstance(members, list) else 0} 人\n"
+                f"今日被吃：{len(victims)} 人"
+            )
+        )
+        if victims:
+            await self._send_with_mention(
+                event, random.choice(victims), " 🥀 获得今日「可怜被吃」称号。"
+            )
 
     @filter.command(
         "打点后厨",
