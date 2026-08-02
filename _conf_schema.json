@@ -29,6 +29,24 @@
         "type": "bool",
         "default": true
     },
+    "enable_group_eat": {
+        "description": "开启吃群友玩法",
+        "hint": "允许 /吃群友 @某人 与 /随机吃群友；成功者或失败者会变为当天的「吃掉了」状态",
+        "type": "bool",
+        "default": true
+    },
+    "eat_success_percent": {
+        "description": "吃群友成功率（百分比）",
+        "hint": "范围 1-80，默认 15；失败时发起者会变为「吃掉了」",
+        "type": "int",
+        "default": 15
+    },
+    "eaten_next_day_failure_percent": {
+        "description": "被吃后次日抽猪失败率（百分比）",
+        "hint": "范围 1-80，默认 20；次日首次抽猪失败后会锁定到当天结束，成功则正常抽取",
+        "type": "int",
+        "default": 20
+    },
     "group_roast_cooldown_hours": {
         "description": "烤群友冷却时间（小时）",
         "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；后门口令会绕过此限制",
