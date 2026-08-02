@@ -32,13 +32,14 @@ jobs:
           python-version: "3.12"
 
       - name: Validate patch scripts
-        run: python -m py_compile scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py
+        run: python -m py_compile scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
 
       - name: Apply guarded fixes
         run: |
           python scripts/prepare_audit_patcher.py
           python scripts/apply_audit_fixes.py
           python scripts/postprocess_audit_fixes.py
+          python scripts/finalize_catalog_transactions.py
 
       - name: Validate generated source
         run: |
@@ -48,7 +49,7 @@ jobs:
 
       - name: Remove one-shot migration files
         run: |
-          git rm scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py
+          git rm scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
           git rm .github/workflows/apply-audit-fixes.yml
 
       - name: Commit validated fixes
