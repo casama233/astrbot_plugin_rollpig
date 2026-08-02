@@ -1294,9 +1294,19 @@ class RollPigPlugin(Star):
     def _event_group_id(event: AstrMessageEvent) -> str:
         """返回群 ID；私聊或适配器未提供时返回空字符串。"""
         try:
-            return str(event.get_group_id() or "")
+            group_id = str(event.get_group_id() or "")
         except (AttributeError, TypeError):
-            return ""
+            group_id = ""
+        if not group_id:
+            message_obj = getattr(event, "message_obj", None)
+            raw_message = getattr(message_obj, "raw_message", None)
+            if isinstance(raw_message, dict):
+                chat_jid = str(raw_message.get("chatJid") or "")
+                if chat_jid.endswith("@g.us"):
+                    group_id = chat_jid
+        if group_id.endswith("@g.us") and RollPigPlugin._is_whatsapp_event(event):
+            return group_id.split("@", 1)[0]
+        return group_id
 
     @staticmethod
     def _normalise_platform_user_id(value) -> str:
@@ -1322,6 +1332,95 @@ class RollPigPlugin(Star):
         return cls._normalise_platform_user_id(value)
 
     @staticmethod
+    def _is_whatsapp_event(event: AstrMessageEvent) -> bool:
+        """识别 WhatsApp 事件，避免把其它平台的 JID 当作手机号处理。"""
+        message_obj = getattr(event, "message_obj", None)
+        raw_message = getattr(message_obj, "raw_message", None)
+        if isinstance(raw_message, dict) and any(
+            key in raw_message
+            for key in ("chatJid", "senderJid", "senderPn", "mentionedJids")
+        ):
+            return True
+        platform_meta = getattr(event, "platform_meta", None)
+        return "whatsapp" in str(
+            getattr(platform_meta, "name", "")
+            or getattr(platform_meta, "id", "")
+            or platform_meta
+        ).lower()
+
+    @staticmethod
+    def _whatsapp_lid_to_pn(value: str) -> str:
+        """从 WhatsApp 适配器的运行时映射解析 LID；适配器未安装时安全返回原值。"""
+        raw = str(value or "").strip()
+        if not raw.lower().endswith("@lid"):
+            return raw
+        try:
+            from astrbot_plugin_whatsapp_adapter.whatsapp_adapter import _LID_PN_CACHE
+
+            mapped = _LID_PN_CACHE.get(raw) or _LID_PN_CACHE.get(raw.lower())
+            return str(mapped or raw)
+        except Exception:
+            return raw
+
+    def _identity_exists(self, user_id: str) -> bool:
+        """检查旧版或当前数据是否已经使用某个用户键，避免升级时重复抽取。"""
+        key = str(user_id or "").strip()
+        if not key:
+            return False
+        try:
+            today = self.load_json(self.today_path, {})
+            if key in (today.get("records") or {}):
+                return True
+        except Exception:
+            pass
+        if key in (self.history.get("users") or {}):
+            return True
+        for day in (self.history.get("daily") or {}).values():
+            if not isinstance(day, dict):
+                continue
+            if key in (day.get("records") or {}):
+                return True
+            if key in (day.get("eaten_originals") or {}):
+                return True
+        return False
+
+    def _canonical_user_id(self, event: AstrMessageEvent, value) -> str:
+        """统一 WhatsApp 的手机号、PN JID、LID JID，跨消息段稳定识别同一用户。"""
+        result = self._normalise_platform_user_id(value)
+        if not result or not self._is_whatsapp_event(event):
+            return result
+        resolved = self._whatsapp_lid_to_pn(result)
+        lowered = resolved.lower()
+        if lowered.endswith(("@s.whatsapp.net", "@c.us", "@lid")):
+            local = resolved.split("@", 1)[0].split(":", 1)[0]
+            digits = re.sub(r"\D", "", local)
+            canonical = digits or local
+            # 旧版适配器曾直接把 LID 数字写入今日记录；若该键已有数据，
+            # 继续使用它，保证升级后不会把同一用户误判成首次使用。
+            legacy_local = result.split("@", 1)[0].split(":", 1)[0]
+            legacy_digits = re.sub(r"\D", "", legacy_local)
+            if legacy_digits and legacy_digits != canonical:
+                if self._identity_exists(legacy_digits) and not self._identity_exists(canonical):
+                    return legacy_digits
+            return canonical
+        return resolved
+
+    def _event_sender_id(self, event: AstrMessageEvent) -> str:
+        """读取并规范化发送者 ID，覆盖 WhatsApp LID 仅作为回退 ID 的情况。"""
+        if self._is_whatsapp_event(event):
+            message_obj = getattr(event, "message_obj", None)
+            raw_message = getattr(message_obj, "raw_message", None)
+            if isinstance(raw_message, dict):
+                raw_sender = str(raw_message.get("senderJid") or "").strip()
+                if raw_sender:
+                    return self._canonical_user_id(event, raw_sender)
+        try:
+            value = event.get_sender_id()
+        except (AttributeError, TypeError):
+            value = ""
+        return self._canonical_user_id(event, value)
+
+    @staticmethod
     def _event_components(event: AstrMessageEvent) -> list:
         try:
             components = event.get_messages()
@@ -1345,6 +1444,7 @@ class RollPigPlugin(Star):
                 mentions = mentions.values()
             for mention in mentions or []:
                 user_id = self._object_user_id(mention)
+                user_id = self._canonical_user_id(event, user_id)
                 if user_id and user_id not in result:
                     result.append(user_id)
         return result
@@ -1361,15 +1461,25 @@ class RollPigPlugin(Star):
                     getattr(component, attr, None)
                 )
                 if user_id:
-                    return user_id
+                    return self._canonical_user_id(event, user_id)
             for attr in ("sender", "author", "user"):
                 user_id = self._object_user_id(getattr(component, attr, None))
                 if user_id:
-                    return user_id
+                    return self._canonical_user_id(event, user_id)
 
         message_obj = getattr(event, "message_obj", None)
         raw_message = getattr(message_obj, "raw_message", None)
         if isinstance(raw_message, dict):
+            quoted = raw_message.get("quoted")
+            if isinstance(quoted, dict):
+                quoted_sender = str(
+                    quoted.get("participant")
+                    or quoted.get("senderJid")
+                    or quoted.get("sender")
+                    or ""
+                ).strip()
+                if quoted_sender:
+                    return self._canonical_user_id(event, quoted_sender)
             reference = raw_message.get("reference") or raw_message.get("reply_to")
             resolved = (
                 reference.get("resolved")
@@ -1385,12 +1495,13 @@ class RollPigPlugin(Star):
             reference = getattr(raw_message, "reference", None)
             resolved = getattr(reference, "resolved", None)
             author = getattr(resolved, "author", None)
-        return self._object_user_id(author)
+        return self._canonical_user_id(event, self._object_user_id(author))
 
     async def _send_with_mention(
         self, event: AstrMessageEvent, user_id: str, text: str
     ) -> None:
         """优先发标准 @ 消息段；适配器不支持时仍发送可识别的纯文本。"""
+        user_id = self._canonical_user_id(event, user_id)
         if self._event_group_id(event):
             try:
                 await event.send(
@@ -1428,14 +1539,18 @@ class RollPigPlugin(Star):
         raw_message = str(getattr(event, "message_str", "") or "")
         match = re.search(r'<@!?(\d+)>|qq="?(\d+)"?', raw_message)
         if match:
-            return match.group(1) or match.group(2)
+            return self._canonical_user_id(event, match.group(1) or match.group(2))
         candidate = str(args or "").strip()
         discord_mention = re.fullmatch(r"<@!?(\d+)>", candidate)
         if discord_mention:
-            return discord_mention.group(1)
+            return self._canonical_user_id(event, discord_mention.group(1))
         candidate = candidate.removeprefix("@").strip()
         # Discord、Slack、飞书等用户 ID 不一定是纯数字；仅接受无空白的安全 ID。
-        return candidate if re.fullmatch(r"[A-Za-z0-9_.:-]{2,128}", candidate) else ""
+        return (
+            self._canonical_user_id(event, candidate)
+            if re.fullmatch(r"[A-Za-z0-9_.:@-]{2,160}", candidate)
+            else ""
+        )
 
     def _save_roast_state(self) -> None:
         self.save_json(self.roast_state_path, self.roast_state)
@@ -1778,7 +1893,7 @@ class RollPigPlugin(Star):
         bypass: bool = False,
     ) -> None:
         """执行烤群友结果。后门仅传入 bypass，不绕过目标资格。"""
-        actor_id = str(event.get_sender_id())
+        actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
             await event.send(event.plain_result("烤群友只能在群聊中使用。"))
@@ -1834,7 +1949,7 @@ class RollPigPlugin(Star):
         self, event: AstrMessageEvent, target_id: str
     ) -> None:
         """低概率吃群友；无论成败都会让实际被吃者进入当天 eaten 状态。"""
-        actor_id = str(event.get_sender_id())
+        actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
             await event.send(event.plain_result("吃群友只能在群聊中使用。"))
@@ -2453,12 +2568,13 @@ class RollPigPlugin(Star):
             self_id = str(event.get_self_id() or "")
         except (AttributeError, TypeError):
             self_id = ""
+        self_id = self._canonical_user_id(event, self_id)
         user_ids: list[str] = []
         for segment in self._event_components(event):
             class_name = segment.__class__.__name__.lower()
             if not (isinstance(segment, At) or class_name in {"at", "mention"}):
                 continue
-            user_id = self._object_user_id(segment)
+            user_id = self._canonical_user_id(event, self._object_user_id(segment))
             if user_id and user_id != self_id and user_id not in user_ids:
                 user_ids.append(user_id)
         for user_id in self._native_mention_ids(event):
@@ -2499,7 +2615,7 @@ class RollPigPlugin(Star):
     async def roll_pig(self, event: AstrMessageEvent):
         """抽取今日小猪／今日小豬"""
         today_str = datetime.date.today().isoformat()
-        user_id = event.get_sender_id()
+        user_id = self._event_sender_id(event)
         is_self_draw = True
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
@@ -2571,12 +2687,12 @@ class RollPigPlugin(Star):
         output = None
         try:
             output, _ = await asyncio.to_thread(
-                self.render_pigsty_image, event.get_sender_id(), page
+                self.render_pigsty_image, self._event_sender_id(event), page
             )
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
             logger.error(f"生成我的猪圈失败：{exc}", exc_info=True)
-            user = self._get_user_collection(event.get_sender_id())
+            user = self._get_user_collection(self._event_sender_id(event))
             unlocked = len(user.get("pigs", {}))
             await event.send(
                 event.plain_result(
@@ -2592,7 +2708,7 @@ class RollPigPlugin(Star):
     async def yesterday_pig(self, event: AstrMessageEvent):
         """查看昨天抽到的小猪。"""
         pig = self._get_daily_pig(
-            event.get_sender_id(), datetime.date.today() - datetime.timedelta(days=1)
+            self._event_sender_id(event), datetime.date.today() - datetime.timedelta(days=1)
         )
         if not pig:
             await event.send(event.plain_result("昨天没有找到你的小猪记录。"))
@@ -2600,7 +2716,7 @@ class RollPigPlugin(Star):
         await self.send_rendered_pig(
             event,
             pig,
-            event.get_sender_id(),
+            self._event_sender_id(event),
             intro=". 这是你的昨日小猪：",
             fallback_title="昨日小猪",
         )
@@ -2612,7 +2728,7 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("小猪图鉴为空。"))
             return
         tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-        user_id = event.get_sender_id()
+        user_id = self._event_sender_id(event)
         digest = hashlib.sha256(f"{user_id}:{tomorrow.isoformat()}".encode()).digest()
         pig = self.pig_list[int.from_bytes(digest[:4], "big") % len(self.pig_list)]
         stars = 1 + digest[4] % 5
@@ -2638,7 +2754,7 @@ class RollPigPlugin(Star):
         output = None
         try:
             output = await asyncio.to_thread(
-                self.render_weekly_summary, event.get_sender_id()
+                self.render_weekly_summary, self._event_sender_id(event)
             )
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
@@ -2714,7 +2830,7 @@ class RollPigPlugin(Star):
         if not self.enable_roast:
             await event.send(event.plain_result("今日烤猪功能已在配置中关闭。"))
             return
-        user_id = event.get_sender_id()
+        user_id = self._event_sender_id(event)
         pig = self._get_daily_pig(user_id, datetime.date.today())
         reason = self._roast_block_reason(pig)
         if reason:
@@ -2743,7 +2859,7 @@ class RollPigPlugin(Star):
         if not group_id:
             await event.send(event.plain_result("随机烤群友只能在群聊中使用。"))
             return
-        actor_id = str(event.get_sender_id())
+        actor_id = self._event_sender_id(event)
         today = datetime.date.today()
         day = self.history.get("daily", {}).get(today.isoformat(), {})
         members = day.get("groups", {}).get(group_id, [])
@@ -2784,7 +2900,7 @@ class RollPigPlugin(Star):
         if not group_id:
             await event.send(event.plain_result("随机吃群友只能在群聊中使用。"))
             return
-        actor_id = str(event.get_sender_id())
+        actor_id = self._event_sender_id(event)
         actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
         if self._roast_block_reason(actor_pig):
             await event.send(event.plain_result("你得先有一只可行动的今日小猪。"))
@@ -2853,7 +2969,7 @@ class RollPigPlugin(Star):
             return
         raw = str(getattr(event, "message_str", "") or "")
         is_super_phrase = "强行点火" in raw or "強行點火" in raw
-        actor_id = str(event.get_sender_id())
+        actor_id = self._event_sender_id(event)
         if is_super_phrase:
             if actor_id not in {str(item) for item in self.admins_id}:
                 await event.send(event.plain_result("「强行点火」仅限 AstrBot 超级管理员使用。"))
