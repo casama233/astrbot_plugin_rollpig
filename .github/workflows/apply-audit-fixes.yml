@@ -26,10 +26,10 @@ jobs:
           ref: agent/fix-audit-findings-v2.4.0
           fetch-depth: 0
 
-      - name: Detect one-shot patch sources
+      - name: Detect post-review patch
         id: guard
         run: |
-          if [ -f scripts/apply_audit_fixes.py ]; then
+          if [ -f scripts/post_review_fixes.py ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -41,37 +41,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate patch scripts
-        if: steps.guard.outputs.run == 'true'
-        run: python -m py_compile scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
-
-      - name: Apply guarded fixes
+      - name: Apply guarded corrections
         if: steps.guard.outputs.run == 'true'
         run: |
-          python scripts/prepare_audit_patcher.py
-          python scripts/apply_audit_fixes.py
-          python scripts/postprocess_audit_fixes.py
-          python scripts/finalize_catalog_transactions.py
+          python -m py_compile scripts/post_review_fixes.py
+          python scripts/post_review_fixes.py
 
-      - name: Validate generated source
+      - name: Validate corrected source
         if: steps.guard.outputs.run == 'true'
         run: |
           python -m pip install --upgrade pip pytest
           python -m compileall -q main.py rollpig_core.py
           pytest -q
 
-      - name: Remove one-shot migration files
-        if: steps.guard.outputs.run == 'true'
-        run: |
-          git rm -f scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
-          rm -f .github/workflows/ci.yml
-
-      - name: Commit validated fixes
+      - name: Commit validated corrections
         if: steps.guard.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f scripts/post_review_fixes.py
           git add -A
           git diff --cached --check
-          git commit -m "fix: harden state identity sync and dashboard"
+          git commit -m "fix: address post-review regressions"
           git push origin HEAD:agent/fix-audit-findings-v2.4.0
