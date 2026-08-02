@@ -122,7 +122,8 @@ class RollPigPlugin(Star):
         self.history_path = self.plugin_data_dir / "pig_history.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
-        self._thumbnail_cache: dict[str, tuple[int, str]] = {}
+        self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
+        self._pighub_preview_cache: dict[str, dict] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
         self._background_task: asyncio.Task | None = None
@@ -198,6 +199,12 @@ class RollPigPlugin(Star):
             self.page_pighub,
             ["GET"],
             "PigHub 图片挑选器",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pighub/preview",
+            self.page_pighub_preview,
+            ["GET"],
+            "PigHub 图片预览",
         )
 
         if self.resource_sync_enabled:
@@ -1776,25 +1783,33 @@ class RollPigPlugin(Star):
                 collectors[pig_id] += 1
         return draws, collectors
 
-    def _thumbnail_data_url(self, pig_id: str) -> str:
+    @staticmethod
+    def _rgb_pixel_payload(image: PILImage.Image, size: int) -> dict:
+        """返回可直接写入 Canvas 的 RGB 像素，绕过沙箱中的图片 URL。"""
+        method = getattr(PILImage, "Resampling", PILImage).LANCZOS
+        fitted = ImageOps.fit(image.convert("RGB"), (size, size), method)
+        return {
+            "width": size,
+            "height": size,
+            "rgb": base64.b64encode(fitted.tobytes()).decode("ascii"),
+        }
+
+    def _thumbnail_pixels(self, pig_id: str) -> dict:
         path = self.find_image_file(pig_id)
         if not path:
-            return ""
+            return {}
         modified = path.stat().st_mtime_ns
         cached = self._thumbnail_cache.get(pig_id)
         if cached and cached[0] == modified:
             return cached[1]
         try:
-            thumb = self._fit_card_image(path, (180, 180)).convert("RGB")
-            output = io.BytesIO()
-            thumb.save(output, "WEBP", quality=78, method=4)
-            encoded = base64.b64encode(output.getvalue()).decode("ascii")
-            result = f"data:image/webp;base64,{encoded}"
+            with PILImage.open(path) as source:
+                result = self._rgb_pixel_payload(ImageOps.exif_transpose(source), 128)
             self._thumbnail_cache[pig_id] = (modified, result)
             return result
         except Exception as exc:
             logger.warning(f"生成 {pig_id} 管理页缩略图失败：{exc}")
-            return ""
+            return {}
 
     def _normalise_uploaded_image(self, content: str) -> bytes:
         if not content:
@@ -1947,7 +1962,7 @@ class RollPigPlugin(Star):
                 pig_id = str(item.get("id") or "")
                 item.update(
                     {
-                        "image": self._thumbnail_data_url(pig_id),
+                        "thumbnail": self._thumbnail_pixels(pig_id),
                         "draws": draws[pig_id],
                         "collectors": collectors[pig_id],
                         "custom_image": any(
@@ -2193,6 +2208,37 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"管理页读取 PigHub 失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "PigHub 暂时不可用"})
+
+    async def page_pighub_preview(self):
+        """由服务端下载 PigHub 图片并以 Canvas 像素返回，避免 iframe 跨域。"""
+        try:
+            image_url = str(request.query.get("url", "") or "").strip()
+            self._validate_pighub_image_url(image_url)
+            cached = self._pighub_preview_cache.get(image_url)
+            if cached:
+                return self._jsonify({"status": "ok", "data": cached})
+            raw = await self._download_pighub_image(image_url)
+
+            def build_preview() -> dict:
+                with PILImage.open(io.BytesIO(raw)) as source:
+                    source.verify()
+                with PILImage.open(io.BytesIO(raw)) as source:
+                    return self._rgb_pixel_payload(
+                        ImageOps.exif_transpose(source), 192
+                    )
+
+            result = await asyncio.to_thread(build_preview)
+            if len(self._pighub_preview_cache) >= 32:
+                self._pighub_preview_cache.pop(next(iter(self._pighub_preview_cache)))
+            self._pighub_preview_cache[image_url] = result
+            return self._jsonify({"status": "ok", "data": result})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.warning(f"PigHub 图片预览失败：{self._describe_sync_error(exc)}")
+            return self._jsonify(
+                {"status": "error", "message": "PigHub 图片预览载入失败"}
+            )
 
     async def terminate(self):
         """插件卸载清理"""
