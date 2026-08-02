@@ -1809,14 +1809,14 @@ class RollPigPlugin(Star):
         return draws, collectors
 
     @staticmethod
-    def _rgb_pixel_payload(image: PILImage.Image, size: int) -> dict:
-        """返回可直接写入 Canvas 的 RGB 像素，绕过沙箱中的图片 URL。"""
+    def _rgba_pixel_payload(image: PILImage.Image, size: int) -> dict:
+        """返回保留透明通道的 Canvas 像素，绕过沙箱中的图片 URL。"""
         method = getattr(PILImage, "Resampling", PILImage).LANCZOS
-        fitted = ImageOps.fit(image.convert("RGB"), (size, size), method)
+        fitted = ImageOps.fit(image.convert("RGBA"), (size, size), method)
         return {
             "width": size,
             "height": size,
-            "rgb": base64.b64encode(fitted.tobytes()).decode("ascii"),
+            "rgba": base64.b64encode(fitted.tobytes()).decode("ascii"),
         }
 
     def _thumbnail_pixels(self, pig_id: str) -> dict:
@@ -1829,7 +1829,9 @@ class RollPigPlugin(Star):
             return cached[1]
         try:
             with PILImage.open(path) as source:
-                result = self._rgb_pixel_payload(ImageOps.exif_transpose(source), 128)
+                # 卡片实际显示约 180px；使用 192px 并保留 PNG 透明通道，避免
+                # 低分辨率 RGB 预览被放大后看起来像破图。
+                result = self._rgba_pixel_payload(ImageOps.exif_transpose(source), 192)
             self._thumbnail_cache[pig_id] = (modified, result)
             return result
         except Exception as exc:
@@ -2248,7 +2250,7 @@ class RollPigPlugin(Star):
                 with PILImage.open(io.BytesIO(raw)) as source:
                     source.verify()
                 with PILImage.open(io.BytesIO(raw)) as source:
-                    return self._rgb_pixel_payload(
+                    return self._rgba_pixel_payload(
                         ImageOps.exif_transpose(source), 192
                     )
 
