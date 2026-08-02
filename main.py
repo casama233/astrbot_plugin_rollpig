@@ -2245,7 +2245,20 @@ class RollPigPlugin(Star):
                 event.plain_result("今天本群还没有可被随机烧烤的群友；请先让大家抽取今日小猪。")
             )
             return
-        await self._roast_group_target(event, random.choice(candidates))
+        target_id = random.choice(candidates)
+        # 先公布抽中的目标；即使随后逃脱或反噬，群里也知道本次随机点名的是谁。
+        try:
+            await event.send(
+                event.chain_result(
+                    [Comp.Plain("🎲 随机烤群友抽中了："), Comp.At(qq=target_id)]
+                )
+            )
+        except Exception:
+            # 部分适配器不支持 @ 消息段时，至少稳定展示可辨识的用户 ID。
+            await event.send(
+                event.plain_result(f"🎲 随机烤群友抽中了用户 {target_id}。")
+            )
+        await self._roast_group_target(event, target_id)
 
     @filter.command(
         "打点后厨",
