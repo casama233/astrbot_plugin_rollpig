@@ -3,7 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-path = Path(__file__).resolve().parents[1] / "main.py"
+root = Path(__file__).resolve().parents[1]
+path = root / "main.py"
 text = path.read_text(encoding="utf-8")
 old = '''                self.save_json(self.local_overrides_path, overrides)
                 self.save_json(self.tombstones_path, sorted(tombstones))
@@ -21,4 +22,9 @@ if count != 2:
 text = text.replace(old, new)
 ast.parse(text)
 path.write_text(text, encoding="utf-8")
-print("catalog transactions finalized")
+
+(root / "tests" / "conftest.py").write_text(
+    '''from __future__ import annotations\n\nimport sys\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nif str(ROOT) not in sys.path:\n    sys.path.insert(0, str(ROOT))\n''',
+    encoding="utf-8",
+)
+print("catalog transactions and test path finalized")
