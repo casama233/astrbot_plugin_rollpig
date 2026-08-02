@@ -327,6 +327,29 @@ class RollPigPlugin(Star):
             "roast_body": (128, 89, 77),
         }
 
+    def _help_card_font(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+        """选择覆盖完整 CJK 字符的帮助卡字体，避免繁体说明出现缺字。"""
+        filename = "NotoSansCJK-Bold.ttc" if bold else "NotoSansCJK-Medium.ttc"
+        candidates = [
+            self.font_dir
+            / ("SourceHanSansCN-Bold.otf" if bold else "SourceHanSansCN-Regular.otf"),
+            f"/usr/share/fonts/opentype/noto/{filename}",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "C:/Windows/Fonts/msyhbd.ttc" if bold else "C:/Windows/Fonts/msyh.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+        ]
+        for candidate in candidates:
+            if Path(candidate).exists():
+                try:
+                    return ImageFont.truetype(str(candidate), size)
+                except Exception:
+                    continue
+        return (
+            self.font_bold.font_variant(size=size)
+            if bold
+            else self.font_regular.font_variant(size=size)
+        )
+
     def _draw_bold_text(
         self,
         draw: ImageDraw.ImageDraw,
@@ -1372,7 +1395,9 @@ class RollPigPlugin(Star):
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=48)
-        subtitle_font = self.font_regular.font_variant(size=23)
+        # 插件自带常规字体在部分环境的繁体字距异常，帮助卡统一使用
+        # 已验证覆盖完整的粗体字，优先保证指令可读性。
+        subtitle_font = self.font_bold.font_variant(size=21)
         name_font = self.font_bold.font_variant(size=25)
         desc_font = self.font_regular.font_variant(size=18)
         draw.rounded_rectangle((28, 22, 872, 132), 28, fill=palette["surface"])
@@ -1507,6 +1532,91 @@ class RollPigPlugin(Star):
         canvas.save(output, "PNG", optimize=True)
         return output
 
+    def render_help_image(self) -> Path:
+        """渲染聊天指令帮助卡，避免在会话中输出冗长纯文本。"""
+        palette = self._image_palette()
+        at_entry = (
+            ("/今日小豬 @某人", "查看對方今天的小豬（一次限一人）")
+            if self.at_view_pig
+            else ("@ 他人查看", "尚未開啟；管理員請設定 at_view_pig")
+        )
+        sections = [
+            (
+                "每天一豬",
+                [
+                    ("/今日小豬", "抽取或查看今天的小豬"),
+                    at_entry,
+                    ("/昨日小豬", "查看昨天的結果"),
+                    ("/明日小豬", "明天運勢預測，不會提前解鎖"),
+                    ("/本週小豬", "產生本週七日小豬周報"),
+                ],
+            ),
+            (
+                "圖鑑與探索",
+                [
+                    ("/我的豬圈 [頁碼]", "永久圖鑑，例如 /我的豬圈 2"),
+                    ("/隨機小豬 [1-9]", "隨機展示，不影響今日結果"),
+                    ("/找豬／搜豬 關鍵字", "依名稱、ID、描述或文案搜尋"),
+                    ("/今日烤豬", "把今天的小豬做成趣味料理卡"),
+                ],
+            ),
+            (
+                "管理員",
+                [
+                    ("/同步小豬資源", "同步雲端圖鑑，保留本地修改"),
+                    ("管理面板", "新增、編輯、刪除小豬與 PigHub 選圖"),
+                ],
+            ),
+        ]
+        width, height = 900, 1250
+        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
+        draw = ImageDraw.Draw(canvas)
+        title_font = self._help_card_font(52, bold=True)
+        subtitle_font = self._help_card_font(21)
+        section_font = self._help_card_font(28, bold=True)
+        command_font = self._help_card_font(22, bold=True)
+        detail_font = self._help_card_font(19)
+        footer_font = self._help_card_font(18)
+
+        draw.rounded_rectangle((28, 24, 872, 166), 30, fill=palette["surface"])
+        draw.text((60, 47), "今日小豬 · 指令幫助", font=title_font, fill=palette["title"])
+        draw.text(
+            (62, 116),
+            "繁體／簡體均可使用 · 每天來領一隻屬於你的豬豬",
+            font=subtitle_font,
+            fill=palette["secondary"],
+        )
+
+        y = 190
+        for section_name, entries in sections:
+            card_height = 62 + len(entries) * 62 + 14
+            draw.rounded_rectangle(
+                (28, y, 872, y + card_height), 26, fill=palette["surface"]
+            )
+            draw.rounded_rectangle(
+                (50, y + 18, 202, y + 54), 18, fill=palette["surface_muted"]
+            )
+            draw.text((68, y + 20), section_name, font=section_font, fill=palette["accent"])
+            row_y = y + 72
+            for command, detail in entries:
+                draw.text((62, row_y), command, font=command_font, fill=palette["title"])
+                draw.text((364, row_y + 2), detail, font=detail_font, fill=palette["secondary"])
+                row_y += 62
+            y += card_height + 20
+
+        footer = "需要時輸入 /豬豬幫助，即可再次查看此卡片"
+        footer_w, _ = self._get_text_size(footer, footer_font)
+        draw.text(
+            ((width - footer_w) // 2, height - 55),
+            footer,
+            font=footer_font,
+            fill=palette["muted"],
+        )
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            output = Path(tmp.name)
+        canvas.save(output, "PNG")
+        return output
+
     def get_at_ids(self, event: AstrMessageEvent) -> list[str]:
         """
         获取QQ被at用户的id列表
@@ -1525,37 +1635,16 @@ class RollPigPlugin(Star):
     )
     async def rollpig_help(self, event: AstrMessageEvent):
         """展示今日小猪的完整指令说明。"""
-        at_help = (
-            "• `/今日小豬 @某人`：查看對方今天抽到的小豬（一次限 @ 一人）。"
-            if self.at_view_pig
-            else "• `@ 他人查看`目前未開啟；管理員可在設定啟用 `at_view_pig` 後使用 `/今日小豬 @某人`。"
-        )
-        help_text = "\n".join(
-            [
-                "🐽 今日小豬指令幫助",
-                "所有指令均支援繁體／簡體寫法。",
-                "",
-                "【每天一豬】",
-                "• `/今日小豬`：抽取或查看今天的小豬。",
-                at_help,
-                "• `/昨日小豬`：查看昨天的結果。",
-                "• `/明日小豬`：查看明天的運勢預測（不會提前解鎖）。",
-                "• `/本週小豬`：產生本週七日小豬周報。",
-                "",
-                "【圖鑑與探索】",
-                "• `/我的豬圈 [頁碼]`：查看永久圖鑑，例如 `/我的豬圈 2`。",
-                "• `/隨機小豬 [1-9]`：隨機展示圖鑑小豬，不影響今日結果。",
-                "• `/找豬 關鍵字` 或 `/搜豬 關鍵字`：按名稱、ID、描述或文案搜尋。",
-                "• `/今日烤豬`：把今天的小豬做成趣味料理卡。",
-                "",
-                "【管理員】",
-                "• `/同步小豬資源`：同步雲端公共圖鑑；本地新增、修改與刪除設定會保留。",
-                "• 管理面板可新增、編輯、刪除小豬，並可從 PigHub 挑選圖片。",
-                "",
-                "可隨時使用 `/豬豬幫助` 再次查看本說明。",
-            ]
-        )
-        await event.send(event.plain_result(help_text))
+        output = None
+        try:
+            output = self.render_help_image()
+            await event.send(event.image_result(str(output.absolute())))
+        except Exception as exc:
+            logger.error(f"生成豬豬幫助圖片失敗：{exc}", exc_info=True)
+            await event.send(event.plain_result("豬豬幫助圖片生成失敗，請查看後台日誌。"))
+        finally:
+            if output:
+                output.unlink(missing_ok=True)
 
     @filter.command(
         "今日小猪",
