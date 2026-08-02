@@ -23,6 +23,12 @@
         "type": "bool",
         "default": true
     },
+    "image_theme": {
+        "description": "图片卡片日夜主题",
+        "hint": "auto 会在 19:00-06:59 使用深色夜间主题；也可填 light 或 dark 固定主题",
+        "type": "string",
+        "default": "auto"
+    },
     "resource_sync_enabled": {
         "description": "开启云端公共小猪资源同步",
         "hint": "每次更新只替换云端基础层，本地新增、编辑与删除屏蔽不会被覆盖",
