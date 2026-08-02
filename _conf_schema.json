@@ -47,6 +47,12 @@
         "type": "float",
         "default": 30
     },
+    "resource_use_system_proxy": {
+        "description": "云资源使用系统代理",
+        "hint": "默认关闭并直连，避免失效代理导致 TLS 连接卡住；仅在服务器必须通过代理访问外网时开启",
+        "type": "bool",
+        "default": false
+    },
     "resource_max_file_size_mb": {
         "description": "资源单文件大小上限（MiB）",
         "hint": "范围 1-50，默认 10 MiB；同时用于 PigHub 图片导入",

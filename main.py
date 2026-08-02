@@ -98,6 +98,12 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             sync_timeout = 30
         self.resource_sync_timeout = min(120, max(2, sync_timeout))
+        proxy_setting = self.config.get("resource_use_system_proxy", False)
+        self.resource_use_system_proxy = (
+            proxy_setting
+            if isinstance(proxy_setting, bool)
+            else str(proxy_setting).strip().lower() in {"1", "true", "yes", "on"}
+        )
         try:
             max_file_mb = int(self.config.get("resource_max_file_size_mb", 10))
         except (TypeError, ValueError):
@@ -517,10 +523,15 @@ class RollPigPlugin(Star):
             raise ValueError(f"manifest 文件路径无效：{path}")
 
     async def _download_limited(
-        self, client: httpx.AsyncClient, url: str, max_size: int
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        max_size: int,
+        attempts: int = 3,
     ) -> bytes:
         last_error: Exception | None = None
-        for attempt in range(3):
+        attempts = max(1, attempts)
+        for attempt in range(attempts):
             try:
                 return await self._download_limited_once(client, url, max_size)
             except httpx.HTTPStatusError as exc:
@@ -529,11 +540,11 @@ class RollPigPlugin(Star):
                 last_error = exc
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_error = exc
-            if attempt < 2:
+            if attempt < attempts - 1:
                 delay = 0.8 * (2**attempt) + random.random() * 0.3
                 logger.warning(
                     f"资源下载失败，{delay:.1f} 秒后重试 "
-                    f"({attempt + 1}/3)：{url} ({type(last_error).__name__})"
+                    f"({attempt + 1}/{attempts})：{url} ({type(last_error).__name__})"
                 )
                 await asyncio.sleep(delay)
         assert last_error is not None
@@ -558,23 +569,35 @@ class RollPigPlugin(Star):
                 chunks.append(chunk)
         return b"".join(chunks)
 
-    def _new_http_client(self, *, follow_redirects: bool) -> httpx.AsyncClient:
-        """尊重系统代理；代理依赖不完整时回退直连，避免插件初始化即失败。"""
+    def _new_http_client(
+        self,
+        *,
+        follow_redirects: bool,
+        request_timeout: float | None = None,
+    ) -> httpx.AsyncClient:
+        """公共资源默认直连，避免错误的环境代理阻塞 TLS；可由配置显式启用代理。"""
+        timeout_seconds = (
+            self.resource_sync_timeout
+            if request_timeout is None
+            else min(30, max(3, request_timeout))
+        )
+        read_timeout = (
+            max(45, timeout_seconds)
+            if request_timeout is None
+            else timeout_seconds
+        )
         options = {
             "timeout": httpx.Timeout(
-                connect=self.resource_sync_timeout,
-                read=max(45, self.resource_sync_timeout),
-                write=self.resource_sync_timeout,
-                pool=max(15, self.resource_sync_timeout),
+                connect=timeout_seconds,
+                read=read_timeout,
+                write=timeout_seconds,
+                pool=max(15, timeout_seconds),
             ),
             "follow_redirects": follow_redirects,
             "headers": {"User-Agent": self.USER_AGENT},
+            "trust_env": self.resource_use_system_proxy,
         }
-        try:
-            return httpx.AsyncClient(**options)
-        except ImportError as exc:
-            logger.warning(f"系统代理不可用，资源请求将改用直连：{exc}")
-            return httpx.AsyncClient(**options, trust_env=False)
+        return httpx.AsyncClient(**options)
 
     async def _download_manifest_item(
         self,
@@ -827,11 +850,13 @@ class RollPigPlugin(Star):
             ):
                 return True
             last_error = None
-            async with self._new_http_client(follow_redirects=True) as client:
+            async with self._new_http_client(
+                follow_redirects=True, request_timeout=12
+            ) as client:
                 for url in self.PIGHUB_API_URLS:
                     try:
                         raw = await self._download_limited(
-                            client, url, 2 * 1024 * 1024
+                            client, url, 2 * 1024 * 1024, attempts=1
                         )
                         payload = json.loads(raw.decode("utf-8-sig"))
                         if not isinstance(payload, dict):
@@ -876,9 +901,9 @@ class RollPigPlugin(Star):
             parsed.scheme != "https"
             or parsed.hostname != "pighub.top"
             or parsed.username
-            or not parsed.path.startswith("/data/")
+            or not parsed.path.startswith(("/data/", "/images/"))
         ):
-            raise ValueError("只允许导入 pighub.top/data/ 下的图片")
+            raise ValueError("只允许导入 pighub.top/data/ 或 /images/ 下的图片")
 
     async def _download_pighub_image(self, url: str) -> bytes:
         self._validate_pighub_image_url(url)
