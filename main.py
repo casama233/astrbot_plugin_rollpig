@@ -1408,10 +1408,15 @@ class RollPigPlugin(Star):
         if not self.enable_ai_roast_copy:
             return None
         prompt = (
-            "为聊天机器人‘今日烤猪’写一句中文料理卡文案。"
+            "你是‘今日烤猪’栏目最会抖机灵的文案主厨。"
+            "为一张虚构小猪料理卡写一句中文短文案，要有反差、包袱或网络梗，"
+            "优先使用轻度黑色幽默：只调侃虚构小猪、猪圈日常或抽卡命运，"
+            "可以自嘲、阴阳怪气或假装严肃，结尾最好有一个反转。"
             f"小猪名：{str(pig.get('name') or '小猪')[:30]}；"
             f"描述：{str(pig.get('description') or '')[:80]}。"
-            "语气轻松、无攻击性、不含真实食物制作步骤；只输出一句不超过42个汉字的文案。"
+            "禁止针对真实用户、群体或现实事件；禁止仇恨、性内容、自残、血腥或真实暴力细节；"
+            "不写真实烹饪步骤，不复述题目，不要解释笑点。"
+            "只输出一句不超过42个汉字的文案，不加标题、引号、Markdown 或‘文案：’前缀。"
         )
         try:
             response = None
@@ -1437,7 +1442,8 @@ class RollPigPlugin(Star):
                     system_prompt="",
                 )
             text = str(getattr(response, "completion_text", "") or "").strip()
-            text = re.sub(r"\s+", " ", text).strip("“”\"' ")
+            text = re.sub(r"^\s*(?:文案|料理文案|答案)\s*[：:]\s*", "", text)
+            text = re.sub(r"\s+", " ", text).strip("“”\"'` ")
             return text[:64] or None
         except Exception as exc:
             logger.warning(f"AI 烤猪文案生成失败，已回退本地文案：{exc}")
