@@ -1222,6 +1222,109 @@ class RollPigPlugin(Star):
         except (AttributeError, TypeError):
             return ""
 
+    @staticmethod
+    def _normalise_platform_user_id(value) -> str:
+        """读取各适配器对象上的用户标识，拒绝空值与无意义对象字符串。"""
+        if isinstance(value, (str, int)):
+            result = str(value).strip()
+            return result if result and result.lower() not in {"none", "null"} else ""
+        return ""
+
+    @classmethod
+    def _object_user_id(cls, value) -> str:
+        """从 AstrBot 组件或 Discord 等原生用户对象中提取稳定 ID。"""
+        if isinstance(value, dict):
+            for key in ("user_id", "userId", "qq", "id", "target_id"):
+                result = cls._normalise_platform_user_id(value.get(key))
+                if result:
+                    return result
+            return ""
+        for attr in ("user_id", "userId", "qq", "id", "target_id"):
+            result = cls._normalise_platform_user_id(getattr(value, attr, None))
+            if result:
+                return result
+        return cls._normalise_platform_user_id(value)
+
+    @staticmethod
+    def _event_components(event: AstrMessageEvent) -> list:
+        try:
+            components = event.get_messages()
+            return list(components or [])
+        except (AttributeError, TypeError):
+            return []
+
+    def _native_mention_ids(self, event: AstrMessageEvent) -> list[str]:
+        """补充 Discord 原生 mentions 等尚未规范化为 At 段的适配器数据。"""
+        message_obj = getattr(event, "message_obj", None)
+        raw_message = getattr(message_obj, "raw_message", None)
+        targets = (message_obj, raw_message)
+        result: list[str] = []
+        for target in targets:
+            mentions = (
+                target.get("mentions", [])
+                if isinstance(target, dict)
+                else getattr(target, "mentions", [])
+            )
+            if isinstance(mentions, dict):
+                mentions = mentions.values()
+            for mention in mentions or []:
+                user_id = self._object_user_id(mention)
+                if user_id and user_id not in result:
+                    result.append(user_id)
+        return result
+
+    def _reply_sender_id(self, event: AstrMessageEvent) -> str:
+        """从统一 Reply 段及常见原生引用对象中读取原消息发送者。"""
+        for component in self._event_components(event):
+            component_name = component.__class__.__name__.lower()
+            is_reply = component_name == "reply" or hasattr(component, "sender_id")
+            if not is_reply:
+                continue
+            for attr in ("sender_id", "author_id", "user_id"):
+                user_id = self._normalise_platform_user_id(
+                    getattr(component, attr, None)
+                )
+                if user_id:
+                    return user_id
+            for attr in ("sender", "author", "user"):
+                user_id = self._object_user_id(getattr(component, attr, None))
+                if user_id:
+                    return user_id
+
+        message_obj = getattr(event, "message_obj", None)
+        raw_message = getattr(message_obj, "raw_message", None)
+        if isinstance(raw_message, dict):
+            reference = raw_message.get("reference") or raw_message.get("reply_to")
+            resolved = (
+                reference.get("resolved")
+                if isinstance(reference, dict)
+                else None
+            ) or raw_message.get("referenced_message")
+            author = (
+                resolved.get("author")
+                if isinstance(resolved, dict)
+                else getattr(resolved, "author", None)
+            )
+        else:
+            reference = getattr(raw_message, "reference", None)
+            resolved = getattr(reference, "resolved", None)
+            author = getattr(resolved, "author", None)
+        return self._object_user_id(author)
+
+    async def _send_with_mention(
+        self, event: AstrMessageEvent, user_id: str, text: str
+    ) -> None:
+        """优先发标准 @ 消息段；适配器不支持时仍发送可识别的纯文本。"""
+        if self._event_group_id(event):
+            try:
+                await event.send(
+                    event.chain_result([Comp.At(qq=user_id), Comp.Plain(text)])
+                )
+                return
+            except Exception as exc:
+                logger.warning(f"发送 @ 消息段失败，已回退文本：{exc}")
+        await event.send(event.plain_result(f"@{user_id}{text}"))
+
     def _roast_block_reason(self, pig: dict | None) -> str | None:
         """检查一只当天小猪是否仍可被做成料理。"""
         if not pig:
@@ -1235,26 +1338,24 @@ class RollPigPlugin(Star):
     def _extract_roast_target_id(
         self, event: AstrMessageEvent, args: str = ""
     ) -> str:
-        """优先取 @ 目标，其次取被引用消息的发送者，最后接受纯数字 ID。"""
+        """优先取 @ 目标，其次取引用发送者，最后接受各平台格式的用户 ID。"""
         at_ids = self.get_at_ids(event)
         if at_ids:
             return at_ids[0]
-        try:
-            components = event.get_messages()
-        except (AttributeError, TypeError):
-            components = []
-        for component in components:
-            # AstrBot 的 Reply 组件会提供 sender_id；不用强依赖具体组件类，
-            # 以兼容各消息适配器的引用消息实现。
-            sender_id = getattr(component, "sender_id", None)
-            if sender_id and getattr(component, "chain", None) is not None:
-                return str(sender_id)
+        reply_sender_id = self._reply_sender_id(event)
+        if reply_sender_id:
+            return reply_sender_id
         raw_message = str(getattr(event, "message_str", "") or "")
-        match = re.search(r'qq="?(\d+)"?', raw_message)
+        match = re.search(r'<@!?(\d+)>|qq="?(\d+)"?', raw_message)
         if match:
-            return match.group(1)
-        candidate = str(args or "").strip().replace("@", "")
-        return candidate if candidate.isdigit() else ""
+            return match.group(1) or match.group(2)
+        candidate = str(args or "").strip()
+        discord_mention = re.fullmatch(r"<@!?(\d+)>", candidate)
+        if discord_mention:
+            return discord_mention.group(1)
+        candidate = candidate.removeprefix("@").strip()
+        # Discord、Slack、飞书等用户 ID 不一定是纯数字；仅接受无空白的安全 ID。
+        return candidate if re.fullmatch(r"[A-Za-z0-9_.:-]{2,128}", candidate) else ""
 
     def _save_roast_state(self) -> None:
         self.save_json(self.roast_state_path, self.roast_state)
@@ -1948,16 +2049,23 @@ class RollPigPlugin(Star):
         return output
 
     def get_at_ids(self, event: AstrMessageEvent) -> list[str]:
-        """
-        获取QQ被at用户的id列表
-        :param event: Aiocqhttp消息事件对象
-        :return: 被at用户的id列表（排除自己）
-        """
-        return [
-            str(seg.qq)
-            for seg in event.get_messages()
-            if (isinstance(seg, At) and str(seg.qq) != event.get_self_id())  # 排除自己
-        ]
+        """获取统一 At 段与原生 mentions 中的用户 ID，并排除机器人自身。"""
+        try:
+            self_id = str(event.get_self_id() or "")
+        except (AttributeError, TypeError):
+            self_id = ""
+        user_ids: list[str] = []
+        for segment in self._event_components(event):
+            class_name = segment.__class__.__name__.lower()
+            if not (isinstance(segment, At) or class_name in {"at", "mention"}):
+                continue
+            user_id = self._object_user_id(segment)
+            if user_id and user_id != self_id and user_id not in user_ids:
+                user_ids.append(user_id)
+        for user_id in self._native_mention_ids(event):
+            if user_id and user_id != self_id and user_id not in user_ids:
+                user_ids.append(user_id)
+        return user_ids
 
     @filter.command(
         "猪猪帮助",
@@ -1994,12 +2102,11 @@ class RollPigPlugin(Star):
         today_str = datetime.date.today().isoformat()
         user_id = event.get_sender_id()
         if self.at_view_pig:
-            parts = event.message_str.strip().split()
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
                 await event.send(event.plain_result("一次只能抽取一个小猪哦！"))
                 return
-            if len(parts) >= 2 and at_ids:
+            if at_ids:
                 if at_ids[0] not in self.admins_id:
                     user_id = at_ids[0]
                 else:
@@ -2247,17 +2354,7 @@ class RollPigPlugin(Star):
             return
         target_id = random.choice(candidates)
         # 先公布抽中的目标；即使随后逃脱或反噬，群里也知道本次随机点名的是谁。
-        try:
-            await event.send(
-                event.chain_result(
-                    [Comp.Plain("🎲 随机烤群友抽中了："), Comp.At(qq=target_id)]
-                )
-            )
-        except Exception:
-            # 部分适配器不支持 @ 消息段时，至少稳定展示可辨识的用户 ID。
-            await event.send(
-                event.plain_result(f"🎲 随机烤群友抽中了用户 {target_id}。")
-            )
+        await self._send_with_mention(event, target_id, " 🎲 被随机烤群友抽中了。")
         await self._roast_group_target(event, target_id)
 
     @filter.command(
@@ -2345,11 +2442,10 @@ class RollPigPlugin(Star):
         img_path = await asyncio.to_thread(self.render_pig_image, pig_data)
         if img_path and img_path.exists():
             try:
-                chain = [Comp.Plain(intro)]
-                group_id = event.get_group_id()
-                if group_id:
-                    chain.insert(0, Comp.At(qq=user_id))
-                await event.send(event.chain_result(chain))
+                if self._event_group_id(event):
+                    await self._send_with_mention(event, user_id, intro)
+                else:
+                    await event.send(event.plain_result(intro))
                 await event.send(event.image_result(str(img_path.absolute())))
                 logger.info("合成图片发送成功")
                 return
