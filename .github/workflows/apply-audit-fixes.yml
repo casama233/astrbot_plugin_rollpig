@@ -49,8 +49,8 @@ jobs:
 
       - name: Remove one-shot migration files
         run: |
-          git rm scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
-          git rm .github/workflows/apply-audit-fixes.yml
+          git rm -f scripts/prepare_audit_patcher.py scripts/apply_audit_fixes.py scripts/postprocess_audit_fixes.py scripts/finalize_catalog_transactions.py
+          git rm -f .github/workflows/apply-audit-fixes.yml
 
       - name: Commit validated fixes
         run: |
