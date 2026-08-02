@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - agent/fix-audit-findings-v2.4.0
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
