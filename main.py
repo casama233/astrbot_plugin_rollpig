@@ -56,6 +56,10 @@ class RollPigPlugin(Star):
     )
     PIGHUB_ORIGIN = "https://pighub.top/"
     PIGHUB_IMAGE_BASE_URL = "https://pighub.top/data/"
+    PIGHUB_THUMBNAIL_SIZE = 160
+    PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
+    PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
+    PIGHUB_THUMBNAIL_FAILURE_TTL = 10 * 60
     USER_AGENT = (
         "AstrBot-RollPig/1.6 (+https://github.com/MegSopern/astrbot_plugin_rollpig)"
     )
@@ -127,11 +131,15 @@ class RollPigPlugin(Star):
         self.resource_state_path = self.resource_root / "state.json"
         self.resource_status_path = self.resource_root / "sync_status.json"
         self.pighub_cache_path = self.plugin_data_dir / "pighub_images.json"
+        self.pighub_thumbnail_dir = self.plugin_data_dir / "pighub_thumbnails"
         self.history_path = self.plugin_data_dir / "pig_history.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
         self._pighub_preview_cache: dict[str, dict] = {}
+        self._pighub_thumbnail_cache: dict[str, dict] = {}
+        self._pighub_thumbnail_locks: dict[str, asyncio.Lock] = {}
+        self._pighub_thumbnail_failures: dict[str, float] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
         self._background_task: asyncio.Task | None = None
@@ -144,6 +152,7 @@ class RollPigPlugin(Star):
         self.font_dir.mkdir(parents=True, exist_ok=True)
         self.custom_image_dir.mkdir(parents=True, exist_ok=True)
         self.resource_root.mkdir(parents=True, exist_ok=True)
+        self.pighub_thumbnail_dir.mkdir(parents=True, exist_ok=True)
 
         # 初始化数据
         bundled_pigs = self.load_json(self.piginfo_path, [])
@@ -213,6 +222,12 @@ class RollPigPlugin(Star):
             self.page_pighub_preview,
             ["GET"],
             "PigHub 图片预览",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pighub/thumbnail",
+            self.page_pighub_thumbnail,
+            ["GET"],
+            "PigHub 缓存缩略图",
         )
 
         if self.resource_sync_enabled:
@@ -981,6 +996,97 @@ class RollPigPlugin(Star):
             return await self._download_limited(
                 client, url, self.resource_max_file_size
             )
+
+    def _pighub_thumbnail_path(self, image_url: str) -> Path:
+        """将可信 URL 映射为固定文件名，避免把远端路径写入本地文件系统。"""
+        digest = hashlib.sha256(image_url.encode("utf-8")).hexdigest()
+        return self.pighub_thumbnail_dir / f"{digest}.png"
+
+    @staticmethod
+    def _make_pighub_thumbnail(raw: bytes, size: int) -> tuple[dict, bytes]:
+        """校验远端图片后生成固定尺寸 PNG 与 Canvas RGBA 像素。"""
+        with PILImage.open(io.BytesIO(raw)) as source:
+            source.verify()
+        with PILImage.open(io.BytesIO(raw)) as source:
+            method = getattr(PILImage, "Resampling", PILImage).LANCZOS
+            thumb = ImageOps.fit(
+                ImageOps.exif_transpose(source).convert("RGBA"),
+                (size, size),
+                method,
+            )
+            payload = RollPigPlugin._rgba_pixel_payload(thumb, size)
+            output = io.BytesIO()
+            thumb.save(output, "PNG", optimize=True)
+            return payload, output.getvalue()
+
+    def _remember_pighub_thumbnail(self, image_url: str, payload: dict):
+        if len(self._pighub_thumbnail_cache) >= self.PIGHUB_THUMBNAIL_MEMORY_LIMIT:
+            self._pighub_thumbnail_cache.pop(next(iter(self._pighub_thumbnail_cache)))
+        self._pighub_thumbnail_cache[image_url] = payload
+
+    async def _pighub_thumbnail_pixels(self, image_url: str) -> dict:
+        """优先复用内存／磁盘缩略图，只有缓存未命中时才请求 PigHub 图片。"""
+        cached = self._pighub_thumbnail_cache.get(image_url)
+        if cached:
+            return cached
+        failed_at = self._pighub_thumbnail_failures.get(image_url, 0)
+        if time.time() - failed_at < self.PIGHUB_THUMBNAIL_FAILURE_TTL:
+            raise ValueError("该图片暂时不可用，请稍后再试")
+        lock = self._pighub_thumbnail_locks.setdefault(image_url, asyncio.Lock())
+        async with lock:
+            cached = self._pighub_thumbnail_cache.get(image_url)
+            if cached:
+                return cached
+            failed_at = self._pighub_thumbnail_failures.get(image_url, 0)
+            if time.time() - failed_at < self.PIGHUB_THUMBNAIL_FAILURE_TTL:
+                raise ValueError("该图片暂时不可用，请稍后再试")
+            path = self._pighub_thumbnail_path(image_url)
+            now = time.time()
+
+            def load_disk() -> dict | None:
+                try:
+                    if (
+                        not path.exists()
+                        or now - path.stat().st_mtime > self.PIGHUB_THUMBNAIL_TTL
+                    ):
+                        return None
+                    with PILImage.open(path) as image:
+                        return self._rgba_pixel_payload(
+                            ImageOps.exif_transpose(image), self.PIGHUB_THUMBNAIL_SIZE
+                        )
+                except Exception:
+                    path.unlink(missing_ok=True)
+                    return None
+
+            disk_payload = await asyncio.to_thread(load_disk)
+            if disk_payload:
+                self._remember_pighub_thumbnail(image_url, disk_payload)
+                return disk_payload
+
+            try:
+                raw = await self._download_pighub_image(image_url)
+                payload, png = await asyncio.to_thread(
+                    self._make_pighub_thumbnail, raw, self.PIGHUB_THUMBNAIL_SIZE
+                )
+            except Exception:
+                self._pighub_thumbnail_failures[image_url] = time.time()
+                raise
+
+            def save_disk():
+                with tempfile.NamedTemporaryFile(
+                    "wb", dir=self.pighub_thumbnail_dir, suffix=".tmp", delete=False
+                ) as tmp:
+                    tmp.write(png)
+                    tmp_path = Path(tmp.name)
+                tmp_path.replace(path)
+
+            try:
+                await asyncio.to_thread(save_disk)
+            except Exception as exc:
+                logger.warning(f"PigHub 缩略图缓存写入失败：{exc}")
+            self._remember_pighub_thumbnail(image_url, payload)
+            self._pighub_thumbnail_failures.pop(image_url, None)
+            return payload
 
     def _migrate_today_to_history(self):
         """把升级前当天已抽取的结果补进永久图鉴，且可重复安全执行。"""
@@ -2378,7 +2484,7 @@ class RollPigPlugin(Star):
             )
 
     async def page_pighub(self):
-        """管理面板：搜索 PigHub 图片索引，图片本体仅在保存时由服务端下载。"""
+        """管理面板：搜索本地缓存的 PigHub 索引。"""
         try:
             refresh = str(request.query.get("refresh", "0")) == "1"
             await self._refresh_pighub(force=refresh)
@@ -2444,6 +2550,21 @@ class RollPigPlugin(Star):
             logger.warning(f"PigHub 图片预览失败：{self._describe_sync_error(exc)}")
             return self._jsonify(
                 {"status": "error", "message": "PigHub 图片预览载入失败"}
+            )
+
+    async def page_pighub_thumbnail(self):
+        """管理页图格缩略图：服务端缓存并返回 Canvas 像素，避免直接跨域加载。"""
+        try:
+            image_url = str(request.query.get("url", "") or "").strip()
+            self._validate_pighub_image_url(image_url)
+            result = await self._pighub_thumbnail_pixels(image_url)
+            return self._jsonify({"status": "ok", "data": result})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.warning(f"PigHub 缩略图载入失败：{self._describe_sync_error(exc)}")
+            return self._jsonify(
+                {"status": "error", "message": "PigHub 缩略图载入失败"}
             )
 
     async def terminate(self):
