@@ -263,6 +263,12 @@ class RollPigPlugin(Star):
             "新增或编辑小猪",
         )
         context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pigs/suggest",
+            self.page_pig_suggest,
+            ["POST"],
+            "AI 生成小猪描述与文案草稿",
+        )
+        context.register_web_api(
             f"/{self.PLUGIN_NAME}/pigs/delete",
             self.page_pig_delete,
             ["POST"],
@@ -1866,6 +1872,55 @@ class RollPigPlugin(Star):
             logger.warning(f"AI 烤猪文案生成失败，已回退本地文案：{exc}")
             return None
 
+    async def _generate_pig_draft(self, name: str, filename: str = "") -> dict[str, str]:
+        """根据 PigHub 名称和现有图鉴风格生成可编辑的管理页草稿。"""
+        examples = random.sample(self.pig_list, min(10, len(self.pig_list)))
+        reference = "\n".join(
+            f"- 名称：{str(item.get('name') or '')[:30]}；"
+            f"描述：{str(item.get('description') or '')[:80]}；"
+            f"文案：{str(item.get('analysis') or '')[:160]}"
+            for item in examples
+        )
+        prompt = (
+            "你是今日小猪图鉴的内容编辑。请根据待添加的小猪名称，参考现有图鉴的轻松、机灵、略带反差的中文风格，"
+            "生成一条短描述和一段完整趣味文案。只返回 JSON，不要 Markdown，不要代码块，不要额外解释，格式必须是："
+            '{"description":"不超过80字的短描述","analysis":"不超过500字的完整文案"}。'
+            "描述要适合卡片摘要；文案可以有网络梗或轻度黑色幽默，但只能调侃虚构小猪、猪圈和抽卡命运，"
+            "禁止真实人物、仇恨、性内容、自残、血腥、现实暴力和真实烹饪步骤。"
+            f"\n待添加小猪名称：{name[:30]}\nPigHub 文件名：{filename[:120]}\n"
+            f"现有图鉴参考：\n{reference}"
+        )
+        provider = self.context.get_using_provider()
+        if provider is None:
+            raise RuntimeError("当前没有可用的 AI 模型提供商，请先在 AstrBot 配置模型")
+        response = await asyncio.wait_for(
+            provider.text_chat(
+                prompt=prompt,
+                session_id=None,
+                contexts=[],
+                image_urls=[],
+                func_tool=None,
+                system_prompt="",
+            ),
+            timeout=60,
+        )
+        text = str(getattr(response, "completion_text", "") or "").strip()
+        text = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text, flags=re.IGNORECASE)
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not match:
+            raise ValueError("AI 返回内容不是有效 JSON")
+        try:
+            result = json.loads(match.group(0))
+        except json.JSONDecodeError as exc:
+            raise ValueError("AI 返回内容不是有效 JSON") from exc
+        if not isinstance(result, dict):
+            raise ValueError("AI 返回内容格式无效")
+        description = re.sub(r"\s+", " ", str(result.get("description") or "")).strip()
+        analysis = re.sub(r"\s+", " ", str(result.get("analysis") or "")).strip()
+        if not description or not analysis:
+            raise ValueError("AI 未返回完整的描述和文案")
+        return {"description": description[:80], "analysis": analysis[:500]}
+
     async def _send_roast_card(
         self, event: AstrMessageEvent, pig: dict, user_id: str
     ) -> bool:
@@ -3305,6 +3360,31 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"今日小猪管理页列表失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "获取小猪列表失败"})
+
+    async def page_pig_suggest(self):
+        """管理面板：为 PigHub 小猪生成可编辑的描述与文案草稿。"""
+        try:
+            if not self._is_same_origin_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源无效"})
+            payload = await request.json(default={})
+            if not isinstance(payload, dict):
+                return self._jsonify({"status": "error", "message": "请求数据无效"})
+            name = str(payload.get("name") or "").strip()
+            filename = str(payload.get("filename") or "").strip()
+            pighub_url = str(payload.get("pighub_url") or "").strip()
+            if not name:
+                raise ValueError("请先从 PigHub 选择图片并填写名称")
+            if pighub_url:
+                self._validate_pighub_image_url(pighub_url)
+            draft = await self._generate_pig_draft(name, filename)
+            return self._jsonify({"status": "ok", "data": draft})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except asyncio.TimeoutError:
+            return self._jsonify({"status": "error", "message": "AI 生成超时，请稍后重试"})
+        except Exception as exc:
+            logger.warning(f"管理页 AI 生成小猪草稿失败：{exc}")
+            return self._jsonify({"status": "error", "message": "AI 暂时不可用，请检查模型配置"})
 
     async def page_pig_save(self):
         """管理面板：校验、标准化图片，并新增或修改完整小猪资料。"""
