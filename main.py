@@ -3553,8 +3553,6 @@ class RollPigPlugin(Star):
             with PILImage.open(io.BytesIO(raw)) as source:
                 source = ImageOps.exif_transpose(source)
                 width, height = source.size
-                if width < 256 or height < 256:
-                    raise ValueError("图片宽高至少需要 256×256 像素")
                 if width > 8192 or height > 8192 or width * height > 25_000_000:
                     raise ValueError("图片尺寸过大，最高支持 8192×8192")
                 method = getattr(PILImage, "Resampling", PILImage).LANCZOS
