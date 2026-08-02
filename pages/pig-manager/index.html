@@ -53,8 +53,8 @@
   <div class="form-grid">
     <div class="field"><label for="pigId">唯一 ID *</label><input id="pigId" maxlength="64" pattern="[a-z0-9][a-z0-9_-]*" placeholder="例如: strawberry-pig" required><div class="hint">小写字母、数字、-、_；保存后不可修改</div></div>
     <div class="field"><label for="pigName">名称 *</label><input id="pigName" maxlength="30" placeholder="草莓小猪" required></div>
-    <div class="field full"><label for="pigDescription">描述 *</label><input id="pigDescription" maxlength="80" placeholder="一句短标签，最多 80 字" required></div>
-    <div class="field full"><label for="pigAnalysis">完整文案 *</label><textarea id="pigAnalysis" maxlength="500" placeholder="抽中后展示的性格解析／趣味文案，最多 500 字" required></textarea><div class="hint"><span id="copyCount">0</span>/500</div></div>
+    <div class="field full"><label for="pigDescription">描述 *</label><input id="pigDescription" maxlength="80" placeholder="AI 建议 3-8 字一语道天机；手动编辑最多 80 字" required></div>
+    <div class="field full"><label for="pigAnalysis">完整文案 *</label><textarea id="pigAnalysis" maxlength="500" placeholder="AI 建议 40-120 字、风趣有梗并带一点哲学意味；手动编辑最多 500 字" required></textarea><div class="hint"><span id="copyCount">0</span>/500</div></div>
     <div class="field full ai-draft-row"><button class="btn ghost" type="button" id="aiDraftBtn" disabled>✨ AI 自动填写描述／文案</button><span class="hint" id="aiDraftHint">从 PigHub 选图后可根据名称和现有图鉴风格生成草稿，生成后仍可手动修改。</span></div>
     <div class="field full"><label>小猪图片 *</label><div class="upload"><canvas class="preview" id="imagePreview" width="192" height="192" aria-label="上传预览"></canvas><div><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="hint" id="imageSourceHint">支持 PNG/JPG/WEBP/GIF，原图 ≤10MB、宽高至少 256px。上传或 PigHub 图片保存时都会自动居中裁切、转为固定 512×512 PNG。</p><div class="upload-actions"><button class="btn ghost" type="button" id="chooseImageBtn">本地上传</button><button class="btn ghost" type="button" id="pighubBtn">从 PigHub 挑选</button></div><div class="source-note" id="sourceNote"></div></div></div></div>
   </div>
