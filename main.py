@@ -2200,9 +2200,11 @@ class RollPigPlugin(Star):
         )
         prompt = (
             "你是今日小猪图鉴的内容编辑。请根据待添加的小猪名称，参考现有图鉴的轻松、机灵、略带反差的中文风格，"
-            "生成一条短描述和一段完整趣味文案。只返回 JSON，不要 Markdown，不要代码块，不要额外解释，格式必须是："
-            '{"description":"不超过80字的短描述","analysis":"不超过500字的完整文案"}。'
-            "描述要适合卡片摘要；文案可以有网络梗或轻度黑色幽默，但只能调侃虚构小猪、猪圈和抽卡命运，"
+            "生成一条一语道破天机的短描述和一段简短完整文案。短描述必须只有 3-8 个汉字，风趣、有画面，不能是泛泛的形容词；"
+            "完整文案必须是 40-120 字的单段短文，带有网络梗、风趣感和一点哲学意味，像图鉴旁白一样自然，可在结尾反转。"
+            "只返回 JSON，不要 Markdown，不要代码块，不要额外解释，格式必须是："
+            '{"description":"3-8个汉字的短描述","analysis":"40-120字、风趣且有哲学意味的单段文案"}。'
+            "文案可以有轻度黑色幽默，但只能调侃虚构小猪、猪圈和抽卡命运，"
             "禁止真实人物、仇恨、性内容、自残、血腥、现实暴力和真实烹饪步骤。"
             f"\n待添加小猪名称：{name[:30]}\nPigHub 文件名：{filename[:120]}\n"
             f"现有图鉴参考：\n{reference}"
@@ -2232,11 +2234,21 @@ class RollPigPlugin(Star):
             raise ValueError("AI 返回内容不是有效 JSON") from exc
         if not isinstance(result, dict):
             raise ValueError("AI 返回内容格式无效")
-        description = re.sub(r"\s+", " ", str(result.get("description") or "")).strip()
-        analysis = re.sub(r"\s+", " ", str(result.get("analysis") or "")).strip()
+        description = re.sub(r"\s+", "", str(result.get("description") or "")).strip(
+            "‘’“”\"'`「」『』"
+        )
+        analysis = re.sub(r"\s+", " ", str(result.get("analysis") or "")).strip(
+            "‘’“”\"'`"
+        )
         if not description or not analysis:
             raise ValueError("AI 未返回完整的描述和文案")
-        return {"description": description[:80], "analysis": analysis[:500]}
+        if not 3 <= len(description) <= 8:
+            raise ValueError("AI 描述未符合 3-8 个汉字的要求，请重试")
+        if len(analysis) > 120:
+            analysis = analysis[:120].rstrip("，。！？；：、 ")
+            if not analysis:
+                raise ValueError("AI 文案内容无效，请重试")
+        return {"description": description, "analysis": analysis}
 
     async def _send_roast_card(
         self, event: AstrMessageEvent, pig: dict, user_id: str
