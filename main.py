@@ -240,6 +240,7 @@ class RollPigPlugin(Star):
         # 初始化字体（优先插件内自定义字体，跨平台兼容）
         self.font_regular = self._init_regular_font()  # 常规字体（描述/解析）
         self.font_bold = self._init_bold_font()  # 加粗字体（名称）
+        self.font_traditional = self._init_traditional_font()
 
         # AstrBot Plugin Pages 数据接口；页面文件位于 pages/pig-manager。
         self._jsonify = json_response
@@ -348,6 +349,21 @@ class RollPigPlugin(Star):
             "/System/Library/Fonts/PingFang.ttc",
         ]
         return self._load_font(font_paths, self.NAME_FONT_SIZE, "加粗")
+
+    def _init_traditional_font(self) -> ImageFont.FreeTypeFont | None:
+        """加载投稿的繁体字兜底字体，仅在现有字体缺字时用于 AI 文案。"""
+        return self._load_font(
+            [self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf"],
+            self.DESC_FONT_SIZE,
+            "繁体兜底",
+        )
+
+    def _ai_copy_font(self, _text: str, size: int) -> ImageFont.FreeTypeFont:
+        """AI 文案统一使用完整繁体字库，加载失败才回退常规字体。"""
+        primary = self.font_regular.font_variant(size=size)
+        if self.font_traditional:
+            return self.font_traditional.font_variant(size=size)
+        return primary
 
     def _get_text_size(
         self, text: str, font: ImageFont.FreeTypeFont
@@ -1260,6 +1276,20 @@ class RollPigPlugin(Star):
             "pig_snapshots", {}
         ).get(pig_id)
 
+    def _get_weekly_pig(self, user_id: str, date_value: datetime.date) -> tuple[dict | None, bool]:
+        """读取周报展示的小猪；被吃掉时保留原抽取结果并返回状态标记。"""
+        day = self.history.get("daily", {}).get(date_value.isoformat(), {})
+        user_key = str(user_id)
+        pig_id = str(day.get("records", {}).get(user_key, ""))
+        original_id = str(day.get("eaten_originals", {}).get(user_key, ""))
+        if pig_id == "eaten" and original_id:
+            original = self._find_catalog_pig(original_id) or self.history.get(
+                "pig_snapshots", {}
+            ).get(original_id)
+            if original:
+                return original, True
+        return self._get_daily_pig(user_key, date_value), False
+
     @staticmethod
     def _event_group_id(event: AstrMessageEvent) -> str:
         """返回群 ID；私聊或适配器未提供时返回空字符串。"""
@@ -1492,6 +1522,7 @@ class RollPigPlugin(Star):
             return None
         with self._data_lock:
             records = today_cache.setdefault("records", {})
+            previous_pig = records.get(str(user_id))
             records[str(user_id)] = dict(eaten)
             self.save_json(self.today_path, today_cache)
 
@@ -1500,7 +1531,13 @@ class RollPigPlugin(Star):
                 today,
                 {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
             )
-            day.setdefault("records", {})[str(user_id)] = "eaten"
+            daily_records = day.setdefault("records", {})
+            original_id = str(daily_records.get(str(user_id)) or "")
+            if not original_id and isinstance(previous_pig, dict):
+                original_id = str(previous_pig.get("id") or "")
+            if original_id and original_id != "eaten":
+                day.setdefault("eaten_originals", {}).setdefault(str(user_id), original_id)
+            daily_records[str(user_id)] = "eaten"
             self.history.setdefault("pig_snapshots", {})["eaten"] = dict(eaten)
             self.save_json(self.history_path, self.history)
 
@@ -2216,7 +2253,7 @@ class RollPigPlugin(Star):
         collected = 0
         for index in range(7):
             day = monday + datetime.timedelta(days=index)
-            pig = self._get_daily_pig(user_id, day)
+            pig, was_eaten = self._get_weekly_pig(user_id, day)
             y = 155 + index * 125
             active = day <= today
             fill = palette["surface"] if pig else palette["surface_muted"]
@@ -2238,6 +2275,16 @@ class RollPigPlugin(Star):
                 pig_desc = pig_desc if len(pig_desc) <= 28 else pig_desc[:27] + "…"
                 draw.text((378, y + 18), pig_name, font=body_font, fill=palette["title"])
                 draw.text((378, y + 62), pig_desc, font=small_font, fill=palette["secondary"])
+                if was_eaten:
+                    badge = "被吃掉了"
+                    badge_w, _ = self._get_text_size(badge, small_font)
+                    badge_x = 842 - badge_w - 22
+                    draw.rounded_rectangle(
+                        (badge_x - 12, y + 16, 846, y + 49),
+                        14,
+                        fill=(181, 71, 95),
+                    )
+                    draw.text((badge_x, y + 21), badge, font=small_font, fill=(255, 244, 247))
             else:
                 status = "等待未来" if not active else "本日未抽取"
                 draw.text((300, y + 37), status, font=body_font, fill=palette["muted"])
@@ -2270,7 +2317,7 @@ class RollPigPlugin(Star):
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=52)
         name_font = self.font_bold.font_variant(size=38)
-        body_font = self.font_regular.font_variant(size=26)
+        body_font = self._ai_copy_font(copy, 26) if ai_copy else self.font_regular.font_variant(size=26)
         draw.rounded_rectangle((34, 28, 766, 830), 38, fill=palette["roast_surface"], outline=palette["roast_outline"], width=5)
         source = "AI 料理" if ai_copy else "本地料理"
         draw.text((64, 58), f"今日烤猪 · {source}", font=title_font, fill=palette["roast_title"])
