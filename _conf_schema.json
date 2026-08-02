@@ -19,9 +19,27 @@
     },
     "enable_roast": {
         "description": "开启今日烤猪",
-        "hint": "使用纯本地模板生成趣味料理卡，不调用外部 AI",
+        "hint": "允许把自己当天的小猪做成趣味料理卡；人类、熟食形态和已吃掉的小猪会被拦截",
         "type": "bool",
         "default": true
+    },
+    "enable_group_roast": {
+        "description": "开启烤群友玩法",
+        "hint": "群聊中可使用 /烤群友 @某人、/随机烤群友 和后门口令；关闭后仅保留今日烤猪",
+        "type": "bool",
+        "default": true
+    },
+    "group_roast_cooldown_hours": {
+        "description": "烤群友冷却时间（小时）",
+        "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；后门口令会绕过此限制",
+        "type": "float",
+        "default": 8
+    },
+    "enable_ai_roast_copy": {
+        "description": "启用 AI 烤猪文案",
+        "hint": "开启后，料理卡会调用当前会话的 AstrBot 文本模型生成一句文案；模型不可用、超时或报错时自动回退本地模板",
+        "type": "bool",
+        "default": false
     },
     "image_theme": {
         "description": "图片卡片日夜主题",

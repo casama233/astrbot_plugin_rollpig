@@ -60,8 +60,11 @@ class RollPigPlugin(Star):
     PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
     PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
     PIGHUB_THUMBNAIL_FAILURE_TTL = 10 * 60
+    ROAST_FORBIDDEN_IDS = {"human", "eaten", "mc_porkchop"}
+    ROAST_FORBIDDEN_NAMES = {"人类", "人類", "吃掉了", "熟食形态", "熟食形態"}
+    GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/1.6 (+https://github.com/MegSopern/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/1.8 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -80,6 +83,20 @@ class RollPigPlugin(Star):
             pity_step = 15
         self.pity_step_percent = min(50, max(0, pity_step))
         self.enable_roast: bool = self.config.get("enable_roast", True)
+        self.enable_group_roast: bool = self.config.get("enable_group_roast", True)
+        self.enable_ai_roast_copy: bool = self.config.get("enable_ai_roast_copy", False)
+        try:
+            cooldown_hours = float(
+                self.config.get(
+                    "group_roast_cooldown_hours",
+                    self.GROUP_ROAST_COOLDOWN_SECONDS / 3600,
+                )
+            )
+        except (TypeError, ValueError):
+            cooldown_hours = 8
+        self.group_roast_cooldown_seconds = int(
+            min(72, max(1, cooldown_hours)) * 60 * 60
+        )
         image_theme = str(self.config.get("image_theme", "auto") or "auto").lower()
         self.image_theme = image_theme if image_theme in {"auto", "light", "dark"} else "auto"
         self.resource_sync_enabled = self.config.get(
@@ -133,6 +150,7 @@ class RollPigPlugin(Star):
         self.pighub_cache_path = self.plugin_data_dir / "pighub_images.json"
         self.pighub_thumbnail_dir = self.plugin_data_dir / "pighub_thumbnails"
         self.history_path = self.plugin_data_dir / "pig_history.json"
+        self.roast_state_path = self.plugin_data_dir / "roast_state.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
@@ -166,6 +184,10 @@ class RollPigPlugin(Star):
         self.history = self.load_json(
             self.history_path,
             {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
+        )
+        self.roast_state = self.load_json(
+            self.roast_state_path,
+            {"version": 1, "cooldowns": {}, "daily_backdoors": {}},
         )
         self._migrate_today_to_history()
 
@@ -1085,6 +1107,7 @@ class RollPigPlugin(Star):
         pig_data: dict,
         draw_date: str | None = None,
         *,
+        group_id: str | None = None,
         save: bool = True,
     ) -> bool:
         """记录每日抽取和永久解锁。一天同一用户只统计一次。"""
@@ -1105,15 +1128,22 @@ class RollPigPlugin(Star):
             )
             day_users = day.setdefault("users", [])
             day_records = day.setdefault("records", {})
+            group_changed = False
+            if group_id:
+                groups = day.setdefault("groups", {})
+                group_users = groups.setdefault(str(group_id), [])
+                if user_id not in group_users:
+                    group_users.append(user_id)
+                    group_changed = True
             if user_id in day_users:
                 if user_id not in day_records:
                     day_records[user_id] = pig_id
                     if save:
                         self.save_json(self.history_path, self.history)
                     return True
-                if snapshot_changed and save:
+                if (snapshot_changed or group_changed) and save:
                     self.save_json(self.history_path, self.history)
-                return snapshot_changed
+                return snapshot_changed or group_changed
 
             user = users.setdefault(
                 user_id,
@@ -1183,6 +1213,207 @@ class RollPigPlugin(Star):
         return self._find_catalog_pig(pig_id) or self.history.get(
             "pig_snapshots", {}
         ).get(pig_id)
+
+    @staticmethod
+    def _event_group_id(event: AstrMessageEvent) -> str:
+        """返回群 ID；私聊或适配器未提供时返回空字符串。"""
+        try:
+            return str(event.get_group_id() or "")
+        except (AttributeError, TypeError):
+            return ""
+
+    def _roast_block_reason(self, pig: dict | None) -> str | None:
+        """检查一只当天小猪是否仍可被做成料理。"""
+        if not pig:
+            return "对方今天还没有抽取小猪。"
+        pig_id = str(pig.get("id") or "").strip().lower()
+        name = str(pig.get("name") or "").strip()
+        if pig_id in self.ROAST_FORBIDDEN_IDS or name in self.ROAST_FORBIDDEN_NAMES:
+            return f"对方今天是「{name or pig_id}」，不能被烧烤。"
+        return None
+
+    def _extract_roast_target_id(
+        self, event: AstrMessageEvent, args: str = ""
+    ) -> str:
+        """优先取 @ 目标，其次取被引用消息的发送者，最后接受纯数字 ID。"""
+        at_ids = self.get_at_ids(event)
+        if at_ids:
+            return at_ids[0]
+        try:
+            components = event.get_messages()
+        except (AttributeError, TypeError):
+            components = []
+        for component in components:
+            # AstrBot 的 Reply 组件会提供 sender_id；不用强依赖具体组件类，
+            # 以兼容各消息适配器的引用消息实现。
+            sender_id = getattr(component, "sender_id", None)
+            if sender_id and getattr(component, "chain", None) is not None:
+                return str(sender_id)
+        raw_message = str(getattr(event, "message_str", "") or "")
+        match = re.search(r'qq="?(\d+)"?', raw_message)
+        if match:
+            return match.group(1)
+        candidate = str(args or "").strip().replace("@", "")
+        return candidate if candidate.isdigit() else ""
+
+    def _save_roast_state(self) -> None:
+        self.save_json(self.roast_state_path, self.roast_state)
+
+    def _consume_group_roast_cooldown(
+        self, group_id: str, actor_id: str
+    ) -> int:
+        """记录一次普通烤群友，返回剩余冷却秒数；0 表示已成功占用。"""
+        key = f"{group_id}:{actor_id}"
+        now = time.time()
+        with self._data_lock:
+            cooldowns = self.roast_state.setdefault("cooldowns", {})
+            previous = float(cooldowns.get(key, 0) or 0)
+            remaining = int(previous + self.group_roast_cooldown_seconds - now)
+            if remaining > 0:
+                return remaining
+            cooldowns[key] = now
+            self._save_roast_state()
+        return 0
+
+    def _consume_daily_backdoor(self, actor_id: str) -> bool:
+        """普通后门每个用户每天仅消耗一次。"""
+        key = f"{datetime.date.today().isoformat()}:{actor_id}"
+        with self._data_lock:
+            used = self.roast_state.setdefault("daily_backdoors", {})
+            if used.get(key):
+                return False
+            used[key] = True
+            # 只保留近期数据，避免状态文件无限增长。
+            cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+            self.roast_state["daily_backdoors"] = {
+                item: value
+                for item, value in used.items()
+                if item.split(":", 1)[0] >= cutoff
+            }
+            self._save_roast_state()
+        return True
+
+    @staticmethod
+    def _format_cooldown(seconds: int) -> str:
+        seconds = max(1, int(seconds))
+        hours, remainder = divmod(seconds, 3600)
+        minutes = max(1, math.ceil(remainder / 60)) if remainder else 0
+        return f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+
+    async def _generate_ai_roast_copy(
+        self, event: AstrMessageEvent, pig: dict
+    ) -> str | None:
+        """可选 AI 文案；模型不可用时静默回退到本地料理文案。"""
+        if not self.enable_ai_roast_copy:
+            return None
+        prompt = (
+            "为聊天机器人‘今日烤猪’写一句中文料理卡文案。"
+            f"小猪名：{str(pig.get('name') or '小猪')[:30]}；"
+            f"描述：{str(pig.get('description') or '')[:80]}。"
+            "语气轻松、无攻击性、不含真实食物制作步骤；只输出一句不超过42个汉字的文案。"
+        )
+        try:
+            response = None
+            get_provider_id = getattr(self.context, "get_current_chat_provider_id", None)
+            llm_generate = getattr(self.context, "llm_generate", None)
+            umo = getattr(event, "unified_msg_origin", None)
+            if callable(get_provider_id) and callable(llm_generate) and umo:
+                provider_id = await get_provider_id(umo=umo)
+                if provider_id:
+                    response = await llm_generate(
+                        chat_provider_id=provider_id, prompt=prompt
+                    )
+            if response is None:
+                provider = self.context.get_using_provider()
+                if provider is None:
+                    return None
+                response = await provider.text_chat(
+                    prompt=prompt,
+                    session_id=None,
+                    contexts=[],
+                    image_urls=[],
+                    func_tool=None,
+                    system_prompt="",
+                )
+            text = str(getattr(response, "completion_text", "") or "").strip()
+            text = re.sub(r"\s+", " ", text).strip("“”\"' ")
+            return text[:64] or None
+        except Exception as exc:
+            logger.warning(f"AI 烤猪文案生成失败，已回退本地文案：{exc}")
+            return None
+
+    async def _send_roast_card(
+        self, event: AstrMessageEvent, pig: dict, user_id: str
+    ) -> bool:
+        output = None
+        try:
+            ai_copy = await self._generate_ai_roast_copy(event, pig)
+            output = await asyncio.to_thread(
+                self.render_roast_image, pig, user_id, ai_copy
+            )
+            await event.send(event.image_result(str(output.absolute())))
+            return True
+        except Exception as exc:
+            logger.error(f"生成烤猪料理卡失败：{exc}", exc_info=True)
+            await event.send(event.plain_result("料理卡生成失败，请稍后再试。"))
+            return False
+        finally:
+            if output:
+                output.unlink(missing_ok=True)
+
+    async def _roast_group_target(
+        self,
+        event: AstrMessageEvent,
+        target_id: str,
+        *,
+        bypass: bool = False,
+    ) -> None:
+        """执行烤群友结果。后门仅传入 bypass，不绕过目标资格。"""
+        actor_id = str(event.get_sender_id())
+        group_id = self._event_group_id(event)
+        if not group_id:
+            await event.send(event.plain_result("烤群友只能在群聊中使用。"))
+            return
+        if not target_id:
+            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            return
+        if target_id == actor_id:
+            await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
+            return
+        target_pig = self._get_daily_pig(target_id, datetime.date.today())
+        reason = self._roast_block_reason(target_pig)
+        if reason:
+            await event.send(event.plain_result(reason))
+            return
+        if not bypass:
+            remaining = self._consume_group_roast_cooldown(group_id, actor_id)
+            if remaining:
+                await event.send(
+                    event.plain_result(
+                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再试。"
+                    )
+                )
+                return
+
+        result = "success" if bypass else random.choices(
+            ["success", "escape", "backlash"], weights=[60, 30, 10], k=1
+        )[0]
+        if result == "escape":
+            await event.send(event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。"))
+            return
+        if result == "backlash":
+            actor_pig = self._get_daily_pig(actor_id, datetime.date.today())
+            actor_reason = self._roast_block_reason(actor_pig)
+            if actor_reason:
+                await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
+                return
+            await event.send(event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。"))
+            await self._send_roast_card(event, actor_pig, actor_id)
+            return
+
+        prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
+        await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
+        await self._send_roast_card(event, target_pig, target_id)
 
     def find_image_file(self, pig_id: str) -> Path | None:
         """
@@ -1568,7 +1799,9 @@ class RollPigPlugin(Star):
         canvas.save(output, "PNG", optimize=True)
         return output
 
-    def render_roast_image(self, pig: dict, user_id: str) -> Path:
+    def render_roast_image(
+        self, pig: dict, user_id: str, ai_copy: str | None = None
+    ) -> Path:
         palette = self._image_palette()
         recipes = [
             ("蜜汁脆皮", "外脆里嫩，甜度刚好，今日烦恼全部烤化。"),
@@ -1580,13 +1813,17 @@ class RollPigPlugin(Star):
         seed = f"{user_id}:{datetime.date.today().isoformat()}:{pig.get('id')}"
         digest = hashlib.sha256(seed.encode("utf-8")).digest()
         recipe, copy = recipes[digest[0] % len(recipes)]
+        if ai_copy:
+            recipe = "AI 私房"
+            copy = ai_copy
         canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=52)
         name_font = self.font_bold.font_variant(size=38)
         body_font = self.font_regular.font_variant(size=26)
         draw.rounded_rectangle((34, 28, 766, 830), 38, fill=palette["roast_surface"], outline=palette["roast_outline"], width=5)
-        draw.text((64, 58), "今日烤猪 · 本地料理", font=title_font, fill=palette["roast_title"])
+        source = "AI 料理" if ai_copy else "本地料理"
+        draw.text((64, 58), f"今日烤猪 · {source}", font=title_font, fill=palette["roast_title"])
         path = self.find_image_file(str(pig.get("id") or ""))
         if path:
             thumb = self._fit_card_image(path, (430, 430))
@@ -1640,7 +1877,15 @@ class RollPigPlugin(Star):
                     ("/我的猪圈 [页码]", "永久图鉴，例如 /我的猪圈 2"),
                     ("/随机小猪 [1-9]", "随机展示，不影响今日结果"),
                     ("/找猪／搜猪 关键词", "按名称、ID、描述或文案搜索"),
+                ],
+            ),
+            (
+                "烤猪玩法",
+                [
                     ("/今日烤猪", "把今天的小猪做成趣味料理卡"),
+                    ("/烤群友 @某人", "群聊 60% 成功／30% 逃脱／10% 反噬，8 小时冷却"),
+                    ("/随机烤群友", "从今天在本群抽过猪的群友中随机挑选"),
+                    ("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
                 ],
             ),
             (
@@ -1651,7 +1896,7 @@ class RollPigPlugin(Star):
                 ],
             ),
         ]
-        width, height = 900, 1250
+        width, height = 900, 1510
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         # 帮助卡固定使用插件内置粗体：AstrBot 容器缺少完整 CJK 系统字体时，
@@ -1767,7 +2012,9 @@ class RollPigPlugin(Star):
 
         if user_id in user_records:
             pig = user_records[user_id]
-            self._record_unlock(user_id, pig, today_str)
+            self._record_unlock(
+                user_id, pig, today_str, group_id=self._event_group_id(event)
+            )
             await self.send_rendered_pig(event, pig, user_id)
             return
 
@@ -1778,7 +2025,9 @@ class RollPigPlugin(Star):
         pig = self._choose_daily_pig(user_id)
         user_records[user_id] = pig
         self.save_json(self.today_path, today_cache)
-        self._record_unlock(user_id, pig, today_str)
+        self._record_unlock(
+            user_id, pig, today_str, group_id=self._event_group_id(event)
+        )
 
         await self.send_rendered_pig(event, pig, user_id)
 
@@ -1946,25 +2195,105 @@ class RollPigPlugin(Star):
 
     @filter.command("今日烤猪", alias={"今日烤豬", "烤猪", "烤豬"})
     async def roast_today_pig(self, event: AstrMessageEvent):
-        """生成纯本地趣味料理卡，不改变今日结果。"""
+        """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
         if not self.enable_roast:
             await event.send(event.plain_result("今日烤猪功能已在配置中关闭。"))
             return
         user_id = event.get_sender_id()
         pig = self._get_daily_pig(user_id, datetime.date.today())
-        if not pig:
-            await event.send(event.plain_result("请先使用 /今日小猪 抽取今天的小猪。"))
+        reason = self._roast_block_reason(pig)
+        if reason:
+            if not pig:
+                reason = "请先使用 /今日小猪 抽取今天的小猪。"
+            await event.send(event.plain_result(reason))
             return
-        output = None
-        try:
-            output = await asyncio.to_thread(self.render_roast_image, pig, user_id)
-            await event.send(event.image_result(str(output.absolute())))
-        except Exception as exc:
-            logger.error(f"生成今日烤猪失败：{exc}", exc_info=True)
-            await event.send(event.plain_result("今日烤猪料理失败，请稍后再试。"))
-        finally:
-            if output:
-                output.unlink(missing_ok=True)
+        await self._send_roast_card(event, pig, str(user_id))
+
+    @filter.command("烤群友", alias={"烤群友"})
+    async def roast_group_member(self, event: AstrMessageEvent, args: str = ""):
+        """在群聊中烧烤 @ 目标或引用消息的发送者。"""
+        if not self.enable_roast or not self.enable_group_roast:
+            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            return
+        target_id = self._extract_roast_target_id(event, args)
+        await self._roast_group_target(event, target_id)
+
+    @filter.command("随机烤群友", alias={"隨機烤群友"})
+    async def roast_random_group_member(self, event: AstrMessageEvent):
+        """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
+        if not self.enable_roast or not self.enable_group_roast:
+            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            return
+        group_id = self._event_group_id(event)
+        if not group_id:
+            await event.send(event.plain_result("随机烤群友只能在群聊中使用。"))
+            return
+        actor_id = str(event.get_sender_id())
+        today = datetime.date.today()
+        day = self.history.get("daily", {}).get(today.isoformat(), {})
+        members = day.get("groups", {}).get(group_id, [])
+        candidates = []
+        for user_id in members if isinstance(members, list) else []:
+            user_id = str(user_id)
+            if user_id == actor_id:
+                continue
+            pig = self._get_daily_pig(user_id, today)
+            if not self._roast_block_reason(pig):
+                candidates.append(user_id)
+        if not candidates:
+            await event.send(
+                event.plain_result("今天本群还没有可被随机烧烤的群友；请先让大家抽取今日小猪。")
+            )
+            return
+        await self._roast_group_target(event, random.choice(candidates))
+
+    @filter.command(
+        "打点后厨",
+        alias={
+            "打點後廚",
+            "偷换烤架",
+            "偷換烤架",
+            "贿赂主厨",
+            "賄賂主廚",
+            "加急生火",
+            "强行点火",
+            "強行點火",
+        },
+    )
+    async def force_roast_group_member(
+        self, event: AstrMessageEvent, args: str = ""
+    ):
+        """后门口令：绕过烤群友冷却与概率，但不绕过资格限制。"""
+        if not self.enable_roast or not self.enable_group_roast:
+            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            return
+        raw = str(getattr(event, "message_str", "") or "")
+        is_super_phrase = "强行点火" in raw or "強行點火" in raw
+        actor_id = str(event.get_sender_id())
+        if is_super_phrase:
+            if actor_id not in {str(item) for item in self.admins_id}:
+                await event.send(event.plain_result("「强行点火」仅限 AstrBot 超级管理员使用。"))
+                return
+        target_id = self._extract_roast_target_id(event, args)
+        group_id = self._event_group_id(event)
+        target_pig = self._get_daily_pig(target_id, datetime.date.today()) if target_id else None
+        if not group_id:
+            await event.send(event.plain_result("烤群友只能在群聊中使用。"))
+            return
+        if not target_id:
+            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            return
+        if target_id == actor_id:
+            await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
+            return
+        reason = self._roast_block_reason(target_pig)
+        if reason:
+            await event.send(event.plain_result(reason))
+            return
+        if not is_super_phrase and not self._consume_daily_backdoor(actor_id):
+            await event.send(event.plain_result("普通后门每天只能使用一次，请明天再来。"))
+            return
+        await self._roast_group_target(event, target_id, bypass=True)
 
     @filter.command(
         "同步小猪资源",
