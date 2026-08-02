@@ -97,13 +97,13 @@ class RollPigPlugin(Star):
         self.timezone_name = timezone_name
         try:
             self.timezone = (
-                self._now().tzinfo
+                datetime.datetime.now().astimezone().tzinfo
                 if timezone_name.lower() in {"", "local", "system"}
                 else ZoneInfo(timezone_name)
             )
         except ZoneInfoNotFoundError:
             logger.warning(f"未知时区 {timezone_name}，已回退系统时区")
-            self.timezone = self._now().tzinfo
+            self.timezone = datetime.datetime.now().astimezone().tzinfo
             self.timezone_name = "local"
         try:
             ai_timeout = float(self.config.get("ai_generation_timeout_seconds", 45))
@@ -222,7 +222,6 @@ class RollPigPlugin(Star):
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
         self._daily_draw_lock = asyncio.Lock()
-        self._page_write_lock = asyncio.Lock()
         self._ai_roast_copy_locks: dict[str, asyncio.Lock] = {}
         self._csrf_token = secrets.token_urlsafe(32)
         self._background_task: asyncio.Task | None = None
@@ -385,27 +384,74 @@ class RollPigPlugin(Star):
         legacy = self._legacy_identity(value)
         return (value,) if legacy == value else (value, legacy)
 
+    def _claim_legacy_identity(
+        self,
+        namespaced: str,
+        legacy: str,
+        *,
+        kind: str,
+        legacy_exists: bool,
+    ) -> str:
+        """Let one platform claim ambiguous legacy data; other platforms stay isolated."""
+        if namespaced == legacy or not legacy_exists:
+            return namespaced
+        with self._data_lock:
+            claims_root = self.history.setdefault("identity_claims", {})
+            claims = claims_root.setdefault(kind, {})
+            claimed_by = str(claims.get(legacy) or "")
+            if not claimed_by:
+                claims[legacy] = namespaced
+                self.save_json(self.history_path, self.history)
+                return legacy
+            return legacy if claimed_by == namespaced else namespaced
+
     def _storage_user_key(self, user_id: str) -> str:
         candidates = self._identity_candidates(str(user_id))
+        namespaced = candidates[0]
+        legacy = candidates[-1]
+        if namespaced == legacy:
+            return namespaced
         users = getattr(self, "history", {}).get("users", {})
-        for candidate in candidates:
-            if candidate in users:
-                return candidate
         penalties = getattr(self, "roast_state", {}).get("eaten_penalties", {})
-        for candidate in candidates:
-            if isinstance(penalties, dict) and candidate in penalties:
-                return candidate
-        return candidates[0]
+        legacy_exists = (
+            legacy in users
+            or (isinstance(penalties, dict) and legacy in penalties)
+            or self._identity_exists(legacy)
+        )
+        if namespaced in users or (
+            isinstance(penalties, dict) and namespaced in penalties
+        ):
+            return namespaced
+        return self._claim_legacy_identity(
+            namespaced,
+            legacy,
+            kind="users",
+            legacy_exists=legacy_exists,
+        )
 
     def _storage_group_key(self, group_id: str) -> str:
         candidates = self._identity_candidates(str(group_id))
+        namespaced = candidates[0]
+        legacy = candidates[-1]
+        if namespaced == legacy:
+            return namespaced
         daily = getattr(self, "history", {}).get("daily", {})
+        namespaced_exists = False
+        legacy_exists = False
         for day in daily.values() if isinstance(daily, dict) else ():
             groups = day.get("groups", {}) if isinstance(day, dict) else {}
-            for candidate in candidates:
-                if isinstance(groups, dict) and candidate in groups:
-                    return candidate
-        return candidates[0]
+            if not isinstance(groups, dict):
+                continue
+            namespaced_exists = namespaced_exists or namespaced in groups
+            legacy_exists = legacy_exists or legacy in groups
+        if namespaced_exists:
+            return namespaced
+        return self._claim_legacy_identity(
+            namespaced,
+            legacy,
+            kind="groups",
+            legacy_exists=legacy_exists,
+        )
 
     def _is_admin_id(self, event: AstrMessageEvent, user_id: str) -> bool:
         candidates = set(self._identity_candidates(user_id))
@@ -1646,7 +1692,7 @@ class RollPigPlugin(Star):
             legacy_digits = re.sub(r"\D", "", legacy_local)
             if legacy_digits and legacy_digits != canonical:
                 if self._identity_exists(legacy_digits) and not self._identity_exists(canonical):
-                    return legacy_digits
+                    return self._namespace_identity(event, legacy_digits, "user")
             return self._namespace_identity(event, canonical, "user")
         return self._namespace_identity(event, resolved, "user")
 
@@ -2933,6 +2979,10 @@ class RollPigPlugin(Star):
                     await event.send(event.plain_result("你这只小猪，不许对主人不敬！"))
                     return
 
+        response_text = ""
+        pig_to_send: dict | None = None
+        send_user_id = actor_id
+        group_id = self._event_group_id(event)
         async with self._daily_draw_lock:
             today_cache = self.load_json(
                 self.today_path, {"date": "", "records": {}}
@@ -2940,51 +2990,60 @@ class RollPigPlugin(Star):
             if today_cache.get("date") != today_str:
                 today_cache = {"date": today_str, "records": {}}
             user_records = today_cache.setdefault("records", {})
-            existing = next(
+            existing_key = next(
                 (
-                    user_records[candidate]
+                    candidate
                     for candidate in self._identity_candidates(target_id)
                     if candidate in user_records
                 ),
-                None,
+                "",
             )
+            existing = user_records.get(existing_key) if existing_key else None
+
             if viewing_other:
-                if not existing:
-                    await event.send(
-                        event.plain_result("对方今天还没有抽取小猪；查看不会替对方抽取。")
-                    )
-                    return
-                await self.send_rendered_pig(event, existing, target_id)
-                return
-
-            if self._consume_eaten_penalty(str(actor_id), today_str):
-                await event.send(
-                    event.plain_result(
-                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
-                    )
+                if existing:
+                    pig_to_send = existing
+                    send_user_id = target_id
+                else:
+                    response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
+            elif self._consume_eaten_penalty(str(actor_id), today_str):
+                response_text = (
+                    "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
                 )
-                return
-            if existing:
-                await self.send_rendered_pig(event, existing, actor_id)
-                return
-            if not self.pig_list:
-                await event.send(event.plain_result("小猪信息加载失败，请检查后台报错！"))
-                return
+            elif existing:
+                # Repair historical state left by an older interrupted write.
+                changed = self._record_unlock(
+                    existing_key,
+                    existing,
+                    today_str,
+                    group_id=group_id,
+                    save=False,
+                )
+                if changed:
+                    self.save_json(self.history_path, self.history)
+                pig_to_send = existing
+            elif not self.pig_list:
+                response_text = "小猪信息加载失败，请检查后台报错！"
+            else:
+                storage_id = self._storage_user_key(actor_id)
+                pig_to_send = self._choose_daily_pig(storage_id)
+                user_records[storage_id] = pig_to_send
+                self._record_unlock(
+                    storage_id,
+                    pig_to_send,
+                    today_str,
+                    group_id=group_id,
+                    save=False,
+                )
+                self.save_json_batch(
+                    {self.today_path: today_cache, self.history_path: self.history}
+                )
 
-            storage_id = self._storage_user_key(actor_id)
-            pig = self._choose_daily_pig(storage_id)
-            user_records[storage_id] = pig
-            self._record_unlock(
-                storage_id,
-                pig,
-                today_str,
-                group_id=self._event_group_id(event),
-                save=False,
-            )
-            self.save_json_batch(
-                {self.today_path: today_cache, self.history_path: self.history}
-            )
-        await self.send_rendered_pig(event, pig, actor_id)
+        if response_text:
+            await event.send(event.plain_result(response_text))
+            return
+        if pig_to_send:
+            await self.send_rendered_pig(event, pig_to_send, send_user_id)
 
     @filter.command(
         "我的猪圈",
@@ -3486,10 +3545,9 @@ class RollPigPlugin(Star):
             if old != target:
                 old.unlink(missing_ok=True)
 
-    async def page_overview(self):
-        """管理面板：总体指标、趋势与热门小猪。"""
-        try:
-            await asyncio.sleep(0)
+    def _build_overview_data(self) -> dict:
+        """Build the dashboard snapshot off the event-loop thread."""
+        with self._data_lock:
             today = self._today()
             users = self.history.get("users", {})
             catalog_ids = {str(pig.get("id")) for pig in self.pig_list}
@@ -3534,24 +3592,25 @@ class RollPigPlugin(Star):
                 if pig_id in names
             ]
             today_item = daily.get(today.isoformat(), {})
-            return self._jsonify(
-                {
-                    "status": "ok",
-                    "data": {
-                        "metrics": {
-                            "total_users": total_users,
-                            "total_draws": total_draws,
-                            "catalog_count": len(catalog_ids),
-                            "today_users": len(today_item.get("users", [])),
-                            "average_unlocked": round(average_unlocked, 2),
-                            "average_unlock_rate": round(average_rate, 2),
-                        },
-                        "trend": trend,
-                        "top_pigs": top_pigs,
-                        "csrf_token": self._csrf_token,
-                    },
-                }
-            )
+            return {
+                "metrics": {
+                    "total_users": total_users,
+                    "total_draws": total_draws,
+                    "catalog_count": len(catalog_ids),
+                    "today_users": len(today_item.get("users", [])),
+                    "average_unlocked": round(average_unlocked, 2),
+                    "average_unlock_rate": round(average_rate, 2),
+                },
+                "trend": trend,
+                "top_pigs": top_pigs,
+            }
+
+    async def page_overview(self):
+        """管理面板：总体指标、趋势与热门小猪。"""
+        try:
+            data = await asyncio.to_thread(self._build_overview_data)
+            data["csrf_token"] = self._csrf_token
+            return self._jsonify({"status": "ok", "data": data})
         except Exception as exc:
             logger.error(f"今日小猪管理页总览失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "获取统计数据失败"})
@@ -3578,7 +3637,7 @@ class RollPigPlugin(Star):
             pages = max(1, math.ceil(len(filtered) / page_size))
             page = min(page, pages)
             items = filtered[(page - 1) * page_size : page * page_size]
-            draws, collectors = self._catalog_aggregates()
+            draws, collectors = await asyncio.to_thread(self._catalog_aggregates)
             payload = []
             for pig in items:
                 item = dict(pig)
