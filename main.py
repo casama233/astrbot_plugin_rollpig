@@ -2561,8 +2561,7 @@ class RollPigPlugin(Star):
             (
                 "管理员",
                 [
-                    ("/同步小猪资源", "同步云端图鉴，保留本地修改"),
-                    ("管理面板", "新增、编辑、删除小猪与 PigHub 选图"),
+                    ("管理面板", "同步资源，新增、编辑、删除小猪与 PigHub 选图"),
                 ],
             ),
         ]
@@ -3049,30 +3048,6 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("普通后门每天只能使用一次，请明天再来。"))
             return
         await self._roast_group_target(event, target_id, bypass=True)
-
-    @filter.command(
-        "同步小猪资源",
-        alias={"同步小豬資源", "刷新小猪图鉴", "刷新小豬圖鑑"},
-    )
-    @filter.permission_type(filter.PermissionType.ADMIN)
-    async def sync_pig_resources_command(self, event: AstrMessageEvent):
-        """管理员手动刷新公有小猪资源；本地覆盖与删除屏蔽不会被改动。"""
-        try:
-            result = await self.sync_cloud_resources(force=False)
-            action = "已更新" if result["updated"] else "已是最新"
-            await event.send(
-                event.plain_result(
-                    f"小猪云资源{action}：{result['version']}\n"
-                    "本地新增、修改和删除屏蔽均已保留。"
-                )
-            )
-        except Exception as exc:
-            await event.send(
-                event.plain_result(
-                    f"小猪云资源同步失败：{self._describe_sync_error(exc)}\n"
-                    "已继续使用旧缓存或内置资源。"
-                )
-            )
 
     async def send_rendered_pig(
         self,
