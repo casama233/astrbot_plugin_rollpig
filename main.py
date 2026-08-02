@@ -151,6 +151,7 @@ class RollPigPlugin(Star):
         self.pighub_thumbnail_dir = self.plugin_data_dir / "pighub_thumbnails"
         self.history_path = self.plugin_data_dir / "pig_history.json"
         self.roast_state_path = self.plugin_data_dir / "roast_state.json"
+        self.ai_roast_copies_path = self.plugin_data_dir / "ai_roast_copies.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
@@ -160,6 +161,7 @@ class RollPigPlugin(Star):
         self._pighub_thumbnail_failures: dict[str, float] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
+        self._ai_roast_copy_lock = asyncio.Lock()
         self._background_task: asyncio.Task | None = None
         self._manual_sync_task: asyncio.Task | None = None
         self._pighub_images: list[dict] = []
@@ -188,6 +190,10 @@ class RollPigPlugin(Star):
         self.roast_state = self.load_json(
             self.roast_state_path,
             {"version": 1, "cooldowns": {}, "daily_backdoors": {}},
+        )
+        self.ai_roast_copies = self.load_json(
+            self.ai_roast_copies_path,
+            {"version": 1, "copies": {}},
         )
         self._migrate_today_to_history()
 
@@ -1401,6 +1407,68 @@ class RollPigPlugin(Star):
         minutes = max(1, math.ceil(remainder / 60)) if remainder else 0
         return f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
 
+    def _recent_ai_roast_copies(self, pig_id: str) -> tuple[dict[str, str], bool]:
+        """返回指定小猪近七天文案，并清理整个缓存中的过期或损坏项。"""
+        today = datetime.date.today()
+        cutoff = (today - datetime.timedelta(days=6)).isoformat()
+        today_text = today.isoformat()
+        copies_root = self.ai_roast_copies.get("copies")
+        changed = not isinstance(copies_root, dict)
+        if not isinstance(copies_root, dict):
+            copies_root = {}
+            self.ai_roast_copies["copies"] = copies_root
+        for item_id, stored in list(copies_root.items()):
+            valid = (
+                {
+                    str(day): str(copy).strip()
+                    for day, copy in stored.items()
+                    if cutoff <= str(day) <= today_text and str(copy).strip()
+                }
+                if isinstance(stored, dict)
+                else {}
+            )
+            if valid:
+                if stored != valid:
+                    copies_root[item_id] = valid
+                    changed = True
+            else:
+                copies_root.pop(item_id, None)
+                changed = True
+        selected = copies_root.get(pig_id, {})
+        return (selected if isinstance(selected, dict) else {}), changed
+
+    def _save_ai_roast_copies(self) -> None:
+        self.save_json(self.ai_roast_copies_path, self.ai_roast_copies)
+
+    async def _get_ai_roast_copy(
+        self, event: AstrMessageEvent, pig: dict
+    ) -> str | None:
+        """同一小猪每天只调用一次模型；后续随机复用近七天的缓存。"""
+        if not self.enable_ai_roast_copy:
+            return None
+        pig_id = str(pig.get("id") or "").strip()
+        if not pig_id:
+            return await self._generate_ai_roast_copy(event, pig)
+        today = datetime.date.today().isoformat()
+        async with self._ai_roast_copy_lock:
+            with self._data_lock:
+                recent, changed = self._recent_ai_roast_copies(pig_id)
+                if changed:
+                    self._save_ai_roast_copies()
+                if today in recent:
+                    return random.choice(list(recent.values()))
+
+            generated = await self._generate_ai_roast_copy(event, pig)
+            if not generated:
+                return None
+            with self._data_lock:
+                recent, _ = self._recent_ai_roast_copies(pig_id)
+                # 锁保护下当天不可能已有另一份；写入后先展示新文案。
+                recent[today] = generated
+                self.ai_roast_copies.setdefault("copies", {})[pig_id] = recent
+                self._save_ai_roast_copies()
+            return generated
+
     async def _generate_ai_roast_copy(
         self, event: AstrMessageEvent, pig: dict
     ) -> str | None:
@@ -1454,7 +1522,7 @@ class RollPigPlugin(Star):
     ) -> bool:
         output = None
         try:
-            ai_copy = await self._generate_ai_roast_copy(event, pig)
+            ai_copy = await self._get_ai_roast_copy(event, pig)
             output = await asyncio.to_thread(
                 self.render_roast_image, pig, user_id, ai_copy
             )
@@ -1708,8 +1776,9 @@ class RollPigPlugin(Star):
         unlocked_count = len(set(unlocked).intersection(
             str(pig.get("id")) for pig in self.pig_list
         ))
+        ordered_pigs = self._ordered_pigsty_pigs(unlocked)
         start = (page - 1) * self.CATALOG_PAGE_SIZE
-        pigs = self.pig_list[start : start + self.CATALOG_PAGE_SIZE]
+        pigs = ordered_pigs[start : start + self.CATALOG_PAGE_SIZE]
 
         width, height = 900, 1260
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
@@ -1792,7 +1861,7 @@ class RollPigPlugin(Star):
                 fill=palette["accent"] if is_unlocked else palette["muted"],
             )
 
-        footer = f"第 {page}/{total_pages} 页  ·  使用 /我的猪圈 页码 翻页"
+        footer = f"已解锁优先  ·  第 {page}/{total_pages} 页  ·  使用 /我的猪圈 页码 翻页"
         footer_w, _ = self._get_text_size(footer, stat_font)
         draw.text(
             ((width - footer_w) // 2, 1210),
@@ -1804,6 +1873,17 @@ class RollPigPlugin(Star):
             output = Path(tmp.name)
         canvas.save(output, "PNG", optimize=True)
         return output, page
+
+    def _ordered_pigsty_pigs(self, unlocked: dict) -> list[dict]:
+        """按解锁状态分区，且不改变每个分区内的管理员图鉴顺序。"""
+        unlocked_ids = set(unlocked) if isinstance(unlocked, dict) else set()
+        return [
+            pig for pig in self.pig_list if str(pig.get("id") or "") in unlocked_ids
+        ] + [
+            pig
+            for pig in self.pig_list
+            if str(pig.get("id") or "") not in unlocked_ids
+        ]
 
     def render_catalog_grid(
         self, pigs: list[dict], title: str, subtitle: str
