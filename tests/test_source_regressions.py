@@ -35,3 +35,14 @@ def test_dashboard_aggregation_is_offloaded():
 def test_pighub_preview_awaits_canvas_decode():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
     assert "try{await paintRgbaCanvas($('imagePreview')" in page
+
+
+def test_claim_aware_reads_do_not_use_raw_candidates_directly():
+    for name in ("_get_user_collection", "_get_daily_pig", "_get_weekly_pig", "roll_pig"):
+        method = ast.get_source_segment(SOURCE, _method(name)) or ""
+        assert "_user_read_candidates" in method
+
+
+def test_batch_rollback_removes_newly_created_files():
+    method = ast.get_source_segment(SOURCE, _method("save_json_batch")) or ""
+    assert "path.unlink(missing_ok=True)" in method

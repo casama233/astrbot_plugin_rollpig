@@ -384,6 +384,19 @@ class RollPigPlugin(Star):
         legacy = self._legacy_identity(value)
         return (value,) if legacy == value else (value, legacy)
 
+    def _user_read_candidates(self, user_id: str) -> tuple[str, ...]:
+        """Return only identity keys that belong to the current platform claim."""
+        candidates = self._identity_candidates(str(user_id))
+        if len(candidates) == 1:
+            return candidates
+        namespaced, legacy = candidates
+        storage_key = self._storage_user_key(namespaced)
+        claims = self.history.get("identity_claims", {}).get("users", {})
+        claimed_by = str(claims.get(legacy) or "") if isinstance(claims, dict) else ""
+        if storage_key == legacy or claimed_by == namespaced:
+            return (namespaced, legacy)
+        return (namespaced,)
+
     def _claim_legacy_identity(
         self,
         namespaced: str,
@@ -732,6 +745,8 @@ class RollPigPlugin(Star):
                     backup = backups.get(path)
                     if backup and backup.exists():
                         shutil.copy2(backup, path)
+                    else:
+                        path.unlink(missing_ok=True)
                 raise
             finally:
                 for tmp_path in staged.values():
@@ -1504,7 +1519,7 @@ class RollPigPlugin(Star):
 
     def _get_user_collection(self, user_id: str) -> dict:
         users = self.history.get("users", {})
-        for candidate in self._identity_candidates(str(user_id)):
+        for candidate in self._user_read_candidates(str(user_id)):
             user = users.get(candidate, {})
             if isinstance(user, dict) and user:
                 return user
@@ -1540,7 +1555,7 @@ class RollPigPlugin(Star):
         day = self.history.get("daily", {}).get(date_value.isoformat(), {})
         records = day.get("records", {})
         pig_id = ""
-        for candidate in self._identity_candidates(str(user_id)):
+        for candidate in self._user_read_candidates(str(user_id)):
             pig_id = str(records.get(candidate, ""))
             if pig_id:
                 break
@@ -1554,8 +1569,15 @@ class RollPigPlugin(Star):
         """读取周报展示的小猪；被吃掉时保留原抽取结果并返回状态标记。"""
         day = self.history.get("daily", {}).get(date_value.isoformat(), {})
         user_key = str(user_id)
-        pig_id = str(day.get("records", {}).get(user_key, ""))
-        original_id = str(day.get("eaten_originals", {}).get(user_key, ""))
+        records = day.get("records", {})
+        originals = day.get("eaten_originals", {})
+        pig_id = ""
+        original_id = ""
+        for candidate in self._user_read_candidates(user_key):
+            if not pig_id:
+                pig_id = str(records.get(candidate, ""))
+            if not original_id:
+                original_id = str(originals.get(candidate, ""))
         if pig_id == "eaten" and original_id:
             original = self._find_catalog_pig(original_id) or self.history.get(
                 "pig_snapshots", {}
@@ -2993,7 +3015,7 @@ class RollPigPlugin(Star):
             existing_key = next(
                 (
                     candidate
-                    for candidate in self._identity_candidates(target_id)
+                    for candidate in self._user_read_candidates(target_id)
                     if candidate in user_records
                 ),
                 "",
