@@ -3205,6 +3205,8 @@ class RollPigPlugin(Star):
             analysis = str(payload.get("analysis") or "").strip()
             image_content = str(payload.get("image") or "")
             pighub_url = str(payload.get("pighub_url") or "").strip()
+            if image_content and pighub_url:
+                raise ValueError("图片来源只能选择一种；PigHub 资源不能同时使用本地上传")
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("ID 仅支持 1-64 位小写字母、数字、- 和 _")
             if original_id and original_id != pig_id:
