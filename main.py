@@ -60,8 +60,12 @@ class RollPigPlugin(Star):
     PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
     PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
     PIGHUB_THUMBNAIL_FAILURE_TTL = 10 * 60
-    ROAST_FORBIDDEN_IDS = {"human", "eaten", "mc_porkchop"}
-    ROAST_FORBIDDEN_NAMES = {"人类", "人類", "吃掉了", "熟食形态", "熟食形態"}
+    ROAST_HUMAN_IDS = {"human"}
+    ROAST_EATEN_IDS = {"eaten"}
+    ROAST_COOKED_IDS = {"mc_porkchop", "lard-pig"}
+    ROAST_HUMAN_NAMES = {"人类", "人類"}
+    ROAST_EATEN_NAMES = {"吃掉了"}
+    ROAST_COOKED_NAMES = {"猪油", "豬油", "熟食形态", "熟食形態"}
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
         "AstrBot-RollPig/1.8 (+https://github.com/casama233/astrbot_plugin_rollpig)"
@@ -85,6 +89,16 @@ class RollPigPlugin(Star):
         self.enable_roast: bool = self.config.get("enable_roast", True)
         self.enable_group_roast: bool = self.config.get("enable_group_roast", True)
         self.enable_ai_roast_copy: bool = self.config.get("enable_ai_roast_copy", False)
+        self.enable_roast_protection: bool = self.config.get(
+            "enable_roast_protection", True
+        )
+        try:
+            protection_threshold = int(
+                self.config.get("roast_protection_threshold", 3)
+            )
+        except (TypeError, ValueError):
+            protection_threshold = 3
+        self.roast_protection_threshold = min(20, max(1, protection_threshold))
         try:
             cooldown_hours = float(
                 self.config.get(
@@ -189,7 +203,12 @@ class RollPigPlugin(Star):
         )
         self.roast_state = self.load_json(
             self.roast_state_path,
-            {"version": 1, "cooldowns": {}, "daily_backdoors": {}},
+            {
+                "version": 1,
+                "cooldowns": {},
+                "daily_backdoors": {},
+                "daily_roast_counts": {},
+            },
         )
         self.ai_roast_copies = self.load_json(
             self.ai_roast_copies_path,
@@ -1337,8 +1356,12 @@ class RollPigPlugin(Star):
             return "对方今天还没有抽取小猪。"
         pig_id = str(pig.get("id") or "").strip().lower()
         name = str(pig.get("name") or "").strip()
-        if pig_id in self.ROAST_FORBIDDEN_IDS or name in self.ROAST_FORBIDDEN_NAMES:
-            return f"对方今天是「{name or pig_id}」，不能被烧烤。"
+        if pig_id in self.ROAST_HUMAN_IDS or name in self.ROAST_HUMAN_NAMES:
+            return "对方今天是「人类」：猪圈劳动合同不支持把人送上烤架。"
+        if pig_id in self.ROAST_EATEN_IDS or name in self.ROAST_EATEN_NAMES:
+            return "对方今天是「吃掉了」：盘子都空了，不能继续参与烧烤流程。"
+        if pig_id in self.ROAST_COOKED_IDS or name in self.ROAST_COOKED_NAMES:
+            return f"对方今天是「{name or pig_id}」：已经属于熟食形态，请勿二次加工。"
         return None
 
     def _extract_roast_target_id(
@@ -1381,6 +1404,56 @@ class RollPigPlugin(Star):
             cooldowns[key] = now
             self._save_roast_state()
         return 0
+
+    @staticmethod
+    def _roast_count_key(draw_date: str, group_id: str, user_id: str) -> str:
+        return json.dumps([draw_date, group_id, user_id], ensure_ascii=False)
+
+    @staticmethod
+    def _roast_count_date(key: str) -> str:
+        try:
+            value = json.loads(key)
+            return str(value[0]) if isinstance(value, list) and len(value) == 3 else ""
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ""
+
+    def _record_group_roast(
+        self, group_id: str, user_id: str, draw_date: str | None = None
+    ) -> int:
+        """记录群聊中实际被烤的一次结果，返回该用户当日累计次数。"""
+        draw_date = draw_date or datetime.date.today().isoformat()
+        key = self._roast_count_key(draw_date, group_id, user_id)
+        cutoff = (datetime.date.today() - datetime.timedelta(days=8)).isoformat()
+        with self._data_lock:
+            counts = self.roast_state.setdefault("daily_roast_counts", {})
+            if not isinstance(counts, dict):
+                counts = {}
+                self.roast_state["daily_roast_counts"] = counts
+            counts[key] = int(counts.get(key, 0) or 0) + 1
+            self.roast_state["daily_roast_counts"] = {
+                item: int(value or 0)
+                for item, value in counts.items()
+                if self._roast_count_date(item) >= cutoff and int(value or 0) > 0
+            }
+            total = int(self.roast_state["daily_roast_counts"].get(key, 0))
+            self._save_roast_state()
+        return total
+
+    def _roast_protection_status(self, group_id: str, user_id: str) -> tuple[bool, int]:
+        """昨天被烤达到阈值的成员，今天自动获得普通烧烤保护。"""
+        if not self.enable_roast_protection:
+            return False, 0
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        key = self._roast_count_key(yesterday, group_id, user_id)
+        counts = self.roast_state.get("daily_roast_counts", {})
+        count = int(counts.get(key, 0) or 0) if isinstance(counts, dict) else 0
+        return count >= self.roast_protection_threshold, count
+
+    def _roast_protection_message(self, count: int) -> str:
+        return (
+            f"🛡️ 对方昨天被烤了 {count} 次，今天已获得猪圈保护。"
+            "普通烧烤会被拦截；后门强制模式仍可突破保护。"
+        )
 
     def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
@@ -1560,6 +1633,10 @@ class RollPigPlugin(Star):
         if reason:
             await event.send(event.plain_result(reason))
             return
+        protected, roast_count = self._roast_protection_status(group_id, target_id)
+        if protected and not bypass:
+            await event.send(event.plain_result(self._roast_protection_message(roast_count)))
+            return
         if not bypass:
             remaining = self._consume_group_roast_cooldown(group_id, actor_id)
             if remaining:
@@ -1583,11 +1660,13 @@ class RollPigPlugin(Star):
                 await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
                 return
             await event.send(event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。"))
+            self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
             return
 
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
         await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
+        self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
 
     def find_image_file(self, pig_id: str) -> Path | None:
@@ -2070,7 +2149,7 @@ class RollPigPlugin(Star):
                 "烤猪玩法",
                 [
                     ("/今日烤猪", "把今天的小猪做成趣味料理卡"),
-                    ("/烤群友 @某人", "群聊 60% 成功／30% 逃脱／10% 反噬，8 小时冷却"),
+                    ("/烤群友 @某人", "60/30/10·8h冷却；昨日过度被烤会受保护"),
                     ("/随机烤群友", "从今天在本群抽过猪的群友中随机挑选"),
                     ("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
                 ],
