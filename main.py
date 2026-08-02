@@ -76,6 +76,8 @@ class RollPigPlugin(Star):
             pity_step = 15
         self.pity_step_percent = min(50, max(0, pity_step))
         self.enable_roast: bool = self.config.get("enable_roast", True)
+        image_theme = str(self.config.get("image_theme", "auto") or "auto").lower()
+        self.image_theme = image_theme if image_theme in {"auto", "light", "dark"} else "auto"
         self.resource_sync_enabled = self.config.get(
             "resource_sync_enabled", True
         )
@@ -279,6 +281,51 @@ class RollPigPlugin(Star):
             return (bbox[2] - bbox[0], bbox[3] - bbox[1])
         except:
             return draw.textsize(text, font=font)
+
+    def _image_palette(self, now: datetime.datetime | None = None) -> dict[str, tuple[int, int, int] | bool]:
+        """返回图片卡片的日／夜配色；自动模式在 19:00 至次日 06:59 使用夜色。"""
+        current = now or datetime.datetime.now().astimezone()
+        is_night = (
+            self.image_theme == "dark"
+            or (self.image_theme == "auto" and (current.hour >= 19 or current.hour < 7))
+        )
+        if is_night:
+            return {
+                "night": True,
+                "canvas": (28, 22, 30),
+                "surface": (48, 38, 48),
+                "surface_muted": (62, 51, 61),
+                "title": (255, 229, 238),
+                "body": (239, 214, 225),
+                "secondary": (209, 170, 186),
+                "muted": (174, 144, 157),
+                "accent": (255, 119, 158),
+                "locked": (59, 52, 58),
+                "locked_text": (174, 161, 168),
+                "roast_canvas": (39, 25, 24),
+                "roast_surface": (65, 38, 35),
+                "roast_outline": (222, 116, 80),
+                "roast_title": (255, 194, 158),
+                "roast_body": (245, 203, 181),
+            }
+        return {
+            "night": False,
+            "canvas": (255, 247, 244),
+            "surface": (255, 255, 255),
+            "surface_muted": (239, 232, 233),
+            "title": (72, 44, 51),
+            "body": (82, 55, 63),
+            "secondary": (145, 99, 110),
+            "muted": (155, 109, 119),
+            "accent": (223, 91, 116),
+            "locked": (232, 226, 227),
+            "locked_text": (130, 120, 123),
+            "roast_canvas": (255, 239, 224),
+            "roast_surface": (255, 250, 245),
+            "roast_outline": (236, 133, 91),
+            "roast_title": (169, 72, 49),
+            "roast_body": (128, 89, 77),
+        }
 
     def _draw_bold_text(
         self,
@@ -1057,6 +1104,7 @@ class RollPigPlugin(Star):
         :param pig_data: 小猪数据字典
         :return: 生成的图片临时文件路径，失败返回None
         """
+        palette = self._image_palette()
         pig_id = pig_data.get("id", "")
         pig_name = pig_data.get("name", "未知小猪")
         pig_desc = pig_data.get("description", "无描述")
@@ -1065,7 +1113,7 @@ class RollPigPlugin(Star):
         # 1. 画布基础配置
         canvas_width = self.CANVAS_WIDTH
         canvas_height = self.CANVAS_HEIGHT
-        canvas = PILImage.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
+        canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
 
         # 2. 预加载所有元素并计算尺寸（用于总高度计算）
@@ -1163,26 +1211,26 @@ class RollPigPlugin(Star):
             draw.text(
                 (error_x, avatar_y + 120),  # 从90调到120，适配280高度的头像居中
                 error_text,
-                fill=(255, 0, 0),
+                fill=palette["accent"],
                 font=error_font,
             )
 
         # 5.2 绘制名称（水平居中）
         name_y = avatar_y + avatar_h + spacing_avatar_name
         name_x = (canvas_width - name_w) // 2
-        self._draw_bold_text(draw, (name_x, name_y), pig_name, name_font, (0, 0, 0))
+        self._draw_bold_text(draw, (name_x, name_y), pig_name, name_font, palette["title"])
 
         # 5.3 绘制描述（水平居中）
         desc_y = name_y + name_h + spacing_name_desc
         desc_x = (canvas_width - desc_w) // 2
-        draw.text((desc_x, desc_y), pig_desc, fill=(85, 85, 85), font=desc_font)
+        draw.text((desc_x, desc_y), pig_desc, fill=palette["body"], font=desc_font)
 
         # 5.4 绘制解析（逐行水平居中）
         analysis_y = desc_y + desc_h + spacing_desc_analysis
         for line in analysis_lines:
             line_w, line_h = self._get_text_size(line, analysis_font)
             line_x = (canvas_width - line_w) // 2
-            draw.text((line_x, analysis_y), line, fill=(51, 51, 51), font=analysis_font)
+            draw.text((line_x, analysis_y), line, fill=palette["secondary"], font=analysis_font)
             analysis_y += line_height
 
         # 6. 保存临时文件
@@ -1207,6 +1255,7 @@ class RollPigPlugin(Star):
 
     def render_pigsty_image(self, user_id: str, page: int) -> tuple[Path, int]:
         """渲染用户永久图鉴；未解锁条目以灰阶卡片显示。"""
+        palette = self._image_palette()
         total = len(self.pig_list)
         total_pages = max(1, math.ceil(total / self.CATALOG_PAGE_SIZE))
         page = min(max(1, page), total_pages)
@@ -1219,18 +1268,18 @@ class RollPigPlugin(Star):
         pigs = self.pig_list[start : start + self.CATALOG_PAGE_SIZE]
 
         width, height = 900, 1260
-        canvas = PILImage.new("RGB", (width, height), (255, 247, 244))
+        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=52)
         stat_font = self.font_regular.font_variant(size=26)
         name_font = self.font_bold.font_variant(size=25)
         small_font = self.font_regular.font_variant(size=20)
 
-        draw.rounded_rectangle((28, 24, 872, 195), 30, fill=(255, 255, 255))
-        draw.text((58, 45), "我的猪圈 · 永久图鉴", font=title_font, fill=(72, 44, 51))
+        draw.rounded_rectangle((28, 24, 872, 195), 30, fill=palette["surface"])
+        draw.text((58, 45), "我的猪圈 · 永久图鉴", font=title_font, fill=palette["title"])
         rate = (unlocked_count / total * 100) if total else 0
         stat = f"已解锁 {unlocked_count}/{total}  ·  收藏率 {rate:.1f}%"
-        draw.text((60, 122), stat, font=stat_font, fill=(132, 91, 101))
+        draw.text((60, 122), stat, font=stat_font, fill=palette["secondary"])
 
         favorite_id = ""
         favorite_count = 0
@@ -1251,7 +1300,7 @@ class RollPigPlugin(Star):
             f"本命 {favorite_name}  ·  最高 EX Lv.{highest_ex}  ·  "
             f"累计 {int(user.get('total_draws', 0))} 次"
         )
-        draw.text((60, 158), growth, font=small_font, fill=(155, 109, 119))
+        draw.text((60, 158), growth, font=small_font, fill=palette["muted"])
 
         card_w, card_h = 260, 218
         gap_x, gap_y = 30, 28
@@ -1262,7 +1311,7 @@ class RollPigPlugin(Star):
             y = origin_y + row * (card_h + gap_y)
             pig_id = str(pig.get("id") or "")
             is_unlocked = pig_id in unlocked
-            bg = (255, 255, 255) if is_unlocked else (232, 226, 227)
+            bg = palette["surface"] if is_unlocked else palette["locked"]
             draw.rounded_rectangle((x, y, x + card_w, y + card_h), 24, fill=bg)
             image_path = self.find_image_file(pig_id)
             if image_path:
@@ -1270,7 +1319,7 @@ class RollPigPlugin(Star):
                     thumb = self._fit_card_image(image_path, (130, 130))
                     if not is_unlocked:
                         thumb = ImageOps.grayscale(thumb).convert("RGBA")
-                        shade = PILImage.new("RGBA", thumb.size, (45, 40, 42, 105))
+                        shade = PILImage.new("RGBA", thumb.size, (20, 16, 23, 120))
                         thumb = PILImage.alpha_composite(thumb, shade)
                     mask = PILImage.new("L", thumb.size, 0)
                     ImageDraw.Draw(mask).rounded_rectangle(
@@ -1287,7 +1336,7 @@ class RollPigPlugin(Star):
                 (x + (card_w - name_w) // 2, y + 155),
                 name,
                 font=name_font,
-                fill=(68, 48, 54) if is_unlocked else (130, 120, 123),
+                fill=palette["title"] if is_unlocked else palette["locked_text"],
             )
             count = int(unlocked[pig_id].get("count", 1)) if is_unlocked else 0
             label = f"EX Lv.{max(0, count - 1)} · ×{count}" if is_unlocked else "尚未解锁"
@@ -1296,7 +1345,7 @@ class RollPigPlugin(Star):
                 (x + (card_w - label_w) // 2, y + 190),
                 label,
                 font=small_font,
-                fill=(223, 91, 116) if is_unlocked else (145, 136, 139),
+                fill=palette["accent"] if is_unlocked else palette["muted"],
             )
 
         footer = f"第 {page}/{total_pages} 页  ·  使用 /我的猪圈 页码 翻页"
@@ -1305,7 +1354,7 @@ class RollPigPlugin(Star):
             ((width - footer_w) // 2, 1210),
             footer,
             font=stat_font,
-            fill=(132, 91, 101),
+            fill=palette["secondary"],
         )
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             output = Path(tmp.name)
@@ -1316,24 +1365,25 @@ class RollPigPlugin(Star):
         self, pigs: list[dict], title: str, subtitle: str
     ) -> Path:
         """为随机小猪和本地搜索渲染轻量九宫格。"""
+        palette = self._image_palette()
         pigs = pigs[:9]
         rows = max(1, math.ceil(len(pigs) / 3))
         width, height = 900, 155 + rows * 245 + 30
-        canvas = PILImage.new("RGB", (width, height), (255, 247, 244))
+        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=48)
         subtitle_font = self.font_regular.font_variant(size=23)
         name_font = self.font_bold.font_variant(size=25)
         desc_font = self.font_regular.font_variant(size=18)
-        draw.rounded_rectangle((28, 22, 872, 132), 28, fill=(255, 255, 255))
+        draw.rounded_rectangle((28, 22, 872, 132), 28, fill=palette["surface"])
         safe_title = title if len(title) <= 18 else title[:17] + "…"
         safe_subtitle = subtitle if len(subtitle) <= 36 else subtitle[:35] + "…"
-        draw.text((56, 40), safe_title, font=title_font, fill=(72, 44, 51))
-        draw.text((58, 98), safe_subtitle, font=subtitle_font, fill=(145, 99, 110))
+        draw.text((56, 40), safe_title, font=title_font, fill=palette["title"])
+        draw.text((58, 98), safe_subtitle, font=subtitle_font, fill=palette["secondary"])
         for index, pig in enumerate(pigs):
             row, col = divmod(index, 3)
             x, y = 30 + col * 290, 155 + row * 245
-            draw.rounded_rectangle((x, y, x + 260, y + 218), 22, fill=(255, 255, 255))
+            draw.rounded_rectangle((x, y, x + 260, y + 218), 22, fill=palette["surface"])
             path = self.find_image_file(str(pig.get("id") or ""))
             if path:
                 try:
@@ -1346,31 +1396,32 @@ class RollPigPlugin(Star):
             name = str(pig.get("name") or "未知小猪")
             name = name if len(name) <= 9 else name[:8] + "…"
             name_w, _ = self._get_text_size(name, name_font)
-            draw.text((x + (260 - name_w) // 2, y + 158), name, font=name_font, fill=(72, 44, 51))
+            draw.text((x + (260 - name_w) // 2, y + 158), name, font=name_font, fill=palette["title"])
             desc = str(pig.get("description") or "")
             desc = desc if len(desc) <= 14 else desc[:13] + "…"
             desc_w, _ = self._get_text_size(desc, desc_font)
-            draw.text((x + (260 - desc_w) // 2, y + 193), desc, font=desc_font, fill=(145, 120, 127))
+            draw.text((x + (260 - desc_w) // 2, y + 193), desc, font=desc_font, fill=palette["muted"])
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             output = Path(tmp.name)
         canvas.save(output, "PNG", optimize=True)
         return output
 
     def render_weekly_summary(self, user_id: str) -> Path:
+        palette = self._image_palette()
         today = datetime.date.today()
         monday = today - datetime.timedelta(days=today.weekday())
-        canvas = PILImage.new("RGB", (900, 1080), (255, 247, 244))
+        canvas = PILImage.new("RGB", (900, 1080), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=50)
         body_font = self.font_bold.font_variant(size=27)
         small_font = self.font_regular.font_variant(size=20)
-        draw.rounded_rectangle((28, 22, 872, 135), 28, fill=(255, 255, 255))
-        draw.text((56, 40), "本周小猪周报", font=title_font, fill=(72, 44, 51))
+        draw.rounded_rectangle((28, 22, 872, 135), 28, fill=palette["surface"])
+        draw.text((56, 40), "本周小猪周报", font=title_font, fill=palette["title"])
         draw.text(
             (58, 101),
             f"{monday.isoformat()} — {(monday + datetime.timedelta(days=6)).isoformat()}",
             font=small_font,
-            fill=(145, 99, 110),
+            fill=palette["secondary"],
         )
         weekday_names = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
         collected = 0
@@ -1379,10 +1430,10 @@ class RollPigPlugin(Star):
             pig = self._get_daily_pig(user_id, day)
             y = 155 + index * 125
             active = day <= today
-            fill = (255, 255, 255) if pig else (239, 232, 233)
+            fill = palette["surface"] if pig else palette["surface_muted"]
             draw.rounded_rectangle((34, y, 866, y + 104), 22, fill=fill)
-            draw.text((58, y + 19), weekday_names[index], font=body_font, fill=(82, 55, 63))
-            draw.text((58, y + 62), f"{day.month}/{day.day}", font=small_font, fill=(150, 126, 132))
+            draw.text((58, y + 19), weekday_names[index], font=body_font, fill=palette["body"])
+            draw.text((58, y + 62), f"{day.month}/{day.day}", font=small_font, fill=palette["muted"])
             if pig:
                 collected += 1
                 path = self.find_image_file(str(pig.get("id") or ""))
@@ -1396,20 +1447,21 @@ class RollPigPlugin(Star):
                 pig_desc = str(pig.get("description") or "")
                 pig_name = pig_name if len(pig_name) <= 14 else pig_name[:13] + "…"
                 pig_desc = pig_desc if len(pig_desc) <= 28 else pig_desc[:27] + "…"
-                draw.text((378, y + 18), pig_name, font=body_font, fill=(72, 44, 51))
-                draw.text((378, y + 62), pig_desc, font=small_font, fill=(145, 99, 110))
+                draw.text((378, y + 18), pig_name, font=body_font, fill=palette["title"])
+                draw.text((378, y + 62), pig_desc, font=small_font, fill=palette["secondary"])
             else:
                 status = "等待未来" if not active else "本日未抽取"
-                draw.text((300, y + 37), status, font=body_font, fill=(155, 143, 147))
+                draw.text((300, y + 37), status, font=body_font, fill=palette["muted"])
         summary = f"本周已签到 {collected}/7 天"
         summary_w, _ = self._get_text_size(summary, body_font)
-        draw.text(((900 - summary_w) // 2, 1040), summary, font=body_font, fill=(216, 82, 112))
+        draw.text(((900 - summary_w) // 2, 1040), summary, font=body_font, fill=palette["accent"])
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             output = Path(tmp.name)
         canvas.save(output, "PNG", optimize=True)
         return output
 
     def render_roast_image(self, pig: dict, user_id: str) -> Path:
+        palette = self._image_palette()
         recipes = [
             ("蜜汁脆皮", "外脆里嫩，甜度刚好，今日烦恼全部烤化。"),
             ("炭火蒜香", "火候拉满，蒜香扑鼻，猪圈厨神认证出品。"),
@@ -1420,13 +1472,13 @@ class RollPigPlugin(Star):
         seed = f"{user_id}:{datetime.date.today().isoformat()}:{pig.get('id')}"
         digest = hashlib.sha256(seed.encode("utf-8")).digest()
         recipe, copy = recipes[digest[0] % len(recipes)]
-        canvas = PILImage.new("RGB", (800, 870), (255, 239, 224))
+        canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
         draw = ImageDraw.Draw(canvas)
         title_font = self.font_bold.font_variant(size=52)
         name_font = self.font_bold.font_variant(size=38)
         body_font = self.font_regular.font_variant(size=26)
-        draw.rounded_rectangle((34, 28, 766, 830), 38, fill=(255, 250, 245), outline=(236, 133, 91), width=5)
-        draw.text((64, 58), "今日烤猪 · 本地料理", font=title_font, fill=(169, 72, 49))
+        draw.rounded_rectangle((34, 28, 766, 830), 38, fill=palette["roast_surface"], outline=palette["roast_outline"], width=5)
+        draw.text((64, 58), "今日烤猪 · 本地料理", font=title_font, fill=palette["roast_title"])
         path = self.find_image_file(str(pig.get("id") or ""))
         if path:
             thumb = self._fit_card_image(path, (430, 430))
@@ -1436,7 +1488,7 @@ class RollPigPlugin(Star):
         dish_name = f"{recipe}{pig.get('name', '小猪')}"
         dish_name = dish_name if len(dish_name) <= 16 else dish_name[:15] + "…"
         dish_w, _ = self._get_text_size(dish_name, name_font)
-        draw.text(((800 - dish_w) // 2, 625), dish_name, font=name_font, fill=(133, 57, 44))
+        draw.text(((800 - dish_w) // 2, 625), dish_name, font=name_font, fill=palette["roast_title"])
         lines, current = [], ""
         for char in copy:
             candidate = current + char
@@ -1449,7 +1501,7 @@ class RollPigPlugin(Star):
             lines.append(current)
         for index, line in enumerate(lines):
             line_w, _ = self._get_text_size(line, body_font)
-            draw.text(((800 - line_w) // 2, 705 + index * 42), line, font=body_font, fill=(128, 89, 77))
+            draw.text(((800 - line_w) // 2, 705 + index * 42), line, font=body_font, fill=palette["roast_body"])
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             output = Path(tmp.name)
         canvas.save(output, "PNG", optimize=True)
