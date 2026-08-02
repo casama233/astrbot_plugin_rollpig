@@ -4,5 +4,53 @@
         "hint": "是否允许通过艾特他人来查看对方的今日小猪，默认为关闭",
         "type": "bool",
         "default": false
+    },
+    "enable_new_pig_pity": {
+        "description": "开启连续重复保底",
+        "hint": "连续抽到已解锁小猪后，逐步提高下一次抽到新小猪的机会",
+        "type": "bool",
+        "default": true
+    },
+    "pity_step_percent": {
+        "description": "每层保底增加概率（百分比）",
+        "hint": "每连续重复一次增加的重抽新猪概率，范围 0-50，默认 15",
+        "type": "int",
+        "default": 15
+    },
+    "enable_roast": {
+        "description": "开启今日烤猪",
+        "hint": "使用纯本地模板生成趣味料理卡，不调用外部 AI",
+        "type": "bool",
+        "default": true
+    },
+    "resource_sync_enabled": {
+        "description": "开启云端公共小猪资源同步",
+        "hint": "每次更新只替换云端基础层，本地新增、编辑与删除屏蔽不会被覆盖",
+        "type": "bool",
+        "default": true
+    },
+    "resource_manifest_url": {
+        "description": "云端资源 manifest 地址",
+        "hint": "必须是 HTTPS；默认使用 rollpig-plus 公共资源包",
+        "type": "string",
+        "default": "https://pig.felislab.cc/resources/rollpig/manifest.json"
+    },
+    "resource_sync_interval_hours": {
+        "description": "云资源自动同步间隔（小时）",
+        "hint": "范围 1-168，默认每 24 小时检查一次",
+        "type": "float",
+        "default": 24
+    },
+    "resource_sync_timeout": {
+        "description": "资源网络请求超时（秒）",
+        "hint": "连接超时范围 2-120，默认 30 秒；图片读取至少允许 45 秒并自动重试",
+        "type": "float",
+        "default": 30
+    },
+    "resource_max_file_size_mb": {
+        "description": "资源单文件大小上限（MiB）",
+        "hint": "范围 1-50，默认 10 MiB；同时用于 PigHub 图片导入",
+        "type": "int",
+        "default": 10
     }
 }
