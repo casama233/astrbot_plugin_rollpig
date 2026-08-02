@@ -342,29 +342,6 @@ class RollPigPlugin(Star):
             "roast_body": (128, 89, 77),
         }
 
-    def _help_card_font(self, size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-        """选择覆盖完整 CJK 字符的帮助卡字体，避免繁体说明出现缺字。"""
-        filename = "NotoSansCJK-Bold.ttc" if bold else "NotoSansCJK-Medium.ttc"
-        candidates = [
-            self.font_dir
-            / ("SourceHanSansCN-Bold.otf" if bold else "SourceHanSansCN-Regular.otf"),
-            f"/usr/share/fonts/opentype/noto/{filename}",
-            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-            "C:/Windows/Fonts/msyhbd.ttc" if bold else "C:/Windows/Fonts/msyh.ttc",
-            "/System/Library/Fonts/PingFang.ttc",
-        ]
-        for candidate in candidates:
-            if Path(candidate).exists():
-                try:
-                    return ImageFont.truetype(str(candidate), size)
-                except Exception:
-                    continue
-        return (
-            self.font_bold.font_variant(size=size)
-            if bold
-            else self.font_regular.font_variant(size=size)
-        )
-
     def _draw_bold_text(
         self,
         draw: ImageDraw.ImageDraw,
@@ -1642,53 +1619,55 @@ class RollPigPlugin(Star):
         """渲染聊天指令帮助卡，避免在会话中输出冗长纯文本。"""
         palette = self._image_palette()
         at_entry = (
-            ("/今日小豬 @某人", "查看對方今天的小豬（一次限一人）")
+            ("/今日小猪 @某人", "查看对方今天的小猪（一次限一人）")
             if self.at_view_pig
-            else ("@ 他人查看", "尚未開啟；管理員請設定 at_view_pig")
+            else ("@ 他人查看", "尚未开启；管理员请设置 at_view_pig")
         )
         sections = [
             (
-                "每天一豬",
+                "每天一猪",
                 [
-                    ("/今日小豬", "抽取或查看今天的小豬"),
+                    ("/今日小猪", "抽取或查看今天的小猪"),
                     at_entry,
-                    ("/昨日小豬", "查看昨天的結果"),
-                    ("/明日小豬", "明天運勢預測，不會提前解鎖"),
-                    ("/本週小豬", "產生本週七日小豬周報"),
+                    ("/昨日小猪", "查看昨天的结果"),
+                    ("/明日小猪", "明天运势预测，不会提前解锁"),
+                    ("/本周小猪", "生成本周七日小猪周报"),
                 ],
             ),
             (
-                "圖鑑與探索",
+                "图鉴与探索",
                 [
-                    ("/我的豬圈 [頁碼]", "永久圖鑑，例如 /我的豬圈 2"),
-                    ("/隨機小豬 [1-9]", "隨機展示，不影響今日結果"),
-                    ("/找豬／搜豬 關鍵字", "依名稱、ID、描述或文案搜尋"),
-                    ("/今日烤豬", "把今天的小豬做成趣味料理卡"),
+                    ("/我的猪圈 [页码]", "永久图鉴，例如 /我的猪圈 2"),
+                    ("/随机小猪 [1-9]", "随机展示，不影响今日结果"),
+                    ("/找猪／搜猪 关键词", "按名称、ID、描述或文案搜索"),
+                    ("/今日烤猪", "把今天的小猪做成趣味料理卡"),
                 ],
             ),
             (
-                "管理員",
+                "管理员",
                 [
-                    ("/同步小豬資源", "同步雲端圖鑑，保留本地修改"),
-                    ("管理面板", "新增、編輯、刪除小豬與 PigHub 選圖"),
+                    ("/同步小猪资源", "同步云端图鉴，保留本地修改"),
+                    ("管理面板", "新增、编辑、删除小猪与 PigHub 选图"),
                 ],
             ),
         ]
         width, height = 900, 1250
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
-        title_font = self._help_card_font(52, bold=True)
-        subtitle_font = self._help_card_font(21)
-        section_font = self._help_card_font(28, bold=True)
-        command_font = self._help_card_font(22, bold=True)
-        detail_font = self._help_card_font(19)
-        footer_font = self._help_card_font(18)
+        # 帮助卡固定使用插件内置粗体：AstrBot 容器缺少完整 CJK 系统字体时，
+        # 仍可稳定显示这套简体文案。
+        title_font = self.font_bold.font_variant(size=52)
+        subtitle_font = self.font_bold.font_variant(size=21)
+        section_font = self.font_bold.font_variant(size=28)
+        command_font = self.font_bold.font_variant(size=22)
+        detail_font = self.font_bold.font_variant(size=19)
+        footer_font = self.font_bold.font_variant(size=18)
 
         draw.rounded_rectangle((28, 24, 872, 166), 30, fill=palette["surface"])
-        draw.text((60, 47), "今日小豬 · 指令幫助", font=title_font, fill=palette["title"])
+        draw.text((60, 47), "今日小猪 · 指令帮助", font=title_font, fill=palette["title"])
         draw.text(
             (62, 116),
-            "繁體／簡體均可使用 · 每天來領一隻屬於你的豬豬",
+            "繁体／简体均可使用 · 每天来领一只属于你的小猪",
             font=subtitle_font,
             fill=palette["secondary"],
         )
@@ -1710,7 +1689,7 @@ class RollPigPlugin(Star):
                 row_y += 62
             y += card_height + 20
 
-        footer = "需要時輸入 /豬豬幫助，即可再次查看此卡片"
+        footer = "需要时输入 /猪猪帮助，即可再次查看此卡片"
         footer_w, _ = self._get_text_size(footer, footer_font)
         draw.text(
             ((width - footer_w) // 2, height - 55),
