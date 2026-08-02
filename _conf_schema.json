@@ -112,5 +112,17 @@
         "hint": "范围 1-50，默认 10 MiB；同时用于 PigHub 图片导入",
         "type": "int",
         "default": 10
+    },
+    "timezone": {
+        "description": "每日边界时区",
+        "hint": "填写 IANA 时区（例如 Asia/Shanghai、America/Los_Angeles）；local 使用服务器系统时区",
+        "type": "string",
+        "default": "local"
+    },
+    "ai_generation_timeout_seconds": {
+        "description": "AI 文案调用超时（秒）",
+        "hint": "范围 5-120，默认 45；超时自动回退本地文案",
+        "type": "float",
+        "default": 45
     }
 }
