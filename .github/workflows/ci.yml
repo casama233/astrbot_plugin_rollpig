@@ -70,204 +70,10 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Apply promotion safety and release surface
+      - name: Apply final v3 release changes
         run: |
           python tools/apply_v3_safety_release.py
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          import textwrap
-
-          primary = Path('storage/sqlite_primary.py')
-          text = primary.read_text(encoding='utf-8')
-          text, count = re.subn(
-              r'\n            "stats_total_draw_mismatches": \(.*?'
-              r'            "new_unlock_mismatches": \(',
-              '\n            "new_unlock_mismatches": (',
-              text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('generated aggregate checks not found')
-          original_rebuild = '''
-          user_ids = [
-              str(row[0])
-              for row in connection.execute(
-                  "SELECT user_id FROM user_pigs UNION SELECT user_id FROM daily_draws"
-              ).fetchall()
-          ]
-          for user_id in user_ids:
-              self._remember_identity(connection, user_id)
-              existing = connection.execute(
-                  "SELECT duplicate_streak, payload_json FROM user_stats WHERE user_id = ?",
-                  (user_id,),
-              ).fetchone()
-              if existing:
-                  continue
-              total_draws = int(
-                  connection.execute(
-                      "SELECT COALESCE(SUM(draw_count), 0) FROM user_pigs WHERE user_id = ?",
-                      (user_id,),
-                  ).fetchone()[0]
-              )
-              active_days = int(
-                  connection.execute(
-                      "SELECT COUNT(*) FROM daily_draws WHERE user_id = ?",
-                      (user_id,),
-                  ).fetchone()[0]
-              )
-              payload = {
-                  "total_draws": total_draws,
-                  "active_days": active_days,
-                  "duplicate_streak": 0,
-              }
-              connection.execute(
-                  "INSERT INTO user_stats(" 
-                  "user_id, total_draws, active_days, duplicate_streak, payload_json) "
-                  "VALUES (?, ?, ?, 0, ?)",
-                  (
-                      user_id,
-                      total_draws,
-                      active_days,
-                      json.dumps(payload, ensure_ascii=False, sort_keys=True),
-                  ),
-              )
-          missing_pigs = [
-          '''
-          original_rebuild = textwrap.indent(
-              textwrap.dedent(original_rebuild).strip('\n'),
-              '            ',
-          ) + '\n'
-          text, count = re.subn(
-              r'            user_ids = \[.*?            missing_pigs = \[\n',
-              original_rebuild,
-              text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('generated aggregate rebuild block not found')
-          primary.write_text(text, encoding='utf-8')
-
-          tests = Path('tests/test_sqlite_v3_primary.py')
-          test_text = tests.read_text(encoding='utf-8')
-
-          promotion = textwrap.dedent('''
-          def test_v3_refuses_promotion_when_normalized_tables_are_inconsistent(tmp_path):
-              history = {
-                  "version": 1,
-                  "users": {
-                      "v2|qq|user|1": {
-                          "total_draws": 1,
-                          "active_days": 1,
-                          "duplicate_streak": 0,
-                          "pigs": {
-                              "pig-a": {
-                                  "first_unlocked": "2026-08-04",
-                                  "last_drawn": "2026-08-04",
-                                  "count": 1,
-                              }
-                          },
-                      }
-                  },
-                  "daily": {
-                      "2026-08-04": {
-                          "draws": 1,
-                          "new_unlocks": 1,
-                          "users": ["v2|qq|user|1"],
-                          "records": {"v2|qq|user|1": "pig-a"},
-                      }
-                  },
-                  "pig_snapshots": {"pig-a": {"id": "pig-a", "name": "A"}},
-              }
-              legacy = SQLiteStorage(
-                  tmp_path / "rollpig.db",
-                  tmp_path,
-                  set(StorageManager.MANAGED_PATHS),
-                  fallback=JSONStorage(),
-              )
-              legacy.save_json(tmp_path / "pig_history.json", history)
-              with legacy.transaction() as connection:
-                  connection.execute("DELETE FROM user_stats")
-                  connection.execute(
-                      "INSERT INTO projection_meta(key, value) VALUES "
-                      "('write_authority', 'sql-primary-v2.15') "
-                      "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-                  )
-
-              manager = StorageManager(tmp_path, mode="auto")
-              assert manager.backend.backend_name == "json"
-              assert "inconsistent normalized tables" in manager._last_error
-              connection = sqlite3.connect(tmp_path / "rollpig.db")
-              try:
-                  assert connection.execute(
-                      "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
-                  ).fetchone()[0] == 5
-                  assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 1
-                  assert connection.execute("SELECT COUNT(*) FROM user_pigs").fetchone()[0] == 1
-              finally:
-                  connection.close()
-          ''').strip()
-          test_text, count = re.subn(
-              r'def test_v3_refuses_promotion_when_normalized_tables_are_inconsistent'
-              r'\(tmp_path\):.*?(?=\n\ndef test_|\Z)',
-              promotion,
-              test_text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('promotion test not found')
-
-          missing_stats = textwrap.dedent('''
-          def test_v3_rebuild_restores_missing_user_stats(tmp_path):
-              storage = StorageManager(tmp_path, mode="auto").backend
-              storage.create_daily_draw(
-                  draw_date="2026-08-04",
-                  user_id="v2|qq|user|1",
-                  pig={"id": "pig-a", "name": "A"},
-              )
-              with storage.transaction() as connection:
-                  connection.execute(
-                      "DELETE FROM user_stats WHERE user_id = 'v2|qq|user|1'"
-                  )
-              verification = storage.verify()
-              assert verification["ok"] is False
-              assert "missing_user_stats" in verification["projection_mismatches"]
-
-              repaired = storage.rebuild_projections(reason="test-missing-stats")
-              assert repaired["ok"] is True
-              assert storage.verify()["ok"] is True
-              collection = storage.get_user_collection(("v2|qq|user|1",))
-              assert collection["total_draws"] == 1
-              assert collection["active_days"] == 1
-          ''').strip()
-          test_text, count = re.subn(
-              r'def test_v3_verify_and_rebuild_reconcile_user_stat_totals'
-              r'\(tmp_path\):.*?(?=\n\ndef test_|\Z)',
-              missing_stats,
-              test_text,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('aggregate repair test not found')
-          tests.write_text(test_text.rstrip() + '\n', encoding='utf-8')
-
-          contract = Path('tests/test_v215_release_contract.py')
-          contract_text = contract.read_text(encoding='utf-8')
-          contract_text = contract_text.replace(
-              'assert \'version: "2.15.0"\' in metadata',
-              'assert \'version: "3.0.0"\' in metadata',
-              1,
-          ).replace(
-              "assert 'AstrBot-RollPig/2.15.0' in main",
-              "assert 'AstrBot-RollPig/3.0.0' in main",
-              1,
-          )
-          contract.write_text(contract_text, encoding='utf-8')
-          PY
+          python tools/apply_v3_final_corrections.py
 
       - name: Install dependencies
         run: |
@@ -281,10 +87,11 @@ jobs:
           pytest -q
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: Commit validated release and remove applicator
+      - name: Commit validated release and remove applicators
         run: |
           git fetch origin main --depth=1
           rm -f tools/apply_v3_safety_release.py
+          rm -f tools/apply_v3_final_corrections.py
           git checkout origin/main -- .github/workflows/ci.yml
           rmdir tools 2>/dev/null || true
           git config user.name github-actions[bot]
