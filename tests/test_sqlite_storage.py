@@ -690,3 +690,91 @@ def test_sql_primary_eat_updates_draw_penalty_event_and_export_docs(tmp_path):
     assert tuple(penalty) == ("2026-08-05", 0)
     assert tuple(event) == ("eat_success", "v2|qq|user|1")
     assert storage.verify(deep=True)["projection_ok"] is True
+
+
+
+def test_sql_primary_metadata_merges_do_not_rebuild_or_erase_draws(
+    tmp_path, monkeypatch
+):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    first.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|telegram@one|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|telegram@one|group|9",
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("metadata merge must not rebuild projections")
+
+    monkeypatch.setattr(second, "_project_history", forbidden)
+    claim = second.claim_legacy_identity(
+        namespaced="v2|telegram@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|telegram@one|user|1", "v2|telegram|user|1", "1"),
+    )
+    alias = second.remember_identity_alias(
+        namespace="telegram@one",
+        canonical_id="v2|telegram@one|user|1",
+        username="ExampleUser",
+    )
+    assert claim["storage_key"] == "1"
+    assert alias["changed"] is True
+    with first._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM user_stats").fetchone()[0] == 1
+    history = first.export_documents()["pig_history.json"]
+    assert history["identity_claims"]["users"]["1"] == "v2|telegram@one|user|1"
+    assert history["identity_aliases"]["telegram@one"]["by_alias"]["exampleuser"] == "v2|telegram@one|user|1"
+
+
+def test_sql_primary_legacy_claim_is_atomic_across_platforms(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    one = first.claim_legacy_identity(
+        namespaced="v2|qq@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|qq@one|user|1", "1"),
+    )
+    two = second.claim_legacy_identity(
+        namespaced="v2|discord@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|discord@one|user|1", "1"),
+    )
+    assert one["storage_key"] == "1"
+    assert two["storage_key"] == "v2|discord@one|user|1"
+
+
+def test_sql_primary_eat_drops_malformed_legacy_event_keys(tmp_path):
+    storage, values = _empty_sql_documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["eaten_events"] = {
+        "not-json": {"actor_id": "broken", "outcome": "legacy", "at": 1}
+    }
+    storage.save_json(tmp_path / "roast_state.json", roast)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    result = storage.replace_daily_pig_with_eaten(
+        draw_date="2026-08-04",
+        due_date="2026-08-05",
+        cutoff_date="2026-08-02",
+        user_id="v2|qq|user|1",
+        group_id="v2|qq|group|9",
+        actor_id="v2|qq|user|2",
+        outcome="eat_success",
+        eaten_pig={"id": "eaten", "name": "吃掉了"},
+    )
+    assert result["status"] == "updated"
+    assert "not-json" not in storage.export_documents()["roast_state.json"]["eaten_events"]

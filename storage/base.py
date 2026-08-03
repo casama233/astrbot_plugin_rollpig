@@ -46,6 +46,12 @@ class StorageBackend(ABC):
     def replace_daily_pig_with_eaten(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    def claim_legacy_identity(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def remember_identity_alias(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     # Transitional domain read API. JSONStorage keeps using the in-memory
     # compatibility documents; SQLite overrides these methods with indexed SQL.
     def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
