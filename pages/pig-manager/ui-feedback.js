@@ -1,20 +1,23 @@
 (() => {
   // Source-regression compatibility markers from the preserved feedback core:
   // storageRebuildBtn 'storage/rebuild' restartRequired 已有管理任务正在执行
-  const THEME_MARKER = 'data-rollpig-enterprise-theme';
+  const injectStyle = (href, marker) => {
+    if (document.querySelector(`link[${marker}]`)) return;
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = href;
+    stylesheet.setAttribute(marker, '');
+    document.head.appendChild(stylesheet);
+  };
 
-  if (!document.querySelector(`link[${THEME_MARKER}]`)) {
-    const theme = document.createElement('link');
-    theme.rel = 'stylesheet';
-    theme.href = './enterprise-theme.css';
-    theme.setAttribute(THEME_MARKER, '');
-    document.head.appendChild(theme);
-  }
+  injectStyle('./enterprise-theme.css', 'data-rollpig-enterprise-theme');
+  injectStyle('./analytics-theme.css', 'data-rollpig-analytics-theme');
 
   if (document.readyState === 'loading') {
     document.write(
       '<script src="./ui-feedback-core.js"><\/script>' +
-      '<script src="./ui-enterprise.js"><\/script>'
+      '<script src="./ui-enterprise.js"><\/script>' +
+      '<script src="./ui-analytics.js"><\/script>'
     );
     return;
   }
@@ -29,5 +32,6 @@
 
   loadScript('./ui-feedback-core.js')
     .then(() => loadScript('./ui-enterprise.js'))
+    .then(() => loadScript('./ui-analytics.js'))
     .catch(error => console.error('[rollpig] UI bootstrap failed', error));
 })();
