@@ -40,7 +40,7 @@ jobs:
           python -m pip check
 
       - name: Compile source
-        run: python -m compileall -q main.py rollpig_core.py
+        run: python -m compileall -q main.py rollpig_core.py updater.py storage
 
       - name: Run tests
         run: pytest -q

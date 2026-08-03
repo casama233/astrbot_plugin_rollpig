@@ -36,6 +36,13 @@ from astrbot.core.message.components import At
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
+try:
+    from .storage import JSONStorage
+    from .updater import PluginUpdateManager, UpdateError
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from storage import JSONStorage
+    from updater import PluginUpdateManager, UpdateError
+
 
 class RollPigPlugin(Star):
     PLUGIN_NAME = "astrbot_plugin_rollpig"
@@ -80,7 +87,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.6.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.8.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -192,6 +199,12 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             max_file_mb = 10
         self.resource_max_file_size = min(50, max(1, max_file_mb)) * 1024 * 1024
+        self.panel_update_enabled = bool(self.config.get("panel_update_enabled", True))
+        try:
+            panel_update_timeout = float(self.config.get("panel_update_timeout", 30))
+        except (TypeError, ValueError):
+            panel_update_timeout = 30
+        self.panel_update_timeout = min(120.0, max(5.0, panel_update_timeout))
 
         # 初始化路径
         self.plugin_dir = Path(__file__).parent
@@ -214,6 +227,7 @@ class RollPigPlugin(Star):
         self.ai_roast_copies_path = self.plugin_data_dir / "ai_roast_copies.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
+        self.storage = JSONStorage(lock=self._data_lock)
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
         self._pighub_preview_cache: dict[str, dict] = {}
         self._pighub_thumbnail_cache: dict[str, dict] = {}
@@ -235,6 +249,13 @@ class RollPigPlugin(Star):
         self.custom_image_dir.mkdir(parents=True, exist_ok=True)
         self.resource_root.mkdir(parents=True, exist_ok=True)
         self.pighub_thumbnail_dir.mkdir(parents=True, exist_ok=True)
+        self.update_manager = PluginUpdateManager(
+            self.plugin_dir,
+            self.plugin_data_dir,
+            timeout=self.panel_update_timeout,
+            trust_env=self.resource_use_system_proxy,
+            logger=logger,
+        )
 
         # 初始化数据
         bundled_pigs = self.load_json(self.piginfo_path, [])
@@ -314,6 +335,24 @@ class RollPigPlugin(Star):
             self.page_resource_sync,
             ["POST"],
             "同步今日小猪云资源",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/updates/status",
+            self.page_update_status,
+            ["GET"],
+            "今日小猪版本与存储状态",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/updates/check",
+            self.page_update_check,
+            ["POST"],
+            "检查今日小猪官方稳定版更新",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/updates/apply",
+            self.page_update_apply,
+            ["POST"],
+            "安全安装今日小猪官方稳定版",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/pighub",
@@ -735,73 +774,14 @@ class RollPigPlugin(Star):
         draw.text((x, y), text, fill=fill, font=font)
 
     def load_json(self, path: Path, default):
-        """Load JSON without destroying malformed user data."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists():
-            self.save_json(path, default)
-            return json.loads(json.dumps(default, ensure_ascii=False))
-        try:
-            return json.loads(path.read_text("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
-            stamp = self._now().strftime("%Y%m%d-%H%M%S")
-            corrupt = path.with_name(f"{path.name}.corrupt-{stamp}")
-            try:
-                shutil.copy2(path, corrupt)
-            except OSError as backup_exc:
-                logger.error(f"JSON 损坏且备份失败：{path} ({backup_exc})")
-            backup = path.with_name(f"{path.name}.bak")
-            if backup.exists():
-                try:
-                    restored = json.loads(backup.read_text("utf-8"))
-                    logger.error(f"JSON 解析失败，已从备份恢复：{path}；损坏副本：{corrupt}")
-                    self.save_json(path, restored)
-                    return restored
-                except Exception:
-                    pass
-            logger.error(f"JSON 解析失败，已保留损坏副本并重建默认值：{path} ({exc})")
-            self.save_json(path, default)
-            return json.loads(json.dumps(default, ensure_ascii=False))
+        """Compatibility facade for the configured storage backend."""
+        return self.storage.load_json(path, default)
 
     def save_json(self, path: Path, data):
-        self.save_json_batch({path: data})
+        self.storage.save_json(path, data)
 
     def save_json_batch(self, updates: dict[Path, object]) -> None:
-        """Atomically stage a related set of JSON files and roll back on replacement failure."""
-        staged: dict[Path, Path] = {}
-        backups: dict[Path, Path] = {}
-        replaced: list[Path] = []
-        with self._data_lock:
-            try:
-                for raw_path, data in updates.items():
-                    path = Path(raw_path)
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    payload = json.dumps(data, ensure_ascii=False, indent=2)
-                    with tempfile.NamedTemporaryFile(
-                        "w", encoding="utf-8", dir=path.parent,
-                        prefix=f".{path.name}.", suffix=".tmp", delete=False,
-                    ) as tmp:
-                        tmp.write(payload)
-                        tmp.flush()
-                        os.fsync(tmp.fileno())
-                        staged[path] = Path(tmp.name)
-                    backup = path.with_name(f"{path.name}.bak")
-                    if path.exists():
-                        shutil.copy2(path, backup)
-                        backups[path] = backup
-                for path, tmp_path in staged.items():
-                    os.replace(tmp_path, path)
-                    replaced.append(path)
-            except Exception:
-                for path in reversed(replaced):
-                    backup = backups.get(path)
-                    if backup and backup.exists():
-                        shutil.copy2(backup, path)
-                    else:
-                        path.unlink(missing_ok=True)
-                raise
-            finally:
-                for tmp_path in staged.values():
-                    tmp_path.unlink(missing_ok=True)
+        self.storage.save_json_batch(updates)
 
     def _validate_pig_records(self, records) -> list[dict]:
         """校验并复制一份图鉴记录，避免坏云包污染运行中快照。"""
@@ -4108,6 +4088,51 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"今日小猪管理页删除失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "删除小猪失败"})
+
+    async def page_update_status(self):
+        """管理面板：返回本地版本、存储后端与最近更新状态。"""
+        try:
+            data = self.update_manager.status()
+            data["storage"] = self.storage.health()
+            data["enabled"] = self.panel_update_enabled
+            return self._jsonify({"status": "ok", "data": data})
+        except UpdateError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+
+    async def page_update_check(self):
+        """管理面板：仅检查官方仓库最新稳定 Release。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not self.panel_update_enabled:
+                return self._jsonify({"status": "error", "message": "管理面板更新功能已关闭"})
+            data = await self.update_manager.check_for_update()
+            data["storage"] = self.storage.health()
+            return self._jsonify({"status": "ok", "data": data})
+        except UpdateError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("检查插件更新失败")
+            return self._jsonify({"status": "error", "message": f"检查更新失败：{exc}"})
+
+    async def page_update_apply(self):
+        """管理面板：校验、备份并安装官方稳定 Release，不自动重启。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not self.panel_update_enabled:
+                return self._jsonify({"status": "error", "message": "管理面板更新功能已关闭"})
+            data = await self.update_manager.apply_update(
+                confirm_unsigned=bool(payload.get("confirm_unsigned", False))
+            )
+            return self._jsonify({"status": "ok", "data": data})
+        except UpdateError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("安全更新插件失败")
+            return self._jsonify({"status": "error", "message": f"安全更新失败：{exc}"})
 
     async def page_resource_status(self):
         """管理面板：返回分层资源状态。"""
