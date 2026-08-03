@@ -964,6 +964,270 @@ class SQLiteStorage(StorageBackend):
             "observability": observability,
         }
 
+    def get_dashboard_insights(
+        self,
+        *,
+        current_start: str,
+        current_end: str,
+        previous_start: str,
+        previous_end: str,
+        activity_start: str,
+        catalog_ids: tuple[str, ...],
+    ) -> dict[str, Any]:
+        """Return aggregate-only growth, coverage and runtime analytics."""
+        started = time.monotonic()
+        catalog = tuple(dict.fromkeys(str(item) for item in catalog_ids if str(item)))
+
+        def delta(current: int, previous: int) -> float:
+            if not previous:
+                return 100.0 if current else 0.0
+            return round((current - previous) / previous * 100, 2)
+
+        def percentile(values: list[int], fraction: float) -> int:
+            if not values:
+                return 0
+            ordered = sorted(values)
+            index = min(
+                len(ordered) - 1,
+                max(0, int(round((len(ordered) - 1) * fraction))),
+            )
+            return int(ordered[index])
+
+        with self._lock, self._connection() as connection:
+            connection.execute(
+                "CREATE TEMP TABLE IF NOT EXISTS dashboard_catalog_ids("
+                "pig_id TEXT PRIMARY KEY)"
+            )
+            connection.execute("DELETE FROM dashboard_catalog_ids")
+            connection.executemany(
+                "INSERT OR IGNORE INTO dashboard_catalog_ids(pig_id) VALUES (?)",
+                ((pig_id,) for pig_id in catalog),
+            )
+
+            def summary(start_date: str, end_date: str) -> dict[str, Any]:
+                row = connection.execute(
+                    "SELECT COUNT(DISTINCT user_id) AS active_users, "
+                    "COUNT(*) AS draws, COALESCE(SUM(was_new_unlock), 0) AS new_unlocks "
+                    "FROM daily_draws WHERE draw_date BETWEEN ? AND ?",
+                    (start_date, end_date),
+                ).fetchone()
+                day_rows = connection.execute(
+                    "SELECT draw_date, COUNT(DISTINCT user_id) AS users "
+                    "FROM daily_draws WHERE draw_date BETWEEN ? AND ? GROUP BY draw_date",
+                    (start_date, end_date),
+                ).fetchall()
+                days = max(1, (__import__("datetime").date.fromisoformat(end_date) - __import__("datetime").date.fromisoformat(start_date)).days + 1)
+                draws = int(row["draws"] if row else 0)
+                unlocks = int(row["new_unlocks"] if row else 0)
+                return {
+                    "start": start_date,
+                    "end": end_date,
+                    "active_users": int(row["active_users"] if row else 0),
+                    "draws": draws,
+                    "new_unlocks": unlocks,
+                    "avg_daily_users": round(sum(int(item["users"]) for item in day_rows) / days, 2),
+                    "unlock_efficiency": round(unlocks / draws * 100, 2) if draws else 0,
+                }
+
+            current = summary(str(current_start), str(current_end))
+            previous = summary(str(previous_start), str(previous_end))
+            current_users = {
+                str(row[0])
+                for row in connection.execute(
+                    "SELECT DISTINCT user_id FROM daily_draws "
+                    "WHERE draw_date BETWEEN ? AND ?",
+                    (str(current_start), str(current_end)),
+                ).fetchall()
+            }
+            previous_users = {
+                str(row[0])
+                for row in connection.execute(
+                    "SELECT DISTINCT user_id FROM daily_draws "
+                    "WHERE draw_date BETWEEN ? AND ?",
+                    (str(previous_start), str(previous_end)),
+                ).fetchall()
+            }
+            returning = current_users.intersection(previous_users)
+
+            daily_rows = {
+                str(row["draw_date"]): {
+                    "date": str(row["draw_date"]),
+                    "users": int(row["users"]),
+                    "draws": int(row["draws"]),
+                    "new_unlocks": int(row["new_unlocks"]),
+                    "roasts": 0,
+                    "eats": 0,
+                }
+                for row in connection.execute(
+                    "SELECT draw_date, COUNT(DISTINCT user_id) AS users, "
+                    "COUNT(*) AS draws, COALESCE(SUM(was_new_unlock), 0) AS new_unlocks "
+                    "FROM daily_draws WHERE draw_date BETWEEN ? AND ? "
+                    "GROUP BY draw_date ORDER BY draw_date",
+                    (str(activity_start), str(current_end)),
+                ).fetchall()
+            }
+            for row in connection.execute(
+                "SELECT draw_date, COALESCE(SUM(roast_count), 0) AS total "
+                "FROM daily_roast_counts WHERE draw_date BETWEEN ? AND ? "
+                "GROUP BY draw_date",
+                (str(activity_start), str(current_end)),
+            ).fetchall():
+                daily_rows.setdefault(
+                    str(row["draw_date"]),
+                    {"date": str(row["draw_date"]), "users": 0, "draws": 0, "new_unlocks": 0, "roasts": 0, "eats": 0},
+                )["roasts"] = int(row["total"])
+            for row in connection.execute(
+                "SELECT event_date, COUNT(*) AS total FROM eaten_events "
+                "WHERE event_date BETWEEN ? AND ? GROUP BY event_date",
+                (str(activity_start), str(current_end)),
+            ).fetchall():
+                daily_rows.setdefault(
+                    str(row["event_date"]),
+                    {"date": str(row["event_date"]), "users": 0, "draws": 0, "new_unlocks": 0, "roasts": 0, "eats": 0},
+                )["eats"] = int(row["total"])
+
+            date_module = __import__("datetime").date
+            cursor = date_module.fromisoformat(str(activity_start))
+            end_value = date_module.fromisoformat(str(current_end))
+            one_day = __import__("datetime").timedelta(days=1)
+            activity: list[dict[str, Any]] = []
+            while cursor <= end_value:
+                key = cursor.isoformat()
+                activity.append(
+                    daily_rows.get(
+                        key,
+                        {"date": key, "users": 0, "draws": 0, "new_unlocks": 0, "roasts": 0, "eats": 0},
+                    )
+                )
+                cursor += one_day
+
+            unlocked_counts = [
+                int(row["unlocked"])
+                for row in connection.execute(
+                    "SELECT us.user_id, COUNT(dc.pig_id) AS unlocked "
+                    "FROM user_stats us LEFT JOIN ("
+                    "  SELECT up.user_id, up.pig_id FROM user_pigs up "
+                    "  INNER JOIN dashboard_catalog_ids c ON c.pig_id = up.pig_id"
+                    ") dc ON dc.user_id = us.user_id GROUP BY us.user_id"
+                ).fetchall()
+            ]
+            pig_rows = [
+                {
+                    "id": str(row["pig_id"]),
+                    "draws": int(row["draws"]),
+                    "collectors": int(row["collectors"]),
+                }
+                for row in connection.execute(
+                    "SELECT up.pig_id, COALESCE(SUM(up.draw_count), 0) AS draws, "
+                    "COUNT(*) AS collectors FROM user_pigs up "
+                    "INNER JOIN dashboard_catalog_ids c ON c.pig_id = up.pig_id "
+                    "GROUP BY up.pig_id"
+                ).fetchall()
+            ]
+            catalog_size = len(catalog)
+            labels = ("0–10%", "10–25%", "25–50%", "50–75%", "75–100%")
+            buckets = {label: 0 for label in labels}
+            for unlocked in unlocked_counts:
+                ratio = unlocked / catalog_size * 100 if catalog_size else 0
+                label = (
+                    "0–10%" if ratio <= 10 else
+                    "10–25%" if ratio <= 25 else
+                    "25–50%" if ratio <= 50 else
+                    "50–75%" if ratio <= 75 else "75–100%"
+                )
+                buckets[label] += 1
+            total_users = len(unlocked_counts)
+            long_tail_limit = max(1, int(total_users * 0.01 + 0.999999))
+            all_draws = sum(item["draws"] for item in pig_rows)
+            top5_draws = sum(sorted((item["draws"] for item in pig_rows), reverse=True)[:5])
+
+            rising = [
+                {
+                    "id": str(row["pig_id"]),
+                    "current": int(row["current_draws"]),
+                    "previous": int(row["previous_draws"]),
+                    "delta": int(row["current_draws"]) - int(row["previous_draws"]),
+                }
+                for row in connection.execute(
+                    "SELECT COALESCE(NULLIF(d.original_pig_id, ''), d.pig_id) AS pig_id, "
+                    "SUM(CASE WHEN d.draw_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS current_draws, "
+                    "SUM(CASE WHEN d.draw_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS previous_draws "
+                    "FROM daily_draws d INNER JOIN dashboard_catalog_ids c "
+                    "ON c.pig_id = COALESCE(NULLIF(d.original_pig_id, ''), d.pig_id) "
+                    "WHERE d.draw_date BETWEEN ? AND ? "
+                    "GROUP BY COALESCE(NULLIF(d.original_pig_id, ''), d.pig_id)",
+                    (
+                        str(current_start), str(current_end),
+                        str(previous_start), str(previous_end),
+                        str(previous_start), str(current_end),
+                    ),
+                ).fetchall()
+            ]
+            rising.sort(key=lambda item: (-item["delta"], -item["current"], item["id"]))
+
+            platforms = [
+                {"platform": str(row["namespace"]), "users": int(row["users"])}
+                for row in connection.execute(
+                    "SELECT i.namespace, COUNT(*) AS users FROM user_stats us "
+                    "INNER JOIN identities i ON i.identity_key = us.user_id "
+                    "WHERE i.identity_type = 'user' GROUP BY i.namespace "
+                    "ORDER BY users DESC, i.namespace LIMIT 8"
+                ).fetchall()
+            ]
+            roast_row = connection.execute(
+                "SELECT COALESCE(SUM(roast_count), 0) FROM daily_roast_counts "
+                "WHERE draw_date BETWEEN ? AND ?",
+                (str(current_start), str(current_end)),
+            ).fetchone()
+            eat_row = connection.execute(
+                "SELECT COUNT(*) FROM eaten_events WHERE event_date BETWEEN ? AND ?",
+                (str(current_start), str(current_end)),
+            ).fetchone()
+            ai = {"ready": 0, "failed": 0, "generating": 0}
+            for row in connection.execute(
+                "SELECT status, COUNT(*) AS total FROM ai_roast_generation_attempts "
+                "WHERE generated_date BETWEEN ? AND ? GROUP BY status",
+                (str(current_start), str(current_end)),
+            ).fetchall():
+                if str(row["status"]) in ai:
+                    ai[str(row["status"])] = int(row["total"])
+            observability = self._analytics_observability(connection)
+
+        observability["query_elapsed_ms"] = round((time.monotonic() - started) * 1000, 3)
+        return {
+            "source": "normalized-sql",
+            "periods": {"current": current, "previous": previous},
+            "deltas": {
+                "active_users": delta(current["active_users"], previous["active_users"]),
+                "draws": delta(current["draws"], previous["draws"]),
+                "new_unlocks": delta(current["new_unlocks"], previous["new_unlocks"]),
+            },
+            "retention": {
+                "returning_users": len(returning),
+                "previous_active_users": len(previous_users),
+                "new_current_users": len(current_users - previous_users),
+                "rate": round(len(returning) / len(previous_users) * 100, 2) if previous_users else 0,
+            },
+            "activity": activity,
+            "catalog": {
+                "catalog_count": catalog_size,
+                "median_unlocked": percentile(unlocked_counts, 0.5),
+                "p90_unlocked": percentile(unlocked_counts, 0.9),
+                "zero_collector_count": max(0, catalog_size - len(pig_rows)),
+                "long_tail_count": sum(1 for item in pig_rows if 0 < item["collectors"] <= long_tail_limit),
+                "top5_draw_share": round(top5_draws / all_draws * 100, 2) if all_draws else 0,
+                "distribution": [{"label": label, "users": buckets[label]} for label in labels],
+            },
+            "platforms": platforms,
+            "rising_pigs": rising[:8],
+            "operations": {
+                "roasts": int(roast_row[0] if roast_row else 0),
+                "eats": int(eat_row[0] if eat_row else 0),
+                "ai": ai,
+            },
+            "observability": observability,
+        }
+
     def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
         candidates = self._candidate_tuple(user_candidates)
         if not candidates:

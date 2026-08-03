@@ -6,6 +6,8 @@ LOADER = (ROOT / "pages/pig-manager/ui-feedback.js").read_text(encoding="utf-8")
 FEEDBACK = (ROOT / "pages/pig-manager/ui-feedback-core.js").read_text(encoding="utf-8")
 ENTERPRISE = (ROOT / "pages/pig-manager/ui-enterprise.js").read_text(encoding="utf-8")
 THEME = (ROOT / "pages/pig-manager/enterprise-theme.css").read_text(encoding="utf-8")
+ANALYTICS = (ROOT / "pages/pig-manager/ui-analytics.js").read_text(encoding="utf-8")
+ANALYTICS_THEME = (ROOT / "pages/pig-manager/analytics-theme.css").read_text(encoding="utf-8")
 MAIN = (ROOT / "main.py").read_text(encoding="utf-8")
 
 
@@ -17,6 +19,9 @@ def test_feedback_layer_loads_before_inline_module():
     assert "./ui-enterprise.js" in LOADER
     assert "./enterprise-theme.css" in LOADER
     assert LOADER.index("./ui-feedback-core.js") < LOADER.index("./ui-enterprise.js")
+    assert "./ui-analytics.js" in LOADER
+    assert "./analytics-theme.css" in LOADER
+    assert LOADER.index("./ui-enterprise.js") < LOADER.index("./ui-analytics.js")
 
 
 def test_feedback_layer_explains_stale_runtime_routes():
@@ -111,3 +116,27 @@ def test_enterprise_enhancement_adds_accessibility_without_api_changes():
 def test_sqlite_migration_is_logged_before_work_and_on_safe_failure():
     assert "开始 SQLite 存储迁移" in MAIN
     assert "SQLite 存储迁移未切换后端" in MAIN
+
+
+def test_commercial_analytics_layer_is_read_only_responsive_and_resilient():
+    for marker in (
+        "analytics/insights",
+        "analyticsSuite",
+        "activity-heatmap",
+        "retention-ring",
+        "rising-table",
+        "renderError",
+        "analyticsRetry",
+    ):
+        assert marker in ANALYTICS
+    assert "apiPost" not in ANALYTICS
+    assert "@media (max-width: 620px)" in ANALYTICS_THEME
+    assert "@media (prefers-reduced-motion: reduce)" in ANALYTICS_THEME
+    assert ".analytics-kpis" in ANALYTICS_THEME
+    assert ".analytics-grid" in ANALYTICS_THEME
+
+
+def test_read_only_analytics_route_is_registered():
+    assert "/analytics/insights" in MAIN
+    assert "page_analytics_insights" in MAIN
+    assert "不返回用户、群组或聊天原始标识" in MAIN
