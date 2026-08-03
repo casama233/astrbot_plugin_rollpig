@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - agent/fix-audit-findings-v2.4.0
-      - agent/sql-read-paths-projection-repair-v2.10.0
   pull_request:
     branches:
       - main
@@ -18,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  apply-v210:
-    if: github.actor != 'github-actions[bot]' && (github.head_ref == 'agent/sql-read-paths-projection-repair-v2.10.0' || github.ref == 'refs/heads/agent/sql-read-paths-projection-repair-v2.10.0')
+  finalize-v210:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/sql-read-paths-projection-repair-v2.10.0'
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -36,11 +35,9 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Apply reviewed iteration
+      - name: Synchronize dashboard feedback and docs
         run: |
-          python .github/scripts/prepare_v210.py
-          python .github/scripts/apply_v210.py
-          python .github/scripts/harden_v210.py
+          python .github/scripts/finalize_v210.py
           git checkout -- .github/workflows/ci.yml
 
       - name: Install dependencies
@@ -49,22 +46,20 @@ jobs:
           python -m pip install -r requirements.txt pytest pre-commit
           python -m pip check
 
-      - name: Validate integrated code
+      - name: Validate final branch
         run: |
           python -m compileall -q main.py rollpig_core.py updater.py storage services
           pytest -q
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: Commit validated business changes
+      - name: Commit validated synchronization
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f .github/scripts/apply_v210.py \
-            .github/scripts/prepare_v210.py \
-            .github/scripts/harden_v210.py
-          git add CHANGELOG.md README.md metadata.yaml updater.py main.py \
-            storage services pages/pig-manager/index.html tests
-          git commit -m "feat: add indexed SQLite reads and projection repair (v2.10.0)"
+          git rm -f .github/scripts/finalize_v210.py
+          git add CHANGELOG.md pages/pig-manager/index.html \
+            pages/pig-manager/ui-feedback.js tests/test_source_regressions.py
+          git commit -m "chore: synchronize v2.9.3 dashboard feedback into v2.10"
           git push origin HEAD:agent/sql-read-paths-projection-repair-v2.10.0
 
   test:
@@ -90,7 +85,7 @@ jobs:
           python -m pip check
 
       - name: Compile source
-        run: python -m compileall -q main.py rollpig_core.py updater.py storage
+        run: python -m compileall -q main.py rollpig_core.py updater.py storage services
 
       - name: Run tests
         run: pytest -q
