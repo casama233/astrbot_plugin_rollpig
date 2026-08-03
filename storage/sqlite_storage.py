@@ -73,8 +73,21 @@ class SQLiteStorage(StorageBackend):
         connection.execute(f"PRAGMA busy_timeout = {self.busy_timeout_ms}")
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Yield one configured connection and always roll back/close it."""
+        connection = self._connect()
+        try:
+            yield connection
+        except Exception:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def _initialize(self) -> None:
-        with self._lock, self._connect() as connection:
+        with self._lock, self._connection() as connection:
             connection.executescript(
                 """
                 BEGIN IMMEDIATE;
@@ -200,7 +213,7 @@ class SQLiteStorage(StorageBackend):
         key = self._relative_key(path)
         with self._lock:
             try:
-                with self._connect() as connection:
+                with self._connection() as connection:
                     row = connection.execute(
                         "SELECT payload FROM documents WHERE key = ?", (key,)
                     ).fetchone()
@@ -229,10 +242,14 @@ class SQLiteStorage(StorageBackend):
             for path, value in updates.items()
             if not self._is_managed(Path(path))
         }
+        if managed and unmanaged:
+            raise ValueError(
+                "同一批次不能混合 SQLite 关键文档与普通 JSON 缓存"
+            )
         with self._lock:
             try:
                 if managed:
-                    with self._connect() as connection:
+                    with self._connection() as connection:
                         connection.execute("BEGIN IMMEDIATE")
                         now = int(time.time())
                         for path, value in managed.items():
@@ -509,25 +526,25 @@ class SQLiteStorage(StorageBackend):
                 )
 
     def export_documents(self) -> dict[str, Any]:
-        with self._lock, self._connect() as connection:
+        with self._lock, self._connection() as connection:
             rows = connection.execute(
                 "SELECT key, payload FROM documents ORDER BY key"
             ).fetchall()
         return {str(row["key"]): self._decode(str(row["payload"])) for row in rows}
 
     def document_hashes(self) -> dict[str, str]:
-        with self._lock, self._connect() as connection:
+        with self._lock, self._connection() as connection:
             rows = connection.execute(
                 "SELECT key, payload_sha256 FROM documents ORDER BY key"
             ).fetchall()
         return {str(row["key"]): str(row["payload_sha256"]) for row in rows}
 
     def checkpoint(self) -> None:
-        with self._lock, self._connect() as connection:
+        with self._lock, self._connection() as connection:
             connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def verify(self) -> dict[str, Any]:
-        with self._lock, self._connect() as connection:
+        with self._lock, self._connection() as connection:
             integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
             foreign_rows = connection.execute("PRAGMA foreign_key_check").fetchall()
             schema_row = connection.execute(
