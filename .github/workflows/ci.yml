@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integrate-v29:
+  finalize-v29:
     if: github.event_name == 'pull_request' && github.head_ref == 'agent/sqlite-storage-migration-v2.9.0' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -33,10 +33,8 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Apply v2.9 integration
-        run: |
-          python .github/scripts/apply_v29.py
-          python .github/scripts/fix_v29_regression.py
+      - name: Apply SQLite hardening
+        run: python .github/scripts/harden_v29.py
 
       - name: Install dependencies
         run: |
@@ -44,7 +42,7 @@ jobs:
           python -m pip install -r requirements.txt pytest pre-commit
           python -m pip check
 
-      - name: Validate integrated source
+      - name: Validate hardened source
         run: |
           python -m compileall -q main.py rollpig_core.py updater.py storage
           pytest -q
@@ -53,12 +51,12 @@ jobs:
       - name: Exclude workflow file from bot commit
         run: git checkout HEAD -- .github/workflows/ci.yml
 
-      - name: Commit integrated result
+      - name: Commit hardened result
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: add SQLite storage migration and dashboard controls"
+          git commit -m "fix: close SQLite connections and enforce storage boundaries"
           git push origin HEAD:agent/sqlite-storage-migration-v2.9.0
 
   test:
