@@ -875,8 +875,9 @@ class SQLiteStorage(StorageBackend):
     ) -> dict[str, Any]:
         """Create one daily draw with SQL uniqueness and synchronized export docs.
 
-        A probe call with ``pig=None`` returns an existing draw, consumes/blocks a
-        due penalty, or returns ``needs-pig``. The caller can then choose a pig and
+        A probe call with ``pig=None`` returns an existing draw, blocks a failed
+        penalty, or returns ``needs-pig`` without consuming a successful penalty.
+        The caller can then choose a pig and
         retry; a competing process that wins between the two calls is returned as
         ``existing`` instead of creating a second result.
         """
@@ -1040,7 +1041,11 @@ class SQLiteStorage(StorageBackend):
                         "history": history,
                         "roast_state": roast,
                     }
-                elif due_date == draw_date:
+                elif due_date == draw_date and isinstance(pig, dict) and str(
+                    pig.get("id") or ""
+                ).strip():
+                    # A successful penalty is consumed only in the same transaction
+                    # that inserts the daily draw. Probe calls must leave it intact.
                     connection.execute(
                         "DELETE FROM eaten_penalties WHERE user_id = ?",
                         (penalty_user,),
