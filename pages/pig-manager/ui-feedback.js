@@ -239,4 +239,141 @@
       }
     }).observe(toast, {attributes: true, childList: true, subtree: true});
   }
+
+  function ensurePageConfirmDialog() {
+    let overlay = $('pageConfirmDialog');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'pageConfirmDialog';
+    overlay.setAttribute('role', 'presentation');
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:10050;background:rgba(7,10,18,.68);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px';
+    overlay.innerHTML = `
+      <section role="dialog" aria-modal="true" aria-labelledby="pageConfirmTitle" style="width:min(460px,100%);border:1px solid rgba(255,255,255,.18);border-radius:22px;background:var(--panel,#171a24);box-shadow:0 28px 80px rgba(0,0,0,.48);padding:24px">
+        <div class="eyebrow">Confirm Action</div>
+        <h2 id="pageConfirmTitle" style="margin:8px 0 10px">确认操作</h2>
+        <p id="pageConfirmMessage" class="panel-desc" style="white-space:pre-wrap;line-height:1.7;margin-bottom:22px"></p>
+        <div class="dialog-actions">
+          <button class="btn ghost" type="button" id="pageConfirmCancel">取消</button>
+          <button class="btn" type="button" id="pageConfirmAccept">继续</button>
+        </div>
+      </section>`;
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function showPageConfirm({title, message, confirmText = '继续', dangerous = false}) {
+    const overlay = ensurePageConfirmDialog();
+    const titleNode = $('pageConfirmTitle');
+    const messageNode = $('pageConfirmMessage');
+    const cancel = $('pageConfirmCancel');
+    const accept = $('pageConfirmAccept');
+    titleNode.textContent = title;
+    messageNode.textContent = message;
+    accept.textContent = confirmText;
+    accept.classList.toggle('danger', dangerous);
+    overlay.style.display = 'flex';
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = value => {
+        if (settled) return;
+        settled = true;
+        overlay.style.display = 'none';
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(value);
+      };
+      const onOverlay = event => { if (event.target === overlay) finish(false); };
+      const onKey = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      };
+      cancel.onclick = () => finish(false);
+      accept.onclick = () => finish(true);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onKey, true);
+      requestAnimationFrame(() => accept.focus());
+    });
+  }
+
+  const sandboxConfirmActions = {
+    storageMigrateBtn: {
+      title: '迁移到 SQLite',
+      message: '系统会先完整备份关键 JSON，再建立临时数据库、导入、哈希对账并执行完整性检查。任何一步失败都会继续使用原 JSON。',
+      confirmText: '开始迁移',
+      bypassCount: 1
+    },
+    storageRebuildBtn: {
+      title: '重建 SQLite 索引',
+      message: '将从 SQLite 内的兼容文档事务性重建查询索引。不会改变现有抽取结果，但重建期间会暂时锁定数据库写入。',
+      confirmText: '开始重建',
+      bypassCount: 1
+    },
+    storageRollbackBtn: {
+      title: '回滚到 JSON',
+      message: 'SQLite 中的最新数据将先原子写回 JSON 并完成哈希对账，原数据库会改名保留而不会删除。回滚后当前实例会立即改用 JSON。',
+      confirmText: '确认回滚',
+      dangerous: true,
+      bypassCount: 2
+    },
+    updateApplyBtn: {
+      title: '安装稳定版更新',
+      message: '更新器会下载官方稳定 Release，执行来源、校验和、压缩包、metadata 与 Python 语法检查，并在替换代码前完整备份。安装后必须重启 AstrBot。',
+      confirmText: '安装更新',
+      bypassCount: 1
+    },
+    aiDraftBtn: {
+      title: '覆盖现有 AI 文案',
+      message: '当前描述或完整文案已有内容。继续后，AI 生成结果会覆盖这些字段，但在保存小猪前仍可手动修改。',
+      confirmText: '覆盖并生成',
+      bypassCount: 1,
+      when: () => Boolean(
+        ($('pigDescription')?.value || '').trim() ||
+        ($('pigAnalysis')?.value || '').trim()
+      )
+    }
+  };
+
+  function invokeLegacyConfirmedHandler(button, bypassCount) {
+    const handler = button?.onclick;
+    if (typeof handler !== 'function') throw new Error('操作处理器尚未载入，请刷新页面后重试。');
+    const previousConfirm = window.confirm;
+    let remaining = Math.max(0, Number(bypassCount) || 0);
+    window.confirm = () => {
+      if (remaining <= 0) return false;
+      remaining -= 1;
+      return true;
+    };
+    try {
+      const result = handler.call(button, new MouseEvent('click', {cancelable: true}));
+      if (result && typeof result.catch === 'function') {
+        result.catch(error => console.error('[rollpig] confirmed action failed', error));
+      }
+    } finally {
+      window.confirm = previousConfirm;
+    }
+  }
+
+  let pageConfirmBusy = false;
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('button');
+    const config = button && sandboxConfirmActions[button.id];
+    if (!config || button.disabled || (config.when && !config.when())) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (pageConfirmBusy) return;
+    pageConfirmBusy = true;
+    try {
+      const accepted = await showPageConfirm(config);
+      if (accepted) invokeLegacyConfirmedHandler(button, config.bypassCount);
+    } catch (error) {
+      const message = errorText(error);
+      setFeedback(config.feedback || 'storageFeedback', `无法启动操作：${message}`);
+      console.error('[rollpig] page confirmation failed', error);
+    } finally {
+      pageConfirmBusy = false;
+    }
+  }, true);
+
 })();
