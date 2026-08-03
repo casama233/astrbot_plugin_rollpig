@@ -1,4 +1,10 @@
 # 更新
+## v2.10.1 (2026-08-04)
+### 管理面板确认框与迁移反馈热修复
+- 修复 AstrBot Plugin Page 的 iframe sandbox 阻止原生 `window.confirm()`，导致“迁移 SQLite”等按钮点击后无请求、无日志、无前端反馈的问题。
+- 迁移、重建索引、回滚 JSON、安装更新和 AI 覆盖文案改用页面内确认对话框；继续沿用原有 CSRF、互斥锁和操作耗时反馈。
+- SQLite 迁移在开始执行及安全失败时写入明确日志，方便区分“前端未发请求”和“后端迁移失败”。
+
 ## v2.10.0 (2026-08-04)
 ### SQLite 查询路径与投影修复
 - 新增 schema migration v2：身份补充 legacy/创建时间索引，群成员关系拆为 `daily_draw_groups`，避免继续查询 `group_ids_json`。
