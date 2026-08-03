@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - agent/fix-audit-findings-v2.4.0
+      - agent/sql-read-paths-projection-repair-v2.10.0
   pull_request:
     branches:
       - main
@@ -19,9 +20,11 @@ concurrency:
 jobs:
   apply-v210:
     if: >-
-      github.event_name == 'pull_request' &&
       github.actor != 'github-actions[bot]' &&
-      github.head_ref == 'agent/sql-read-paths-projection-repair-v2.10.0'
+      ((github.event_name == 'pull_request' &&
+        github.head_ref == 'agent/sql-read-paths-projection-repair-v2.10.0') ||
+       (github.event_name == 'push' &&
+        github.ref == 'refs/heads/agent/sql-read-paths-projection-repair-v2.10.0'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
