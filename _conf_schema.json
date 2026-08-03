@@ -124,5 +124,17 @@
         "hint": "范围 5-120，默认 45；超时自动回退本地文案",
         "type": "float",
         "default": 45
+    },
+    "panel_update_enabled": {
+        "description": "开启管理面板安全更新",
+        "hint": "仅检查并安装 casama233/astrbot_plugin_rollpig 的最新稳定 GitHub Release；不接受任意 URL、分支或预发布版本",
+        "type": "bool",
+        "default": true
+    },
+    "panel_update_timeout": {
+        "description": "管理面板更新网络超时（秒）",
+        "hint": "范围 5-120，默认 30；下载包另有 64 MiB、文件数量与解压体积限制",
+        "type": "float",
+        "default": 30
     }
 }

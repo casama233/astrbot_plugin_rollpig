@@ -61,6 +61,7 @@ class JSONStorage(StorageBackend):
                 except (OSError, UnicodeError, json.JSONDecodeError):
                     pass
 
+            self.save_json(path, default)
             return self._clone(default)
 
     def save_json(self, path: Path, data: Any) -> None:
