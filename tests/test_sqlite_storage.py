@@ -778,3 +778,76 @@ def test_sql_primary_eat_drops_malformed_legacy_event_keys(tmp_path):
     )
     assert result["status"] == "updated"
     assert "not-json" not in storage.export_documents()["roast_state.json"]["eaten_events"]
+
+
+
+def test_sql_primary_successful_penalty_is_not_consumed_by_probe(tmp_path):
+    storage, values = _empty_sql_documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["eaten_penalties"] = {
+        "v2|qq|user|1": {"due_date": "2026-08-04", "failed": False}
+    }
+    storage.save_json(tmp_path / "roast_state.json", roast)
+
+    probe = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig=None,
+        penalty_should_fail=False,
+    )
+    assert probe["status"] == "needs-pig"
+    with storage._connection() as connection:
+        penalty = connection.execute(
+            "SELECT due_date, failed FROM eaten_penalties "
+            "WHERE user_id = 'v2|qq|user|1'"
+        ).fetchone()
+        assert tuple(penalty) == ("2026-08-04", 0)
+
+    result = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        penalty_should_fail=False,
+    )
+    assert result["status"] == "created"
+    with storage._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM eaten_penalties").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 1
+
+
+def test_sql_primary_successful_penalty_rolls_back_with_failed_draw(
+    tmp_path, monkeypatch
+):
+    storage, values = _empty_sql_documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["eaten_penalties"] = {
+        "v2|qq|user|1": {"due_date": "2026-08-04", "failed": False}
+    }
+    storage.save_json(tmp_path / "roast_state.json", roast)
+    original_writer = storage._write_document_tx
+
+    def fail_on_history(connection, key, value, **kwargs):
+        if key == "pig_history.json":
+            raise RuntimeError("draw fault injection")
+        return original_writer(connection, key, value, **kwargs)
+
+    monkeypatch.setattr(storage, "_write_document_tx", fail_on_history)
+    with pytest.raises(RuntimeError, match="draw fault injection"):
+        storage.create_daily_draw(
+            draw_date="2026-08-04",
+            user_id="v2|qq|user|1",
+            pig={"id": "pig-a", "name": "A"},
+            penalty_should_fail=False,
+        )
+    with storage._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 0
+        penalty = connection.execute(
+            "SELECT due_date, failed FROM eaten_penalties "
+            "WHERE user_id = 'v2|qq|user|1'"
+        ).fetchone()
+        assert tuple(penalty) == ("2026-08-04", 0)
+    documents = storage.export_documents()
+    assert documents["roast_state.json"]["eaten_penalties"]["v2|qq|user|1"] == {
+        "due_date": "2026-08-04",
+        "failed": False,
+    }
