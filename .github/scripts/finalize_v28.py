@@ -137,7 +137,7 @@ updater_path.write_text(updater, encoding="utf-8", newline="\n")
 
 tests_path = ROOT / "tests" / "test_storage_and_updater.py"
 tests = tests_path.read_text(encoding="utf-8")
-tests += '''
+tests += r'''
 
 
 def test_updater_ignores_unrelated_release_zip_assets(tmp_path):
