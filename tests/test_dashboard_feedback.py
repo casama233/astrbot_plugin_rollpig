@@ -51,3 +51,23 @@ def test_dashboard_routes_are_registered_server_side():
         "/updates/apply",
     ):
         assert route in MAIN
+
+def test_feedback_layer_uses_in_page_confirmation_for_sandboxed_plugin_pages():
+    assert "function showPageConfirm" in FEEDBACK
+    assert "pageConfirmDialog" in FEEDBACK
+    for button_id in (
+        "storageMigrateBtn",
+        "storageRebuildBtn",
+        "storageRollbackBtn",
+        "updateApplyBtn",
+        "aiDraftBtn",
+    ):
+        assert button_id in FEEDBACK
+    assert "invokeLegacyConfirmedHandler" in FEEDBACK
+    assert "window.confirm = () =>" in FEEDBACK
+
+
+def test_sqlite_migration_is_logged_before_work_and_on_safe_failure():
+    assert "开始 SQLite 存储迁移" in MAIN
+    assert "SQLite 存储迁移未切换后端" in MAIN
+
