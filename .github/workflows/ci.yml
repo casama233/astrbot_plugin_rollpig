@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integrate-v212:
+  harden-v212:
     if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/sql-roast-ai-catalog-v2.12.0'
     permissions:
       contents: write
@@ -41,24 +41,23 @@ jobs:
           python -m pip install -r requirements.txt pytest pre-commit
           python -m pip check
 
-      - name: Apply SQL-primary migration
+      - name: Apply catalog image hardening
         run: |
-          python tools/apply_v212.py
-          python tools/fix_v212_round2.py
-          rm tools/apply_v212.py tools/fix_v212_round2.py
+          python tools/harden_v212_catalog_images.py
+          rm tools/harden_v212_catalog_images.py
 
-      - name: Validate migration
+      - name: Validate hardening
         run: |
           python -m compileall -q main.py rollpig_core.py updater.py storage services
           pytest -q
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: Commit validated migration
+      - name: Commit validated hardening
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: add SQL-primary roast, AI cache and catalog writes (v2.12.0)"
+          git commit -m "fix: compensate catalog images when metadata writes fail"
           git push origin HEAD:agent/sql-roast-ai-catalog-v2.12.0
 
   test:
