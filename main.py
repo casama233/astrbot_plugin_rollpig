@@ -541,6 +541,17 @@ class RollPigPlugin(Star):
         """Let one platform claim ambiguous legacy data; other platforms stay isolated."""
         if namespaced == legacy or not legacy_exists:
             return namespaced
+        if getattr(self.storage, "supports_domain_writes", False):
+            result = self.storage.claim_legacy_identity(
+                namespaced=namespaced,
+                legacy=legacy,
+                kind=kind,
+                accepted_claims=self._identity_candidates(namespaced),
+            )
+            history = result.get("history")
+            if isinstance(history, dict):
+                self.history = history
+            return str(result.get("storage_key") or namespaced)
         with self._data_lock:
             claims_root = self.history.setdefault("identity_claims", {})
             claims = claims_root.setdefault(kind, {})
@@ -1805,6 +1816,16 @@ class RollPigPlugin(Star):
             sender_name = getattr(sender, "nickname", "")
         username = self._telegram_username(sender_name)
         if not username:
+            return
+        if getattr(self.storage, "supports_domain_writes", False):
+            result = self.storage.remember_identity_alias(
+                namespace=self._platform_namespace(event),
+                canonical_id=canonical_id,
+                username=username,
+            )
+            history = result.get("history")
+            if isinstance(history, dict):
+                self.history = history
             return
         with self._data_lock:
             bucket = self._telegram_alias_bucket(event, create=True)

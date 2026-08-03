@@ -759,8 +759,109 @@ class SQLiteStorage(StorageBackend):
         )
 
     @staticmethod
+    def _event_key_date(value: Any) -> str:
+        try:
+            parsed = json.loads(str(value))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ""
+        return str(parsed[0]) if isinstance(parsed, list) and len(parsed) == 3 else ""
+
+    @staticmethod
     def _valid_dict(value: Any) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
+
+    def claim_legacy_identity(
+        self,
+        *,
+        namespaced: str,
+        legacy: str,
+        kind: str,
+        accepted_claims: tuple[str, ...] = (),
+    ) -> dict[str, Any]:
+        """Atomically claim one ambiguous legacy key without rewriting projections."""
+        namespaced = str(namespaced)
+        legacy = str(legacy)
+        accepted = {str(item) for item in accepted_claims if str(item)}
+        accepted.add(namespaced)
+        with self.transaction() as connection:
+            history = self._valid_dict(
+                self._read_document_tx(
+                    connection,
+                    "pig_history.json",
+                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
+                )
+            )
+            claims_root = history.get("identity_claims")
+            if not isinstance(claims_root, dict):
+                claims_root = {}
+                history["identity_claims"] = claims_root
+            claims = claims_root.get(str(kind))
+            if not isinstance(claims, dict):
+                claims = {}
+                claims_root[str(kind)] = claims
+            claimed_by = str(claims.get(legacy) or "")
+            claimed = not claimed_by or claimed_by in accepted
+            changed = claimed and claimed_by != namespaced
+            if changed:
+                claims[legacy] = namespaced
+                self._write_document_tx(connection, "pig_history.json", history)
+            return {
+                "claimed": claimed,
+                "storage_key": legacy if claimed else namespaced,
+                "history": history,
+            }
+
+    def remember_identity_alias(
+        self,
+        *,
+        namespace: str,
+        canonical_id: str,
+        username: str,
+    ) -> dict[str, Any]:
+        """Merge one Telegram alias into the latest history document atomically."""
+        namespace = str(namespace)
+        canonical_id = str(canonical_id)
+        username = str(username).lstrip("@")
+        alias_key = username.lower()
+        with self.transaction() as connection:
+            history = self._valid_dict(
+                self._read_document_tx(
+                    connection,
+                    "pig_history.json",
+                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
+                )
+            )
+            aliases_root = history.get("identity_aliases")
+            if not isinstance(aliases_root, dict):
+                aliases_root = {}
+                history["identity_aliases"] = aliases_root
+            bucket = aliases_root.get(namespace)
+            if not isinstance(bucket, dict):
+                bucket = {"by_alias": {}, "by_user": {}}
+                aliases_root[namespace] = bucket
+            by_alias = bucket.get("by_alias")
+            if not isinstance(by_alias, dict):
+                by_alias = {}
+                bucket["by_alias"] = by_alias
+            by_user = bucket.get("by_user")
+            if not isinstance(by_user, dict):
+                by_user = {}
+                bucket["by_user"] = by_user
+            changed = not (
+                by_alias.get(alias_key) == canonical_id
+                and by_user.get(canonical_id) == username
+            )
+            if changed:
+                previous_user = str(by_alias.get(alias_key) or "")
+                if previous_user and previous_user != canonical_id:
+                    by_user.pop(previous_user, None)
+                previous_alias = str(by_user.get(canonical_id) or "").lower()
+                if previous_alias and previous_alias != alias_key:
+                    by_alias.pop(previous_alias, None)
+                by_alias[alias_key] = canonical_id
+                by_user[canonical_id] = username
+                self._write_document_tx(connection, "pig_history.json", history)
+            return {"changed": changed, "history": history}
 
     def create_daily_draw(
         self,
@@ -1279,13 +1380,7 @@ class SQLiteStorage(StorageBackend):
                 key: value
                 for key, value in events_doc.items()
                 if isinstance(value, dict)
-                and (
-                    (lambda parsed: isinstance(parsed, list) and len(parsed) == 3 and str(parsed[0]) >= str(cutoff_date))(
-                        json.loads(key)
-                    )
-                    if isinstance(key, str)
-                    else False
-                )
+                and self._event_key_date(key) >= str(cutoff_date)
             }
 
             self._write_document_tx(
