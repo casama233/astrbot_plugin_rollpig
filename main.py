@@ -1813,17 +1813,26 @@ class RollPigPlugin(Star):
     async def _send_with_mention(
         self, event: AstrMessageEvent, user_id: str, text: str
     ) -> None:
-        """优先发标准 @ 消息段；适配器不支持时仍发送可识别的纯文本。"""
-        user_id = self._canonical_user_id(event, user_id)
+        """优先发标准 @ 消息段；适配器不支持时仍发送可识别的纯文本。
+
+        图鉴和状态存储使用平台命名空间 ID（例如
+        ``v2|aiocqhttp|user|123``），但 AstrBot 的 At 消息段需要平台原生
+        用户 ID。发送前必须剥离命名空间，避免 QQ 等适配器把内部键原样
+        渲染成 ``@v2|...`` 文本。
+        """
+        canonical_id = self._canonical_user_id(event, user_id)
+        mention_id = self._legacy_identity(canonical_id)
+        if not mention_id:
+            mention_id = str(user_id or "").strip()
         if self._event_group_id(event):
             try:
                 await event.send(
-                    event.chain_result([Comp.At(qq=user_id), Comp.Plain(text)])
+                    event.chain_result([Comp.At(qq=mention_id), Comp.Plain(text)])
                 )
                 return
             except Exception as exc:
                 logger.warning(f"发送 @ 消息段失败，已回退文本：{exc}")
-        await event.send(event.plain_result(f"@{user_id}{text}"))
+        await event.send(event.plain_result(f"@{mention_id}{text}"))
 
     def _roast_block_reason(self, pig: dict | None) -> str | None:
         """检查一只当天小猪是否仍可被做成料理。"""

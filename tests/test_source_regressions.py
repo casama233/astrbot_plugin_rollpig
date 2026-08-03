@@ -46,3 +46,10 @@ def test_claim_aware_reads_do_not_use_raw_candidates_directly():
 def test_batch_rollback_removes_newly_created_files():
     method = ast.get_source_segment(SOURCE, _method("save_json_batch")) or ""
     assert "path.unlink(missing_ok=True)" in method
+
+
+def test_outbound_mentions_strip_storage_namespace():
+    method = ast.get_source_segment(SOURCE, _method("_send_with_mention")) or ""
+    assert "mention_id = self._legacy_identity(canonical_id)" in method
+    assert "Comp.At(qq=mention_id)" in method
+    assert "f\"@{mention_id}{text}\"" in method
