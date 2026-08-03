@@ -91,51 +91,54 @@ jobs:
           if count != 1:
               raise SystemExit('generated aggregate checks not found')
           original_rebuild = '''
-                      user_ids = [
-                          str(row[0])
-                          for row in connection.execute(
-                              "SELECT user_id FROM user_pigs UNION SELECT user_id FROM daily_draws"
-                          ).fetchall()
-                      ]
-                      for user_id in user_ids:
-                          self._remember_identity(connection, user_id)
-                          existing = connection.execute(
-                              "SELECT duplicate_streak, payload_json FROM user_stats WHERE user_id = ?",
-                              (user_id,),
-                          ).fetchone()
-                          if existing:
-                              continue
-                          total_draws = int(
-                              connection.execute(
-                                  "SELECT COALESCE(SUM(draw_count), 0) FROM user_pigs WHERE user_id = ?",
-                                  (user_id,),
-                              ).fetchone()[0]
-                          )
-                          active_days = int(
-                              connection.execute(
-                                  "SELECT COUNT(*) FROM daily_draws WHERE user_id = ?",
-                                  (user_id,),
-                              ).fetchone()[0]
-                          )
-                          payload = {
-                              "total_draws": total_draws,
-                              "active_days": active_days,
-                              "duplicate_streak": 0,
-                          }
-                          connection.execute(
-                              "INSERT INTO user_stats(" 
-                              "user_id, total_draws, active_days, duplicate_streak, payload_json) "
-                              "VALUES (?, ?, ?, 0, ?)",
-                              (
-                                  user_id,
-                                  total_draws,
-                                  active_days,
-                                  json.dumps(payload, ensure_ascii=False, sort_keys=True),
-                              ),
-                          )
-                      missing_pigs = [
+          user_ids = [
+              str(row[0])
+              for row in connection.execute(
+                  "SELECT user_id FROM user_pigs UNION SELECT user_id FROM daily_draws"
+              ).fetchall()
+          ]
+          for user_id in user_ids:
+              self._remember_identity(connection, user_id)
+              existing = connection.execute(
+                  "SELECT duplicate_streak, payload_json FROM user_stats WHERE user_id = ?",
+                  (user_id,),
+              ).fetchone()
+              if existing:
+                  continue
+              total_draws = int(
+                  connection.execute(
+                      "SELECT COALESCE(SUM(draw_count), 0) FROM user_pigs WHERE user_id = ?",
+                      (user_id,),
+                  ).fetchone()[0]
+              )
+              active_days = int(
+                  connection.execute(
+                      "SELECT COUNT(*) FROM daily_draws WHERE user_id = ?",
+                      (user_id,),
+                  ).fetchone()[0]
+              )
+              payload = {
+                  "total_draws": total_draws,
+                  "active_days": active_days,
+                  "duplicate_streak": 0,
+              }
+              connection.execute(
+                  "INSERT INTO user_stats(" 
+                  "user_id, total_draws, active_days, duplicate_streak, payload_json) "
+                  "VALUES (?, ?, ?, 0, ?)",
+                  (
+                      user_id,
+                      total_draws,
+                      active_days,
+                      json.dumps(payload, ensure_ascii=False, sort_keys=True),
+                  ),
+              )
+          missing_pigs = [
           '''
-          original_rebuild = textwrap.dedent(original_rebuild).lstrip('\n')
+          original_rebuild = textwrap.indent(
+              textwrap.dedent(original_rebuild).strip('\n'),
+              '            ',
+          ) + '\n'
           text, count = re.subn(
               r'            user_ids = \[.*?            missing_pigs = \[\n',
               original_rebuild,
