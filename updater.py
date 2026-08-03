@@ -115,6 +115,8 @@ class PluginUpdateManager:
         pending = dict(self._pending or {})
         pending.pop("checksum_url", None)
         pending.pop("download_url", None)
+        last_result = dict(self._last_result or {})
+        last_result.pop("backup_dir", None)
         return {
             "current_version": current,
             "backend": "official-github-release",
@@ -123,7 +125,7 @@ class PluginUpdateManager:
             "last_check_at": self._last_check_at,
             "last_error": self._last_error,
             "pending": pending or None,
-            "last_result": self._last_result,
+            "last_result": last_result or None,
         }
 
     async def check_for_update(self) -> dict[str, Any]:
@@ -177,6 +179,11 @@ class PluginUpdateManager:
         checksum_url = self._select_checksum_url(assets, archive_name)
         expected_sha256 = ""
         if checksum_url:
+            expected_checksum_prefix = (
+                f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/download/"
+            )
+            if not checksum_url.startswith(expected_checksum_prefix):
+                raise UpdateError("Release 校验文件地址不属于官方仓库")
             checksum_text = (
                 await self._request_bytes(
                     checksum_url,
@@ -254,6 +261,7 @@ class PluginUpdateManager:
             for item in assets
             if isinstance(item, dict)
             and str(item.get("name") or "").lower().endswith(".zip")
+            and "rollpig" in str(item.get("name") or "").lower()
         ]
         if not candidates:
             return None
@@ -406,13 +414,28 @@ class PluginUpdateManager:
             "written_files": written_count,
             "restart_required": True,
         }
-        self._write_state(state)
-        self._prune_backups()
+        warnings: list[str] = []
+        try:
+            self._write_state(state)
+        except OSError as exc:
+            warning = f"代码已更新，但状态记录写入失败：{type(exc).__name__}"
+            warnings.append(warning)
+            self._log("warning", warning)
+        try:
+            self._prune_backups()
+        except OSError as exc:
+            warning = f"代码已更新，但旧备份清理失败：{type(exc).__name__}"
+            warnings.append(warning)
+            self._log("warning", warning)
         self._log(
             "info",
             f"今日小猪已安全更新到 {release['latest_version']}，等待 AstrBot 重启加载",
         )
-        return state
+        public_state = dict(state)
+        public_state.pop("backup_dir", None)
+        if warnings:
+            public_state["warnings"] = warnings
+        return public_state
 
     def _safe_extract(self, archive_path: Path, staging: Path) -> None:
         try:
