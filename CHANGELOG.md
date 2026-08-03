@@ -1,4 +1,9 @@
 # 更新
+## v2.9.1 (2026-08-04)
+### 安全更新热修复
+- 修复 SHA-256 校验误调用不存在的 `hashlib.compare_digest`，改用标准库 `hmac.compare_digest`；带 `SHA256SUMS` 的稳定版更新不再报属性错误。
+- 新增回归测试，防止更新器再次引用错误模块。
+
 ## v2.9.0 (2026-08-03)
 ### SQLite 存储与可回滚迁移
 - 新增 `SQLiteStorage` 与 `StorageManager`；默认 `auto` 只在数据库存在且完整时启用 SQLite，旧安装继续安全使用 JSON。
