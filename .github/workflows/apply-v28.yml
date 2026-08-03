@@ -47,3 +47,5 @@ jobs:
           git add -A
           git commit -m "feat: add storage abstraction and safe panel updater"
           git push origin HEAD:agent/storage-abstraction-safe-updater-v2.8.0
+
+# synchronization trigger for the main-branch pull_request_target workflow
