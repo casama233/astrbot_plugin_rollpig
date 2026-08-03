@@ -17,60 +17,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  harden-v213:
-    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/sql-runtime-snapshot-ai-generation-v2.13.0'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out migration branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/sql-runtime-snapshot-ai-generation-v2.13.0
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pytest pre-commit
-          python -m pip check
-
-      - name: Apply SQL-authority hardening
-        run: |
-          python tools/fix_v213_hardener_marker.py
-          python tools/fix_v213_hardener_round2.py
-          python tools/fix_v213_hardener_round3.py
-          python tools/harden_v213_sql_authority.py
-          rm tools/fix_v213_hardener_marker.py tools/fix_v213_hardener_round2.py tools/fix_v213_hardener_round3.py tools/harden_v213_sql_authority.py
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/ci.yml')
-          text = path.read_text(encoding='utf-8')
-          start = text.index('  harden-v213:\n')
-          end = text.index('  test:\n', start)
-          path.write_text(text[:start] + text[end:], encoding='utf-8')
-          PY
-
-      - name: Validate hardening
-        run: |
-          python -m compileall -q main.py rollpig_core.py updater.py storage services
-          pytest -q
-          pre-commit run --all-files --show-diff-on-failure
-
-      - name: Commit validated hardening
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: preserve SQL authority when repairing compatibility documents"
-          git push origin HEAD:agent/sql-runtime-snapshot-ai-generation-v2.13.0
-
   test:
     runs-on: ubuntu-latest
     strategy:
