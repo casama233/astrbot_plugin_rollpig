@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# One-time synchronization helper; removed by the validated CI commit.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
