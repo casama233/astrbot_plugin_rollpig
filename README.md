@@ -84,7 +84,13 @@ AstrBot 管理面板的「插件页面」中会出现「今日小猪」管理页
 
 版本更新入口固定连接 `casama233/astrbot_plugin_rollpig` 的最新稳定 GitHub Release，不接受自定义 URL、分支或预发布版本。更新包限制为 64 MiB、最多 3000 个文件和 256 MiB 解压体积，并拒绝路径穿越、符号链接及异常压缩比。若 Release 提供 SHA-256 文件会强制核对；若未提供，管理面板会明确警告并要求二次确认。代码替换前会在插件数据目录创建备份，失败自动回滚，且不会覆盖图鉴、历史、惩罚、本地图片或 AstrBot 配置。安装完成后不会自动重启。
 
-当前运行数据仍使用兼容旧版本的 JSON 文件，但所有读写已经经由 `StorageBackend`／`JSONStorage` 统一接口处理，为后续 SQLite 迁移保留边界。
+### SQLite 存储与安全迁移
+
+v2.9.0 新增可选 SQLite 后端。默认 `storage_backend=auto`：只有 `rollpig.db` 已存在且通过 `PRAGMA integrity_check` 与 `foreign_key_check` 时才会启用 SQLite，否则继续使用原 JSON。旧安装不会静默忽略旧数据。
+
+管理面板可执行迁移、验证、导出 JSON ZIP 与回滚。迁移会先备份七份关键 JSON，建立临时数据库，导入完整兼容文档并刷新正交投影表，逐文件核对 SHA-256 后才原子替换为 `rollpig.db`。失败会保留原 JSON 且不切换。SQLite 使用 `WAL`、`foreign_keys=ON`、`synchronous=NORMAL` 与可配置的 `busy_timeout`。
+
+v2.9 的完整 JSON 文档仍是兼容权威层，`daily_draws`、`user_pigs`、`user_stats`、被吃事件、冷却、AI 文案和图鉴覆盖等表作为同事务投影；后续版本会逐步把高频查询迁移为直接 SQL。
 
 可在插件配置中关闭连续重复保底或今日烤猪，并调整每层保底增加的概率。
 

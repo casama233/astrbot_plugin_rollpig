@@ -136,5 +136,17 @@
         "hint": "范围 5-120，默认 30；下载包另有 64 MiB、文件数量与解压体积限制",
         "type": "float",
         "default": 30
+    },
+    "storage_backend": {
+        "description": "数据存储后端",
+        "hint": "auto：存在且验证通过的 rollpig.db 使用 SQLite，否则继续 JSON；json：强制 JSON；sqlite：要求已完成迁移，数据库无效时安全回退 JSON",
+        "type": "string",
+        "default": "auto"
+    },
+    "storage_busy_timeout_ms": {
+        "description": "SQLite 写锁等待时间（毫秒）",
+        "hint": "范围 1000-30000，默认 5000；仅 SQLite 后端生效",
+        "type": "int",
+        "default": 5000
     }
 }

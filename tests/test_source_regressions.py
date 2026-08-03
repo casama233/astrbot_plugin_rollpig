@@ -47,7 +47,8 @@ def test_main_delegates_persistence_to_storage_backend():
     init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
     load = ast.get_source_segment(SOURCE, _method("load_json")) or ""
     batch = ast.get_source_segment(SOURCE, _method("save_json_batch")) or ""
-    assert "self.storage = JSONStorage" in init
+    assert "self.storage_manager = StorageManager" in init
+    assert "self.storage = self.storage_manager.backend" in init
     assert "self.storage.load_json" in load
     assert "self.storage.save_json_batch" in batch
 
