@@ -112,3 +112,22 @@ def test_cooldown_protection_and_backdoor_use_claimed_storage_ids():
     ):
         method = ast.get_source_segment(SOURCE, _method(name)) or ""
         assert "self._storage_user_key" in method
+
+
+
+def test_special_pig_copy_separates_actor_roast_and_eat_targets():
+    eat = ast.get_source_segment(SOURCE, _method("_eat_group_target")) or ""
+    random_eat = ast.get_source_segment(SOURCE, _method("eat_random_group_member")) or ""
+    self_roast = ast.get_source_segment(SOURCE, _method("roast_today_pig")) or ""
+    actor_rules = ast.get_source_segment(SOURCE, _method("_eat_actor_block_reason")) or ""
+    target_rules = ast.get_source_segment(SOURCE, _method("_eat_target_block_reason")) or ""
+    success_copy = ast.get_source_segment(SOURCE, _method("_eat_success_message")) or ""
+
+    assert "_eat_actor_block_reason(actor_pig)" in eat
+    assert "_eat_target_block_reason(target_pig)" in eat
+    assert "_eat_actor_block_reason(actor_pig)" in random_eat
+    assert "_eat_target_block_reason(pig)" in random_eat
+    assert '_roast_block_reason(pig, subject="actor")' in self_roast
+    assert "你今天是" in actor_rules
+    assert 'state in {"normal", "cooked"}' in target_rules
+    assert "开袋即食成功" in success_copy
