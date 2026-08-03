@@ -206,7 +206,7 @@ def test_main_delegates_v212_sql_hot_writes():
     assert "asyncio.to_thread" in counts and "increment_roast_count" in counts
     assert "get_roast_count" in protection
     assert "consume_daily_backdoor" in backdoor
-    assert "get_ai_roast_copies" in ai and "store_ai_roast_copy" in ai
+    assert "claim_ai_roast_generation" in ai and "complete_ai_roast_generation" in ai
     assert "upsert_catalog_override" in save
     assert "delete_catalog_entry" in delete
 
@@ -219,3 +219,28 @@ def test_catalog_image_changes_are_compensated_on_metadata_failure():
     assert "_restore_custom_images" in save
     assert delete.index("unlink") < delete.index("delete_catalog_entry")
     assert "_restore_custom_images" in delete
+
+
+
+def test_v213_runtime_uses_sql_snapshot_and_unique_ai_generation_claim():
+    init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
+    ai = ast.get_source_segment(SOURCE, _method("_get_ai_roast_copy")) or ""
+    assert "self.storage.load_runtime_snapshot()" in init
+    assert "self._runtime_document" in init
+    assert "claim_ai_roast_generation" in ai
+    assert "complete_ai_roast_generation" in ai
+    assert "uuid.uuid4().hex" in ai
+    assert "random.choice(list(recent.values()))" in ai
+
+
+
+def test_v213_sql_authority_repairs_documents_in_the_safe_direction():
+    storage_source = (ROOT / "storage" / "sqlite_storage.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'authority.startswith("sql-primary-")' in storage_source
+    assert "_repair_compatibility_documents_tx" in storage_source
+    assert 'action = "repaired-compatibility-documents-from-sql"' in storage_source
+    assert "history = self._history_document_from_sql(connection)" in storage_source
+    assert "roast = self._roast_document_from_sql(connection)" in storage_source
+    assert "today_doc = self._today_document_from_sql(connection, draw_date)" in storage_source
