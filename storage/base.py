@@ -87,6 +87,9 @@ class StorageBackend(ABC):
     def get_dashboard_overview(self, **kwargs: Any) -> dict[str, Any] | None:
         return None
 
+    def get_dashboard_insights(self, **kwargs: Any) -> dict[str, Any] | None:
+        return None
+
     # Transitional domain read API. JSONStorage keeps using the in-memory
     # compatibility documents; SQLite overrides these methods with indexed SQL.
     def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
