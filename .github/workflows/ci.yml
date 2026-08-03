@@ -41,11 +41,10 @@ jobs:
           python -m pip install -r requirements.txt pytest pre-commit
           python -m pip check
 
-      - name: Apply SQL-primary migration
+      - name: Apply SQL-primary hardening
         run: |
-          python tools/apply_v211.py
-          python tools/fix_v211_round2.py
-          rm tools/apply_v211.py tools/fix_v211_round2.py
+          python tools/harden_v211.py
+          rm tools/harden_v211.py
 
       - name: Validate migration
         run: |
@@ -58,7 +57,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: add SQL-primary daily draw and eat transactions (v2.11.0)"
+          git commit -m "fix: harden SQL-primary identity metadata writes"
           git push origin HEAD:agent/sql-primary-writes-v2.11.0
 
   test:
