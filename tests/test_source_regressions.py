@@ -123,11 +123,55 @@ def test_special_pig_copy_separates_actor_roast_and_eat_targets():
     target_rules = ast.get_source_segment(SOURCE, _method("_eat_target_block_reason")) or ""
     success_copy = ast.get_source_segment(SOURCE, _method("_eat_success_message")) or ""
 
+    service_source = (ROOT / "services" / "roast_service.py").read_text(encoding="utf-8")
+
     assert "_eat_actor_block_reason(actor_pig)" in eat
     assert "_eat_target_block_reason(target_pig)" in eat
     assert "_eat_actor_block_reason(actor_pig)" in random_eat
     assert "_eat_target_block_reason(pig)" in random_eat
     assert '_roast_block_reason(pig, subject="actor")' in self_roast
-    assert "你今天是" in actor_rules
-    assert 'state in {"normal", "cooked"}' in target_rules
-    assert "开袋即食成功" in success_copy
+    assert "self.roast_service.eat_actor_block_reason" in actor_rules
+    assert "你今天是" in service_source
+    assert "self.roast_service.eat_target_block_reason" in target_rules
+    assert 'state in {"normal", "cooked"}' in service_source
+    assert "self.roast_service.eat_success_message" in success_copy
+    assert "开袋即食成功" in service_source
+
+
+
+def test_main_uses_services_and_indexed_sql_read_boundaries():
+    init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
+    choose = ast.get_source_segment(SOURCE, _method("_choose_daily_pig")) or ""
+    collection = ast.get_source_segment(SOURCE, _method("_get_user_collection")) or ""
+    daily = ast.get_source_segment(SOURCE, _method("_get_daily_pig")) or ""
+    members = ast.get_source_segment(SOURCE, _method("_daily_group_members")) or ""
+    victims = ast.get_source_segment(SOURCE, _method("_daily_eaten_victims")) or ""
+    assert "self.draw_service = DrawService" in init
+    assert "self.roast_service = RoastService" in init
+    assert "self.draw_service.choose" in choose
+    assert "self.storage.get_user_collection" in collection
+    assert "self.storage.get_daily_draw" in daily
+    assert "self.storage.get_group_members" in members
+    assert "self.storage.get_eaten_victims" in victims
+
+
+def test_storage_rebuild_api_keeps_csrf_and_confirmation():
+    method = ast.get_source_segment(SOURCE, _method("page_storage_rebuild")) or ""
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
+    assert "_is_authorized_write_request" in method
+    assert 'payload.get("confirm")' in method
+    assert "storage/rebuild" in page
+    assert "storageRebuildBtn" in page
+
+
+
+def test_dashboard_feedback_covers_restart_and_projection_rebuild():
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
+    feedback = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(
+        encoding="utf-8"
+    )
+    assert '<script src="./ui-feedback.js"></script>' in page
+    assert "storageRebuildBtn" in feedback
+    assert "'storage/rebuild'" in feedback
+    assert "restartRequired" in feedback
+    assert "已有管理任务正在执行" in feedback
