@@ -397,7 +397,7 @@ def test_schema_v2_migrates_identity_columns_and_group_index(tmp_path):
     assert {"legacy_id", "created_at"} <= identity_columns
     assert {"created_at", "was_new_unlock"} <= draw_columns
     assert [row[0] for row in groups] == ["g1"]
-    assert version == 3
+    assert version == 4
 
 
 def test_real_transaction_commits_and_rolls_back(tmp_path):
