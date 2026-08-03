@@ -43,8 +43,9 @@ jobs:
 
       - name: Apply SQL-authority hardening
         run: |
+          python tools/fix_v213_hardener_marker.py
           python tools/harden_v213_sql_authority.py
-          rm tools/harden_v213_sql_authority.py
+          rm tools/fix_v213_hardener_marker.py tools/harden_v213_sql_authority.py
           python - <<'PY'
           from pathlib import Path
           path = Path('.github/workflows/ci.yml')
