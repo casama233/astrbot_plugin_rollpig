@@ -209,3 +209,13 @@ def test_main_delegates_v212_sql_hot_writes():
     assert "get_ai_roast_copies" in ai and "store_ai_roast_copy" in ai
     assert "upsert_catalog_override" in save
     assert "delete_catalog_entry" in delete
+
+
+def test_catalog_image_changes_are_compensated_on_metadata_failure():
+    save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
+    delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
+    assert save.index("_write_custom_image") < save.index("upsert_catalog_override")
+    assert "except Exception:" in save
+    assert "_restore_custom_images" in save
+    assert delete.index("unlink") < delete.index("delete_catalog_entry")
+    assert "_restore_custom_images" in delete
