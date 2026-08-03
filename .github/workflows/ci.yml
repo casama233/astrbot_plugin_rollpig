@@ -48,18 +48,10 @@ jobs:
           pytest -q
           pre-commit run --all-files --show-diff-on-failure
 
-      - name: Restore permanent CI definition
+      - name: Exclude workflow files from bot commit
         run: |
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/ci.yml')
-          text = path.read_text(encoding='utf-8')
-          old = 'run: python -m compileall -q main.py ' + 'rollpig_core.py'
-          new = old + ' updater.py storage'
-          text = text.replace(old, new)
-          path.write_text(text, encoding='utf-8')
-          PY
+          git checkout HEAD -- .github/workflows/ci.yml
+          git checkout HEAD -- .github/workflows/apply-v28.yml
 
       - name: Commit integrated result
         run: |
