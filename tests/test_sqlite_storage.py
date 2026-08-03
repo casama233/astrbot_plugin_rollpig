@@ -497,3 +497,284 @@ def test_dashboard_health_avoids_deep_document_projection_scan(
     health = storage.health()
     assert health["ok"] is True
     assert health["deep_verified"] is False
+
+
+
+def _empty_sql_documents(tmp_path: Path) -> tuple[SQLiteStorage, dict[str, object]]:
+    values: dict[str, object] = {
+        "rollpig_today.json": {"date": "", "records": {}},
+        "pig_history.json": {
+            "version": 1,
+            "users": {},
+            "daily": {},
+            "pig_snapshots": {},
+        },
+        "roast_state.json": {
+            "version": 1,
+            "cooldowns": {},
+            "daily_backdoors": {},
+            "daily_roast_counts": {},
+            "eaten_penalties": {},
+            "eaten_events": {},
+        },
+        "ai_roast_copies.json": {"version": 1, "copies": {}},
+        "pig_catalog.json": [],
+        "local_overrides.json": [],
+        "deleted_pigs.json": [],
+    }
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    storage.save_json_batch(
+        {tmp_path / name: value for name, value in values.items()}
+    )
+    return storage, values
+
+
+def test_sql_primary_daily_draw_does_not_rebuild_history_projection(
+    tmp_path, monkeypatch
+):
+    storage, _ = _empty_sql_documents(tmp_path)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("direct write must not rebuild history projection")
+
+    monkeypatch.setattr(storage, "_project_history", forbidden)
+    probe = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        user_candidates=("1",),
+        pig=None,
+        group_id="v2|qq|group|9",
+        penalty_should_fail=False,
+    )
+    assert probe["status"] == "needs-pig"
+    result = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        user_candidates=("1",),
+        pig={"id": "pink-pig", "name": "粉红猪"},
+        group_id="v2|qq|group|9",
+        penalty_should_fail=False,
+    )
+    assert result["status"] == "created"
+    assert storage.verify(deep=True)["projection_ok"] is True
+
+
+def test_sql_primary_daily_draw_is_cross_connection_idempotent(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+
+    def draw(storage, pig_id):
+        return storage.create_daily_draw(
+            draw_date="2026-08-04",
+            user_id="v2|qq|user|1",
+            user_candidates=("1",),
+            pig={"id": pig_id, "name": pig_id},
+            group_id="v2|qq|group|9",
+            penalty_should_fail=False,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(
+            pool.map(
+                lambda args: draw(*args),
+                ((first, "pig-a"), (second, "pig-b")),
+            )
+        )
+    assert sorted(result["status"] for result in results) == ["created", "existing"]
+    with first._connection() as connection:
+        rows = connection.execute(
+            "SELECT pig_id FROM daily_draws WHERE draw_date = '2026-08-04'"
+        ).fetchall()
+        stats = connection.execute(
+            "SELECT total_draws FROM user_stats WHERE user_id = 'v2|qq|user|1'"
+        ).fetchone()
+    assert len(rows) == 1
+    assert stats[0] == 1
+
+
+def test_sql_primary_penalty_and_draw_share_transaction(tmp_path):
+    storage, values = _empty_sql_documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["eaten_penalties"] = {
+        "v2|qq|user|1": {"due_date": "2026-08-04", "failed": False}
+    }
+    storage.save_json(tmp_path / "roast_state.json", roast)
+    result = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        penalty_should_fail=True,
+    )
+    assert result["status"] == "penalty-blocked"
+    with storage._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT failed FROM eaten_penalties WHERE user_id = 'v2|qq|user|1'"
+        ).fetchone()[0] == 1
+
+
+def test_sql_primary_eat_rolls_back_all_tables_and_documents(tmp_path, monkeypatch):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    original_writer = storage._write_document_tx
+
+    def fail_on_roast(connection, key, value, **kwargs):
+        if key == "roast_state.json":
+            raise RuntimeError("fault injection")
+        return original_writer(connection, key, value, **kwargs)
+
+    monkeypatch.setattr(storage, "_write_document_tx", fail_on_roast)
+    with pytest.raises(RuntimeError, match="fault injection"):
+        storage.replace_daily_pig_with_eaten(
+            draw_date="2026-08-04",
+            due_date="2026-08-05",
+            cutoff_date="2026-08-02",
+            user_id="v2|qq|user|1",
+            group_id="v2|qq|group|9",
+            actor_id="v2|qq|user|2",
+            outcome="eat_success",
+            eaten_pig={"id": "eaten", "name": "吃掉了"},
+        )
+    with storage._connection() as connection:
+        draw = connection.execute("SELECT pig_id FROM daily_draws").fetchone()[0]
+        penalties = connection.execute("SELECT COUNT(*) FROM eaten_penalties").fetchone()[0]
+        events = connection.execute("SELECT COUNT(*) FROM eaten_events").fetchone()[0]
+    assert draw == "pig-a"
+    assert penalties == 0
+    assert events == 0
+    docs = storage.export_documents()
+    assert docs["pig_history.json"]["daily"]["2026-08-04"]["records"]["v2|qq|user|1"] == "pig-a"
+
+
+def test_sql_primary_eat_updates_draw_penalty_event_and_export_docs(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    result = storage.replace_daily_pig_with_eaten(
+        draw_date="2026-08-04",
+        due_date="2026-08-05",
+        cutoff_date="2026-08-02",
+        user_id="v2|qq|user|1",
+        group_id="v2|qq|group|9",
+        actor_id="v2|qq|user|2",
+        outcome="eat_success",
+        eaten_pig={"id": "eaten", "name": "吃掉了"},
+    )
+    assert result["status"] == "updated"
+    with storage._connection() as connection:
+        draw = connection.execute(
+            "SELECT pig_id, original_pig_id FROM daily_draws"
+        ).fetchone()
+        penalty = connection.execute(
+            "SELECT due_date, failed FROM eaten_penalties"
+        ).fetchone()
+        event = connection.execute(
+            "SELECT outcome, user_id FROM eaten_events"
+        ).fetchone()
+    assert tuple(draw) == ("eaten", "pig-a")
+    assert tuple(penalty) == ("2026-08-05", 0)
+    assert tuple(event) == ("eat_success", "v2|qq|user|1")
+    assert storage.verify(deep=True)["projection_ok"] is True
+
+
+
+def test_sql_primary_metadata_merges_do_not_rebuild_or_erase_draws(
+    tmp_path, monkeypatch
+):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    first.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|telegram@one|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|telegram@one|group|9",
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("metadata merge must not rebuild projections")
+
+    monkeypatch.setattr(second, "_project_history", forbidden)
+    claim = second.claim_legacy_identity(
+        namespaced="v2|telegram@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|telegram@one|user|1", "v2|telegram|user|1", "1"),
+    )
+    alias = second.remember_identity_alias(
+        namespace="telegram@one",
+        canonical_id="v2|telegram@one|user|1",
+        username="ExampleUser",
+    )
+    assert claim["storage_key"] == "1"
+    assert alias["changed"] is True
+    with first._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM user_stats").fetchone()[0] == 1
+    history = first.export_documents()["pig_history.json"]
+    assert history["identity_claims"]["users"]["1"] == "v2|telegram@one|user|1"
+    assert history["identity_aliases"]["telegram@one"]["by_alias"]["exampleuser"] == "v2|telegram@one|user|1"
+
+
+def test_sql_primary_legacy_claim_is_atomic_across_platforms(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    one = first.claim_legacy_identity(
+        namespaced="v2|qq@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|qq@one|user|1", "1"),
+    )
+    two = second.claim_legacy_identity(
+        namespaced="v2|discord@one|user|1",
+        legacy="1",
+        kind="users",
+        accepted_claims=("v2|discord@one|user|1", "1"),
+    )
+    assert one["storage_key"] == "1"
+    assert two["storage_key"] == "v2|discord@one|user|1"
+
+
+def test_sql_primary_eat_drops_malformed_legacy_event_keys(tmp_path):
+    storage, values = _empty_sql_documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["eaten_events"] = {
+        "not-json": {"actor_id": "broken", "outcome": "legacy", "at": 1}
+    }
+    storage.save_json(tmp_path / "roast_state.json", roast)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    result = storage.replace_daily_pig_with_eaten(
+        draw_date="2026-08-04",
+        due_date="2026-08-05",
+        cutoff_date="2026-08-02",
+        user_id="v2|qq|user|1",
+        group_id="v2|qq|group|9",
+        actor_id="v2|qq|user|2",
+        outcome="eat_success",
+        eaten_pig={"id": "eaten", "name": "吃掉了"},
+    )
+    assert result["status"] == "updated"
+    assert "not-json" not in storage.export_documents()["roast_state.json"]["eaten_events"]
