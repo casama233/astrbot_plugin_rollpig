@@ -851,3 +851,171 @@ def test_sql_primary_successful_penalty_rolls_back_with_failed_draw(
         "due_date": "2026-08-04",
         "failed": False,
     }
+
+
+
+def test_sql_primary_roast_cooldown_is_cross_connection_unique(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    claimed = first.consume_roast_cooldown(
+        group_id="v2|qq|group|g",
+        actor_id="v2|qq|user|1",
+        now=1000.0,
+        cooldown_seconds=3600,
+    )
+    blocked = second.consume_roast_cooldown(
+        group_id="v2|qq|group|g",
+        actor_id="v2|qq|user|1",
+        now=1001.0,
+        cooldown_seconds=3600,
+    )
+    assert claimed["claimed"] is True
+    assert blocked["claimed"] is False
+    assert blocked["remaining"] == 3599
+    with first._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM roast_cooldowns").fetchone()[0] == 1
+    document = first.export_documents()["roast_state.json"]
+    assert document["cooldowns"]["v2|qq|group|g:v2|qq|user|1"] == 1000.0
+
+
+def test_sql_primary_roast_counts_increment_and_prune(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.increment_roast_count(
+        draw_date="2026-07-01",
+        group_id="g",
+        user_id="v2|qq|user|old",
+        cutoff_date="2026-08-01",
+    )
+    first = storage.increment_roast_count(
+        draw_date="2026-08-04",
+        group_id="g",
+        user_id="v2|qq|user|1",
+        cutoff_date="2026-08-01",
+    )
+    second = storage.increment_roast_count(
+        draw_date="2026-08-04",
+        group_id="g",
+        user_id="v2|qq|user|1",
+        cutoff_date="2026-08-01",
+    )
+    assert first["count"] == 1
+    assert second["count"] == 2
+    assert storage.get_roast_count(
+        "2026-08-04", "g", ("v2|qq|user|1",)
+    ) == 2
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM daily_roast_counts WHERE draw_date < '2026-08-01'"
+        ).fetchone()[0] == 0
+
+
+def test_sql_primary_daily_backdoor_is_cross_connection_unique(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    one = first.consume_daily_backdoor(
+        draw_date="2026-08-04",
+        actor_id="v2|qq|user|1",
+        cutoff_date="2026-07-28",
+    )
+    two = second.consume_daily_backdoor(
+        draw_date="2026-08-04",
+        actor_id="v2|qq|user|1",
+        cutoff_date="2026-07-28",
+    )
+    assert one["consumed"] is True
+    assert two["consumed"] is False
+    assert first.export_documents()["roast_state.json"]["daily_backdoors"] == {
+        "2026-08-04:v2|qq|user|1": True
+    }
+
+
+def test_sql_primary_ai_copy_first_writer_wins_and_prunes(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    first.store_ai_roast_copy(
+        pig_id="pig-a",
+        generated_date="2026-07-01",
+        content="过期",
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    one = first.store_ai_roast_copy(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        content="第一份",
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    two = second.store_ai_roast_copy(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        content="第二份",
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert one["created"] is True
+    assert two["created"] is False
+    assert two["content"] == "第一份"
+    cached = first.get_ai_roast_copies(
+        pig_id="pig-a", cutoff_date="2026-07-29", through_date="2026-08-04"
+    )
+    assert cached["copies"] == {"2026-08-04": "第一份"}
+    assert first.export_documents()["ai_roast_copies.json"]["copies"] == {
+        "pig-a": {"2026-08-04": "第一份"}
+    }
+
+
+def test_sql_primary_catalog_override_and_delete_are_atomic(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    record = {
+        "id": "local-pig",
+        "name": "本地猪",
+        "description": "本地限定",
+        "analysis": "事务保存",
+    }
+    saved = storage.upsert_catalog_override(record=record)
+    assert saved["overrides"] == [record]
+    assert saved["tombstones"] == []
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM catalog_overrides WHERE pig_id = 'local-pig'"
+        ).fetchone()[0] == 1
+    deleted = storage.delete_catalog_entry(pig_id="local-pig")
+    assert deleted["overrides"] == []
+    assert deleted["tombstones"] == ["local-pig"]
+    documents = storage.export_documents()
+    assert documents["local_overrides.json"] == []
+    assert documents["deleted_pigs.json"] == ["local-pig"]
+
+
+def test_sql_primary_catalog_write_rolls_back_with_document_failure(
+    tmp_path, monkeypatch
+):
+    storage, _ = _empty_sql_documents(tmp_path)
+    original = storage._write_document_tx
+
+    def fail_on_tombstones(connection, key, value, **kwargs):
+        if key == "deleted_pigs.json":
+            raise RuntimeError("catalog fault injection")
+        return original(connection, key, value, **kwargs)
+
+    monkeypatch.setattr(storage, "_write_document_tx", fail_on_tombstones)
+    with pytest.raises(RuntimeError, match="catalog fault injection"):
+        storage.upsert_catalog_override(
+            record={
+                "id": "broken-pig",
+                "name": "坏猪",
+                "description": "测试",
+                "analysis": "测试",
+            }
+        )
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM catalog_overrides WHERE pig_id = 'broken-pig'"
+        ).fetchone()[0] == 0
