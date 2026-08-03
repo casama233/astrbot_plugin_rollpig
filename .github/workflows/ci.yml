@@ -40,7 +40,9 @@ jobs:
           python -m pip check
 
       - name: Apply analytics integration
-        run: python scripts/apply_admin_analytics_v215.py
+        run: |
+          python scripts/fix_admin_analytics_v215.py
+          python scripts/apply_admin_analytics_v215.py
 
       - name: Validate frontend syntax
         run: |
