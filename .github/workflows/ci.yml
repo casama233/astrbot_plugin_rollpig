@@ -94,6 +94,7 @@ jobs:
         run: |
           python -m compileall -q main.py rollpig_core.py updater.py storage services
           pytest -q
+          rm -f .github/workflows/apply-v3-final.yml
           pre-commit run --all-files --show-diff-on-failure
 
       - name: Commit validated patch and remove applicator
