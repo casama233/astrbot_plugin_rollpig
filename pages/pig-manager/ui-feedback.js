@@ -7,13 +7,14 @@
   const originalGet = bridge.apiGet.bind(bridge);
   const originalPost = bridge.apiPost.bind(bridge);
   const mutationButtons = [
-    'syncBtn', 'storageVerifyBtn', 'storageExportBtn', 'storageMigrateBtn',
-    'storageRollbackBtn', 'updateCheckBtn', 'updateApplyBtn'
+    'syncBtn', 'storageVerifyBtn', 'storageRebuildBtn', 'storageExportBtn',
+    'storageMigrateBtn', 'storageRollbackBtn', 'updateCheckBtn', 'updateApplyBtn'
   ];
   const operations = {
     'resources/sync': {button: 'syncBtn', pending: '启动中…', feedback: 'syncFeedback', message: '正在请求后端启动云资源同步'},
     'storage/migrate': {button: 'storageMigrateBtn', pending: '迁移中…', feedback: 'storageFeedback', message: '正在备份 JSON、建立临时数据库并执行对账'},
-    'storage/verify': {button: 'storageVerifyBtn', pending: '验证中…', feedback: 'storageFeedback', message: '正在执行 SQLite 完整性与外键检查'},
+    'storage/verify': {button: 'storageVerifyBtn', pending: '验证中…', feedback: 'storageFeedback', message: '正在执行 SQLite 完整性、外键与投影检查'},
+    'storage/rebuild': {button: 'storageRebuildBtn', pending: '重建中…', feedback: 'storageFeedback', message: '正在从兼容文档事务性重建 SQLite 查询索引'},
     'storage/export': {button: 'storageExportBtn', pending: '导出中…', feedback: 'storageFeedback', message: '正在生成 JSON 备份压缩包'},
     'storage/rollback': {button: 'storageRollbackBtn', pending: '回滚中…', feedback: 'storageFeedback', message: '正在把 SQLite 最新数据安全写回 JSON'},
     'updates/check': {button: 'updateCheckBtn', pending: '检查中…', feedback: 'updateFeedback', message: '正在连接官方仓库检查稳定版本'},
@@ -41,7 +42,7 @@
     banner.className = 'panel';
     banner.setAttribute('role', 'alert');
     banner.style.cssText = 'display:none;margin-top:14px;border-color:rgba(255,174,82,.55);background:rgba(255,174,82,.10);padding:16px 20px';
-    banner.innerHTML = '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div><strong style="font-size:16px">⚠️ 插件代码已更新，AstrBot 仍在运行旧后端</strong><div class="panel-desc" style="margin-top:6px">请先重启 AstrBot，再使用迁移、验证、同步或安全更新。否则新页面会请求尚未注册的路由。</div></div><span class="pill warn">等待重启</span></div>';
+    banner.innerHTML = '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div><strong style="font-size:16px">⚠️ 插件代码已更新，AstrBot 仍在运行旧后端</strong><div class="panel-desc" style="margin-top:6px">请先重启 AstrBot，再使用迁移、验证、重建、同步或安全更新。否则新页面会请求尚未注册的路由。</div></div><span class="pill warn">等待重启</span></div>';
     topbar.insertAdjacentElement('afterend', banner);
     return banner;
   }
