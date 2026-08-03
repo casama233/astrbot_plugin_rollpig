@@ -34,7 +34,9 @@ jobs:
           cache: pip
 
       - name: Apply v2.9 integration
-        run: python .github/scripts/apply_v29.py
+        run: |
+          python .github/scripts/apply_v29.py
+          python .github/scripts/fix_v29_regression.py
 
       - name: Install dependencies
         run: |
@@ -90,5 +92,3 @@ jobs:
       - name: Run pre-commit checks
         if: matrix.python-version == '3.12'
         run: pre-commit run --all-files --show-diff-on-failure
-
-# v2.9 integration trigger
