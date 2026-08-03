@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.14.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.15.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -325,6 +325,12 @@ class RollPigPlugin(Star):
             self.page_overview,
             ["GET"],
             "今日小猪统计总览",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/analytics/insights",
+            self.page_analytics_insights,
+            ["GET"],
+            "今日小猪深度分析",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/pigs",
@@ -4385,6 +4391,283 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"今日小猪管理页总览失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "获取统计数据失败"})
+
+    @staticmethod
+    def _analytics_delta(current: int | float, previous: int | float) -> float:
+        current_value = float(current or 0)
+        previous_value = float(previous or 0)
+        if not previous_value:
+            return 100.0 if current_value else 0.0
+        return round((current_value - previous_value) / previous_value * 100, 2)
+
+    @staticmethod
+    def _analytics_percentile(values: list[int], fraction: float) -> int:
+        if not values:
+            return 0
+        ordered = sorted(int(value or 0) for value in values)
+        index = min(
+            len(ordered) - 1,
+            max(0, int(round((len(ordered) - 1) * float(fraction)))),
+        )
+        return ordered[index]
+
+    def _build_analytics_insights(self) -> dict:
+        """Build aggregate-only commercial analytics without exposing identities."""
+        started = time.monotonic()
+        with self._data_lock:
+            today = self._today()
+            current_start = today - datetime.timedelta(days=6)
+            previous_start = today - datetime.timedelta(days=13)
+            previous_end = today - datetime.timedelta(days=7)
+            activity_start = today - datetime.timedelta(days=27)
+            catalog = {
+                str(item.get("id") or ""): str(
+                    item.get("name") or item.get("id") or ""
+                )
+                for item in self.pig_list
+                if str(item.get("id") or "")
+            }
+            if getattr(self.storage, "supports_dashboard_analytics", False):
+                stored = self.storage.get_dashboard_insights(
+                    current_start=current_start.isoformat(),
+                    current_end=today.isoformat(),
+                    previous_start=previous_start.isoformat(),
+                    previous_end=previous_end.isoformat(),
+                    activity_start=activity_start.isoformat(),
+                    catalog_ids=tuple(sorted(catalog)),
+                ) or {}
+                stored["rising_pigs"] = [
+                    {
+                        **dict(item),
+                        "name": catalog.get(
+                            str(item.get("id") or ""),
+                            str(item.get("id") or ""),
+                        ),
+                    }
+                    for item in stored.get("rising_pigs", [])
+                    if str(item.get("id") or "") in catalog
+                ]
+                stored.setdefault("source", "normalized-sql")
+                stored.setdefault("observability", {})["handler_elapsed_ms"] = round(
+                    (time.monotonic() - started) * 1000, 3
+                )
+                return stored
+
+            history = self.history if isinstance(self.history, dict) else {}
+            users = history.get("users", {})
+            users = users if isinstance(users, dict) else {}
+            daily = history.get("daily", {})
+            daily = daily if isinstance(daily, dict) else {}
+
+            def day_users(day: datetime.date) -> set[str]:
+                item = daily.get(day.isoformat(), {})
+                values = item.get("users", []) if isinstance(item, dict) else []
+                return {str(value) for value in values if str(value)}
+
+            def period_summary(start: datetime.date, end: datetime.date) -> tuple[dict, set[str]]:
+                active: set[str] = set()
+                draws = 0
+                unlocks = 0
+                cursor = start
+                while cursor <= end:
+                    item = daily.get(cursor.isoformat(), {})
+                    if isinstance(item, dict):
+                        active.update(str(value) for value in item.get("users", []) if str(value))
+                        draws += int(item.get("draws", 0) or 0)
+                        unlocks += int(item.get("new_unlocks", 0) or 0)
+                    cursor += datetime.timedelta(days=1)
+                days = max(1, (end - start).days + 1)
+                return (
+                    {
+                        "start": start.isoformat(),
+                        "end": end.isoformat(),
+                        "active_users": len(active),
+                        "draws": draws,
+                        "new_unlocks": unlocks,
+                        "avg_daily_users": round(
+                            sum(len(day_users(start + datetime.timedelta(days=offset))) for offset in range(days)) / days,
+                            2,
+                        ),
+                        "unlock_efficiency": round(unlocks / draws * 100, 2) if draws else 0,
+                    },
+                    active,
+                )
+
+            current, current_users = period_summary(current_start, today)
+            previous, previous_users = period_summary(previous_start, previous_end)
+            returning = current_users.intersection(previous_users)
+
+            roast_by_date: Counter[str] = Counter()
+            roast_state = self.roast_state if isinstance(self.roast_state, dict) else {}
+            roast_counts = roast_state.get("daily_roast_counts", {})
+            for raw_key, count in roast_counts.items() if isinstance(roast_counts, dict) else ():
+                draw_date = self._roast_count_date(str(raw_key))
+                if draw_date:
+                    roast_by_date[draw_date] += int(count or 0)
+
+            eat_by_date: Counter[str] = Counter()
+            eaten_events = roast_state.get("eaten_events", {})
+            for raw_key, entry in eaten_events.items() if isinstance(eaten_events, dict) else ():
+                event_date = ""
+                if isinstance(entry, dict):
+                    event_date = str(entry.get("event_date") or entry.get("date") or "")
+                if not event_date:
+                    try:
+                        parsed = json.loads(str(raw_key))
+                        event_date = str(parsed[0]) if isinstance(parsed, list) and parsed else ""
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        event_date = str(raw_key).split(":", 1)[0]
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", event_date):
+                    eat_by_date[event_date] += 1
+
+            activity = []
+            cursor = activity_start
+            while cursor <= today:
+                key = cursor.isoformat()
+                item = daily.get(key, {})
+                item = item if isinstance(item, dict) else {}
+                activity.append(
+                    {
+                        "date": key,
+                        "users": len({str(value) for value in item.get("users", []) if str(value)}),
+                        "draws": int(item.get("draws", 0) or 0),
+                        "new_unlocks": int(item.get("new_unlocks", 0) or 0),
+                        "roasts": int(roast_by_date.get(key, 0)),
+                        "eats": int(eat_by_date.get(key, 0)),
+                    }
+                )
+                cursor += datetime.timedelta(days=1)
+
+            unlocked_counts: list[int] = []
+            collectors: Counter[str] = Counter()
+            draw_counts: Counter[str] = Counter()
+            platform_counts: Counter[str] = Counter()
+            for user_id, raw_user in users.items():
+                raw_user = raw_user if isinstance(raw_user, dict) else {}
+                pigs = raw_user.get("pigs", {})
+                pigs = pigs if isinstance(pigs, dict) else {}
+                unlocked = 0
+                for pig_id, item in pigs.items():
+                    pig_id = str(pig_id)
+                    if pig_id not in catalog or not isinstance(item, dict):
+                        continue
+                    unlocked += 1
+                    collectors[pig_id] += 1
+                    draw_counts[pig_id] += int(item.get("count", 0) or 0)
+                unlocked_counts.append(unlocked)
+                match = re.match(r"^v2\|([^|]+)\|user\|", str(user_id))
+                platform_counts[match.group(1) if match else "legacy"] += 1
+
+            catalog_size = len(catalog)
+            distribution_labels = ("0–10%", "10–25%", "25–50%", "50–75%", "75–100%")
+            distribution = Counter({label: 0 for label in distribution_labels})
+            for unlocked in unlocked_counts:
+                ratio = unlocked / catalog_size * 100 if catalog_size else 0
+                label = (
+                    "0–10%" if ratio <= 10 else
+                    "10–25%" if ratio <= 25 else
+                    "25–50%" if ratio <= 50 else
+                    "50–75%" if ratio <= 75 else "75–100%"
+                )
+                distribution[label] += 1
+            total_catalog_draws = sum(draw_counts.values())
+            top5_draws = sum(value for _, value in draw_counts.most_common(5))
+            long_tail_limit = max(1, int(len(users) * 0.01 + 0.999999))
+
+            period_pigs: dict[str, Counter[str]] = {
+                "current": Counter(),
+                "previous": Counter(),
+            }
+            cursor = previous_start
+            while cursor <= today:
+                item = daily.get(cursor.isoformat(), {})
+                records = item.get("records", {}) if isinstance(item, dict) else {}
+                originals = item.get("eaten_originals", {}) if isinstance(item, dict) else {}
+                bucket = "current" if cursor >= current_start else "previous"
+                for user_id, pig_id in records.items() if isinstance(records, dict) else ():
+                    pig_id = str(pig_id or "")
+                    effective = str(originals.get(user_id) or pig_id) if isinstance(originals, dict) else pig_id
+                    if effective in catalog:
+                        period_pigs[bucket][effective] += 1
+                cursor += datetime.timedelta(days=1)
+            rising = []
+            for pig_id in catalog:
+                current_count = period_pigs["current"][pig_id]
+                previous_count = period_pigs["previous"][pig_id]
+                if current_count or previous_count:
+                    rising.append(
+                        {
+                            "id": pig_id,
+                            "name": catalog[pig_id],
+                            "current": current_count,
+                            "previous": previous_count,
+                            "delta": current_count - previous_count,
+                        }
+                    )
+            rising.sort(key=lambda item: (-item["delta"], -item["current"], item["id"]))
+
+            attempts = self.ai_roast_copies.get("attempts", {}) if isinstance(self.ai_roast_copies, dict) else {}
+            ai_counts = Counter()
+            for by_date in attempts.values() if isinstance(attempts, dict) else ():
+                for generated_date, status in by_date.items() if isinstance(by_date, dict) else ():
+                    if current_start.isoformat() <= str(generated_date) <= today.isoformat():
+                        ai_counts[str(status)] += 1
+
+            return {
+                "source": "json-compatibility",
+                "periods": {"current": current, "previous": previous},
+                "deltas": {
+                    "active_users": self._analytics_delta(current["active_users"], previous["active_users"]),
+                    "draws": self._analytics_delta(current["draws"], previous["draws"]),
+                    "new_unlocks": self._analytics_delta(current["new_unlocks"], previous["new_unlocks"]),
+                },
+                "retention": {
+                    "returning_users": len(returning),
+                    "previous_active_users": len(previous_users),
+                    "new_current_users": len(current_users - previous_users),
+                    "rate": round(len(returning) / len(previous_users) * 100, 2) if previous_users else 0,
+                },
+                "activity": activity,
+                "catalog": {
+                    "catalog_count": catalog_size,
+                    "median_unlocked": self._analytics_percentile(unlocked_counts, 0.5),
+                    "p90_unlocked": self._analytics_percentile(unlocked_counts, 0.9),
+                    "zero_collector_count": max(0, catalog_size - len(collectors)),
+                    "long_tail_count": sum(1 for pig_id in catalog if 0 < collectors[pig_id] <= long_tail_limit),
+                    "top5_draw_share": round(top5_draws / total_catalog_draws * 100, 2) if total_catalog_draws else 0,
+                    "distribution": [
+                        {"label": label, "users": distribution[label]}
+                        for label in distribution_labels
+                    ],
+                },
+                "platforms": [
+                    {"platform": platform, "users": count}
+                    for platform, count in platform_counts.most_common(8)
+                ],
+                "rising_pigs": rising[:8],
+                "operations": {
+                    "roasts": sum(roast_by_date.get((current_start + datetime.timedelta(days=offset)).isoformat(), 0) for offset in range(7)),
+                    "eats": sum(eat_by_date.get((current_start + datetime.timedelta(days=offset)).isoformat(), 0) for offset in range(7)),
+                    "ai": {
+                        "ready": ai_counts["ready"],
+                        "failed": ai_counts["failed"],
+                        "generating": ai_counts["generating"],
+                    },
+                },
+                "observability": {
+                    "query_elapsed_ms": round((time.monotonic() - started) * 1000, 3)
+                },
+            }
+
+    async def page_analytics_insights(self):
+        """管理面板：只读聚合分析；不返回用户、群组或聊天原始标识。"""
+        try:
+            data = await asyncio.to_thread(self._build_analytics_insights)
+            return self._jsonify({"status": "ok", "data": data})
+        except Exception as exc:
+            logger.error(f"今日小猪管理页深度分析失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "获取深度分析失败"})
+
 
     async def page_pigs(self):
         """管理面板：分页检索小猪和缩略图。"""
