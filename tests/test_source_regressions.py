@@ -191,3 +191,21 @@ def test_identity_metadata_uses_sql_merge_in_sqlite_mode():
     alias = ast.get_source_segment(SOURCE, _method("_remember_sender_alias")) or ""
     assert "self.storage.claim_legacy_identity" in claim
     assert "self.storage.remember_identity_alias" in alias
+
+
+
+def test_main_delegates_v212_sql_hot_writes():
+    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
+    counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
+    protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
+    backdoor = ast.get_source_segment(SOURCE, _method("_consume_daily_backdoor")) or ""
+    ai = ast.get_source_segment(SOURCE, _method("_get_ai_roast_copy")) or ""
+    save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
+    delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
+    assert "asyncio.to_thread" in cooldown and "consume_roast_cooldown" in cooldown
+    assert "asyncio.to_thread" in counts and "increment_roast_count" in counts
+    assert "get_roast_count" in protection
+    assert "consume_daily_backdoor" in backdoor
+    assert "get_ai_roast_copies" in ai and "store_ai_roast_copy" in ai
+    assert "upsert_catalog_override" in save
+    assert "delete_catalog_entry" in delete
