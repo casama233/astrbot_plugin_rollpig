@@ -44,7 +44,8 @@ jobs:
       - name: Apply hotfix
         run: |
           python tools/apply_v2111.py
-          rm tools/apply_v2111.py
+          python tools/fix_v2111_tests.py
+          rm tools/apply_v2111.py tools/fix_v2111_tests.py
 
       - name: Validate hotfix
         run: |
