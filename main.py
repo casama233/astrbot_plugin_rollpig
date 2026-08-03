@@ -80,7 +80,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.6.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -350,28 +350,65 @@ class RollPigPlugin(Star):
     def _today(self) -> datetime.date:
         return self._now().date()
 
-    def _platform_namespace(self, event: AstrMessageEvent) -> str:
-        if self._is_whatsapp_event(event):
-            return "whatsapp"
+    @staticmethod
+    def _safe_namespace_part(value, fallback: str) -> str:
+        text = str(value or "").strip().lower()
+        if not text or text in {"none", "unknown"}:
+            return fallback
+        return re.sub(r"[^a-z0-9_.-]+", "-", text).strip("-") or fallback
+
+    def _platform_type(self, event: AstrMessageEvent) -> str:
+        """Return the adapter type, such as aiocqhttp, discord or telegram."""
         platform_meta = getattr(event, "platform_meta", None)
+        try:
+            getter_name = event.get_platform_name()
+        except (AttributeError, TypeError):
+            getter_name = ""
         candidates = (
+            getter_name,
             getattr(event, "platform_name", None),
             getattr(platform_meta, "name", None),
-            getattr(platform_meta, "id", None),
-            platform_meta,
             getattr(getattr(event, "message_obj", None), "type", None),
         )
         for value in candidates:
-            text = str(value or "").strip().lower()
-            if text and text not in {"none", "unknown"}:
-                return re.sub(r"[^a-z0-9_.-]+", "-", text).strip("-") or "unknown"
+            result = self._safe_namespace_part(value, "")
+            if result:
+                return result
         return "unknown"
+
+    def _platform_namespace(self, event: AstrMessageEvent) -> str:
+        """Include the unique adapter instance ID to prevent same-type collisions."""
+        platform_type = (
+            "whatsapp"
+            if self._is_whatsapp_event(event)
+            else self._platform_type(event)
+        )
+        platform_meta = getattr(event, "platform_meta", None)
+        try:
+            getter_id = event.get_platform_id()
+        except (AttributeError, TypeError):
+            getter_id = ""
+        instance = self._safe_namespace_part(
+            getter_id or getattr(platform_meta, "id", None),
+            platform_type,
+        )
+        return f"{platform_type}@{instance}"
 
     @staticmethod
     def _legacy_identity(value: str) -> str:
         text = str(value or "")
         match = re.fullmatch(r"v2\|[^|]+\|(?:user|group)\|(.*)", text)
         return match.group(1) if match else text
+
+    @staticmethod
+    def _pre_instance_identity(value: str) -> str:
+        """Map ``v2|type@instance|...`` to the pre-instance v2 key."""
+        text = str(value or "")
+        match = re.fullmatch(r"v2\|([^|]+)\|(user|group)\|(.*)", text)
+        if not match or "@" not in match.group(1):
+            return ""
+        platform_type = match.group(1).split("@", 1)[0]
+        return f"v2|{platform_type}|{match.group(2)}|{match.group(3)}"
 
     def _namespace_identity(self, event: AstrMessageEvent, value: str, kind: str) -> str:
         raw = str(value or "").strip()
@@ -382,20 +419,24 @@ class RollPigPlugin(Star):
     def _identity_candidates(self, value: str) -> tuple[str, ...]:
         value = str(value or "").strip()
         legacy = self._legacy_identity(value)
-        return (value,) if legacy == value else (value, legacy)
+        if legacy == value:
+            return (value,)
+        candidates = [value]
+        pre_instance = self._pre_instance_identity(value)
+        if pre_instance and pre_instance not in candidates:
+            candidates.append(pre_instance)
+        if legacy not in candidates:
+            candidates.append(legacy)
+        return tuple(candidates)
 
     def _user_read_candidates(self, user_id: str) -> tuple[str, ...]:
         """Return only identity keys that belong to the current platform claim."""
         candidates = self._identity_candidates(str(user_id))
         if len(candidates) == 1:
             return candidates
-        namespaced, legacy = candidates
+        namespaced = candidates[0]
         storage_key = self._storage_user_key(namespaced)
-        claims = self.history.get("identity_claims", {}).get("users", {})
-        claimed_by = str(claims.get(legacy) or "") if isinstance(claims, dict) else ""
-        if storage_key == legacy or claimed_by == namespaced:
-            return (namespaced, legacy)
-        return (namespaced,)
+        return tuple(dict.fromkeys((namespaced, storage_key)))
 
     def _claim_legacy_identity(
         self,
@@ -416,55 +457,65 @@ class RollPigPlugin(Star):
                 claims[legacy] = namespaced
                 self.save_json(self.history_path, self.history)
                 return legacy
-            return legacy if claimed_by == namespaced else namespaced
+            if claimed_by in self._identity_candidates(namespaced):
+                if claimed_by != namespaced:
+                    claims[legacy] = namespaced
+                    self.save_json(self.history_path, self.history)
+                return legacy
+            return namespaced
 
     def _storage_user_key(self, user_id: str) -> str:
         candidates = self._identity_candidates(str(user_id))
         namespaced = candidates[0]
-        legacy = candidates[-1]
-        if namespaced == legacy:
+        if len(candidates) == 1:
             return namespaced
         users = getattr(self, "history", {}).get("users", {})
         penalties = getattr(self, "roast_state", {}).get("eaten_penalties", {})
-        legacy_exists = (
-            legacy in users
-            or (isinstance(penalties, dict) and legacy in penalties)
-            or self._identity_exists(legacy)
-        )
         if namespaced in users or (
             isinstance(penalties, dict) and namespaced in penalties
         ):
             return namespaced
-        return self._claim_legacy_identity(
-            namespaced,
-            legacy,
-            kind="users",
-            legacy_exists=legacy_exists,
-        )
+        for legacy in candidates[1:]:
+            legacy_exists = (
+                legacy in users
+                or (isinstance(penalties, dict) and legacy in penalties)
+                or self._identity_exists(legacy)
+            )
+            if legacy_exists:
+                return self._claim_legacy_identity(
+                    namespaced,
+                    legacy,
+                    kind="users",
+                    legacy_exists=True,
+                )
+        return namespaced
 
     def _storage_group_key(self, group_id: str) -> str:
         candidates = self._identity_candidates(str(group_id))
         namespaced = candidates[0]
-        legacy = candidates[-1]
-        if namespaced == legacy:
+        if len(candidates) == 1:
             return namespaced
         daily = getattr(self, "history", {}).get("daily", {})
         namespaced_exists = False
-        legacy_exists = False
+        legacy_exists = {candidate: False for candidate in candidates[1:]}
         for day in daily.values() if isinstance(daily, dict) else ():
             groups = day.get("groups", {}) if isinstance(day, dict) else {}
             if not isinstance(groups, dict):
                 continue
             namespaced_exists = namespaced_exists or namespaced in groups
-            legacy_exists = legacy_exists or legacy in groups
+            for legacy in legacy_exists:
+                legacy_exists[legacy] = legacy_exists[legacy] or legacy in groups
         if namespaced_exists:
             return namespaced
-        return self._claim_legacy_identity(
-            namespaced,
-            legacy,
-            kind="groups",
-            legacy_exists=legacy_exists,
-        )
+        for legacy, exists in legacy_exists.items():
+            if exists:
+                return self._claim_legacy_identity(
+                    namespaced,
+                    legacy,
+                    kind="groups",
+                    legacy_exists=True,
+                )
+        return namespaced
 
     def _is_admin_id(self, event: AstrMessageEvent, user_id: str) -> bool:
         candidates = set(self._identity_candidates(user_id))
@@ -1612,8 +1663,21 @@ class RollPigPlugin(Star):
         """读取各适配器对象上的用户标识，拒绝空值与无意义对象字符串。"""
         if isinstance(value, (str, int)):
             result = str(value).strip()
-            return result if result and result.lower() not in {"none", "null"} else ""
+            return (
+                result
+                if result and result.lower() not in {"none", "null", "0"}
+                else ""
+            )
         return ""
+
+    @staticmethod
+    def _is_broadcast_mention(value) -> bool:
+        return str(value or "").strip().lower() in {
+            "all",
+            "@all",
+            "everyone",
+            "@everyone",
+        }
 
     @classmethod
     def _object_user_id(cls, value) -> str:
@@ -1646,6 +1710,95 @@ class RollPigPlugin(Star):
             or getattr(platform_meta, "id", "")
             or platform_meta
         ).lower()
+
+    @staticmethod
+    def _telegram_username(value) -> str:
+        username = str(value or "").strip().removeprefix("@")
+        return (
+            username
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{3,31}", username)
+            else ""
+        )
+
+    def _telegram_alias_bucket(
+        self, event: AstrMessageEvent, *, create: bool
+    ) -> dict:
+        aliases_root = self.history.get("identity_aliases")
+        if not isinstance(aliases_root, dict):
+            if not create:
+                return {}
+            aliases_root = {}
+            self.history["identity_aliases"] = aliases_root
+        namespace = self._platform_namespace(event)
+        bucket = aliases_root.get(namespace)
+        if not isinstance(bucket, dict):
+            if not create:
+                return {}
+            bucket = {"by_alias": {}, "by_user": {}}
+            aliases_root[namespace] = bucket
+        return bucket
+
+    def _remember_sender_alias(
+        self, event: AstrMessageEvent, canonical_id: str
+    ) -> None:
+        """Remember Telegram username ↔ numeric ID after the user speaks."""
+        if self._platform_type(event) != "telegram" or not canonical_id:
+            return
+        try:
+            sender_name = event.get_sender_name()
+        except (AttributeError, TypeError):
+            sender = getattr(getattr(event, "message_obj", None), "sender", None)
+            sender_name = getattr(sender, "nickname", "")
+        username = self._telegram_username(sender_name)
+        if not username:
+            return
+        with self._data_lock:
+            bucket = self._telegram_alias_bucket(event, create=True)
+            by_alias = bucket.setdefault("by_alias", {})
+            by_user = bucket.setdefault("by_user", {})
+            alias_key = username.lower()
+            if (
+                by_alias.get(alias_key) == canonical_id
+                and by_user.get(canonical_id) == username
+            ):
+                return
+            previous_user = str(by_alias.get(alias_key) or "")
+            if previous_user and previous_user != canonical_id:
+                by_user.pop(previous_user, None)
+            previous_alias = str(by_user.get(canonical_id) or "").lower()
+            if previous_alias and previous_alias != alias_key:
+                by_alias.pop(previous_alias, None)
+            by_alias[alias_key] = canonical_id
+            by_user[canonical_id] = username
+            self.save_json(self.history_path, self.history)
+
+    def _resolve_mention_user_id(self, event: AstrMessageEvent, value) -> str:
+        raw = self._normalise_platform_user_id(value)
+        if not raw:
+            return ""
+        if self._platform_type(event) == "telegram":
+            username = self._telegram_username(raw)
+            if username and not raw.isdigit():
+                bucket = self._telegram_alias_bucket(event, create=False)
+                by_alias = bucket.get("by_alias", {})
+                if isinstance(by_alias, dict):
+                    mapped = str(by_alias.get(username.lower()) or "")
+                    if mapped:
+                        return mapped
+        return self._canonical_user_id(event, raw)
+
+    def _telegram_mention_name(
+        self, event: AstrMessageEvent, canonical_id: str, native_id: str
+    ) -> str:
+        bucket = self._telegram_alias_bucket(event, create=False)
+        by_user = bucket.get("by_user", {})
+        if isinstance(by_user, dict):
+            current_key = self._namespace_identity(event, native_id, "user")
+            for candidate in (canonical_id, current_key):
+                username = self._telegram_username(by_user.get(candidate))
+                if username:
+                    return username
+        return self._telegram_username(native_id) if not native_id.isdigit() else ""
 
     @staticmethod
     def _whatsapp_lid_to_pn(value: str) -> str:
@@ -1707,15 +1860,22 @@ class RollPigPlugin(Star):
         if lowered.endswith(("@s.whatsapp.net", "@c.us", "@lid")):
             local = resolved.split("@", 1)[0].split(":", 1)[0]
             digits = re.sub(r"\D", "", local)
-            canonical = digits or local
+            unresolved_lid = lowered.endswith("@lid")
+            canonical = resolved.lower() if unresolved_lid else (digits or local)
             # 旧版适配器曾直接把 LID 数字写入今日记录；若该键已有数据，
             # 继续使用它，保证升级后不会把同一用户误判成首次使用。
             legacy_local = result.split("@", 1)[0].split(":", 1)[0]
             legacy_digits = re.sub(r"\D", "", legacy_local)
             if legacy_digits and legacy_digits != canonical:
-                if self._identity_exists(legacy_digits) and not self._identity_exists(canonical):
+                if self._identity_exists(
+                    legacy_digits
+                ) and not self._identity_exists(canonical):
                     return self._namespace_identity(event, legacy_digits, "user")
             return self._namespace_identity(event, canonical, "user")
+        if re.fullmatch(r"\+?[\d\s().-]{6,}", resolved):
+            digits = re.sub(r"\D", "", resolved)
+            if digits:
+                return self._namespace_identity(event, digits, "user")
         return self._namespace_identity(event, resolved, "user")
 
     def _event_sender_id(self, event: AstrMessageEvent) -> str:
@@ -1724,14 +1884,23 @@ class RollPigPlugin(Star):
             message_obj = getattr(event, "message_obj", None)
             raw_message = getattr(message_obj, "raw_message", None)
             if isinstance(raw_message, dict):
-                raw_sender = str(raw_message.get("senderJid") or "").strip()
+                raw_sender = str(
+                    raw_message.get("senderPn")
+                    or raw_message.get("senderPhone")
+                    or raw_message.get("senderJid")
+                    or ""
+                ).strip()
                 if raw_sender:
-                    return self._canonical_user_id(event, raw_sender)
+                    canonical_id = self._canonical_user_id(event, raw_sender)
+                    self._remember_sender_alias(event, canonical_id)
+                    return canonical_id
         try:
             value = event.get_sender_id()
         except (AttributeError, TypeError):
             value = ""
-        return self._canonical_user_id(event, value)
+        canonical_id = self._canonical_user_id(event, value)
+        self._remember_sender_alias(event, canonical_id)
+        return canonical_id
 
     @staticmethod
     def _event_components(event: AstrMessageEvent) -> list:
@@ -1742,11 +1911,20 @@ class RollPigPlugin(Star):
             return []
 
     def _native_mention_ids(self, event: AstrMessageEvent) -> list[str]:
-        """补充 Discord 原生 mentions 等尚未规范化为 At 段的适配器数据。"""
+        """Read native mentions plus raw OneBot/WhatsApp fallback segments."""
         message_obj = getattr(event, "message_obj", None)
         raw_message = getattr(message_obj, "raw_message", None)
         targets = (message_obj, raw_message)
         result: list[str] = []
+
+        def append(value) -> None:
+            raw_id = self._object_user_id(value)
+            if not raw_id or self._is_broadcast_mention(raw_id):
+                return
+            user_id = self._resolve_mention_user_id(event, raw_id)
+            if user_id and user_id not in result:
+                result.append(user_id)
+
         for target in targets:
             mentions = (
                 target.get("mentions", [])
@@ -1756,10 +1934,19 @@ class RollPigPlugin(Star):
             if isinstance(mentions, dict):
                 mentions = mentions.values()
             for mention in mentions or []:
-                user_id = self._object_user_id(mention)
-                user_id = self._canonical_user_id(event, user_id)
-                if user_id and user_id not in result:
-                    result.append(user_id)
+                append(mention)
+        if isinstance(raw_message, dict):
+            for mentioned_jid in raw_message.get("mentionedJids") or []:
+                append(mentioned_jid)
+            raw_segments = raw_message.get("message")
+            if isinstance(raw_segments, list):
+                for segment in raw_segments:
+                    if not isinstance(segment, dict):
+                        continue
+                    if str(segment.get("type") or "").lower() != "at":
+                        continue
+                    data = segment.get("data")
+                    append(data if isinstance(data, dict) else segment)
         return result
 
     def _reply_sender_id(self, event: AstrMessageEvent) -> str:
@@ -1769,7 +1956,7 @@ class RollPigPlugin(Star):
             is_reply = component_name == "reply" or hasattr(component, "sender_id")
             if not is_reply:
                 continue
-            for attr in ("sender_id", "author_id", "user_id"):
+            for attr in ("sender_id", "author_id", "user_id", "qq"):
                 user_id = self._normalise_platform_user_id(
                     getattr(component, attr, None)
                 )
@@ -1823,16 +2010,46 @@ class RollPigPlugin(Star):
         canonical_id = self._canonical_user_id(event, user_id)
         mention_id = self._legacy_identity(canonical_id)
         if not mention_id:
-            mention_id = str(user_id or "").strip()
+            mention_id = self._legacy_identity(str(user_id or "").strip())
+        platform_type = self._platform_type(event)
+        telegram_name = (
+            self._telegram_mention_name(event, canonical_id, mention_id)
+            if platform_type == "telegram"
+            else ""
+        )
+
+        def plain_mention() -> str:
+            if platform_type in {"discord", "slack", "qq_official"}:
+                return f"<@{mention_id}>{text}"
+            if platform_type == "telegram":
+                if telegram_name:
+                    return f"@{telegram_name}{text}"
+                if mention_id.isdigit():
+                    return f"[群友](tg://user?id={mention_id}){text}"
+            return f"@{mention_id}{text}"
+
         if self._event_group_id(event):
+            # Slack and QQ Official currently discard AstrBot At components without
+            # raising, so their native textual mention syntax must be used directly.
+            if platform_type in {"slack", "qq_official"}:
+                await event.send(event.plain_result(plain_mention()))
+                return
+            if platform_type == "telegram" and not telegram_name:
+                await event.send(event.plain_result(plain_mention()))
+                return
             try:
                 await event.send(
-                    event.chain_result([Comp.At(qq=mention_id), Comp.Plain(text)])
+                    event.chain_result(
+                        [
+                            Comp.At(qq=mention_id, name=telegram_name),
+                            Comp.Plain(text),
+                        ]
+                    )
                 )
                 return
             except Exception as exc:
                 logger.warning(f"发送 @ 消息段失败，已回退文本：{exc}")
-        await event.send(event.plain_result(f"@{mention_id}{text}"))
+        await event.send(event.plain_result(plain_mention()))
 
     def _roast_block_reason(self, pig: dict | None) -> str | None:
         """检查一只当天小猪是否仍可被做成料理。"""
@@ -1861,15 +2078,17 @@ class RollPigPlugin(Star):
         raw_message = str(getattr(event, "message_str", "") or "")
         match = re.search(r'<@!?(\d+)>|qq="?(\d+)"?', raw_message)
         if match:
-            return self._canonical_user_id(event, match.group(1) or match.group(2))
+            return self._resolve_mention_user_id(
+                event, match.group(1) or match.group(2)
+            )
         candidate = str(args or "").strip()
         discord_mention = re.fullmatch(r"<@!?(\d+)>", candidate)
         if discord_mention:
-            return self._canonical_user_id(event, discord_mention.group(1))
+            return self._resolve_mention_user_id(event, discord_mention.group(1))
         candidate = candidate.removeprefix("@").strip()
         # Discord、Slack、飞书等用户 ID 不一定是纯数字；仅接受无空白的安全 ID。
         return (
-            self._canonical_user_id(event, candidate)
+            self._resolve_mention_user_id(event, candidate)
             if re.fullmatch(r"[A-Za-z0-9_.:@-]{2,160}", candidate)
             else ""
         )
@@ -1881,7 +2100,8 @@ class RollPigPlugin(Star):
         self, group_id: str, actor_id: str
     ) -> int:
         """记录一次普通烤群友，返回剩余冷却秒数；0 表示已成功占用。"""
-        key = f"{group_id}:{actor_id}"
+        storage_actor = self._storage_user_key(str(actor_id))
+        key = f"{group_id}:{storage_actor}"
         now = time.time()
         with self._data_lock:
             cooldowns = self.roast_state.setdefault("cooldowns", {})
@@ -1910,7 +2130,8 @@ class RollPigPlugin(Star):
     ) -> int:
         """记录群聊中实际被烤的一次结果，返回该用户当日累计次数。"""
         draw_date = draw_date or self._today().isoformat()
-        key = self._roast_count_key(draw_date, group_id, user_id)
+        storage_id = self._storage_user_key(str(user_id))
+        key = self._roast_count_key(draw_date, group_id, storage_id)
         cutoff = (self._today() - datetime.timedelta(days=8)).isoformat()
         with self._data_lock:
             counts = self.roast_state.setdefault("daily_roast_counts", {})
@@ -1932,7 +2153,8 @@ class RollPigPlugin(Star):
         if not self.enable_roast_protection:
             return False, 0
         yesterday = (self._today() - datetime.timedelta(days=1)).isoformat()
-        key = self._roast_count_key(yesterday, group_id, user_id)
+        storage_id = self._storage_user_key(str(user_id))
+        key = self._roast_count_key(yesterday, group_id, storage_id)
         counts = self.roast_state.get("daily_roast_counts", {})
         count = int(counts.get(key, 0) or 0) if isinstance(counts, dict) else 0
         return count >= self.roast_protection_threshold, count
@@ -2061,7 +2283,8 @@ class RollPigPlugin(Star):
 
     def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
-        key = f"{self._today().isoformat()}:{actor_id}"
+        storage_actor = self._storage_user_key(str(actor_id))
+        key = f"{self._today().isoformat()}:{storage_actor}"
         with self._data_lock:
             used = self.roast_state.setdefault("daily_backdoors", {})
             if used.get(key):
@@ -2971,7 +3194,10 @@ class RollPigPlugin(Star):
             class_name = segment.__class__.__name__.lower()
             if not (isinstance(segment, At) or class_name in {"at", "mention"}):
                 continue
-            user_id = self._canonical_user_id(event, self._object_user_id(segment))
+            raw_id = self._object_user_id(segment)
+            if class_name == "atall" or self._is_broadcast_mention(raw_id):
+                continue
+            user_id = self._resolve_mention_user_id(event, raw_id)
             if user_id and user_id != self_id and user_id not in user_ids:
                 user_ids.append(user_id)
         for user_id in self._native_mention_ids(event):

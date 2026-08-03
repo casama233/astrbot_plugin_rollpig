@@ -1,4 +1,13 @@
 # 更新
+## v2.6.0 (2026-08-03)
+### 跨平台兼容
+- 身份键加入 AstrBot 适配器实例 ID，避免同一类型的多个 QQ／Discord 等机器人共享猪圈、冷却与惩罚；旧 `v2|平台|...` 和更早的裸 ID 会按实例懒认领，不会直接清空既有图鉴。
+- Telegram 记录 username 与数字用户 ID 的双向别名，`@username`、回复消息、随机点名和数字 ID 可以指向同一份今日小猪记录。
+- 出站点名按平台编码：OneBot、Discord、飞书和 WhatsApp 使用标准 At；Telegram 使用 username 或 `tg://user?id=`；Slack 与 QQ 官方使用平台原生文本 mention。
+- 增加 OneBot 原始消息段与 WhatsApp `mentionedJids` 后备解析，适配器未生成标准 At 段时仍能识别目标。
+- WhatsApp 优先使用 PN／手机号并保留无法解析的 LID JID，降低第三方适配器或 LID 缓存缺失时认错用户的风险。
+- 过滤 `@全体成员`、`@everyone` 与空 Reply 的默认用户 `0`，避免把广播或无效引用当作普通群友。
+
 ## v2.5.2 (2026-08-03)
 ### 修复
 - 修复 QQ／aiocqhttp 等平台发送 `@` 时误把内部 `v2|...` 身份键作为用户 ID 的问题；发送消息段和文本回退前会还原为平台原生用户 ID。

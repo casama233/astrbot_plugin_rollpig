@@ -1,4 +1,10 @@
-from rollpig_core import is_public_ip, legacy_identity, namespace_identity
+from rollpig_core import (
+    identity_candidates,
+    is_public_ip,
+    legacy_identity,
+    namespace_identity,
+    pre_instance_identity,
+)
 
 
 def test_namespace_round_trip():
@@ -9,6 +15,18 @@ def test_namespace_round_trip():
 def test_namespace_is_idempotent():
     key = "v2|qq|group|456"
     assert namespace_identity("qq", "group", key) == key
+
+
+def test_instance_namespace_reads_pre_instance_and_raw_keys():
+    key = namespace_identity("aiocqhttp@default", "user", "123")
+    assert key == "v2|aiocqhttp@default|user|123"
+    assert pre_instance_identity(key) == "v2|aiocqhttp|user|123"
+    assert identity_candidates(key) == (
+        "v2|aiocqhttp@default|user|123",
+        "v2|aiocqhttp|user|123",
+        "123",
+    )
+
 
 def test_public_ip_filter():
     assert is_public_ip("8.8.8.8")
