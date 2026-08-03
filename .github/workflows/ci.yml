@@ -71,7 +71,18 @@ jobs:
           cache: pip
 
       - name: Apply compatibility and v3 test patch
-        run: python tools/apply_v3_final.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tools/apply_v3_final.py')
+          text = path.read_text(encoding='utf-8')
+          old = r'{\"version\":1}'
+          new = r'{\\\"version\\\":1}'
+          if old not in text:
+              raise SystemExit('test JSON escape target missing')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python tools/apply_v3_final.py
 
       - name: Install dependencies
         run: |
