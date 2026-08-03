@@ -323,7 +323,7 @@ class PluginUpdateManager:
         timeout = httpx.Timeout(self.timeout, connect=min(15.0, self.timeout))
         headers = {
             "Accept": accept,
-            "User-Agent": "AstrBot-RollPig-Safe-Updater/2.9.2",
+            "User-Agent": "AstrBot-RollPig-Safe-Updater/2.9.3",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         async with httpx.AsyncClient(

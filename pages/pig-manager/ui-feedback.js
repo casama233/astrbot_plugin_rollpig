@@ -194,6 +194,42 @@
     markRestartRequired('当前页面对应的新代码尚未在 AstrBot 进程中载入。请先重启 AstrBot。');
   }, true);
 
+  const refreshButton = $('refreshBtn');
+  const loadingOverlay = $('loading');
+  let refreshStartedAt = 0;
+  let refreshResetTimer = null;
+  function finishRefresh(message) {
+    if (!refreshStartedAt || !refreshButton) return;
+    const elapsed = ((Date.now() - refreshStartedAt) / 1000).toFixed(1);
+    refreshStartedAt = 0;
+    clearTimeout(refreshResetTimer);
+    refreshButton.disabled = false;
+    refreshButton.textContent = '↻';
+    refreshButton.removeAttribute('aria-busy');
+    refreshButton.title = `${message}（耗时 ${elapsed} 秒）`;
+    const live = document.querySelector('.live');
+    if (live) live.innerHTML = `<i class="live-dot"></i>${message} · ${elapsed}s`;
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || button.id !== 'refreshBtn' || state.restartRequired) return;
+    refreshStartedAt = Date.now();
+    button.disabled = true;
+    button.textContent = '…';
+    button.setAttribute('aria-busy', 'true');
+    button.title = '正在刷新总览、图鉴、资源、版本与存储状态';
+    const live = document.querySelector('.live');
+    if (live) live.innerHTML = '<i class="live-dot"></i>正在刷新全部数据…';
+    refreshResetTimer = setTimeout(() => finishRefresh('刷新超时，请查看各状态卡片'), 30000);
+  }, true);
+  if (loadingOverlay) {
+    new MutationObserver(() => {
+      if (refreshStartedAt && !loadingOverlay.classList.contains('show')) {
+        setTimeout(() => finishRefresh('数据已刷新'), 50);
+      }
+    }).observe(loadingOverlay, {attributes: true, attributeFilter: ['class']});
+  }
+
   const toast = $('toast');
   if (toast) {
     new MutationObserver(() => {
