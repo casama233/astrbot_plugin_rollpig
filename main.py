@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.10.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.10.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -4233,6 +4233,7 @@ class RollPigPlugin(Star):
                 return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if not bool(payload.get("confirm")):
                 return self._jsonify({"status": "error", "message": "需要明确确认迁移"})
+            logger.info("开始 SQLite 存储迁移：准备备份 JSON、建立临时数据库并执行对账")
             async with self._storage_admin_lock:
                 data = await asyncio.to_thread(self.storage_manager.migrate_to_sqlite)
                 self.storage = self.storage_manager.backend
@@ -4242,6 +4243,7 @@ class RollPigPlugin(Star):
             )
             return self._jsonify({"status": "ok", "data": data})
         except StorageMigrationError as exc:
+            logger.warning(f"SQLite 存储迁移未切换后端：{exc}")
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.exception("SQLite 迁移失败")
