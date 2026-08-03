@@ -59,7 +59,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/scripts/apply_v210.py \
+          git rm -f .github/scripts/apply_v210.py \
             .github/scripts/prepare_v210.py \
             .github/scripts/harden_v210.py
           git add CHANGELOG.md README.md metadata.yaml updater.py main.py \
