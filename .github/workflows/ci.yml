@@ -44,7 +44,8 @@ jobs:
       - name: Apply SQL-primary migration
         run: |
           python tools/apply_v212.py
-          rm tools/apply_v212.py
+          python tools/fix_v212_round2.py
+          rm tools/apply_v212.py tools/fix_v212_round2.py
 
       - name: Validate migration
         run: |
