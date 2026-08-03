@@ -15,6 +15,7 @@ class StorageBackend(ABC):
     """
 
     backend_name = "unknown"
+    supports_domain_reads = False
 
     @abstractmethod
     def load_json(self, path: Path, default: Any) -> Any:
@@ -35,3 +36,19 @@ class StorageBackend(ABC):
     @abstractmethod
     def health(self) -> dict[str, Any]:
         """Return a small dashboard-safe backend status snapshot."""
+
+    # Transitional domain read API. JSONStorage keeps using the in-memory
+    # compatibility documents; SQLite overrides these methods with indexed SQL.
+    def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
+        return None
+
+    def get_daily_draw(
+        self, draw_date: str, user_candidates: tuple[str, ...]
+    ) -> dict[str, Any] | None:
+        return None
+
+    def get_group_members(self, draw_date: str, group_id: str) -> list[str] | None:
+        return None
+
+    def get_eaten_victims(self, event_date: str, group_id: str) -> list[str] | None:
+        return None
