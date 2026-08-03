@@ -17,7 +17,7 @@ from .json_storage import JSONStorage
 class SQLiteStorage(StorageBackend):
     """SQLite-backed logical JSON documents with normalized read projections.
 
-    v2.13 makes normalized tables authoritative for runtime startup snapshots.
+    v2.14 also serves dashboard analytics directly from normalized SQL tables.
     Compatibility documents remain transactionally synchronized only for export,
     rollback and older code paths; these hot writes no longer rebuild whole tables.
     """
@@ -26,7 +26,8 @@ class SQLiteStorage(StorageBackend):
     supports_domain_reads = True
     supports_domain_writes = True
     supports_runtime_snapshot = True
-    schema_version = 4
+    supports_dashboard_analytics = True
+    schema_version = 5
 
     def __init__(
         self,
@@ -220,6 +221,12 @@ class SQLiteStorage(StorageBackend):
                     ON daily_draws(draw_date);
                 CREATE INDEX IF NOT EXISTS idx_eaten_events_date_group
                     ON eaten_events(event_date, group_id);
+                CREATE INDEX IF NOT EXISTS idx_daily_draws_date_pig
+                    ON daily_draws(draw_date, pig_id);
+                CREATE INDEX IF NOT EXISTS idx_user_pigs_pig_user
+                    ON user_pigs(pig_id, user_id);
+                CREATE INDEX IF NOT EXISTS idx_user_pigs_first_unlocked
+                    ON user_pigs(first_unlocked, pig_id);
                 """
             )
             connection.execute("BEGIN IMMEDIATE")
@@ -413,6 +420,11 @@ class SQLiteStorage(StorageBackend):
                     connection.execute(
                         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
                         "VALUES (4, unixepoch())"
+                    )
+                if 5 not in migrated:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (5, unixepoch())"
                     )
                 connection.execute("COMMIT")
             except Exception:
@@ -852,6 +864,105 @@ class SQLiteStorage(StorageBackend):
     @staticmethod
     def _candidate_tuple(user_candidates: tuple[str, ...]) -> tuple[str, ...]:
         return tuple(str(item) for item in user_candidates if str(item))
+
+    @staticmethod
+    def _analytics_observability(
+        connection: sqlite3.Connection,
+    ) -> dict[str, Any]:
+        metadata = {
+            str(row["key"]): str(row["value"])
+            for row in connection.execute(
+                "SELECT key, value FROM projection_meta WHERE key IN ("
+                "'write_authority', 'last_repair_action', 'last_repair_reason', "
+                "'last_repair_at')"
+            ).fetchall()
+        }
+        schema_row = connection.execute(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
+        ).fetchone()
+        try:
+            repaired_at = int(metadata.get("last_repair_at") or 0)
+        except (TypeError, ValueError):
+            repaired_at = 0
+        return {
+            "analytics_source": "normalized-sql",
+            "schema_version": int(schema_row[0] if schema_row else 0),
+            "write_authority": metadata.get("write_authority", ""),
+            "last_repair_action": metadata.get("last_repair_action", ""),
+            "last_repair_reason": metadata.get("last_repair_reason", ""),
+            "last_repair_at": repaired_at,
+        }
+
+    def get_dashboard_overview(
+        self,
+        *,
+        start_date: str,
+        end_date: str,
+        catalog_ids: tuple[str, ...],
+    ) -> dict[str, Any]:
+        """Aggregate dashboard metrics without rebuilding the history document."""
+        started = time.monotonic()
+        catalog = {str(item) for item in catalog_ids if str(item)}
+        with self._lock, self._connection() as connection:
+            summary = connection.execute(
+                "SELECT COUNT(*) AS users, "
+                "COALESCE(SUM(total_draws), 0) AS draws FROM user_stats"
+            ).fetchone()
+            total_users = int(summary["users"] if summary else 0)
+            total_draws = int(summary["draws"] if summary else 0)
+
+            pig_rows = connection.execute(
+                "SELECT pig_id, COALESCE(SUM(draw_count), 0) AS draws, "
+                "COUNT(*) AS collectors FROM user_pigs GROUP BY pig_id"
+            ).fetchall()
+            pig_stats = [
+                {
+                    "id": str(row["pig_id"]),
+                    "draws": int(row["draws"]),
+                    "collectors": int(row["collectors"]),
+                }
+                for row in pig_rows
+                if str(row["pig_id"]) in catalog
+            ]
+            unlocked_total = sum(item["collectors"] for item in pig_stats)
+            average_unlocked = unlocked_total / total_users if total_users else 0.0
+            average_rate = (
+                average_unlocked / len(catalog) * 100 if catalog else 0.0
+            )
+            top_pigs = sorted(
+                pig_stats,
+                key=lambda item: (-item["draws"], -item["collectors"], item["id"]),
+            )[:10]
+
+            trend = [
+                {
+                    "date": str(row["draw_date"]),
+                    "users": int(row["users"]),
+                    "draws": int(row["draws"]),
+                    "new_unlocks": int(row["new_unlocks"]),
+                }
+                for row in connection.execute(
+                    "SELECT draw_date, COUNT(DISTINCT user_id) AS users, "
+                    "COUNT(*) AS draws, COALESCE(SUM(was_new_unlock), 0) AS new_unlocks "
+                    "FROM daily_draws WHERE draw_date BETWEEN ? AND ? "
+                    "GROUP BY draw_date ORDER BY draw_date",
+                    (str(start_date), str(end_date)),
+                ).fetchall()
+            ]
+            observability = self._analytics_observability(connection)
+
+        observability["query_elapsed_ms"] = round(
+            (time.monotonic() - started) * 1000, 3
+        )
+        return {
+            "total_users": total_users,
+            "total_draws": total_draws,
+            "average_unlocked": average_unlocked,
+            "average_unlock_rate": average_rate,
+            "trend": trend,
+            "top_pigs": top_pigs,
+            "observability": observability,
+        }
 
     def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
         candidates = self._candidate_tuple(user_candidates)
@@ -2514,7 +2625,10 @@ class SQLiteStorage(StorageBackend):
         ):
             connection.execute(f"DELETE FROM {table}")
 
-    def rebuild_projections(self) -> dict[str, Any]:
+    def rebuild_projections(
+        self, *, reason: str = "manual"
+    ) -> dict[str, Any]:
+        reason_text = str(reason or "manual")[:80]
         with self.transaction() as connection:
             authority = self._write_authority(connection)
             if authority.startswith("sql-primary-"):
@@ -2533,15 +2647,26 @@ class SQLiteStorage(StorageBackend):
                 for key, value in documents.items():
                     self._refresh_projection(connection, key, value)
                 action = "rebuilt-normalized-projections-from-documents"
-            connection.execute(
-                "INSERT INTO projection_meta(key, value) VALUES ('last_rebuild_at', ?) "
-                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (str(int(time.time())),),
-            )
+            repaired_at = str(int(time.time()))
+            metadata = {
+                "last_rebuild_at": repaired_at,
+                "last_repair_at": repaired_at,
+                "last_repair_action": action,
+                "last_repair_reason": reason_text,
+            }
+            for key, value in metadata.items():
+                connection.execute(
+                    "INSERT INTO projection_meta(key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (key, value),
+                )
             result = self._projection_health(connection)
             if not result["projection_ok"]:
-                raise RuntimeError("projection repair did not reconcile all storage layers")
-        return {"ok": True, "action": action, **result}
+                raise RuntimeError(
+                    "projection repair did not reconcile all storage layers"
+                )
+        return {"ok": True, "action": action, "reason": reason_text, **result}
+
 
     def export_documents(self) -> dict[str, Any]:
         with self.transaction() as connection:
@@ -2611,8 +2736,17 @@ class SQLiteStorage(StorageBackend):
         }
 
     def health(self) -> dict[str, Any]:
+        observability = {
+            "analytics_source": "normalized-sql",
+            "write_authority": "",
+            "last_repair_action": "",
+            "last_repair_reason": "",
+            "last_repair_at": 0,
+        }
         try:
             verification = self.verify(deep=False)
+            with self._lock, self._connection() as connection:
+                observability = self._analytics_observability(connection)
         except Exception as exc:
             self._last_error = str(exc)
             verification = {
@@ -2633,5 +2767,7 @@ class SQLiteStorage(StorageBackend):
             "database_size": self.database_path.stat().st_size
             if self.database_path.exists()
             else 0,
+            **observability,
             **verification,
         }
+

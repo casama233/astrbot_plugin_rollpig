@@ -244,3 +244,21 @@ def test_v213_sql_authority_repairs_documents_in_the_safe_direction():
     assert "history = self._history_document_from_sql(connection)" in storage_source
     assert "roast = self._roast_document_from_sql(connection)" in storage_source
     assert "today_doc = self._today_document_from_sql(connection, draw_date)" in storage_source
+
+
+
+def test_v214_dashboard_uses_sql_analytics_and_exposes_repair_status():
+    overview = ast.get_source_segment(SOURCE, _method("_build_overview_data")) or ""
+    storage_source = (ROOT / "storage" / "sqlite_storage.py").read_text(
+        encoding="utf-8"
+    )
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert "supports_dashboard_analytics" in overview
+    assert "get_dashboard_overview" in overview
+    assert "COUNT(DISTINCT user_id)" in storage_source
+    assert "idx_daily_draws_date_pig" in storage_source
+    assert "last_repair_reason" in storage_source
+    assert "统计 SQL" in page
+    assert "最近修复" in page
