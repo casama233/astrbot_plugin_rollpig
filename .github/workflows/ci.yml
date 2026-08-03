@@ -55,10 +55,9 @@ jobs:
           from pathlib import Path
           path = Path('.github/workflows/ci.yml')
           text = path.read_text(encoding='utf-8')
-          text = text.replace(
-              'run: python -m compileall -q main.py rollpig_core.py',
-              'run: python -m compileall -q main.py rollpig_core.py updater.py storage',
-          )
+          old = 'run: python -m compileall -q main.py ' + 'rollpig_core.py'
+          new = old + ' updater.py storage'
+          text = text.replace(old, new)
           path.write_text(text, encoding='utf-8')
           PY
 
