@@ -204,7 +204,16 @@ class PrimaryStorageManager(LegacyStorageManager):
             if not verification.get("ok"):
                 raise StorageMigrationError("SQLite 规范化导入未通过完整性检查")
             exported = target.export_documents()
-            expected_facts = self._document_facts(documents)
+            expected_documents = {
+                str(key): SQLitePrimaryStorage._clone(value) for key, value in documents.items()
+            }
+            expected_documents["pig_history.json"] = (
+                SQLitePrimaryStorage._merge_today_into_history(
+                    expected_documents.get("pig_history.json"),
+                    expected_documents.get("rollpig_today.json"),
+                )
+            )
+            expected_facts = self._document_facts(expected_documents)
             actual_facts = self._document_facts(exported)
             mismatched = {
                 key: {"expected": expected_facts[key], "actual": actual_facts.get(key)}
