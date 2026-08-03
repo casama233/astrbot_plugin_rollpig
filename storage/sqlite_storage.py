@@ -17,13 +17,14 @@ from .json_storage import JSONStorage
 class SQLiteStorage(StorageBackend):
     """SQLite-backed logical JSON documents with normalized read projections.
 
-    v2.9 keeps the existing document model as the compatibility source of truth.
-    Projection tables are rebuilt transactionally from the real v2.8 document
-    shapes so later releases can move hot reads to SQL without a flag day.
+    v2.11 makes normalized tables authoritative for daily draws and eat events.
+    Compatibility documents remain transactionally synchronized only for export,
+    rollback and older code paths; these hot writes no longer rebuild whole tables.
     """
 
     backend_name = "sqlite"
     supports_domain_reads = True
+    supports_domain_writes = True
     schema_version = 2
 
     def __init__(
@@ -709,6 +710,606 @@ class SQLiteStorage(StorageBackend):
                 (str(event_date), str(group_id)),
             ).fetchall()
         return [str(row["user_id"]) for row in rows]
+
+    def _read_document_tx(
+        self, connection: sqlite3.Connection, key: str, default: Any
+    ) -> Any:
+        row = connection.execute(
+            "SELECT payload FROM documents WHERE key = ?", (str(key),)
+        ).fetchone()
+        return self._decode(str(row["payload"])) if row else self._clone(default)
+
+    def _write_document_tx(
+        self,
+        connection: sqlite3.Connection,
+        key: str,
+        value: Any,
+        *,
+        updated_at: int | None = None,
+    ) -> None:
+        payload, digest = self._encode(value)
+        connection.execute(
+            """
+            INSERT INTO documents(key, payload, payload_sha256, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                payload = excluded.payload,
+                payload_sha256 = excluded.payload_sha256,
+                updated_at = excluded.updated_at
+            """,
+            (str(key), payload, digest, int(updated_at or time.time())),
+        )
+
+    @staticmethod
+    def _ordered_candidates(
+        user_id: str, user_candidates: tuple[str, ...]
+    ) -> tuple[str, ...]:
+        return tuple(
+            dict.fromkeys(
+                item
+                for item in (str(user_id), *(str(x) for x in user_candidates))
+                if item
+            )
+        )
+
+    @staticmethod
+    def _event_key(event_date: str, group_id: str, user_id: str) -> str:
+        return json.dumps(
+            [str(event_date), str(group_id), str(user_id)], ensure_ascii=False
+        )
+
+    @staticmethod
+    def _valid_dict(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+    def create_daily_draw(
+        self,
+        *,
+        draw_date: str,
+        user_id: str,
+        user_candidates: tuple[str, ...] = (),
+        pig: dict[str, Any] | None = None,
+        group_id: str = "",
+        penalty_should_fail: bool = False,
+    ) -> dict[str, Any]:
+        """Create one daily draw with SQL uniqueness and synchronized export docs.
+
+        A probe call with ``pig=None`` returns an existing draw, consumes/blocks a
+        due penalty, or returns ``needs-pig``. The caller can then choose a pig and
+        retry; a competing process that wins between the two calls is returned as
+        ``existing`` instead of creating a second result.
+        """
+        draw_date = str(draw_date)
+        canonical_id = str(user_id)
+        candidates = self._ordered_candidates(canonical_id, user_candidates)
+        now = int(time.time())
+        history_default = {
+            "version": 1,
+            "users": {},
+            "daily": {},
+            "pig_snapshots": {},
+        }
+        roast_default = {
+            "version": 1,
+            "cooldowns": {},
+            "daily_backdoors": {},
+            "daily_roast_counts": {},
+            "eaten_penalties": {},
+            "eaten_events": {},
+        }
+        today_default = {"date": draw_date, "records": {}}
+
+        with self.transaction() as connection:
+            history = self._valid_dict(
+                self._read_document_tx(connection, "pig_history.json", history_default)
+            )
+            roast = self._valid_dict(
+                self._read_document_tx(connection, "roast_state.json", roast_default)
+            )
+            today_doc = self._valid_dict(
+                self._read_document_tx(connection, "rollpig_today.json", today_default)
+            )
+
+            existing = None
+            for candidate in candidates:
+                existing = connection.execute(
+                    "SELECT user_id, pig_id, original_pig_id FROM daily_draws "
+                    "WHERE draw_date = ? AND user_id = ?",
+                    (draw_date, candidate),
+                ).fetchone()
+                if existing:
+                    break
+            if existing:
+                actual_id = str(existing["user_id"])
+                pig_id = str(existing["pig_id"])
+                if group_id:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO daily_draw_groups VALUES (?, ?, ?)",
+                        (draw_date, actual_id, str(group_id)),
+                    )
+                    groups = [
+                        str(row[0])
+                        for row in connection.execute(
+                            "SELECT group_id FROM daily_draw_groups "
+                            "WHERE draw_date = ? AND user_id = ? ORDER BY group_id",
+                            (draw_date, actual_id),
+                        ).fetchall()
+                    ]
+                    connection.execute(
+                        "UPDATE daily_draws SET group_ids_json = ? "
+                        "WHERE draw_date = ? AND user_id = ?",
+                        (json.dumps(groups, ensure_ascii=False), draw_date, actual_id),
+                    )
+                    daily = history.setdefault("daily", {})
+                    if not isinstance(daily, dict):
+                        daily = {}
+                        history["daily"] = daily
+                    day = daily.setdefault(
+                        draw_date,
+                        {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
+                    )
+                    day_groups = day.setdefault("groups", {})
+                    members = day_groups.setdefault(str(group_id), [])
+                    if actual_id not in members:
+                        members.append(actual_id)
+                snapshot = connection.execute(
+                    "SELECT payload_json FROM pig_snapshots WHERE pig_id = ?",
+                    (pig_id,),
+                ).fetchone()
+                pig_payload = (
+                    self._decode(str(snapshot["payload_json"]))
+                    if snapshot
+                    else {"id": pig_id}
+                )
+                if today_doc.get("date") != draw_date:
+                    today_doc = {"date": draw_date, "records": {}}
+                today_doc.setdefault("records", {})[actual_id] = pig_payload
+                self._write_document_tx(
+                    connection, "pig_history.json", history, updated_at=now
+                )
+                self._write_document_tx(
+                    connection, "rollpig_today.json", today_doc, updated_at=now
+                )
+                connection.execute(
+                    "INSERT INTO projection_meta(key, value) VALUES "
+                    "('write_authority', 'sql-primary-v2.11') "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                )
+                return {
+                    "status": "existing",
+                    "created": False,
+                    "user_id": actual_id,
+                    "pig_id": pig_id,
+                    "pig": pig_payload,
+                    "history": history,
+                    "roast_state": roast,
+                }
+
+            penalty_row = None
+            for candidate in candidates:
+                penalty_row = connection.execute(
+                    "SELECT user_id, due_date, failed FROM eaten_penalties "
+                    "WHERE user_id = ?",
+                    (candidate,),
+                ).fetchone()
+                if penalty_row:
+                    break
+            penalties_doc = roast.get("eaten_penalties")
+            if not isinstance(penalties_doc, dict):
+                penalties_doc = {}
+                roast["eaten_penalties"] = penalties_doc
+            roast_changed = False
+            if penalty_row:
+                penalty_user = str(penalty_row["user_id"])
+                due_date = str(penalty_row["due_date"])
+                failed = bool(penalty_row["failed"])
+                if due_date < draw_date:
+                    connection.execute(
+                        "DELETE FROM eaten_penalties WHERE user_id = ?",
+                        (penalty_user,),
+                    )
+                    penalties_doc.pop(penalty_user, None)
+                    roast_changed = True
+                elif due_date == draw_date and failed:
+                    return {
+                        "status": "penalty-blocked",
+                        "created": False,
+                        "history": history,
+                        "roast_state": roast,
+                    }
+                elif due_date == draw_date and penalty_should_fail:
+                    payload = {"due_date": draw_date, "failed": True}
+                    connection.execute(
+                        "UPDATE eaten_penalties SET failed = 1, payload_json = ? "
+                        "WHERE user_id = ?",
+                        (json.dumps(payload, ensure_ascii=False, sort_keys=True), penalty_user),
+                    )
+                    penalties_doc[penalty_user] = payload
+                    self._write_document_tx(
+                        connection, "roast_state.json", roast, updated_at=now
+                    )
+                    connection.execute(
+                        "INSERT INTO projection_meta(key, value) VALUES "
+                        "('write_authority', 'sql-primary-v2.11') "
+                        "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                    )
+                    return {
+                        "status": "penalty-blocked",
+                        "created": False,
+                        "history": history,
+                        "roast_state": roast,
+                    }
+                elif due_date == draw_date:
+                    connection.execute(
+                        "DELETE FROM eaten_penalties WHERE user_id = ?",
+                        (penalty_user,),
+                    )
+                    penalties_doc.pop(penalty_user, None)
+                    roast_changed = True
+
+            if not isinstance(pig, dict) or not str(pig.get("id") or "").strip():
+                if roast_changed:
+                    self._write_document_tx(
+                        connection, "roast_state.json", roast, updated_at=now
+                    )
+                connection.execute(
+                    "INSERT INTO projection_meta(key, value) VALUES "
+                    "('write_authority', 'sql-primary-v2.11') "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                )
+                return {
+                    "status": "needs-pig",
+                    "created": False,
+                    "history": history,
+                    "roast_state": roast,
+                }
+
+            pig_payload = self._clone(pig)
+            pig_id = str(pig_payload["id"])
+            self._remember_identity(connection, canonical_id)
+            unlocked = (
+                connection.execute(
+                    "SELECT 1 FROM user_pigs WHERE user_id = ? AND pig_id = ?",
+                    (canonical_id, pig_id),
+                ).fetchone()
+                is None
+            )
+            stats = connection.execute(
+                "SELECT total_draws, active_days, duplicate_streak "
+                "FROM user_stats WHERE user_id = ?",
+                (canonical_id,),
+            ).fetchone()
+            total_draws = int(stats["total_draws"]) if stats else 0
+            active_days = int(stats["active_days"]) if stats else 0
+            duplicate_streak = int(stats["duplicate_streak"]) if stats else 0
+
+            connection.execute(
+                """
+                INSERT INTO daily_draws(
+                    draw_date, user_id, pig_id, original_pig_id, group_ids_json,
+                    created_at, was_new_unlock
+                ) VALUES (?, ?, ?, '', ?, ?, ?)
+                """,
+                (
+                    draw_date,
+                    canonical_id,
+                    pig_id,
+                    json.dumps([str(group_id)] if group_id else [], ensure_ascii=False),
+                    now,
+                    int(unlocked),
+                ),
+            )
+            if group_id:
+                connection.execute(
+                    "INSERT INTO daily_draw_groups VALUES (?, ?, ?)",
+                    (draw_date, canonical_id, str(group_id)),
+                )
+            connection.execute(
+                """
+                INSERT INTO user_pigs(
+                    user_id, pig_id, first_unlocked, last_drawn, draw_count
+                ) VALUES (?, ?, ?, ?, 1)
+                ON CONFLICT(user_id, pig_id) DO UPDATE SET
+                    last_drawn = excluded.last_drawn,
+                    draw_count = user_pigs.draw_count + 1
+                """,
+                (canonical_id, pig_id, draw_date, draw_date),
+            )
+            connection.execute(
+                "INSERT INTO pig_snapshots(pig_id, payload_json) VALUES (?, ?) "
+                "ON CONFLICT(pig_id) DO UPDATE SET payload_json = excluded.payload_json",
+                (
+                    pig_id,
+                    json.dumps(pig_payload, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+
+            users = history.get("users")
+            if not isinstance(users, dict):
+                users = {}
+                history["users"] = users
+            user_doc = users.setdefault(
+                canonical_id, {"total_draws": 0, "active_days": 0, "pigs": {}}
+            )
+            pigs_doc = user_doc.get("pigs")
+            if not isinstance(pigs_doc, dict):
+                pigs_doc = {}
+                user_doc["pigs"] = pigs_doc
+            record_doc = pigs_doc.setdefault(
+                pig_id,
+                {
+                    "first_unlocked": draw_date,
+                    "last_drawn": draw_date,
+                    "count": 0,
+                },
+            )
+            record_doc["last_drawn"] = draw_date
+            record_doc["count"] = int(record_doc.get("count", 0)) + 1
+            user_doc["total_draws"] = total_draws + 1
+            user_doc["active_days"] = active_days + 1
+            user_doc["duplicate_streak"] = 0 if unlocked else duplicate_streak + 1
+
+            daily = history.get("daily")
+            if not isinstance(daily, dict):
+                daily = {}
+                history["daily"] = daily
+            day = daily.setdefault(
+                draw_date,
+                {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
+            )
+            day.setdefault("users", []).append(canonical_id)
+            day.setdefault("records", {})[canonical_id] = pig_id
+            day["draws"] = int(day.get("draws", 0)) + 1
+            if unlocked:
+                day["new_unlocks"] = int(day.get("new_unlocks", 0)) + 1
+            if group_id:
+                members = day.setdefault("groups", {}).setdefault(str(group_id), [])
+                if canonical_id not in members:
+                    members.append(canonical_id)
+            history.setdefault("pig_snapshots", {})[pig_id] = pig_payload
+
+            connection.execute(
+                """
+                INSERT INTO user_stats(
+                    user_id, total_draws, active_days, duplicate_streak, payload_json
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    total_draws = excluded.total_draws,
+                    active_days = excluded.active_days,
+                    duplicate_streak = excluded.duplicate_streak,
+                    payload_json = excluded.payload_json
+                """,
+                (
+                    canonical_id,
+                    total_draws + 1,
+                    active_days + 1,
+                    0 if unlocked else duplicate_streak + 1,
+                    json.dumps(user_doc, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+            if today_doc.get("date") != draw_date:
+                today_doc = {"date": draw_date, "records": {}}
+            today_doc.setdefault("records", {})[canonical_id] = pig_payload
+
+            self._write_document_tx(
+                connection, "pig_history.json", history, updated_at=now
+            )
+            self._write_document_tx(
+                connection, "rollpig_today.json", today_doc, updated_at=now
+            )
+            if roast_changed:
+                self._write_document_tx(
+                    connection, "roast_state.json", roast, updated_at=now
+                )
+            connection.execute(
+                "INSERT INTO projection_meta(key, value) VALUES "
+                "('write_authority', 'sql-primary-v2.11') "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            )
+            return {
+                "status": "created",
+                "created": True,
+                "user_id": canonical_id,
+                "pig_id": pig_id,
+                "pig": pig_payload,
+                "was_new_unlock": unlocked,
+                "history": history,
+                "roast_state": roast,
+            }
+
+    def replace_daily_pig_with_eaten(
+        self,
+        *,
+        draw_date: str,
+        due_date: str,
+        cutoff_date: str,
+        user_id: str,
+        user_candidates: tuple[str, ...] = (),
+        group_id: str,
+        actor_id: str,
+        outcome: str,
+        eaten_pig: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically replace a draw, create its penalty and record the event."""
+        draw_date = str(draw_date)
+        candidates = self._ordered_candidates(str(user_id), user_candidates)
+        now = int(time.time())
+        with self.transaction() as connection:
+            row = None
+            for candidate in candidates:
+                row = connection.execute(
+                    "SELECT user_id, pig_id, original_pig_id FROM daily_draws "
+                    "WHERE draw_date = ? AND user_id = ?",
+                    (draw_date, candidate),
+                ).fetchone()
+                if row:
+                    break
+            if not row:
+                return {"status": "missing"}
+            actual_id = str(row["user_id"])
+            current_pig_id = str(row["pig_id"])
+            if current_pig_id == "eaten":
+                return {"status": "already-eaten", "user_id": actual_id}
+            original_id = str(row["original_pig_id"] or current_pig_id)
+            eaten_payload = self._clone(eaten_pig)
+            eaten_payload["id"] = "eaten"
+
+            connection.execute(
+                "UPDATE daily_draws SET pig_id = 'eaten', original_pig_id = ? "
+                "WHERE draw_date = ? AND user_id = ?",
+                (original_id, draw_date, actual_id),
+            )
+            connection.execute(
+                "INSERT INTO pig_snapshots(pig_id, payload_json) VALUES ('eaten', ?) "
+                "ON CONFLICT(pig_id) DO UPDATE SET payload_json = excluded.payload_json",
+                (json.dumps(eaten_payload, ensure_ascii=False, sort_keys=True),),
+            )
+            self._remember_identity(connection, actual_id)
+            self._remember_identity(connection, str(actor_id))
+            penalty_payload = {"due_date": str(due_date), "failed": False}
+            connection.execute(
+                """
+                INSERT INTO eaten_penalties(user_id, due_date, failed, payload_json)
+                VALUES (?, ?, 0, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    due_date = excluded.due_date,
+                    failed = 0,
+                    payload_json = excluded.payload_json
+                """,
+                (
+                    actual_id,
+                    str(due_date),
+                    json.dumps(penalty_payload, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+            event_key = self._event_key(draw_date, group_id, actual_id)
+            event_payload = {
+                "actor_id": str(actor_id),
+                "outcome": str(outcome),
+                "at": now,
+            }
+            connection.execute(
+                """
+                INSERT INTO eaten_events(
+                    event_key, event_date, group_id, user_id, actor_id,
+                    outcome, created_at, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_key) DO UPDATE SET
+                    actor_id = excluded.actor_id,
+                    outcome = excluded.outcome,
+                    created_at = excluded.created_at,
+                    payload_json = excluded.payload_json
+                """,
+                (
+                    event_key,
+                    draw_date,
+                    str(group_id),
+                    actual_id,
+                    str(actor_id),
+                    str(outcome),
+                    now,
+                    json.dumps(event_payload, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+            connection.execute(
+                "DELETE FROM eaten_events WHERE event_date < ?", (str(cutoff_date),)
+            )
+            connection.execute(
+                "DELETE FROM eaten_penalties WHERE due_date < ?", (draw_date,)
+            )
+
+            history = self._valid_dict(
+                self._read_document_tx(
+                    connection,
+                    "pig_history.json",
+                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
+                )
+            )
+            roast = self._valid_dict(
+                self._read_document_tx(
+                    connection,
+                    "roast_state.json",
+                    {
+                        "version": 1,
+                        "cooldowns": {},
+                        "daily_backdoors": {},
+                        "daily_roast_counts": {},
+                        "eaten_penalties": {},
+                        "eaten_events": {},
+                    },
+                )
+            )
+            today_doc = self._valid_dict(
+                self._read_document_tx(
+                    connection,
+                    "rollpig_today.json",
+                    {"date": draw_date, "records": {}},
+                )
+            )
+            if today_doc.get("date") != draw_date:
+                today_doc = {"date": draw_date, "records": {}}
+            today_doc.setdefault("records", {})[actual_id] = eaten_payload
+
+            daily = history.setdefault("daily", {})
+            day = daily.setdefault(
+                draw_date,
+                {"draws": 0, "new_unlocks": 0, "users": [], "records": {}},
+            )
+            day.setdefault("records", {})[actual_id] = "eaten"
+            day.setdefault("eaten_originals", {}).setdefault(actual_id, original_id)
+            history.setdefault("pig_snapshots", {})["eaten"] = eaten_payload
+
+            penalties_doc = roast.get("eaten_penalties")
+            if not isinstance(penalties_doc, dict):
+                penalties_doc = {}
+                roast["eaten_penalties"] = penalties_doc
+            penalties_doc[actual_id] = penalty_payload
+            roast["eaten_penalties"] = {
+                key: value
+                for key, value in penalties_doc.items()
+                if isinstance(value, dict)
+                and str(value.get("due_date") or "") >= draw_date
+            }
+            events_doc = roast.get("eaten_events")
+            if not isinstance(events_doc, dict):
+                events_doc = {}
+                roast["eaten_events"] = events_doc
+            events_doc[event_key] = event_payload
+            roast["eaten_events"] = {
+                key: value
+                for key, value in events_doc.items()
+                if isinstance(value, dict)
+                and (
+                    (lambda parsed: isinstance(parsed, list) and len(parsed) == 3 and str(parsed[0]) >= str(cutoff_date))(
+                        json.loads(key)
+                    )
+                    if isinstance(key, str)
+                    else False
+                )
+            }
+
+            self._write_document_tx(
+                connection, "pig_history.json", history, updated_at=now
+            )
+            self._write_document_tx(
+                connection, "roast_state.json", roast, updated_at=now
+            )
+            self._write_document_tx(
+                connection, "rollpig_today.json", today_doc, updated_at=now
+            )
+            connection.execute(
+                "INSERT INTO projection_meta(key, value) VALUES "
+                "('write_authority', 'sql-primary-v2.11') "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            )
+            return {
+                "status": "updated",
+                "user_id": actual_id,
+                "previous_pig_id": current_pig_id,
+                "original_pig_id": original_id,
+                "history": history,
+                "roast_state": roast,
+            }
 
     @staticmethod
     def _expected_projection_counts(documents: dict[str, Any]) -> dict[str, int]:

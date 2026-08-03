@@ -16,6 +16,7 @@ class StorageBackend(ABC):
 
     backend_name = "unknown"
     supports_domain_reads = False
+    supports_domain_writes = False
 
     @abstractmethod
     def load_json(self, path: Path, default: Any) -> Any:
@@ -36,6 +37,14 @@ class StorageBackend(ABC):
     @abstractmethod
     def health(self) -> dict[str, Any]:
         """Return a small dashboard-safe backend status snapshot."""
+
+    # SQL-primary domain write API. JSONStorage deliberately does not implement
+    # these methods; callers retain the legacy JSON path when capability is false.
+    def create_daily_draw(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def replace_daily_pig_with_eaten(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
 
     # Transitional domain read API. JSONStorage keeps using the in-memory
     # compatibility documents; SQLite overrides these methods with indexed SQL.

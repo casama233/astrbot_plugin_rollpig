@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.10.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.11.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -2219,6 +2219,42 @@ class RollPigPlugin(Star):
             "普通烧烤会被拦截；后门强制模式仍可突破保护。"
         )
 
+    def _apply_domain_write_result(self, result: dict) -> None:
+        history = result.get("history") if isinstance(result, dict) else None
+        roast_state = result.get("roast_state") if isinstance(result, dict) else None
+        if isinstance(history, dict):
+            self.history = history
+        if isinstance(roast_state, dict):
+            self.roast_state = roast_state
+
+    async def _replace_today_with_eaten_persisted(
+        self, user_id: str, group_id: str, actor_id: str, outcome: str
+    ) -> dict | None:
+        if not getattr(self.storage, "supports_domain_writes", False):
+            return self._replace_today_with_eaten(
+                user_id, group_id, actor_id, outcome
+            )
+        eaten = (
+            self._find_catalog_pig("eaten")
+            or self.history.get("pig_snapshots", {}).get("eaten")
+            or self.EATEN_PIG_FALLBACK
+        )
+        today = self._today()
+        result = await asyncio.to_thread(
+            self.storage.replace_daily_pig_with_eaten,
+            draw_date=today.isoformat(),
+            due_date=(today + datetime.timedelta(days=1)).isoformat(),
+            cutoff_date=(today - datetime.timedelta(days=2)).isoformat(),
+            user_id=self._storage_user_key(str(user_id)),
+            user_candidates=tuple(self._user_read_candidates(str(user_id))),
+            group_id=str(group_id),
+            actor_id=self._storage_user_key(str(actor_id)),
+            outcome=str(outcome),
+            eaten_pig=dict(eaten),
+        )
+        self._apply_domain_write_result(result)
+        return dict(eaten) if result.get("status") == "updated" else None
+
     def _replace_today_with_eaten(
         self, user_id: str, group_id: str, actor_id: str, outcome: str
     ) -> dict | None:
@@ -2662,7 +2698,7 @@ class RollPigPlugin(Star):
             return
 
         if random.randrange(100) < self.eat_success_percent:
-            eaten = self._replace_today_with_eaten(
+            eaten = await self._replace_today_with_eaten_persisted(
                 target_id, group_id, actor_id, "eat_success"
             )
             if not eaten:
@@ -2675,7 +2711,7 @@ class RollPigPlugin(Star):
             )
             return
 
-        eaten = self._replace_today_with_eaten(
+        eaten = await self._replace_today_with_eaten_persisted(
             actor_id, group_id, actor_id, "eat_failure"
         )
         if not eaten:
@@ -3318,61 +3354,115 @@ class RollPigPlugin(Star):
         pig_to_send: dict | None = None
         send_user_id = actor_id
         group_id = self._event_group_id(event)
-        async with self._daily_draw_lock:
-            today_cache = self.load_json(
-                self.today_path, {"date": "", "records": {}}
-            )
-            if today_cache.get("date") != today_str:
-                today_cache = {"date": today_str, "records": {}}
-            user_records = today_cache.setdefault("records", {})
-            existing_key = next(
-                (
-                    candidate
-                    for candidate in self._user_read_candidates(target_id)
-                    if candidate in user_records
-                ),
-                "",
-            )
-            existing = user_records.get(existing_key) if existing_key else None
-
+        if getattr(self.storage, "supports_domain_writes", False):
             if viewing_other:
-                if existing:
-                    pig_to_send = existing
+                pig_to_send = self._get_daily_pig(target_id, self._today())
+                if pig_to_send:
                     send_user_id = target_id
                 else:
                     response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
-            elif self._consume_eaten_penalty(str(actor_id), today_str):
-                response_text = (
-                    "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
-                )
-            elif existing:
-                # Repair historical state left by an older interrupted write.
-                changed = self._record_unlock(
-                    existing_key,
-                    existing,
-                    today_str,
-                    group_id=group_id,
-                    save=False,
-                )
-                if changed:
-                    self.save_json(self.history_path, self.history)
-                pig_to_send = existing
-            elif not self.pig_list:
-                response_text = "小猪信息加载失败，请检查后台报错！"
             else:
                 storage_id = self._storage_user_key(actor_id)
-                pig_to_send = self._choose_daily_pig(storage_id)
-                user_records[storage_id] = pig_to_send
-                self._record_unlock(
-                    storage_id,
-                    pig_to_send,
-                    today_str,
+                candidates = tuple(self._user_read_candidates(actor_id))
+                probe = await asyncio.to_thread(
+                    self.storage.create_daily_draw,
+                    draw_date=today_str,
+                    user_id=storage_id,
+                    user_candidates=candidates,
+                    pig=None,
                     group_id=group_id,
-                    save=False,
+                    penalty_should_fail=(
+                        random.randrange(100) < self.eaten_next_day_failure_percent
+                    ),
                 )
-                self.save_json_batch(
-                    {self.today_path: today_cache, self.history_path: self.history}
+                self._apply_domain_write_result(probe)
+                status = str(probe.get("status") or "")
+                if status == "penalty-blocked":
+                    response_text = (
+                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+                    )
+                elif status == "needs-pig":
+                    if not self.pig_list:
+                        response_text = "小猪信息加载失败，请检查后台报错！"
+                    else:
+                        proposed = self._choose_daily_pig(storage_id)
+                        result = await asyncio.to_thread(
+                            self.storage.create_daily_draw,
+                            draw_date=today_str,
+                            user_id=storage_id,
+                            user_candidates=candidates,
+                            pig=proposed,
+                            group_id=group_id,
+                            penalty_should_fail=False,
+                        )
+                        self._apply_domain_write_result(result)
+                        if result.get("status") in {"created", "existing"}:
+                            pig_to_send = result.get("pig") or proposed
+                        elif result.get("status") == "penalty-blocked":
+                            response_text = (
+                                "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+                            )
+                        else:
+                            response_text = "今日小猪写入失败，请稍后再试。"
+                elif status == "existing":
+                    pig_to_send = probe.get("pig")
+                else:
+                    response_text = "今日小猪写入失败，请稍后再试。"
+        else:
+            async with self._daily_draw_lock:
+                today_cache = self.load_json(
+                    self.today_path, {"date": "", "records": {}}
                 )
+                if today_cache.get("date") != today_str:
+                    today_cache = {"date": today_str, "records": {}}
+                user_records = today_cache.setdefault("records", {})
+                existing_key = next(
+                    (
+                        candidate
+                        for candidate in self._user_read_candidates(target_id)
+                        if candidate in user_records
+                    ),
+                    "",
+                )
+                existing = user_records.get(existing_key) if existing_key else None
+
+                if viewing_other:
+                    if existing:
+                        pig_to_send = existing
+                        send_user_id = target_id
+                    else:
+                        response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
+                elif self._consume_eaten_penalty(str(actor_id), today_str):
+                    response_text = (
+                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
+                    )
+                elif existing:
+                    changed = self._record_unlock(
+                        existing_key,
+                        existing,
+                        today_str,
+                        group_id=group_id,
+                        save=False,
+                    )
+                    if changed:
+                        self.save_json(self.history_path, self.history)
+                    pig_to_send = existing
+                elif not self.pig_list:
+                    response_text = "小猪信息加载失败，请检查后台报错！"
+                else:
+                    storage_id = self._storage_user_key(actor_id)
+                    pig_to_send = self._choose_daily_pig(storage_id)
+                    user_records[storage_id] = pig_to_send
+                    self._record_unlock(
+                        storage_id,
+                        pig_to_send,
+                        today_str,
+                        group_id=group_id,
+                        save=False,
+                    )
+                    self.save_json_batch(
+                        {self.today_path: today_cache, self.history_path: self.history}
+                    )
 
         if response_text:
             await event.send(event.plain_result(response_text))
