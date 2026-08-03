@@ -37,10 +37,10 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
 try:
-    from .storage import JSONStorage
+    from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from storage import JSONStorage
+    from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
 
@@ -87,7 +87,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.8.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.9.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -205,6 +205,15 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             panel_update_timeout = 30
         self.panel_update_timeout = min(120.0, max(5.0, panel_update_timeout))
+        storage_backend = str(self.config.get("storage_backend", "auto") or "auto").strip().lower()
+        self.storage_backend_mode = (
+            storage_backend if storage_backend in {"auto", "json", "sqlite"} else "auto"
+        )
+        try:
+            storage_busy_timeout = int(self.config.get("storage_busy_timeout_ms", 5000))
+        except (TypeError, ValueError):
+            storage_busy_timeout = 5000
+        self.storage_busy_timeout_ms = min(30000, max(1000, storage_busy_timeout))
 
         # 初始化路径
         self.plugin_dir = Path(__file__).parent
@@ -227,7 +236,14 @@ class RollPigPlugin(Star):
         self.ai_roast_copies_path = self.plugin_data_dir / "ai_roast_copies.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         self._data_lock = threading.RLock()
-        self.storage = JSONStorage(lock=self._data_lock)
+        self.storage_manager = StorageManager(
+            self.plugin_data_dir,
+            mode=self.storage_backend_mode,
+            lock=self._data_lock,
+            busy_timeout_ms=self.storage_busy_timeout_ms,
+        )
+        self.storage = self.storage_manager.backend
+        self._storage_admin_lock = asyncio.Lock()
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
         self._pighub_preview_cache: dict[str, dict] = {}
         self._pighub_thumbnail_cache: dict[str, dict] = {}
@@ -353,6 +369,36 @@ class RollPigPlugin(Star):
             self.page_update_apply,
             ["POST"],
             "安全安装今日小猪官方稳定版",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/status",
+            self.page_storage_status,
+            ["GET"],
+            "今日小猪存储后端状态",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/migrate",
+            self.page_storage_migrate,
+            ["POST"],
+            "迁移今日小猪 JSON 数据到 SQLite",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/verify",
+            self.page_storage_verify,
+            ["POST"],
+            "验证今日小猪 SQLite 完整性",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/export",
+            self.page_storage_export,
+            ["POST"],
+            "导出今日小猪 JSON 备份",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/rollback",
+            self.page_storage_rollback,
+            ["POST"],
+            "将今日小猪存储安全回滚到 JSON",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/pighub",
@@ -4133,6 +4179,92 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.exception("安全更新插件失败")
             return self._jsonify({"status": "error", "message": f"安全更新失败：{exc}"})
+
+    async def page_storage_status(self):
+        """管理面板：返回当前后端、数据库版本和最近迁移结果。"""
+        try:
+            return self._jsonify(
+                {"status": "ok", "data": self.storage_manager.status()}
+            )
+        except Exception as exc:
+            logger.exception("读取存储状态失败")
+            return self._jsonify(
+                {"status": "error", "message": f"读取存储状态失败：{exc}"}
+            )
+
+    async def page_storage_migrate(self):
+        """管理面板：备份、对账并原子迁移 JSON 到 SQLite。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not bool(payload.get("confirm")):
+                return self._jsonify({"status": "error", "message": "需要明确确认迁移"})
+            async with self._storage_admin_lock:
+                data = await asyncio.to_thread(self.storage_manager.migrate_to_sqlite)
+                self.storage = self.storage_manager.backend
+            logger.info(
+                f"存储迁移完成：backend={self.storage.backend_name} "
+                f"documents={data.get('documents', 0)}"
+            )
+            return self._jsonify({"status": "ok", "data": data})
+        except StorageMigrationError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("SQLite 迁移失败")
+            return self._jsonify({"status": "error", "message": f"SQLite 迁移失败：{exc}"})
+
+    async def page_storage_verify(self):
+        """管理面板：执行 SQLite integrity_check 与 foreign_key_check。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            async with self._storage_admin_lock:
+                data = await asyncio.to_thread(self.storage_manager.verify)
+            return self._jsonify({"status": "ok", "data": data})
+        except Exception as exc:
+            logger.exception("验证存储失败")
+            return self._jsonify({"status": "error", "message": f"验证存储失败：{exc}"})
+
+    async def page_storage_export(self):
+        """管理面板：导出固定目录中的 JSON ZIP，不接受自定义路径。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            async with self._storage_admin_lock:
+                data = await asyncio.to_thread(
+                    self.storage_manager.export_json_backup
+                )
+            logger.info(f"存储 JSON 备份已导出：{data.get('filename')}")
+            return self._jsonify({"status": "ok", "data": data})
+        except StorageMigrationError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("导出 JSON 备份失败")
+            return self._jsonify({"status": "error", "message": f"导出失败：{exc}"})
+
+    async def page_storage_rollback(self):
+        """管理面板：先把 SQLite 最新文档写回 JSON，再停用数据库。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not bool(payload.get("confirm")):
+                return self._jsonify({"status": "error", "message": "需要明确确认回滚"})
+            async with self._storage_admin_lock:
+                data = await asyncio.to_thread(self.storage_manager.rollback_to_json)
+                self.storage = self.storage_manager.backend
+            logger.warning(
+                f"存储已回滚到 JSON：disabled={data.get('disabled_database', '')}"
+            )
+            return self._jsonify({"status": "ok", "data": data})
+        except StorageMigrationError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("回滚 JSON 存储失败")
+            return self._jsonify({"status": "error", "message": f"回滚失败：{exc}"})
 
     async def page_resource_status(self):
         """管理面板：返回分层资源状态。"""
