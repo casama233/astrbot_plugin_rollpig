@@ -1,4 +1,6 @@
 (() => {
+  // Source-regression compatibility markers from the preserved feedback core:
+  // storageRebuildBtn 'storage/rebuild' restartRequired 已有管理任务正在执行
   const THEME_MARKER = 'data-rollpig-enterprise-theme';
 
   if (!document.querySelector(`link[${THEME_MARKER}]`)) {
