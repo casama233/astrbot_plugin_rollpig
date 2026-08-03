@@ -112,15 +112,16 @@ def test_connection_context_rolls_back_and_closes(tmp_path, monkeypatch):
         StorageManager.MANAGED_PATHS,
     )
     connection = storage._connect()
-    monkeypatch.setattr(storage, "_connect", lambda: connection)
-    with pytest.raises(RuntimeError, match="abort"):
-        with storage._connection() as active:
-            active.execute("BEGIN IMMEDIATE")
-            active.execute(
-                "INSERT INTO documents(key, payload, payload_sha256, updated_at) "
-                "VALUES ('partial.json', '{}', 'x', 1)"
-            )
-            raise RuntimeError("abort")
+    with monkeypatch.context() as scoped:
+        scoped.setattr(storage, "_connect", lambda: connection)
+        with pytest.raises(RuntimeError, match="abort"):
+            with storage._connection() as active:
+                active.execute("BEGIN IMMEDIATE")
+                active.execute(
+                    "INSERT INTO documents(key, payload, payload_sha256, updated_at) "
+                    "VALUES ('partial.json', '{}', 'x', 1)"
+                )
+                raise RuntimeError("abort")
     with pytest.raises(sqlite3.ProgrammingError):
         connection.execute("SELECT 1")
     with storage._connection() as active:
