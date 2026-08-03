@@ -146,6 +146,10 @@ class StorageManager:
 
     def migrate_to_sqlite(self) -> dict[str, Any]:
         with self._lock:
+            if self.mode == "json":
+                raise StorageMigrationError(
+                    "配置已强制使用 JSON；请先将 storage_backend 改为 auto"
+                )
             if isinstance(self.backend, SQLiteStorage):
                 verification = self.backend.verify()
                 if verification.get("ok"):

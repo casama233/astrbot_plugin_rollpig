@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 import zipfile
 from pathlib import Path
@@ -272,3 +273,52 @@ def test_unmanaged_cache_files_stay_on_json_fallback(tmp_path):
     storage.save_json(cache, {"images": [1]})
     assert json.loads(cache.read_text(encoding="utf-8")) == {"images": [1]}
     assert "pighub_images.json" not in storage.export_documents()
+
+
+
+def test_connection_context_rolls_back_and_closes(tmp_path, monkeypatch):
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db",
+        tmp_path,
+        StorageManager.MANAGED_PATHS,
+    )
+    connection = storage._connect()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(storage, "_connect", lambda: connection)
+        with pytest.raises(RuntimeError, match="abort"):
+            with storage._connection() as active:
+                active.execute("BEGIN IMMEDIATE")
+                active.execute(
+                    "INSERT INTO documents(key, payload, payload_sha256, updated_at) "
+                    "VALUES ('partial.json', '{}', 'x', 1)"
+                )
+                raise RuntimeError("abort")
+    with pytest.raises(sqlite3.ProgrammingError):
+        connection.execute("SELECT 1")
+    with storage._connection() as active:
+        assert active.execute(
+            "SELECT COUNT(*) FROM documents WHERE key = 'partial.json'"
+        ).fetchone()[0] == 0
+
+
+def test_forced_json_mode_rejects_server_side_migration(tmp_path):
+    _documents(tmp_path)
+    manager = StorageManager(tmp_path, mode="json")
+    with pytest.raises(StorageMigrationError, match="强制使用 JSON"):
+        manager.migrate_to_sqlite()
+    assert manager.backend.backend_name == "json"
+    assert not (tmp_path / "rollpig.db").exists()
+
+
+def test_mixed_sqlite_and_fallback_batch_is_rejected_atomically(tmp_path):
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db",
+        tmp_path,
+        StorageManager.MANAGED_PATHS,
+    )
+    history = tmp_path / "pig_history.json"
+    cache = tmp_path / "pighub_images.json"
+    with pytest.raises(ValueError, match="不能混合"):
+        storage.save_json_batch({history: {"users": {}}, cache: {"images": []}})
+    assert "pig_history.json" not in storage.export_documents()
+    assert not cache.exists()
