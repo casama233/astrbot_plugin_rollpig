@@ -109,7 +109,7 @@ class SQLiteStorage(StorageBackend):
                 );
                 CREATE TABLE IF NOT EXISTS daily_draws (
                     draw_date TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL REFERENCES identities(identity_key),
                     pig_id TEXT NOT NULL,
                     original_pig_id TEXT NOT NULL DEFAULT '',
                     group_ids_json TEXT NOT NULL DEFAULT '[]',
@@ -118,7 +118,7 @@ class SQLiteStorage(StorageBackend):
                 CREATE INDEX IF NOT EXISTS idx_daily_draws_date
                     ON daily_draws(draw_date);
                 CREATE TABLE IF NOT EXISTS user_pigs (
-                    user_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL REFERENCES identities(identity_key),
                     pig_id TEXT NOT NULL,
                     first_unlocked TEXT NOT NULL,
                     last_drawn TEXT NOT NULL,
@@ -126,7 +126,7 @@ class SQLiteStorage(StorageBackend):
                     PRIMARY KEY (user_id, pig_id)
                 );
                 CREATE TABLE IF NOT EXISTS user_stats (
-                    user_id TEXT PRIMARY KEY,
+                    user_id TEXT PRIMARY KEY REFERENCES identities(identity_key),
                     total_draws INTEGER NOT NULL,
                     active_days INTEGER NOT NULL,
                     duplicate_streak INTEGER NOT NULL,
@@ -137,7 +137,7 @@ class SQLiteStorage(StorageBackend):
                     payload_json TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS eaten_penalties (
-                    user_id TEXT PRIMARY KEY,
+                    user_id TEXT PRIMARY KEY REFERENCES identities(identity_key),
                     due_date TEXT NOT NULL,
                     failed INTEGER NOT NULL,
                     payload_json TEXT NOT NULL
@@ -146,7 +146,7 @@ class SQLiteStorage(StorageBackend):
                     event_key TEXT PRIMARY KEY,
                     event_date TEXT NOT NULL,
                     group_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL REFERENCES identities(identity_key),
                     actor_id TEXT NOT NULL,
                     outcome TEXT NOT NULL,
                     created_at INTEGER NOT NULL,
@@ -157,20 +157,20 @@ class SQLiteStorage(StorageBackend):
                 CREATE TABLE IF NOT EXISTS roast_cooldowns (
                     cooldown_key TEXT PRIMARY KEY,
                     group_id TEXT NOT NULL,
-                    actor_id TEXT NOT NULL,
+                    actor_id TEXT NOT NULL REFERENCES identities(identity_key),
                     last_used_at REAL NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS daily_roast_counts (
                     draw_date TEXT NOT NULL,
                     group_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL REFERENCES identities(identity_key),
                     roast_count INTEGER NOT NULL,
                     PRIMARY KEY (draw_date, group_id, user_id)
                 );
                 CREATE TABLE IF NOT EXISTS daily_backdoors (
                     backdoor_key TEXT PRIMARY KEY,
                     draw_date TEXT NOT NULL,
-                    actor_id TEXT NOT NULL,
+                    actor_id TEXT NOT NULL REFERENCES identities(identity_key),
                     used INTEGER NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS ai_roast_copies (
@@ -479,8 +479,8 @@ class SQLiteStorage(StorageBackend):
         backdoors = state.get("daily_backdoors") if isinstance(state.get("daily_backdoors"), dict) else {}
         for backdoor_key, used in backdoors.items():
             draw_date, separator, actor_id = str(backdoor_key).partition(":")
-            if not separator:
-                actor_id = ""
+            if not separator or not actor_id:
+                continue
             self._remember_identity(connection, actor_id)
             connection.execute(
                 "INSERT INTO daily_backdoors VALUES (?, ?, ?, ?)",
