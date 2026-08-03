@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import asyncio
 import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -234,7 +235,7 @@ class PluginUpdateManager:
                 )
                 actual_sha256 = hashlib.sha256(raw).hexdigest()
                 expected_sha256 = str(release.get("expected_sha256") or "")
-                if expected_sha256 and not hashlib.compare_digest(
+                if expected_sha256 and not hmac.compare_digest(
                     actual_sha256, expected_sha256.lower()
                 ):
                     raise UpdateError("下载包 SHA-256 与 Release 校验文件不一致")
@@ -322,7 +323,7 @@ class PluginUpdateManager:
         timeout = httpx.Timeout(self.timeout, connect=min(15.0, self.timeout))
         headers = {
             "Accept": accept,
-            "User-Agent": "AstrBot-RollPig-Safe-Updater/2.8.0",
+            "User-Agent": "AstrBot-RollPig-Safe-Updater/2.9.1",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         async with httpx.AsyncClient(
