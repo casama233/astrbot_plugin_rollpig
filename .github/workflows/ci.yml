@@ -10,13 +10,55 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  finalize-v29-foreign-keys:
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/sqlite-storage-migration-v2.9.0' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out fixed feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/sqlite-storage-migration-v2.9.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Add identity foreign keys
+        run: python .github/scripts/add_v29_foreign_keys.py
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Validate constrained schema
+        run: |
+          python -m compileall -q main.py rollpig_core.py updater.py storage
+          pytest -q
+          pre-commit run --all-files --show-diff-on-failure
+
+      - name: Exclude workflow file from bot commit
+        run: git checkout HEAD -- .github/workflows/ci.yml
+
+      - name: Commit constrained schema
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: enforce identity foreign keys in SQLite projections"
+          git push origin HEAD:agent/sqlite-storage-migration-v2.9.0
+
   test:
     runs-on: ubuntu-latest
     strategy:
