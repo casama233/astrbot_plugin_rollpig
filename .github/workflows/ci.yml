@@ -17,6 +17,88 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  publish-v2131:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/publish-v2.13.1'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Build stable archive and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path('metadata.yaml').read_text(encoding='utf-8')
+          match = re.search(r'^version:\s*["\x27]?([^"\x27\s]+)', text, re.MULTILINE)
+          if not match:
+              raise SystemExit('metadata version missing')
+          print(match.group(1))
+          PY
+          )"
+          test "$VERSION" = "2.13.1"
+          ARCHIVE="astrbot_plugin_rollpig-v${VERSION}.zip"
+          mkdir -p "dist/astrbot_plugin_rollpig"
+          rsync -a ./ "dist/astrbot_plugin_rollpig/" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.venv/' \
+            --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' \
+            --exclude 'dist/' \
+            --exclude 'tests/' \
+            --exclude '*.pyc' \
+            --exclude '*.pyo' \
+            --exclude '.env' \
+            --exclude 'data/' \
+            --exclude 'plugin_data/'
+          (cd dist && zip -qr "$ARCHIVE" astrbot_plugin_rollpig)
+          (cd dist && sha256sum "$ARCHIVE" > SHA256SUMS)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Create or repair stable Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "dist/$ARCHIVE" "dist/SHA256SUMS" --clobber
+          else
+            gh release create "$TAG" "dist/$ARCHIVE" "dist/SHA256SUMS" \
+              --target main \
+              --title "今日小猪 v${VERSION}" \
+              --generate-notes
+          fi
+
+      - name: Verify published Release and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          gh release view "$TAG" --json tagName,isDraft,isPrerelease,assets > release.json
+          python - <<'PY'
+          import json, os
+          data = json.load(open('release.json', encoding='utf-8'))
+          expected = {os.environ['ARCHIVE'], 'SHA256SUMS'}
+          assets = {item['name'] for item in data.get('assets', [])}
+          assert data['tagName'] == f"v{os.environ['VERSION']}"
+          assert data['isDraft'] is False
+          assert data['isPrerelease'] is False
+          assert expected <= assets, (expected, assets)
+          PY
+          mkdir verify
+          gh release download "$TAG" -p "$ARCHIVE" -p SHA256SUMS -D verify
+          (cd verify && sha256sum -c SHA256SUMS)
+
   test:
     runs-on: ubuntu-latest
     strategy:
