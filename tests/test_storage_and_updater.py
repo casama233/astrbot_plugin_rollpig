@@ -143,3 +143,51 @@ def test_unsigned_release_requires_explicit_confirmation(tmp_path, monkeypatch):
     monkeypatch.setattr(manager, "_check_unlocked", fake_check)
     with pytest.raises(UpdateError, match="二次确认"):
         asyncio.run(manager.apply_update(confirm_unsigned=False))
+
+
+
+def test_updater_ignores_unrelated_release_zip_assets(tmp_path):
+    manager = _manager(tmp_path)
+    assets = [
+        {"name": "website-assets.zip", "browser_download_url": "https://example.invalid/a"},
+        {"name": "astrbot_plugin_rollpig-v2.8.0.zip", "browser_download_url": "https://example.invalid/b"},
+    ]
+    assert manager._select_archive_asset(assets)["name"] == "astrbot_plugin_rollpig-v2.8.0.zip"
+    assert manager._select_archive_asset(assets[:1]) is None
+
+
+def test_updater_status_does_not_expose_backup_path(tmp_path):
+    manager = _manager(tmp_path)
+    manager._last_result = {
+        "status": "installed-restart-required",
+        "backup_dir": "/private/server/path",
+        "restart_required": True,
+    }
+    status = manager.status()
+    assert "backup_dir" not in status["last_result"]
+    assert status["last_result"]["restart_required"] is True
+
+
+def test_state_write_failure_is_reported_as_warning_after_valid_install(tmp_path, monkeypatch):
+    manager = _manager(tmp_path)
+    raw = _release_zip()
+
+    def fail_state(_state):
+        raise OSError("disk metadata write failure")
+
+    monkeypatch.setattr(manager, "_write_state", fail_state)
+    result = manager._stage_validate_and_apply(
+        raw,
+        {
+            "current_version": "2.7.0",
+            "latest_version": "2.8.0",
+            "checksum_available": True,
+        },
+        hashlib.sha256(raw).hexdigest(),
+    )
+
+    assert result["status"] == "installed-restart-required"
+    assert result["restart_required"] is True
+    assert result["warnings"]
+    assert "backup_dir" not in result
+    assert (manager.plugin_dir / "main.py").read_text(encoding="utf-8") == "VALUE = 2\n"
