@@ -37,9 +37,11 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
 try:
+    from .rollpig_core import special_pig_state
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from rollpig_core import special_pig_state
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
@@ -73,12 +75,6 @@ class RollPigPlugin(Star):
     PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
     PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
     PIGHUB_THUMBNAIL_FAILURE_TTL = 10 * 60
-    ROAST_HUMAN_IDS = {"human"}
-    ROAST_EATEN_IDS = {"eaten"}
-    ROAST_COOKED_IDS = {"mc_porkchop", "lard-pig"}
-    ROAST_HUMAN_NAMES = {"人类", "人類"}
-    ROAST_EATEN_NAMES = {"吃掉了"}
-    ROAST_COOKED_NAMES = {"猪油", "豬油", "熟食形态", "熟食形態"}
     EATEN_PIG_FALLBACK = {
         "id": "eaten",
         "name": "吃掉了",
@@ -87,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.9.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.9.2 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -2077,19 +2073,59 @@ class RollPigPlugin(Star):
                 logger.warning(f"发送 @ 消息段失败，已回退文本：{exc}")
         await event.send(event.plain_result(plain_mention()))
 
-    def _roast_block_reason(self, pig: dict | None) -> str | None:
-        """检查一只当天小猪是否仍可被做成料理。"""
-        if not pig:
-            return "对方今天还没有抽取小猪。"
-        pig_id = str(pig.get("id") or "").strip().lower()
-        name = str(pig.get("name") or "").strip()
-        if pig_id in self.ROAST_HUMAN_IDS or name in self.ROAST_HUMAN_NAMES:
+    def _roast_block_reason(
+        self, pig: dict | None, *, subject: str = "target"
+    ) -> str | None:
+        """返回烧烤限制文案，并区分发动者与目标的叙述视角。"""
+        state = special_pig_state(pig)
+        if state == "normal":
+            return None
+        actor = subject == "actor"
+        if state == "missing":
+            return "你今天还没有抽取小猪。" if actor else "对方今天还没有抽取小猪。"
+        name = str((pig or {}).get("name") or (pig or {}).get("id") or "特殊形态").strip()
+        if state == "human":
+            if actor:
+                return "你今天是「人类」：只能围观，不能参与猪圈料理。"
             return "对方今天是「人类」：猪圈劳动合同不支持把人送上烤架。"
-        if pig_id in self.ROAST_EATEN_IDS or name in self.ROAST_EATEN_NAMES:
+        if state == "eaten":
+            if actor:
+                return "你今天是「吃掉了」：盘子都空了，已经无法行动。"
             return "对方今天是「吃掉了」：盘子都空了，不能继续参与烧烤流程。"
-        if pig_id in self.ROAST_COOKED_IDS or name in self.ROAST_COOKED_NAMES:
-            return f"对方今天是「{name or pig_id}」：已经属于熟食形态，请勿二次加工。"
-        return None
+        if actor:
+            return f"你今天是「{name}」：已经上桌了，不能再次参与烧烤。"
+        return f"对方今天是「{name}」：已经是熟食，不能再上一次烤架。"
+
+    def _eat_actor_block_reason(self, pig: dict | None) -> str | None:
+        """检查发动者能否使用吃群友，文案始终以“你”指代发动者。"""
+        state = special_pig_state(pig)
+        if state == "normal":
+            return None
+        if state == "missing":
+            return "你今天还没有抽取小猪，不能发动吃群友。"
+        name = str((pig or {}).get("name") or (pig or {}).get("id") or "特殊形态").strip()
+        if state == "human":
+            return "你今天是「人类」：猪圈菜单不允许人类发动吃群友。"
+        if state == "eaten":
+            return "你今天是「吃掉了」：盘子都空了，已经无法行动。"
+        return f"你今天是「{name}」：已经上桌了，暂时不能去吃群友。"
+
+    def _eat_target_block_reason(self, pig: dict | None) -> str | None:
+        """检查目标能否被吃；猪排、猪油等熟食可以直接食用。"""
+        state = special_pig_state(pig)
+        if state in {"normal", "cooked"}:
+            return None
+        if state == "missing":
+            return "对方今天还没有抽取小猪。"
+        if state == "human":
+            return "对方今天是「人类」：吃人不在猪圈菜单里。"
+        return "对方今天已经是「吃掉了」：盘子空了，不能再吃一次。"
+
+    def _eat_success_message(self, pig: dict) -> str:
+        """生成与目标形态一致的吃群友成功文案。"""
+        name = str(pig.get("name") or pig.get("id") or "今日小猪").strip()
+        action = "开袋即食成功" if special_pig_state(pig) == "cooked" else "吃群友成功"
+        return f" 🍴 {action}，「{name}」被吃掉了；明天抽猪可能失败。"
 
     def _extract_roast_target_id(
         self, event: AstrMessageEvent, args: str = ""
@@ -2578,7 +2614,7 @@ class RollPigPlugin(Star):
             return
         if result == "backlash":
             actor_pig = self._get_daily_pig(actor_id, self._today())
-            actor_reason = self._roast_block_reason(actor_pig)
+            actor_reason = self._roast_block_reason(actor_pig, subject="actor")
             if actor_reason:
                 await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
                 return
@@ -2608,16 +2644,12 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("不能吃自己；今天已经够饿了。"))
             return
         actor_pig = self._get_daily_pig(actor_id, self._today())
-        actor_reason = self._roast_block_reason(actor_pig)
+        actor_reason = self._eat_actor_block_reason(actor_pig)
         if actor_reason:
-            await event.send(
-                event.plain_result(
-                    "你得先有一只可行动的今日小猪。" if not actor_pig else actor_reason
-                )
-            )
+            await event.send(event.plain_result(actor_reason))
             return
         target_pig = self._get_daily_pig(target_id, self._today())
-        target_reason = self._roast_block_reason(target_pig)
+        target_reason = self._eat_target_block_reason(target_pig)
         if target_reason:
             await event.send(event.plain_result(target_reason))
             return
@@ -2636,7 +2668,7 @@ class RollPigPlugin(Star):
             await self._send_with_mention(
                 event,
                 target_id,
-                " 🍴 被吃群友成功命中，今天变成「吃掉了」；明天抽猪可能失败。",
+                self._eat_success_message(target_pig),
             )
             return
 
@@ -3515,7 +3547,7 @@ class RollPigPlugin(Star):
             return
         user_id = self._event_sender_id(event)
         pig = self._get_daily_pig(user_id, self._today())
-        reason = self._roast_block_reason(pig)
+        reason = self._roast_block_reason(pig, subject="actor")
         if reason:
             if not pig:
                 reason = "请先使用 /今日小猪 抽取今天的小猪。"
@@ -3585,8 +3617,9 @@ class RollPigPlugin(Star):
             return
         actor_id = self._event_sender_id(event)
         actor_pig = self._get_daily_pig(actor_id, self._today())
-        if self._roast_block_reason(actor_pig):
-            await event.send(event.plain_result("你得先有一只可行动的今日小猪。"))
+        actor_reason = self._eat_actor_block_reason(actor_pig)
+        if actor_reason:
+            await event.send(event.plain_result(actor_reason))
             return
         day = self.history.get("daily", {}).get(self._today().isoformat(), {})
         members = day.get("groups", {}).get(group_id, [])
@@ -3597,11 +3630,11 @@ class RollPigPlugin(Star):
                 continue
             pig = self._get_daily_pig(user_id, self._today())
             protected, _ = self._roast_protection_status(group_id, user_id)
-            if not self._roast_block_reason(pig) and not protected:
+            if not self._eat_target_block_reason(pig) and not protected:
                 candidates.append(user_id)
         if not candidates:
             await event.send(
-                event.plain_result("今天本群没有可吃的群友：可能都已被吃、是特殊形态或受保护。")
+                event.plain_result("今天本群没有可吃的群友：可能尚未抽取、已经被吃、是人类或受保护。")
             )
             return
         target_id = random.choice(candidates)
