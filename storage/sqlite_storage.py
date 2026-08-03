@@ -23,7 +23,8 @@ class SQLiteStorage(StorageBackend):
     """
 
     backend_name = "sqlite"
-    schema_version = 1
+    supports_domain_reads = True
+    schema_version = 2
 
     def __init__(
         self,
@@ -90,7 +91,6 @@ class SQLiteStorage(StorageBackend):
         with self._lock, self._connection() as connection:
             connection.executescript(
                 """
-                BEGIN IMMEDIATE;
                 CREATE TABLE IF NOT EXISTS schema_migrations (
                     version INTEGER PRIMARY KEY,
                     applied_at INTEGER NOT NULL
@@ -105,7 +105,9 @@ class SQLiteStorage(StorageBackend):
                     identity_key TEXT PRIMARY KEY,
                     namespace TEXT NOT NULL,
                     identity_type TEXT NOT NULL,
-                    raw_id TEXT NOT NULL
+                    raw_id TEXT NOT NULL,
+                    legacy_id TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS daily_draws (
                     draw_date TEXT NOT NULL,
@@ -113,10 +115,10 @@ class SQLiteStorage(StorageBackend):
                     pig_id TEXT NOT NULL,
                     original_pig_id TEXT NOT NULL DEFAULT '',
                     group_ids_json TEXT NOT NULL DEFAULT '[]',
+                    created_at INTEGER NOT NULL DEFAULT 0,
+                    was_new_unlock INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY (draw_date, user_id)
                 );
-                CREATE INDEX IF NOT EXISTS idx_daily_draws_date
-                    ON daily_draws(draw_date);
                 CREATE TABLE IF NOT EXISTS user_pigs (
                     user_id TEXT NOT NULL REFERENCES identities(identity_key),
                     pig_id TEXT NOT NULL,
@@ -152,8 +154,6 @@ class SQLiteStorage(StorageBackend):
                     created_at INTEGER NOT NULL,
                     payload_json TEXT NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_eaten_events_date_group
-                    ON eaten_events(event_date, group_id);
                 CREATE TABLE IF NOT EXISTS roast_cooldowns (
                     cooldown_key TEXT PRIMARY KEY,
                     group_id TEXT NOT NULL,
@@ -186,16 +186,111 @@ class SQLiteStorage(StorageBackend):
                 CREATE TABLE IF NOT EXISTS catalog_tombstones (
                     pig_id TEXT PRIMARY KEY
                 );
-                INSERT OR IGNORE INTO schema_migrations(version, applied_at)
-                    VALUES (1, unixepoch());
-                COMMIT;
+                CREATE TABLE IF NOT EXISTS projection_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_daily_draws_date
+                    ON daily_draws(draw_date);
+                CREATE INDEX IF NOT EXISTS idx_eaten_events_date_group
+                    ON eaten_events(event_date, group_id);
                 """
             )
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                identity_columns = {
+                    str(row[1]) for row in connection.execute("PRAGMA table_info(identities)")
+                }
+                if "legacy_id" not in identity_columns:
+                    connection.execute(
+                        "ALTER TABLE identities ADD COLUMN legacy_id TEXT NOT NULL DEFAULT ''"
+                    )
+                if "created_at" not in identity_columns:
+                    connection.execute(
+                        "ALTER TABLE identities ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0"
+                    )
+                draw_columns = {
+                    str(row[1]) for row in connection.execute("PRAGMA table_info(daily_draws)")
+                }
+                if "created_at" not in draw_columns:
+                    connection.execute(
+                        "ALTER TABLE daily_draws ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0"
+                    )
+                if "was_new_unlock" not in draw_columns:
+                    connection.execute(
+                        "ALTER TABLE daily_draws ADD COLUMN was_new_unlock INTEGER NOT NULL DEFAULT 0"
+                    )
+                connection.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS daily_draw_groups (
+                        draw_date TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        group_id TEXT NOT NULL,
+                        PRIMARY KEY (draw_date, user_id, group_id),
+                        FOREIGN KEY (draw_date, user_id)
+                            REFERENCES daily_draws(draw_date, user_id)
+                            ON DELETE CASCADE
+                    )
+                    """
+                )
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_identities_namespace_raw "
+                    "ON identities(namespace, raw_id)"
+                )
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_daily_draw_groups_group_date "
+                    "ON daily_draw_groups(group_id, draw_date)"
+                )
+                connection.execute(
+                    "UPDATE identities SET legacy_id = raw_id WHERE legacy_id = ''"
+                )
+                connection.execute(
+                    "UPDATE identities SET created_at = unixepoch() WHERE created_at = 0"
+                )
+                migrated = {
+                    int(row[0])
+                    for row in connection.execute(
+                        "SELECT version FROM schema_migrations"
+                    ).fetchall()
+                }
+                if 2 not in migrated:
+                    rows = connection.execute(
+                        "SELECT draw_date, user_id, group_ids_json FROM daily_draws"
+                    ).fetchall()
+                    for row in rows:
+                        try:
+                            groups = json.loads(str(row["group_ids_json"] or "[]"))
+                        except (TypeError, ValueError, json.JSONDecodeError):
+                            groups = []
+                        for group_id in groups if isinstance(groups, list) else []:
+                            connection.execute(
+                                "INSERT OR IGNORE INTO daily_draw_groups VALUES (?, ?, ?)",
+                                (str(row["draw_date"]), str(row["user_id"]), str(group_id)),
+                            )
+                connection.execute(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, unixepoch())"
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, unixepoch())"
+                )
+                connection.execute("COMMIT")
+            except Exception:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+                raise
 
     @contextmanager
-    def transaction(self) -> Iterator[None]:
-        with self._lock:
-            yield
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        """Open one real BEGIN IMMEDIATE transaction and always close it."""
+        with self._lock, self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                yield connection
+                connection.execute("COMMIT")
+            except Exception:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+                raise
 
     @staticmethod
     def _encode(value: Any) -> tuple[str, str]:
@@ -291,10 +386,16 @@ class SQLiteStorage(StorageBackend):
         namespace, identity_type, raw_id = self._identity_parts(key)
         connection.execute(
             """
-            INSERT OR IGNORE INTO identities(identity_key, namespace, identity_type, raw_id)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO identities(
+                identity_key, namespace, identity_type, raw_id, legacy_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(identity_key) DO UPDATE SET
+                namespace = excluded.namespace,
+                identity_type = excluded.identity_type,
+                raw_id = excluded.raw_id,
+                legacy_id = excluded.legacy_id
             """,
-            (key, namespace, identity_type, raw_id),
+            (key, namespace, identity_type, raw_id, raw_id, int(time.time())),
         )
 
     def _refresh_projection(
@@ -312,6 +413,7 @@ class SQLiteStorage(StorageBackend):
             self._project_tombstones(connection, value)
 
     def _project_history(self, connection: sqlite3.Connection, value: Any) -> None:
+        connection.execute("DELETE FROM daily_draw_groups")
         connection.execute("DELETE FROM daily_draws")
         connection.execute("DELETE FROM user_pigs")
         connection.execute("DELETE FROM user_stats")
@@ -372,20 +474,29 @@ class SQLiteStorage(StorageBackend):
             for user_id, pig_id in records.items():
                 user_key = str(user_id)
                 self._remember_identity(connection, user_key)
+                group_ids = sorted(set(memberships.get(user_key, [])))
                 connection.execute(
                     """
                     INSERT INTO daily_draws(
-                        draw_date, user_id, pig_id, original_pig_id, group_ids_json
-                    ) VALUES (?, ?, ?, ?, ?)
+                        draw_date, user_id, pig_id, original_pig_id, group_ids_json,
+                        created_at, was_new_unlock
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(draw_date),
                         user_key,
                         str(pig_id or ""),
                         str(originals.get(user_id) or ""),
-                        json.dumps(sorted(set(memberships.get(user_key, []))), ensure_ascii=False),
+                        json.dumps(group_ids, ensure_ascii=False),
+                        int(time.time()),
+                        0,
                     ),
                 )
+                for group_id in group_ids:
+                    connection.execute(
+                        "INSERT INTO daily_draw_groups VALUES (?, ?, ?)",
+                        (str(draw_date), user_key, group_id),
+                    )
 
         snapshots = history.get("pig_snapshots") if isinstance(history.get("pig_snapshots"), dict) else {}
         for pig_id, snapshot in snapshots.items():
@@ -525,6 +636,257 @@ class SQLiteStorage(StorageBackend):
                     "INSERT INTO catalog_tombstones VALUES (?)", (str(pig_id),)
                 )
 
+    @staticmethod
+    def _candidate_tuple(user_candidates: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(str(item) for item in user_candidates if str(item))
+
+    def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
+        candidates = self._candidate_tuple(user_candidates)
+        if not candidates:
+            return None
+        with self._lock, self._connection() as connection:
+            for user_id in candidates:
+                stats = connection.execute(
+                    "SELECT total_draws, active_days, duplicate_streak "
+                    "FROM user_stats WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+                if not stats:
+                    continue
+                pigs = connection.execute(
+                    "SELECT pig_id, first_unlocked, last_drawn, draw_count "
+                    "FROM user_pigs WHERE user_id = ? ORDER BY pig_id",
+                    (user_id,),
+                ).fetchall()
+                return {
+                    "total_draws": int(stats["total_draws"]),
+                    "active_days": int(stats["active_days"]),
+                    "duplicate_streak": int(stats["duplicate_streak"]),
+                    "pigs": {
+                        str(row["pig_id"]): {
+                            "first_unlocked": str(row["first_unlocked"]),
+                            "last_drawn": str(row["last_drawn"]),
+                            "count": int(row["draw_count"]),
+                        }
+                        for row in pigs
+                    },
+                }
+        return None
+
+    def get_daily_draw(
+        self, draw_date: str, user_candidates: tuple[str, ...]
+    ) -> dict[str, Any] | None:
+        candidates = self._candidate_tuple(user_candidates)
+        with self._lock, self._connection() as connection:
+            for user_id in candidates:
+                row = connection.execute(
+                    "SELECT user_id, pig_id, original_pig_id FROM daily_draws "
+                    "WHERE draw_date = ? AND user_id = ?",
+                    (str(draw_date), user_id),
+                ).fetchone()
+                if row:
+                    return {
+                        "user_id": str(row["user_id"]),
+                        "pig_id": str(row["pig_id"]),
+                        "original_pig_id": str(row["original_pig_id"]),
+                    }
+        return None
+
+    def get_group_members(self, draw_date: str, group_id: str) -> list[str] | None:
+        with self._lock, self._connection() as connection:
+            rows = connection.execute(
+                "SELECT user_id FROM daily_draw_groups "
+                "WHERE draw_date = ? AND group_id = ? ORDER BY user_id",
+                (str(draw_date), str(group_id)),
+            ).fetchall()
+        return [str(row["user_id"]) for row in rows]
+
+    def get_eaten_victims(self, event_date: str, group_id: str) -> list[str] | None:
+        with self._lock, self._connection() as connection:
+            rows = connection.execute(
+                "SELECT DISTINCT user_id FROM eaten_events "
+                "WHERE event_date = ? AND group_id = ? ORDER BY user_id",
+                (str(event_date), str(group_id)),
+            ).fetchall()
+        return [str(row["user_id"]) for row in rows]
+
+    @staticmethod
+    def _expected_projection_counts(documents: dict[str, Any]) -> dict[str, int]:
+        history = documents.get("pig_history.json")
+        history = history if isinstance(history, dict) else {}
+        users = history.get("users") if isinstance(history.get("users"), dict) else {}
+        daily = history.get("daily") if isinstance(history.get("daily"), dict) else {}
+        snapshots = (
+            history.get("pig_snapshots")
+            if isinstance(history.get("pig_snapshots"), dict)
+            else {}
+        )
+        valid_users = {
+            str(user_id): value
+            for user_id, value in users.items()
+            if isinstance(value, dict)
+        }
+        user_pigs = sum(
+            sum(
+                1
+                for value in raw_user.get("pigs", {}).values()
+                if isinstance(value, dict)
+            )
+            for raw_user in valid_users.values()
+            if isinstance(raw_user.get("pigs"), dict)
+        )
+        daily_draws = 0
+        daily_groups = 0
+        for day in daily.values():
+            if not isinstance(day, dict):
+                continue
+            records = day.get("records") if isinstance(day.get("records"), dict) else {}
+            groups = day.get("groups") if isinstance(day.get("groups"), dict) else {}
+            daily_draws += len(records)
+            membership: dict[str, set[str]] = {}
+            for group_id, members in groups.items():
+                if not isinstance(members, list):
+                    continue
+                for user_id in members:
+                    membership.setdefault(str(user_id), set()).add(str(group_id))
+            daily_groups += sum(
+                len(membership.get(str(user_id), set())) for user_id in records
+            )
+
+        roast = documents.get("roast_state.json")
+        roast = roast if isinstance(roast, dict) else {}
+        counts = roast.get("daily_roast_counts")
+        valid_roast_counts = 0
+        for raw_key in counts if isinstance(counts, dict) else {}:
+            try:
+                parsed = json.loads(str(raw_key))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            valid_roast_counts += int(isinstance(parsed, list) and len(parsed) == 3)
+
+        events = roast.get("eaten_events")
+        valid_events = 0
+        for raw_key, entry in events.items() if isinstance(events, dict) else ():
+            if not isinstance(entry, dict):
+                continue
+            try:
+                parsed = json.loads(str(raw_key))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            valid_events += int(isinstance(parsed, list) and len(parsed) == 3)
+
+        backdoors = roast.get("daily_backdoors")
+        valid_backdoors = sum(
+            1
+            for raw_key in backdoors if isinstance(backdoors, dict)
+            if ":" in str(raw_key) and str(raw_key).partition(":")[2]
+        )
+
+        ai = documents.get("ai_roast_copies.json")
+        ai = ai if isinstance(ai, dict) else {}
+        copies = ai.get("copies") if isinstance(ai.get("copies"), dict) else {}
+        ai_count = sum(
+            sum(1 for content in value.values() if str(content or "").strip())
+            for value in copies.values()
+            if isinstance(value, dict)
+        )
+        overrides = documents.get("local_overrides.json")
+        tombstones = documents.get("deleted_pigs.json")
+        penalties = roast.get("eaten_penalties")
+        cooldowns = roast.get("cooldowns")
+        return {
+            "user_stats": len(valid_users),
+            "user_pigs": user_pigs,
+            "daily_draws": daily_draws,
+            "daily_draw_groups": daily_groups,
+            "pig_snapshots": sum(
+                1 for value in snapshots.values() if isinstance(value, dict)
+            ),
+            "eaten_penalties": sum(
+                1 for value in penalties.values() if isinstance(value, dict)
+            )
+            if isinstance(penalties, dict)
+            else 0,
+            "eaten_events": valid_events,
+            "roast_cooldowns": len(cooldowns) if isinstance(cooldowns, dict) else 0,
+            "daily_roast_counts": valid_roast_counts,
+            "daily_backdoors": valid_backdoors,
+            "ai_roast_copies": ai_count,
+            "catalog_overrides": sum(
+                1
+                for value in overrides
+                if isinstance(value, dict) and str(value.get("id") or "")
+            )
+            if isinstance(overrides, list)
+            else 0,
+            "catalog_tombstones": sum(1 for value in tombstones if str(value))
+            if isinstance(tombstones, list)
+            else 0,
+        }
+
+    def _projection_health(self, connection: sqlite3.Connection) -> dict[str, Any]:
+        rows = connection.execute("SELECT key, payload FROM documents").fetchall()
+        documents = {
+            str(row["key"]): self._decode(str(row["payload"])) for row in rows
+        }
+        expected = self._expected_projection_counts(documents)
+        actual = {
+            table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+            for table in expected
+        }
+        mismatches = {
+            table: {"expected": expected[table], "actual": actual[table]}
+            for table in expected
+            if expected[table] != actual[table]
+        }
+        return {
+            "projection_ok": not mismatches,
+            "projection_mismatches": mismatches,
+            "projection_expected": expected,
+            "projection_actual": actual,
+        }
+
+    @staticmethod
+    def _clear_projections(connection: sqlite3.Connection) -> None:
+        for table in (
+            "daily_draw_groups",
+            "daily_draws",
+            "user_pigs",
+            "user_stats",
+            "pig_snapshots",
+            "eaten_penalties",
+            "eaten_events",
+            "roast_cooldowns",
+            "daily_roast_counts",
+            "daily_backdoors",
+            "ai_roast_copies",
+            "catalog_overrides",
+            "catalog_tombstones",
+            "identities",
+        ):
+            connection.execute(f"DELETE FROM {table}")
+
+    def rebuild_projections(self) -> dict[str, Any]:
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT key, payload FROM documents ORDER BY key"
+            ).fetchall()
+            documents = {
+                str(row["key"]): self._decode(str(row["payload"])) for row in rows
+            }
+            self._clear_projections(connection)
+            for key, value in documents.items():
+                self._refresh_projection(connection, key, value)
+            connection.execute(
+                "INSERT INTO projection_meta(key, value) VALUES ('last_rebuild_at', ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (str(int(time.time())),),
+            )
+            result = self._projection_health(connection)
+            if not result["projection_ok"]:
+                raise RuntimeError("projection rebuild did not reconcile all tables")
+        return {"ok": True, **result}
+
     def export_documents(self) -> dict[str, Any]:
         with self._lock, self._connection() as connection:
             rows = connection.execute(
@@ -543,29 +905,51 @@ class SQLiteStorage(StorageBackend):
         with self._lock, self._connection() as connection:
             connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
-    def verify(self) -> dict[str, Any]:
+    def verify(self, *, deep: bool = True) -> dict[str, Any]:
         with self._lock, self._connection() as connection:
             integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
             foreign_rows = connection.execute("PRAGMA foreign_key_check").fetchall()
             schema_row = connection.execute(
                 "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
             ).fetchone()
-            documents = int(connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0])
-            daily_draws = int(connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0])
-            users = int(connection.execute("SELECT COUNT(*) FROM user_stats").fetchone()[0])
+            documents = int(
+                connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+            )
+            daily_draws = int(
+                connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0]
+            )
+            users = int(
+                connection.execute("SELECT COUNT(*) FROM user_stats").fetchone()[0]
+            )
+            projection = (
+                self._projection_health(connection)
+                if deep
+                else {
+                    "projection_ok": None,
+                    "projection_mismatches": {},
+                    "projection_expected": {},
+                    "projection_actual": {},
+                }
+            )
         return {
-            "ok": integrity == "ok" and not foreign_rows,
+            "ok": (
+                integrity == "ok"
+                and not foreign_rows
+                and projection["projection_ok"] is not False
+            ),
             "integrity": integrity,
             "foreign_key_errors": len(foreign_rows),
             "schema_version": int(schema_row[0] if schema_row else 0),
             "documents": documents,
             "daily_draws": daily_draws,
             "users": users,
+            "deep_verified": deep,
+            **projection,
         }
 
     def health(self) -> dict[str, Any]:
         try:
-            verification = self.verify()
+            verification = self.verify(deep=False)
         except Exception as exc:
             self._last_error = str(exc)
             verification = {

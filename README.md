@@ -90,7 +90,7 @@ v2.9.0 新增可选 SQLite 后端。默认 `storage_backend=auto`：只有 `roll
 
 管理面板可执行迁移、验证、导出 JSON ZIP 与回滚。迁移会先备份七份关键 JSON，建立临时数据库，导入完整兼容文档并刷新正交投影表，逐文件核对 SHA-256 后才原子替换为 `rollpig.db`。失败会保留原 JSON 且不切换。SQLite 使用 `WAL`、`foreign_keys=ON`、`synchronous=NORMAL` 与可配置的 `busy_timeout`。
 
-v2.9 的完整 JSON 文档仍是兼容权威层，`daily_draws`、`user_pigs`、`user_stats`、被吃事件、冷却、AI 文案和图鉴覆盖等表作为同事务投影；后续版本会逐步把高频查询迁移为直接 SQL。
+v2.10 起，SQLite 模式下的用户图鉴、每日结果、群成员与被吃名单已经直接查询索引表，并提供投影对账、自动修复和手动重建。兼容文档目前仍是写入权威层；v3.0 才会把每日抽取与吃群友改成增量 SQL 事务，并在验证完成后将 SQLite 设为默认。
 
 可在插件配置中关闭连续重复保底或今日烤猪，并调整每层保底增加的概率。
 
