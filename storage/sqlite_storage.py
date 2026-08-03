@@ -1474,7 +1474,7 @@ class SQLiteStorage(StorageBackend):
     def _set_write_authority(connection: sqlite3.Connection) -> None:
         connection.execute(
             "INSERT INTO projection_meta(key, value) VALUES "
-            "('write_authority', 'sql-primary-v2.13') "
+            "('write_authority', 'sql-primary-v2.14') "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         )
 
@@ -1959,7 +1959,7 @@ class SQLiteStorage(StorageBackend):
                 )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.13') "
+                    "('write_authority', 'sql-primary-v2.14') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -2017,7 +2017,7 @@ class SQLiteStorage(StorageBackend):
                     )
                     connection.execute(
                         "INSERT INTO projection_meta(key, value) VALUES "
-                        "('write_authority', 'sql-primary-v2.13') "
+                        "('write_authority', 'sql-primary-v2.14') "
                         "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                     )
                     return {
@@ -2045,7 +2045,7 @@ class SQLiteStorage(StorageBackend):
                     )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.13') "
+                    "('write_authority', 'sql-primary-v2.14') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -2194,7 +2194,7 @@ class SQLiteStorage(StorageBackend):
                 )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.13') "
+                "('write_authority', 'sql-primary-v2.14') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {
@@ -2359,7 +2359,7 @@ class SQLiteStorage(StorageBackend):
             )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.13') "
+                "('write_authority', 'sql-primary-v2.14') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {

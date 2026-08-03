@@ -260,5 +260,7 @@ def test_v214_dashboard_uses_sql_analytics_and_exposes_repair_status():
     assert "COUNT(DISTINCT user_id)" in storage_source
     assert "idx_daily_draws_date_pig" in storage_source
     assert "last_repair_reason" in storage_source
+    assert "sql-primary-v2.14" in storage_source
     assert "统计 SQL" in page
+    assert "写入权威" in page
     assert "最近修复" in page
