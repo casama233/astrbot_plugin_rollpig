@@ -1,0 +1,65 @@
+name: Verify v2.9.0 Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-v29-release.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify stable release and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v2.9.0 --json tagName,isDraft,isPrerelease,url,assets > /tmp/release.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          release = json.loads(Path('/tmp/release.json').read_text(encoding='utf-8'))
+          assets = {item['name']: item for item in release.get('assets', [])}
+          required = {'astrbot_plugin_rollpig-v2.9.0.zip', 'SHA256SUMS'}
+          missing = sorted(required - assets.keys())
+          if release.get('tagName') != 'v2.9.0':
+              raise SystemExit('unexpected release tag')
+          if release.get('isDraft') or release.get('isPrerelease'):
+              raise SystemExit('v2.9.0 is not a stable published release')
+          if missing:
+              raise SystemExit(f'missing release assets: {missing}')
+          result = {
+              'tag': release['tagName'],
+              'stable': True,
+              'url': release['url'],
+              'assets': {
+                  name: {
+                      'size': assets[name].get('size', 0),
+                      'url': assets[name].get('url', ''),
+                  }
+                  for name in sorted(required)
+              },
+          }
+          Path('release_verification_v29.json').write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Publish verification result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release_verification_v29.json
+          git commit -m "chore: record v2.9.0 release verification"
+          git push origin HEAD:main
