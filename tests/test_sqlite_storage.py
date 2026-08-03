@@ -322,3 +322,41 @@ def test_mixed_sqlite_and_fallback_batch_is_rejected_atomically(tmp_path):
         storage.save_json_batch({history: {"users": {}}, cache: {"images": []}})
     assert "pig_history.json" not in storage.export_documents()
     assert not cache.exists()
+
+
+
+def test_projection_tables_enforce_identity_foreign_keys(tmp_path):
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db",
+        tmp_path,
+        StorageManager.MANAGED_PATHS,
+    )
+    expected = {
+        "daily_draws",
+        "user_pigs",
+        "user_stats",
+        "eaten_penalties",
+        "eaten_events",
+        "roast_cooldowns",
+        "daily_roast_counts",
+        "daily_backdoors",
+    }
+    with storage._connection() as connection:
+        constrained = {
+            table
+            for table in expected
+            if any(
+                row[2] == "identities"
+                for row in connection.execute(
+                    f"PRAGMA foreign_key_list({table})"
+                ).fetchall()
+            )
+        }
+        assert constrained == expected
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "INSERT INTO user_stats("
+                "user_id, total_draws, active_days, duplicate_streak, payload_json"
+                ") VALUES ('missing-identity', 0, 0, 0, '{}')"
+            )
