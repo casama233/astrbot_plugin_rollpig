@@ -1183,3 +1183,125 @@ def test_v213_identity_claims_and_aliases_are_sql_primary(tmp_path):
     bucket = history["identity_aliases"]["telegram@bot"]
     assert bucket["by_alias"]["pigfriend"] == "v2|telegram@bot|user|123"
     assert bucket["by_user"]["v2|telegram@bot|user|123"] == "PigFriend"
+
+
+
+def test_v213_sql_primary_rebuild_repairs_documents_without_overwriting_sql(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    storage.increment_roast_count(
+        draw_date="2026-08-04",
+        group_id="v2|qq|group|9",
+        user_id="v2|qq|user|1",
+        cutoff_date="2026-07-27",
+    )
+    storage.store_ai_roast_copy(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        content="SQL 保留文案",
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    with storage.transaction() as connection:
+        connection.execute(
+            "UPDATE documents SET payload = 'not-json', payload_sha256 = 'broken' "
+            "WHERE key = 'pig_history.json'"
+        )
+        connection.execute(
+            "UPDATE documents SET payload = '{\"version\":1}', payload_sha256 = 'broken' "
+            "WHERE key = 'roast_state.json'"
+        )
+        connection.execute(
+            "UPDATE documents SET payload = '{\"version\":2,\"copies\":{},\"attempts\":{}}', "
+            "payload_sha256 = 'broken' WHERE key = 'ai_roast_copies.json'"
+        )
+    manager = StorageManager(tmp_path, mode="auto")
+    assert isinstance(manager.backend, SQLiteStorage)
+    assert manager._last_action == {"status": "auto-rebuilt-projections"}
+    snapshot = manager.backend.load_runtime_snapshot()
+    assert snapshot["history"]["daily"]["2026-08-04"]["records"][
+        "v2|qq|user|1"
+    ] == "pig-a"
+    roast_key = json.dumps(
+        ["2026-08-04", "v2|qq|group|9", "v2|qq|user|1"],
+        ensure_ascii=False,
+    )
+    assert snapshot["roast_state"]["daily_roast_counts"][roast_key] == 1
+    assert snapshot["ai_roast_copies"]["copies"]["pig-a"]["2026-08-04"] == "SQL 保留文案"
+    documents = manager.backend.export_documents()
+    assert documents["pig_history.json"]["daily"]["2026-08-04"]["records"][
+        "v2|qq|user|1"
+    ] == "pig-a"
+    assert documents["ai_roast_copies.json"]["copies"]["pig-a"][
+        "2026-08-04"
+    ] == "SQL 保留文案"
+
+
+def test_v213_domain_draw_write_ignores_stale_compatibility_documents(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+    )
+    with storage.transaction() as connection:
+        connection.execute(
+            "UPDATE documents SET payload = ? WHERE key = 'pig_history.json'",
+            ('{"version":1,"users":{},"daily":{},"pig_snapshots":{}}',),
+        )
+        connection.execute(
+            "UPDATE documents SET payload = ? WHERE key = 'roast_state.json'",
+            ('{"version":1,"cooldowns":{},"daily_backdoors":{},"daily_roast_counts":{},"eaten_penalties":{},"eaten_events":{}}',),
+        )
+        connection.execute(
+            "UPDATE documents SET payload = ? WHERE key = 'rollpig_today.json'",
+            ('{"date":"","records":{}}',),
+        )
+    result = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|2",
+        pig={"id": "pig-b", "name": "B"},
+    )
+    day = result["history"]["daily"]["2026-08-04"]
+    assert day["draws"] == 2
+    assert day["records"] == {
+        "v2|qq|user|1": "pig-a",
+        "v2|qq|user|2": "pig-b",
+    }
+    with storage._connection() as connection:
+        stored = json.loads(
+            connection.execute(
+                "SELECT payload FROM documents WHERE key = 'pig_history.json'"
+            ).fetchone()[0]
+        )
+    assert stored["daily"]["2026-08-04"]["draws"] == 2
+
+
+def test_v213_projection_health_covers_schema3_tables(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.claim_legacy_identity(
+        namespaced="v2|qq|user|1", legacy="1", kind="users"
+    )
+    storage.remember_identity_alias(
+        namespace="telegram@bot",
+        canonical_id="v2|telegram@bot|user|1",
+        username="PigOne",
+    )
+    storage.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner",
+        attempted_at=1.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    verification = storage.verify()
+    assert verification["projection_ok"] is True
+    assert verification["projection_actual"]["identity_claims"] == 1
+    assert verification["projection_actual"]["identity_aliases"] == 1
+    assert verification["projection_actual"]["ai_roast_generation_attempts"] == 1

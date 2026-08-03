@@ -231,3 +231,16 @@ def test_v213_runtime_uses_sql_snapshot_and_unique_ai_generation_claim():
     assert "complete_ai_roast_generation" in ai
     assert "uuid.uuid4().hex" in ai
     assert "random.choice(list(recent.values()))" in ai
+
+
+
+def test_v213_sql_authority_repairs_documents_in_the_safe_direction():
+    storage_source = (ROOT / "storage" / "sqlite_storage.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'authority.startswith("sql-primary-")' in storage_source
+    assert "_repair_compatibility_documents_tx" in storage_source
+    assert 'action = "repaired-compatibility-documents-from-sql"' in storage_source
+    assert "history = self._history_document_from_sql(connection)" in storage_source
+    assert "roast = self._roast_document_from_sql(connection)" in storage_source
+    assert "today_doc = self._today_document_from_sql(connection, draw_date)" in storage_source
