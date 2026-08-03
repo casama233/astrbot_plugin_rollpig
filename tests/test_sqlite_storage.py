@@ -397,7 +397,7 @@ def test_schema_v2_migrates_identity_columns_and_group_index(tmp_path):
     assert {"legacy_id", "created_at"} <= identity_columns
     assert {"created_at", "was_new_unlock"} <= draw_columns
     assert [row[0] for row in groups] == ["g1"]
-    assert version == 2
+    assert version == 3
 
 
 def test_real_transaction_commits_and_rolls_back(tmp_path):
@@ -1019,3 +1019,167 @@ def test_sql_primary_catalog_write_rolls_back_with_document_failure(
         assert connection.execute(
             "SELECT COUNT(*) FROM catalog_overrides WHERE pig_id = 'broken-pig'"
         ).fetchone()[0] == 0
+
+
+
+def test_v213_ai_generation_attempt_is_cross_connection_once_per_day(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    one = first.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-a",
+        attempted_at=1.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    two = second.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-b",
+        attempted_at=2.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert one["claimed"] is True
+    assert two["claimed"] is False
+    assert two["status"] == "generating"
+    completed = first.complete_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-a",
+        content="当天第一份",
+        completed_at=3.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert completed["status"] == "ready"
+    cached = second.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-c",
+        attempted_at=4.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert cached["claimed"] is False
+    assert cached["status"] == "ready"
+    assert cached["copies"] == {"2026-08-04": "当天第一份"}
+
+
+def test_v213_failed_ai_attempt_cannot_generate_again_that_day(tmp_path):
+    first, _ = _empty_sql_documents(tmp_path)
+    second = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    first.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-a",
+        attempted_at=1.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    failed = first.complete_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-a",
+        content="",
+        completed_at=2.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert failed["status"] == "failed"
+    retry = second.claim_ai_roast_generation(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        owner_token="owner-b",
+        attempted_at=3.0,
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    assert retry["claimed"] is False
+    assert retry["status"] == "failed"
+
+
+def test_v213_runtime_snapshot_comes_from_normalized_tables(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        group_id="v2|qq|group|9",
+    )
+    storage.increment_roast_count(
+        draw_date="2026-08-04",
+        group_id="v2|qq|group|9",
+        user_id="v2|qq|user|1",
+        cutoff_date="2026-07-27",
+    )
+    storage.store_ai_roast_copy(
+        pig_id="pig-a",
+        generated_date="2026-08-04",
+        content="SQL 文案",
+        cutoff_date="2026-07-29",
+        through_date="2026-08-04",
+    )
+    storage.upsert_catalog_override(
+        record={
+            "id": "local-pig",
+            "name": "本地猪",
+            "description": "本地限定",
+            "analysis": "SQL 图鉴",
+        }
+    )
+    with storage.transaction() as connection:
+        for key, payload in {
+            "pig_history.json": '{"version":1,"users":{},"daily":{},"pig_snapshots":{}}',
+            "roast_state.json": '{"version":1}',
+            "ai_roast_copies.json": '{"version":2,"copies":{},"attempts":{}}',
+            "local_overrides.json": '[]',
+            "deleted_pigs.json": '[]',
+        }.items():
+            connection.execute(
+                "UPDATE documents SET payload = ?, payload_sha256 = 'broken' WHERE key = ?",
+                (payload, key),
+            )
+    snapshot = storage.load_runtime_snapshot()
+    assert snapshot["source"] == "normalized-sql-v3"
+    assert snapshot["history"]["daily"]["2026-08-04"]["records"][
+        "v2|qq|user|1"
+    ] == "pig-a"
+    roast_key = json.dumps(
+        ["2026-08-04", "v2|qq|group|9", "v2|qq|user|1"],
+        ensure_ascii=False,
+    )
+    assert snapshot["roast_state"]["daily_roast_counts"][roast_key] == 1
+    assert snapshot["ai_roast_copies"]["copies"]["pig-a"]["2026-08-04"] == "SQL 文案"
+    assert snapshot["catalog_overrides"][0]["id"] == "local-pig"
+
+
+def test_v213_identity_claims_and_aliases_are_sql_primary(tmp_path):
+    storage, _ = _empty_sql_documents(tmp_path)
+    claimed = storage.claim_legacy_identity(
+        namespaced="v2|qq|user|123",
+        legacy="123",
+        kind="users",
+    )
+    assert claimed["claimed"] is True
+    alias = storage.remember_identity_alias(
+        namespace="telegram@bot",
+        canonical_id="v2|telegram@bot|user|123",
+        username="PigFriend",
+    )
+    assert alias["changed"] is True
+    with storage.transaction() as connection:
+        connection.execute(
+            "UPDATE documents SET payload = '{\"version\":1}' "
+            "WHERE key = 'pig_history.json'"
+        )
+    history = storage.load_runtime_snapshot()["history"]
+    assert history["identity_claims"]["users"]["123"] == "v2|qq|user|123"
+    bucket = history["identity_aliases"]["telegram@bot"]
+    assert bucket["by_alias"]["pigfriend"] == "v2|telegram@bot|user|123"
+    assert bucket["by_user"]["v2|telegram@bot|user|123"] == "PigFriend"

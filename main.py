@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.12.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.13.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -239,6 +239,11 @@ class RollPigPlugin(Star):
             busy_timeout_ms=self.storage_busy_timeout_ms,
         )
         self.storage = self.storage_manager.backend
+        self._runtime_snapshot = (
+            self.storage.load_runtime_snapshot()
+            if getattr(self.storage, "supports_runtime_snapshot", False)
+            else {}
+        )
         self.draw_service = DrawService(
             enable_new_pig_pity=self.enable_new_pig_pity,
             pity_step_percent=self.pity_step_percent,
@@ -274,35 +279,39 @@ class RollPigPlugin(Star):
             logger=logger,
         )
 
-        # 初始化数据
+        # 初始化数据；SQLite 运行态直接由规范化表重建，不读取兼容文档。
         bundled_pigs = self.load_json(self.piginfo_path, [])
         self._bundled_pigs = self._validate_pig_records(bundled_pigs)
-        self._migrate_catalog_layers()
+        if not getattr(self.storage, "supports_runtime_snapshot", False):
+            self._migrate_catalog_layers()
         self._reload_catalog_layers()
         self._load_pighub_cache()
         if not self.pig_list:
             logger.error("小猪信息为空或不存在，请检查资源文件！")
         self.today_path = self.plugin_data_dir / "rollpig_today.json"
-        self.history = self.load_json(
-            self.history_path,
-            {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
+        history_default = {
+            "version": 1, "users": {}, "daily": {}, "pig_snapshots": {}
+        }
+        roast_default = {
+            "version": 1,
+            "cooldowns": {},
+            "daily_backdoors": {},
+            "daily_roast_counts": {},
+            "eaten_penalties": {},
+            "eaten_events": {},
+        }
+        ai_default = {"version": 2, "copies": {}, "attempts": {}}
+        self.history = self._runtime_document(
+            "history", self.history_path, history_default
         )
-        self.roast_state = self.load_json(
-            self.roast_state_path,
-            {
-                "version": 1,
-                "cooldowns": {},
-                "daily_backdoors": {},
-                "daily_roast_counts": {},
-                "eaten_penalties": {},
-                "eaten_events": {},
-            },
+        self.roast_state = self._runtime_document(
+            "roast_state", self.roast_state_path, roast_default
         )
-        self.ai_roast_copies = self.load_json(
-            self.ai_roast_copies_path,
-            {"version": 1, "copies": {}},
+        self.ai_roast_copies = self._runtime_document(
+            "ai_roast_copies", self.ai_roast_copies_path, ai_default
         )
-        self._migrate_today_to_history()
+        if not getattr(self.storage, "supports_runtime_snapshot", False):
+            self._migrate_today_to_history()
 
         # 初始化字体（优先插件内自定义字体，跨平台兼容）
         self.font_regular = self._init_regular_font()  # 常规字体（描述/解析）
@@ -847,6 +856,14 @@ class RollPigPlugin(Star):
     def save_json_batch(self, updates: dict[Path, object]) -> None:
         self.storage.save_json_batch(updates)
 
+    def _runtime_document(self, key: str, path: Path, default):
+        value = self._runtime_snapshot.get(key)
+        return value if value is not None else self.load_json(path, default)
+
+    def _refresh_runtime_snapshot(self) -> None:
+        if getattr(self.storage, "supports_runtime_snapshot", False):
+            self._runtime_snapshot = self.storage.load_runtime_snapshot()
+
     def _validate_pig_records(self, records) -> list[dict]:
         """校验并复制一份图鉴记录，避免坏云包污染运行中快照。"""
         if not isinstance(records, list):
@@ -925,12 +942,16 @@ class RollPigPlugin(Star):
         self._catalog_source = "cloud" if cloud else "bundled"
         try:
             overrides = self._validate_pig_records(
-                self.load_json(self.local_overrides_path, [])
+                self._runtime_document(
+                    "catalog_overrides", self.local_overrides_path, []
+                )
             )
         except ValueError as exc:
             logger.error(f"本地小猪覆盖层无效，暂不加载：{exc}")
             overrides = []
-        raw_tombstones = self.load_json(self.tombstones_path, [])
+        raw_tombstones = self._runtime_document(
+            "catalog_tombstones", self.tombstones_path, []
+        )
         tombstones = {
             str(item)
             for item in raw_tombstones
@@ -980,8 +1001,16 @@ class RollPigPlugin(Star):
             "last_error": str(status.get("last_error") or ""),
             "interval_hours": self.resource_sync_interval_hours,
             "manifest_url": self.resource_manifest_url,
-            "local_overrides": len(self.load_json(self.local_overrides_path, [])),
-            "deleted_count": len(self.load_json(self.tombstones_path, [])),
+            "local_overrides": len(
+                self._runtime_document(
+                    "catalog_overrides", self.local_overrides_path, []
+                )
+            ),
+            "deleted_count": len(
+                self._runtime_document(
+                    "catalog_tombstones", self.tombstones_path, []
+                )
+            ),
             "running": bool(
                 self._manual_sync_task and not self._manual_sync_task.done()
             ),
@@ -2479,7 +2508,7 @@ class RollPigPlugin(Star):
         return f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
 
     def _recent_ai_roast_copies(self, pig_id: str) -> tuple[dict[str, str], bool]:
-        """返回指定小猪近七天文案，并清理整个缓存中的过期或损坏项。"""
+        """返回指定小猪近七天文案，并清理缓存和生成尝试。"""
         today = self._today()
         cutoff = (today - datetime.timedelta(days=6)).isoformat()
         today_text = today.isoformat()
@@ -2505,6 +2534,29 @@ class RollPigPlugin(Star):
             else:
                 copies_root.pop(item_id, None)
                 changed = True
+        attempts_root = self.ai_roast_copies.get("attempts")
+        if not isinstance(attempts_root, dict):
+            attempts_root = {}
+            self.ai_roast_copies["attempts"] = attempts_root
+            changed = True
+        for item_id, stored in list(attempts_root.items()):
+            valid = (
+                {
+                    str(day): str(status)
+                    for day, status in stored.items()
+                    if cutoff <= str(day) <= today_text
+                    and str(status) in {"generating", "ready", "failed"}
+                }
+                if isinstance(stored, dict)
+                else {}
+            )
+            if valid:
+                if stored != valid:
+                    attempts_root[item_id] = valid
+                    changed = True
+            else:
+                attempts_root.pop(item_id, None)
+                changed = True
         selected = copies_root.get(pig_id, {})
         return (selected if isinstance(selected, dict) else {}), changed
 
@@ -2514,7 +2566,7 @@ class RollPigPlugin(Star):
     async def _get_ai_roast_copy(
         self, event: AstrMessageEvent, pig: dict
     ) -> str | None:
-        """同一小猪每天只保留一份 SQL 缓存；后续随机复用近七天内容。"""
+        """每天每只猪只调用一次模型；后续随机复用滚动七日文案。"""
         if not self.enable_ai_roast_copy:
             return None
         pig_id = str(pig.get("id") or "").strip()
@@ -2525,50 +2577,75 @@ class RollPigPlugin(Star):
         cutoff = (today_value - datetime.timedelta(days=6)).isoformat()
         async with self._ai_roast_lock(pig_id):
             if getattr(self.storage, "supports_domain_writes", False):
-                cached = await asyncio.to_thread(
-                    self.storage.get_ai_roast_copies,
-                    pig_id=pig_id,
-                    cutoff_date=cutoff,
-                    through_date=today,
-                )
-                document = cached.get("ai_roast_copies")
-                if isinstance(document, dict):
-                    self.ai_roast_copies = document
-                recent = cached.get("copies")
-                recent = recent if isinstance(recent, dict) else {}
-                if today in recent:
-                    return random.choice(list(recent.values()))
-                generated = await self._generate_ai_roast_copy(event, pig)
-                if not generated:
-                    return None
-                stored = await asyncio.to_thread(
-                    self.storage.store_ai_roast_copy,
+                owner_token = uuid.uuid4().hex
+                claimed = await asyncio.to_thread(
+                    self.storage.claim_ai_roast_generation,
                     pig_id=pig_id,
                     generated_date=today,
-                    content=generated,
+                    owner_token=owner_token,
+                    attempted_at=time.time(),
                     cutoff_date=cutoff,
                     through_date=today,
                 )
-                document = stored.get("ai_roast_copies")
+                document = claimed.get("ai_roast_copies")
                 if isinstance(document, dict):
                     self.ai_roast_copies = document
-                return str(stored.get("content") or generated)
+                recent = claimed.get("copies")
+                recent = recent if isinstance(recent, dict) else {}
+                if str(claimed.get("status")) == "ready" and today in recent:
+                    return random.choice(list(recent.values()))
+                if not claimed.get("claimed"):
+                    return random.choice(list(recent.values())) if recent else None
+                generated = await self._generate_ai_roast_copy(event, pig)
+                completed = await asyncio.to_thread(
+                    self.storage.complete_ai_roast_generation,
+                    pig_id=pig_id,
+                    generated_date=today,
+                    owner_token=owner_token,
+                    content=generated or "",
+                    completed_at=time.time(),
+                    cutoff_date=cutoff,
+                    through_date=today,
+                )
+                document = completed.get("ai_roast_copies")
+                if isinstance(document, dict):
+                    self.ai_roast_copies = document
+                if generated and str(completed.get("status")) == "ready":
+                    return str(completed.get("content") or generated)
+                recent = completed.get("copies")
+                recent = recent if isinstance(recent, dict) else {}
+                return random.choice(list(recent.values())) if recent else None
 
             with self._data_lock:
                 recent, changed = self._recent_ai_roast_copies(pig_id)
-                if changed:
-                    self._save_ai_roast_copies()
+                attempts_root = self.ai_roast_copies.setdefault("attempts", {})
+                attempts = attempts_root.setdefault(pig_id, {})
                 if today in recent:
+                    if changed:
+                        self._save_ai_roast_copies()
                     return random.choice(list(recent.values()))
+                if today in attempts:
+                    if changed:
+                        self._save_ai_roast_copies()
+                    return random.choice(list(recent.values())) if recent else None
+                attempts[today] = "generating"
+                self._save_ai_roast_copies()
             generated = await self._generate_ai_roast_copy(event, pig)
-            if not generated:
-                return None
             with self._data_lock:
                 recent, _ = self._recent_ai_roast_copies(pig_id)
-                recent[today] = generated
-                self.ai_roast_copies.setdefault("copies", {})[pig_id] = recent
+                attempts = self.ai_roast_copies.setdefault("attempts", {}).setdefault(
+                    pig_id, {}
+                )
+                if generated:
+                    recent[today] = generated
+                    self.ai_roast_copies.setdefault("copies", {})[pig_id] = recent
+                    attempts[today] = "ready"
+                else:
+                    attempts[today] = "failed"
                 self._save_ai_roast_copies()
-            return generated
+            if generated:
+                return generated
+            return random.choice(list(recent.values())) if recent else None
 
     async def _generate_ai_roast_copy(
         self, event: AstrMessageEvent, pig: dict
@@ -4104,7 +4181,13 @@ class RollPigPlugin(Star):
                 self._write_custom_image(pig_id, normalized_image)
             try:
                 if getattr(self.storage, "supports_domain_writes", False):
-                    self.storage.upsert_catalog_override(record=dict(record))
+                    result = self.storage.upsert_catalog_override(record=dict(record))
+                    self._runtime_snapshot["catalog_overrides"] = result.get(
+                        "overrides", []
+                    )
+                    self._runtime_snapshot["catalog_tombstones"] = result.get(
+                        "tombstones", []
+                    )
                 else:
                     overrides = self._validate_pig_records(
                         self.load_json(self.local_overrides_path, [])
@@ -4144,7 +4227,13 @@ class RollPigPlugin(Star):
                 (self.custom_image_dir / f"{pig_id}.{ext}").unlink(missing_ok=True)
             try:
                 if getattr(self.storage, "supports_domain_writes", False):
-                    self.storage.delete_catalog_entry(pig_id=str(pig_id))
+                    result = self.storage.delete_catalog_entry(pig_id=str(pig_id))
+                    self._runtime_snapshot["catalog_overrides"] = result.get(
+                        "overrides", []
+                    )
+                    self._runtime_snapshot["catalog_tombstones"] = result.get(
+                        "tombstones", []
+                    )
                 else:
                     overrides = [
                         dict(item)
