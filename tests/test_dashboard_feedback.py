@@ -22,8 +22,14 @@ def test_feedback_layer_explains_stale_runtime_routes():
 
 def test_feedback_layer_tracks_each_long_operation_and_refresh():
     for route in (
-        "resources/sync", "storage/migrate", "storage/verify",
-        "storage/export", "storage/rollback", "updates/check", "updates/apply",
+        "resources/sync",
+        "storage/migrate",
+        "storage/verify",
+        "storage/rebuild",
+        "storage/export",
+        "storage/rollback",
+        "updates/check",
+        "updates/apply",
     ):
         assert route in FEEDBACK
     assert "已等待 ${seconds} 秒" in FEEDBACK
@@ -34,8 +40,14 @@ def test_feedback_layer_tracks_each_long_operation_and_refresh():
 
 def test_dashboard_routes_are_registered_server_side():
     for route in (
-        "/storage/status", "/storage/migrate", "/storage/verify",
-        "/storage/export", "/storage/rollback", "/updates/status",
-        "/updates/check", "/updates/apply",
+        "/storage/status",
+        "/storage/migrate",
+        "/storage/verify",
+        "/storage/rebuild",
+        "/storage/export",
+        "/storage/rollback",
+        "/updates/status",
+        "/updates/check",
+        "/updates/apply",
     ):
         assert route in MAIN

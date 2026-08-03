@@ -82,9 +82,17 @@ class StorageManager:
         try:
             candidate = self._new_sqlite()
             verification = candidate.verify()
+            if (
+                verification.get("integrity") == "ok"
+                and int(verification.get("foreign_key_errors", 0) or 0) == 0
+                and verification.get("projection_ok") is False
+            ):
+                candidate.rebuild_projections()
+                verification = candidate.verify()
+                self._last_action = {"status": "auto-rebuilt-projections"}
             if not verification.get("ok"):
                 raise StorageMigrationError(
-                    f"SQLite 完整性检查失败：{verification.get('integrity')}"
+                    f"SQLite 完整性或投影检查失败：{verification.get('integrity')}"
                 )
             self.backend = candidate
             self._last_error = ""
@@ -343,6 +351,26 @@ class StorageManager:
             self._last_error = ""
             self._last_action = result
             return result
+
+    def rebuild_projections(self) -> dict[str, Any]:
+        with self._lock:
+            if not self.database_path.exists():
+                raise StorageMigrationError("尚未建立 SQLite 数据库")
+            target = self._new_sqlite()
+            result = target.rebuild_projections()
+            verification = target.verify()
+            if not verification.get("ok"):
+                raise StorageMigrationError("投影重建后仍未通过一致性验证")
+            if isinstance(self.backend, SQLiteStorage):
+                self.backend = target
+            action = {
+                "status": "projections-rebuilt",
+                "backend": self.backend.backend_name,
+                "verification": verification,
+            }
+            self._last_error = ""
+            self._last_action = action
+            return action
 
     def status(self) -> dict[str, Any]:
         backups = sorted(
