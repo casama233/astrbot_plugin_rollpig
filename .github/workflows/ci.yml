@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   apply-v210:
-    if: github.actor != 'github-actions[bot]' && github.ref == 'refs/heads/agent/sql-read-paths-projection-repair-v2.10.0'
+    if: github.actor != 'github-actions[bot]' && (github.head_ref == 'agent/sql-read-paths-projection-repair-v2.10.0' || github.ref == 'refs/heads/agent/sql-read-paths-projection-repair-v2.10.0')
     permissions:
       contents: write
     runs-on: ubuntu-latest
