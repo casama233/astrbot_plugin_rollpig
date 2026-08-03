@@ -1,4 +1,10 @@
 # 更新
+## v2.13.1 (2026-08-04)
+### 新解锁趋势修复
+- 修复 JSON→SQLite 迁移与投影重建把历史抽取的 `was_new_unlock` 全部写成 0，导致管理面板「新解锁」曲线长期贴地的问题。
+- schema 4 会根据每位用户图鉴的 `first_unlocked` 日期自动回填历史抽取；被吃掉的记录使用 `original_pig_id` 还原当天真正解锁的小猪。
+- 今后的 JSON 投影会在写入 `daily_draws` 时直接计算新解锁标记，不会再次丢失统计。
+
 ## v2.13.0 (2026-08-04)
 ### 每日 AI 生成权与 SQL 启动快照
 - 新增 `ai_roast_generation_attempts`，以 `(pig_id, generated_date)` 唯一键保证所有 AstrBot 实例每天每只猪最多实际调用一次模型；生成失败也会记录，当天不重复消耗 Token。

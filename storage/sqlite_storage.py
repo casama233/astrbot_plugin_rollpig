@@ -26,7 +26,7 @@ class SQLiteStorage(StorageBackend):
     supports_domain_reads = True
     supports_domain_writes = True
     supports_runtime_snapshot = True
-    schema_version = 3
+    schema_version = 4
 
     def __init__(
         self,
@@ -394,6 +394,26 @@ class SQLiteStorage(StorageBackend):
                         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
                         "VALUES (3, unixepoch())"
                     )
+                if 4 not in migrated:
+                    connection.execute(
+                        """
+                        UPDATE daily_draws
+                        SET was_new_unlock = CASE WHEN EXISTS (
+                            SELECT 1
+                            FROM user_pigs
+                            WHERE user_pigs.user_id = daily_draws.user_id
+                              AND user_pigs.pig_id = COALESCE(
+                                  NULLIF(daily_draws.original_pig_id, ''),
+                                  daily_draws.pig_id
+                              )
+                              AND user_pigs.first_unlocked = daily_draws.draw_date
+                        ) THEN 1 ELSE 0 END
+                        """
+                    )
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (4, unixepoch())"
+                    )
                 connection.execute("COMMIT")
             except Exception:
                 if connection.in_transaction:
@@ -598,6 +618,16 @@ class SQLiteStorage(StorageBackend):
                 user_key = str(user_id)
                 self._remember_identity(connection, user_key)
                 group_ids = sorted(set(memberships.get(user_key, [])))
+                original_pig_id = str(originals.get(user_id) or "")
+                effective_pig_id = original_pig_id or str(pig_id or "")
+                was_new_unlock = (
+                    connection.execute(
+                        "SELECT 1 FROM user_pigs "
+                        "WHERE user_id = ? AND pig_id = ? AND first_unlocked = ?",
+                        (user_key, effective_pig_id, str(draw_date)),
+                    ).fetchone()
+                    is not None
+                )
                 connection.execute(
                     """
                     INSERT INTO daily_draws(
@@ -609,10 +639,10 @@ class SQLiteStorage(StorageBackend):
                         str(draw_date),
                         user_key,
                         str(pig_id or ""),
-                        str(originals.get(user_id) or ""),
+                        original_pig_id,
                         json.dumps(group_ids, ensure_ascii=False),
                         int(time.time()),
-                        0,
+                        int(was_new_unlock),
                     ),
                 )
                 for group_id in group_ids:
