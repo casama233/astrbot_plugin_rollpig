@@ -162,3 +162,16 @@ def test_storage_rebuild_api_keeps_csrf_and_confirmation():
     assert 'payload.get("confirm")' in method
     assert "storage/rebuild" in page
     assert "storageRebuildBtn" in page
+
+
+
+def test_dashboard_feedback_covers_restart_and_projection_rebuild():
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
+    feedback = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(
+        encoding="utf-8"
+    )
+    assert '<script src="./ui-feedback.js"></script>' in page
+    assert "storageRebuildBtn" in feedback
+    assert "'storage/rebuild'" in feedback
+    assert "restartRequired" in feedback
+    assert "已有管理任务正在执行" in feedback
