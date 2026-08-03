@@ -43,9 +43,24 @@ def test_claim_aware_reads_do_not_use_raw_candidates_directly():
         assert "_user_read_candidates" in method
 
 
-def test_batch_rollback_removes_newly_created_files():
-    method = ast.get_source_segment(SOURCE, _method("save_json_batch")) or ""
-    assert "path.unlink(missing_ok=True)" in method
+def test_main_delegates_persistence_to_storage_backend():
+    init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
+    load = ast.get_source_segment(SOURCE, _method("load_json")) or ""
+    batch = ast.get_source_segment(SOURCE, _method("save_json_batch")) or ""
+    assert "self.storage = JSONStorage" in init
+    assert "self.storage.load_json" in load
+    assert "self.storage.save_json_batch" in batch
+
+
+def test_panel_updater_keeps_csrf_and_explicit_unsigned_confirmation():
+    check = ast.get_source_segment(SOURCE, _method("page_update_check")) or ""
+    apply = ast.get_source_segment(SOURCE, _method("page_update_apply")) or ""
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
+    assert "_is_authorized_write_request" in check
+    assert "_is_authorized_write_request" in apply
+    assert "confirm_unsigned" in apply
+    assert "window.confirm" in page
+    assert "updates/apply" in page
 
 
 def test_outbound_mentions_strip_storage_namespace():

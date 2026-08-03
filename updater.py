@@ -380,11 +380,6 @@ class PluginUpdateManager:
     def _stage_validate_and_apply(
         self, raw: bytes, release: dict[str, Any], actual_sha256: str
     ) -> dict[str, Any]:
-        try:
-            archive = zipfile.ZipFile(Path(tempfile.mkstemp(suffix=".zip")[1]))
-            archive.close()
-        except Exception:
-            pass
         with tempfile.TemporaryDirectory(prefix="rollpig-update-") as temporary_root:
             root = Path(temporary_root)
             archive_path = root / "release.zip"
