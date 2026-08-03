@@ -18,21 +18,26 @@ from .sqlite_primary import SQLitePrimaryStorage
 class PrimaryStorageManager(LegacyStorageManager):
     """v3 storage selector with automatic verified SQLite bootstrap."""
 
+    # Preserve the public v2 path set for integrations that instantiate the
+    # legacy SQLiteStorage directly. v3 itself stores only runtime authority
+    # documents; the cloud catalog remains an ordinary replaceable JSON cache.
     MANAGED_PATHS = {
         "rollpig_today.json",
         "pig_history.json",
         "roast_state.json",
         "ai_roast_copies.json",
+        "pig_catalog.json",
         "local_overrides.json",
         "deleted_pigs.json",
     }
-    LEGACY_IMPORT_PATHS = MANAGED_PATHS | {"pig_catalog.json"}
+    RUNTIME_MANAGED_PATHS = MANAGED_PATHS - {"pig_catalog.json"}
+    LEGACY_IMPORT_PATHS = MANAGED_PATHS
 
     def _new_sqlite(self, path: Path | None = None) -> SQLitePrimaryStorage:
         return SQLitePrimaryStorage(
             path or self.database_path,
             self.data_root,
-            self.MANAGED_PATHS,
+            self.RUNTIME_MANAGED_PATHS,
             fallback=self.json_storage,
             lock=self._lock,
             busy_timeout_ms=self.busy_timeout_ms,
@@ -355,6 +360,8 @@ class PrimaryStorageManager(LegacyStorageManager):
         status["compatibility_exports_on_demand"] = isinstance(
             self.backend, SQLitePrimaryStorage
         )
+        status["managed_documents"] = sorted(self.RUNTIME_MANAGED_PATHS)
+        status["json_cache_documents"] = ["pig_catalog.json"]
         return status
 
 
