@@ -94,7 +94,7 @@ def test_enterprise_theme_keeps_ui_compact_consistent_and_responsive():
 
 def test_enterprise_enhancement_adds_accessibility_without_api_changes():
     for marker in (
-        "data.uiVersion",
+        "root.dataset.uiVersion",
         "skip-link",
         "aria-live",
         "aria-modal",
