@@ -1,16 +1,16 @@
 name: One-shot v2.8 branch integration
 
 on:
-  push:
-    branches:
-      - main
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   integrate:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.ref == 'agent/storage-abstraction-safe-updater-v2.8.0'
     runs-on: ubuntu-latest
     steps:
       - name: Check out target branch
