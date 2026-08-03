@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - metadata.yaml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve stable version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path('metadata.yaml').read_text(encoding='utf-8')
+          match = re.search(r'^version:\s*["\x27]?([^"\x27\s]+)', text, re.MULTILINE)
+          if not match or not re.fullmatch(r'\d+\.\d+\.\d+', match.group(1)):
+              raise SystemExit('metadata.yaml must contain a stable x.y.z version')
+          print(match.group(1))
+          PY
+          )"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "archive=astrbot_plugin_rollpig-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release archive and checksum
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.version.outputs.archive }}
+        run: |
+          mkdir -p "dist/astrbot_plugin_rollpig"
+          rsync -a ./ "dist/astrbot_plugin_rollpig/" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.venv/' \
+            --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' \
+            --exclude 'dist/' \
+            --exclude 'tests/' \
+            --exclude '*.pyc' \
+            --exclude '*.pyo' \
+            --exclude '.env' \
+            --exclude 'data/' \
+            --exclude 'plugin_data/'
+          (cd dist && zip -qr "$ARCHIVE" astrbot_plugin_rollpig)
+          (cd dist && sha256sum "$ARCHIVE" > SHA256SUMS)
+
+      - name: Publish stable GitHub Release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.version.outputs.archive }}
+        run: |
+          gh release create "$TAG" \
+            "dist/$ARCHIVE" \
+            "dist/SHA256SUMS" \
+            --target "$GITHUB_SHA" \
+            --title "今日小猪 v$VERSION" \
+            --generate-notes
