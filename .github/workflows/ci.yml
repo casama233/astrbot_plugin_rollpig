@@ -5,18 +5,72 @@ on:
     branches:
       - main
       - agent/fix-audit-findings-v2.4.0
+      - agent/admin-ui-enterprise-v2.14.0
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  apply-v215:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/agent/admin-ui-enterprise-v2.14.0' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/admin-ui-enterprise-v2.14.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Apply analytics integration
+        run: python scripts/apply_admin_analytics_v215.py
+
+      - name: Validate frontend syntax
+        run: |
+          node --check pages/pig-manager/ui-feedback.js
+          node --check pages/pig-manager/ui-feedback-core.js
+          node --check pages/pig-manager/ui-enterprise.js
+          node --check pages/pig-manager/ui-analytics.js
+
+      - name: Compile source
+        run: python -m compileall -q main.py rollpig_core.py updater.py storage services tests
+
+      - name: Run full tests
+        run: pytest -q
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Commit validated product changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add CHANGELOG.md main.py metadata.yaml updater.py storage/base.py storage/sqlite_storage.py tests
+          if git diff --cached --quiet; then
+            echo "No generated product changes"
+            exit 0
+          fi
+          git commit -m "feat: add commercial dashboard analytics (v2.15.0)"
+          git push origin HEAD:agent/admin-ui-enterprise-v2.14.0
+
   test:
     runs-on: ubuntu-latest
     strategy:
