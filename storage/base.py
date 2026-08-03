@@ -18,6 +18,7 @@ class StorageBackend(ABC):
     supports_domain_reads = False
     supports_domain_writes = False
     supports_runtime_snapshot = False
+    supports_dashboard_analytics = False
 
     @abstractmethod
     def load_json(self, path: Path, default: Any) -> Any:
@@ -82,6 +83,9 @@ class StorageBackend(ABC):
 
     def load_runtime_snapshot(self) -> dict[str, Any]:
         raise NotImplementedError
+
+    def get_dashboard_overview(self, **kwargs: Any) -> dict[str, Any] | None:
+        return None
 
     # Transitional domain read API. JSONStorage keeps using the in-memory
     # compatibility documents; SQLite overrides these methods with indexed SQL.

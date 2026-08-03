@@ -87,7 +87,7 @@ class StorageManager:
                 and int(verification.get("foreign_key_errors", 0) or 0) == 0
                 and verification.get("projection_ok") is False
             ):
-                candidate.rebuild_projections()
+                candidate.rebuild_projections(reason="startup-auto")
                 verification = candidate.verify()
                 self._last_action = {"status": "auto-rebuilt-projections"}
             if not verification.get("ok"):
@@ -357,7 +357,7 @@ class StorageManager:
             if not self.database_path.exists():
                 raise StorageMigrationError("尚未建立 SQLite 数据库")
             target = self._new_sqlite()
-            result = target.rebuild_projections()
+            result = target.rebuild_projections(reason="manual")
             verification = target.verify()
             if not verification.get("ok"):
                 raise StorageMigrationError("投影重建后仍未通过一致性验证")

@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.13.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.14.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -4261,6 +4261,66 @@ class RollPigPlugin(Star):
             today = self._today()
             users = self.history.get("users", {})
             catalog_ids = {str(pig.get("id")) for pig in self.pig_list}
+            if getattr(self.storage, "supports_dashboard_analytics", False):
+                start_date = (today - datetime.timedelta(days=13)).isoformat()
+                end_date = today.isoformat()
+                stored = self.storage.get_dashboard_overview(
+                    start_date=start_date,
+                    end_date=end_date,
+                    catalog_ids=tuple(sorted(catalog_ids)),
+                ) or {}
+                trend_rows = {
+                    str(item.get("date") or ""): item
+                    for item in stored.get("trend", [])
+                    if isinstance(item, dict)
+                }
+                trend = []
+                for offset in range(13, -1, -1):
+                    day = today - datetime.timedelta(days=offset)
+                    item = trend_rows.get(day.isoformat(), {})
+                    trend.append(
+                        {
+                            "date": f"{day.month}/{day.day}",
+                            "users": int(item.get("users", 0)),
+                            "draws": int(item.get("draws", 0)),
+                            "new_unlocks": int(item.get("new_unlocks", 0)),
+                        }
+                    )
+                names = {
+                    str(pig.get("id")): str(pig.get("name") or pig.get("id"))
+                    for pig in self.pig_list
+                }
+                top_pigs = [
+                    {
+                        "id": str(item.get("id") or ""),
+                        "name": names.get(
+                            str(item.get("id") or ""),
+                            str(item.get("id") or ""),
+                        ),
+                        "draws": int(item.get("draws", 0)),
+                        "collectors": int(item.get("collectors", 0)),
+                    }
+                    for item in stored.get("top_pigs", [])
+                    if str(item.get("id") or "") in names
+                ]
+                today_item = trend_rows.get(end_date, {})
+                return {
+                    "metrics": {
+                        "total_users": int(stored.get("total_users", 0)),
+                        "total_draws": int(stored.get("total_draws", 0)),
+                        "catalog_count": len(catalog_ids),
+                        "today_users": int(today_item.get("users", 0)),
+                        "average_unlocked": round(
+                            float(stored.get("average_unlocked", 0)), 2
+                        ),
+                        "average_unlock_rate": round(
+                            float(stored.get("average_unlock_rate", 0)), 2
+                        ),
+                    },
+                    "trend": trend,
+                    "top_pigs": top_pigs,
+                    "analytics": stored.get("observability", {}),
+                }
             total_users = len(users)
             total_draws = sum(int(u.get("total_draws", 0)) for u in users.values())
             unlocked_counts = [
@@ -4314,6 +4374,7 @@ class RollPigPlugin(Star):
                 "trend": trend,
                 "top_pigs": top_pigs,
             }
+
 
     async def page_overview(self):
         """管理面板：总体指标、趋势与热门小猪。"""

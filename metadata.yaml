@@ -1,7 +1,7 @@
 name: "astrbot_plugin_rollpig"
 display_name: "今日小豬 · 增強版"
 desc: "獨立維護的今日小豬增強版 fork，保留原作者署名與 MIT License；支援安全更新與可回滾 SQLite 儲存"
-version: "2.13.1"
+version: "2.14.0"
 author: "MegSopern, casama233"
 repo: "https://github.com/casama233/astrbot_plugin_rollpig"
 astrbot_version: ">=4.24.2"
