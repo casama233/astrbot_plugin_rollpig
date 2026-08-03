@@ -52,6 +52,27 @@ class StorageBackend(ABC):
     def remember_identity_alias(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    def consume_roast_cooldown(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def increment_roast_count(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def consume_daily_backdoor(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def get_ai_roast_copies(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def store_ai_roast_copy(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def upsert_catalog_override(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def delete_catalog_entry(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     # Transitional domain read API. JSONStorage keeps using the in-memory
     # compatibility documents; SQLite overrides these methods with indexed SQL.
     def get_user_collection(self, user_candidates: tuple[str, ...]) -> dict[str, Any] | None:
@@ -66,4 +87,9 @@ class StorageBackend(ABC):
         return None
 
     def get_eaten_victims(self, event_date: str, group_id: str) -> list[str] | None:
+        return None
+
+    def get_roast_count(
+        self, draw_date: str, group_id: str, user_candidates: tuple[str, ...]
+    ) -> int | None:
         return None
