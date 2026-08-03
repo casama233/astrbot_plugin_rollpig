@@ -44,7 +44,8 @@ jobs:
       - name: Apply v2.13 migration
         run: |
           python tools/apply_v213.py
-          rm tools/apply_v213.py
+          python tools/fix_v213_round2.py
+          rm tools/apply_v213.py tools/fix_v213_round2.py
           python - <<'PY'
           from pathlib import Path
           path = Path('.github/workflows/ci.yml')
