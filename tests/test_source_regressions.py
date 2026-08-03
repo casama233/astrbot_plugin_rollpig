@@ -175,3 +175,19 @@ def test_dashboard_feedback_covers_restart_and_projection_rebuild():
     assert "'storage/rebuild'" in feedback
     assert "restartRequired" in feedback
     assert "已有管理任务正在执行" in feedback
+
+
+
+def test_main_delegates_sql_primary_hot_writes():
+    assert 'supports_domain_writes' in SOURCE
+    assert 'self.storage.create_daily_draw' in SOURCE
+    assert 'self.storage.replace_daily_pig_with_eaten' in SOURCE
+    assert 'await self._replace_today_with_eaten_persisted' in SOURCE
+
+
+
+def test_identity_metadata_uses_sql_merge_in_sqlite_mode():
+    claim = ast.get_source_segment(SOURCE, _method("_claim_legacy_identity")) or ""
+    alias = ast.get_source_segment(SOURCE, _method("_remember_sender_alias")) or ""
+    assert "self.storage.claim_legacy_identity" in claim
+    assert "self.storage.remember_identity_alias" in alias
