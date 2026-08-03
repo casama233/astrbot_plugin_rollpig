@@ -51,3 +51,26 @@ def namespace_identity(platform: str, kind: str, value: str) -> str:
 def is_public_ip(value: str) -> bool:
     ip = ipaddress.ip_address(value)
     return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified)
+
+
+_SPECIAL_HUMAN_IDS = frozenset({"human"})
+_SPECIAL_EATEN_IDS = frozenset({"eaten"})
+_SPECIAL_COOKED_IDS = frozenset({"mc_porkchop", "lard-pig"})
+_SPECIAL_HUMAN_NAMES = frozenset({"人类", "人類"})
+_SPECIAL_EATEN_NAMES = frozenset({"吃掉了"})
+_SPECIAL_COOKED_NAMES = frozenset({"猪油", "豬油", "熟食形态", "熟食形態"})
+
+
+def special_pig_state(pig: dict | None) -> str:
+    """Classify only the special states that alter cooking/eating eligibility."""
+    if not isinstance(pig, dict) or not pig:
+        return "missing"
+    pig_id = str(pig.get("id") or "").strip().lower()
+    name = str(pig.get("name") or "").strip()
+    if pig_id in _SPECIAL_HUMAN_IDS or name in _SPECIAL_HUMAN_NAMES:
+        return "human"
+    if pig_id in _SPECIAL_EATEN_IDS or name in _SPECIAL_EATEN_NAMES:
+        return "eaten"
+    if pig_id in _SPECIAL_COOKED_IDS or name in _SPECIAL_COOKED_NAMES:
+        return "cooked"
+    return "normal"

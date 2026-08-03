@@ -4,6 +4,7 @@ from rollpig_core import (
     legacy_identity,
     namespace_identity,
     pre_instance_identity,
+    special_pig_state,
 )
 
 
@@ -33,3 +34,13 @@ def test_public_ip_filter():
     assert not is_public_ip("127.0.0.1")
     assert not is_public_ip("10.0.0.1")
     assert not is_public_ip("169.254.169.254")
+
+
+
+def test_special_pig_state_keeps_cooking_roles_distinct():
+    assert special_pig_state(None) == "missing"
+    assert special_pig_state({"id": "human", "name": "人类"}) == "human"
+    assert special_pig_state({"id": "eaten", "name": "吃掉了"}) == "eaten"
+    assert special_pig_state({"id": "mc_porkchop", "name": "猪排"}) == "cooked"
+    assert special_pig_state({"id": "lard-pig", "name": "猪油"}) == "cooked"
+    assert special_pig_state({"id": "mechanical-pig", "name": "机械猪"}) == "normal"
