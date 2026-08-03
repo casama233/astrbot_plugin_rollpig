@@ -17,6 +17,7 @@ class StorageBackend(ABC):
     backend_name = "unknown"
     supports_domain_reads = False
     supports_domain_writes = False
+    supports_runtime_snapshot = False
 
     @abstractmethod
     def load_json(self, path: Path, default: Any) -> Any:
@@ -71,6 +72,15 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     def delete_catalog_entry(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def claim_ai_roast_generation(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def complete_ai_roast_generation(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def load_runtime_snapshot(self) -> dict[str, Any]:
         raise NotImplementedError
 
     # Transitional domain read API. JSONStorage keeps using the in-memory

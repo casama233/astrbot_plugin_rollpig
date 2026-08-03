@@ -17,7 +17,7 @@ from .json_storage import JSONStorage
 class SQLiteStorage(StorageBackend):
     """SQLite-backed logical JSON documents with normalized read projections.
 
-    v2.12 makes normalized tables authoritative for daily draws and eat events.
+    v2.13 makes normalized tables authoritative for runtime startup snapshots.
     Compatibility documents remain transactionally synchronized only for export,
     rollback and older code paths; these hot writes no longer rebuild whole tables.
     """
@@ -25,7 +25,8 @@ class SQLiteStorage(StorageBackend):
     backend_name = "sqlite"
     supports_domain_reads = True
     supports_domain_writes = True
-    schema_version = 2
+    supports_runtime_snapshot = True
+    schema_version = 3
 
     def __init__(
         self,
@@ -180,6 +181,30 @@ class SQLiteStorage(StorageBackend):
                     content TEXT NOT NULL,
                     PRIMARY KEY (pig_id, generated_date)
                 );
+                CREATE TABLE IF NOT EXISTS ai_roast_generation_attempts (
+                    pig_id TEXT NOT NULL,
+                    generated_date TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    owner_token TEXT NOT NULL DEFAULT '',
+                    attempted_at REAL NOT NULL,
+                    completed_at REAL NOT NULL DEFAULT 0,
+                    PRIMARY KEY (pig_id, generated_date),
+                    CHECK (status IN ('generating', 'ready', 'failed'))
+                );
+                CREATE TABLE IF NOT EXISTS identity_claims (
+                    claim_kind TEXT NOT NULL,
+                    legacy_id TEXT NOT NULL,
+                    namespaced_id TEXT NOT NULL,
+                    PRIMARY KEY (claim_kind, legacy_id)
+                );
+                CREATE TABLE IF NOT EXISTS identity_aliases (
+                    namespace TEXT NOT NULL,
+                    alias_key TEXT NOT NULL,
+                    canonical_id TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    PRIMARY KEY (namespace, alias_key),
+                    UNIQUE (namespace, canonical_id)
+                );
                 CREATE TABLE IF NOT EXISTS catalog_overrides (
                     pig_id TEXT PRIMARY KEY,
                     payload_json TEXT NOT NULL
@@ -274,6 +299,101 @@ class SQLiteStorage(StorageBackend):
                 connection.execute(
                     "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, unixepoch())"
                 )
+                if 3 not in migrated:
+                    history_row = connection.execute(
+                        "SELECT payload FROM documents WHERE key = 'pig_history.json'"
+                    ).fetchone()
+                    try:
+                        history = (
+                            json.loads(str(history_row["payload"])) if history_row else {}
+                        )
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        history = {}
+                    claims_root = (
+                        history.get("identity_claims", {})
+                        if isinstance(history, dict)
+                        else {}
+                    )
+                    for claim_kind, claims in (
+                        claims_root.items() if isinstance(claims_root, dict) else []
+                    ):
+                        for legacy_id, namespaced_id in (
+                            claims.items() if isinstance(claims, dict) else []
+                        ):
+                            if str(legacy_id) and str(namespaced_id):
+                                connection.execute(
+                                    "INSERT OR REPLACE INTO identity_claims VALUES (?, ?, ?)",
+                                    (str(claim_kind), str(legacy_id), str(namespaced_id)),
+                                )
+                    aliases_root = (
+                        history.get("identity_aliases", {})
+                        if isinstance(history, dict)
+                        else {}
+                    )
+                    for namespace, bucket in (
+                        aliases_root.items() if isinstance(aliases_root, dict) else []
+                    ):
+                        by_alias = (
+                            bucket.get("by_alias", {})
+                            if isinstance(bucket, dict)
+                            else {}
+                        )
+                        by_user = (
+                            bucket.get("by_user", {})
+                            if isinstance(bucket, dict)
+                            else {}
+                        )
+                        for alias_key, canonical_id in (
+                            by_alias.items() if isinstance(by_alias, dict) else []
+                        ):
+                            username = (
+                                str(by_user.get(str(canonical_id)) or alias_key)
+                                if isinstance(by_user, dict)
+                                else str(alias_key)
+                            )
+                            if str(alias_key) and str(canonical_id):
+                                connection.execute(
+                                    "INSERT OR REPLACE INTO identity_aliases "
+                                    "(namespace, alias_key, canonical_id, username) "
+                                    "VALUES (?, ?, ?, ?)",
+                                    (
+                                        str(namespace),
+                                        str(alias_key).lower(),
+                                        str(canonical_id),
+                                        username.lstrip("@"),
+                                    ),
+                                )
+                    ai_row = connection.execute(
+                        "SELECT payload FROM documents WHERE key = 'ai_roast_copies.json'"
+                    ).fetchone()
+                    try:
+                        ai_document = json.loads(str(ai_row["payload"])) if ai_row else {}
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        ai_document = {}
+                    attempts_root = (
+                        ai_document.get("attempts", {})
+                        if isinstance(ai_document, dict)
+                        else {}
+                    )
+                    for pig_id, attempts in (
+                        attempts_root.items() if isinstance(attempts_root, dict) else []
+                    ):
+                        for generated_date, status in (
+                            attempts.items() if isinstance(attempts, dict) else []
+                        ):
+                            status_text = str(status)
+                            if status_text not in {"generating", "ready", "failed"}:
+                                continue
+                            connection.execute(
+                                "INSERT OR IGNORE INTO ai_roast_generation_attempts "
+                                "(pig_id, generated_date, status, owner_token, attempted_at, completed_at) "
+                                "VALUES (?, ?, ?, '', 0, 0)",
+                                (str(pig_id), str(generated_date), status_text),
+                            )
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (3, unixepoch())"
+                    )
                 connection.execute("COMMIT")
             except Exception:
                 if connection.in_transaction:
@@ -419,6 +539,8 @@ class SQLiteStorage(StorageBackend):
         connection.execute("DELETE FROM user_pigs")
         connection.execute("DELETE FROM user_stats")
         connection.execute("DELETE FROM pig_snapshots")
+        connection.execute("DELETE FROM identity_claims")
+        connection.execute("DELETE FROM identity_aliases")
         history = value if isinstance(value, dict) else {}
         users = history.get("users") if isinstance(history.get("users"), dict) else {}
         for user_id, raw_user in users.items():
@@ -506,6 +628,49 @@ class SQLiteStorage(StorageBackend):
                     "INSERT INTO pig_snapshots(pig_id, payload_json) VALUES (?, ?)",
                     (str(pig_id), json.dumps(snapshot, ensure_ascii=False, sort_keys=True)),
                 )
+
+        claims_root = (
+            history.get("identity_claims")
+            if isinstance(history.get("identity_claims"), dict)
+            else {}
+        )
+        for claim_kind, claims in claims_root.items():
+            for legacy_id, namespaced_id in (
+                claims.items() if isinstance(claims, dict) else []
+            ):
+                if str(legacy_id) and str(namespaced_id):
+                    connection.execute(
+                        "INSERT OR REPLACE INTO identity_claims VALUES (?, ?, ?)",
+                        (str(claim_kind), str(legacy_id), str(namespaced_id)),
+                    )
+
+        aliases_root = (
+            history.get("identity_aliases")
+            if isinstance(history.get("identity_aliases"), dict)
+            else {}
+        )
+        for namespace, bucket in aliases_root.items():
+            by_alias = (
+                bucket.get("by_alias", {}) if isinstance(bucket, dict) else {}
+            )
+            by_user = bucket.get("by_user", {}) if isinstance(bucket, dict) else {}
+            for alias_key, canonical_id in (
+                by_alias.items() if isinstance(by_alias, dict) else []
+            ):
+                alias_text = str(alias_key).lower()
+                canonical_text = str(canonical_id)
+                username = (
+                    str(by_user.get(canonical_text) or alias_key).lstrip("@")
+                    if isinstance(by_user, dict)
+                    else str(alias_key).lstrip("@")
+                )
+                if alias_text and canonical_text:
+                    connection.execute(
+                        "INSERT OR REPLACE INTO identity_aliases("
+                        "namespace, alias_key, canonical_id, username) "
+                        "VALUES (?, ?, ?, ?)",
+                        (str(namespace), alias_text, canonical_text, username),
+                    )
 
     def _project_roast_state(self, connection: sqlite3.Connection, value: Any) -> None:
         for table in (
@@ -602,6 +767,7 @@ class SQLiteStorage(StorageBackend):
     @staticmethod
     def _project_ai_copies(connection: sqlite3.Connection, value: Any) -> None:
         connection.execute("DELETE FROM ai_roast_copies")
+        connection.execute("DELETE FROM ai_roast_generation_attempts")
         root = value if isinstance(value, dict) else {}
         copies = root.get("copies") if isinstance(root.get("copies"), dict) else {}
         for pig_id, by_date in copies.items():
@@ -614,6 +780,22 @@ class SQLiteStorage(StorageBackend):
                         "INSERT INTO ai_roast_copies VALUES (?, ?, ?)",
                         (str(pig_id), str(generated_date), text),
                     )
+        attempts = (
+            root.get("attempts") if isinstance(root.get("attempts"), dict) else {}
+        )
+        for pig_id, by_date in attempts.items():
+            if not isinstance(by_date, dict):
+                continue
+            for generated_date, status in by_date.items():
+                status_text = str(status)
+                if status_text not in {"generating", "ready", "failed"}:
+                    continue
+                connection.execute(
+                    "INSERT OR REPLACE INTO ai_roast_generation_attempts("
+                    "pig_id, generated_date, status, owner_token, attempted_at, completed_at) "
+                    "VALUES (?, ?, ?, '', 0, 0)",
+                    (str(pig_id), str(generated_date), status_text),
+                )
 
     @staticmethod
     def _project_catalog_overrides(connection: sqlite3.Connection, value: Any) -> None:
@@ -770,6 +952,286 @@ class SQLiteStorage(StorageBackend):
     def _valid_dict(value: Any) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
+    def _history_document_from_sql(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, Any]:
+        history: dict[str, Any] = {
+            "version": 1,
+            "users": {},
+            "daily": {},
+            "pig_snapshots": {},
+            "identity_claims": {},
+            "identity_aliases": {},
+        }
+        users = history["users"]
+        for row in connection.execute(
+            "SELECT user_id, total_draws, active_days, duplicate_streak, payload_json "
+            "FROM user_stats ORDER BY user_id"
+        ).fetchall():
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                payload = {}
+            user = payload if isinstance(payload, dict) else {}
+            user["total_draws"] = int(row["total_draws"])
+            user["active_days"] = int(row["active_days"])
+            user["duplicate_streak"] = int(row["duplicate_streak"])
+            user["pigs"] = {}
+            users[str(row["user_id"])] = user
+        for row in connection.execute(
+            "SELECT user_id, pig_id, first_unlocked, last_drawn, draw_count "
+            "FROM user_pigs ORDER BY user_id, pig_id"
+        ).fetchall():
+            user_id = str(row["user_id"])
+            user = users.setdefault(
+                user_id,
+                {
+                    "total_draws": 0,
+                    "active_days": 0,
+                    "duplicate_streak": 0,
+                    "pigs": {},
+                },
+            )
+            user.setdefault("pigs", {})[str(row["pig_id"])] = {
+                "first_unlocked": str(row["first_unlocked"]),
+                "last_drawn": str(row["last_drawn"]),
+                "count": int(row["draw_count"]),
+            }
+        daily = history["daily"]
+        for row in connection.execute(
+            "SELECT draw_date, user_id, pig_id, original_pig_id, was_new_unlock "
+            "FROM daily_draws ORDER BY draw_date, user_id"
+        ).fetchall():
+            draw_date = str(row["draw_date"])
+            user_id = str(row["user_id"])
+            day = daily.setdefault(
+                draw_date,
+                {
+                    "draws": 0,
+                    "new_unlocks": 0,
+                    "users": [],
+                    "records": {},
+                    "eaten_originals": {},
+                    "groups": {},
+                },
+            )
+            day["draws"] = int(day.get("draws", 0)) + 1
+            day["new_unlocks"] = int(day.get("new_unlocks", 0)) + int(
+                row["was_new_unlock"]
+            )
+            day["users"].append(user_id)
+            day["records"][user_id] = str(row["pig_id"])
+            original = str(row["original_pig_id"] or "")
+            if original:
+                day["eaten_originals"][user_id] = original
+        for row in connection.execute(
+            "SELECT draw_date, user_id, group_id FROM daily_draw_groups "
+            "ORDER BY draw_date, group_id, user_id"
+        ).fetchall():
+            day = daily.setdefault(
+                str(row["draw_date"]),
+                {
+                    "draws": 0,
+                    "new_unlocks": 0,
+                    "users": [],
+                    "records": {},
+                    "eaten_originals": {},
+                    "groups": {},
+                },
+            )
+            members = day["groups"].setdefault(str(row["group_id"]), [])
+            user_id = str(row["user_id"])
+            if user_id not in members:
+                members.append(user_id)
+        for day in daily.values():
+            day["users"] = list(dict.fromkeys(str(item) for item in day["users"]))
+            if not day["eaten_originals"]:
+                day.pop("eaten_originals", None)
+        for row in connection.execute(
+            "SELECT pig_id, payload_json FROM pig_snapshots ORDER BY pig_id"
+        ).fetchall():
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict):
+                history["pig_snapshots"][str(row["pig_id"])] = payload
+        for row in connection.execute(
+            "SELECT claim_kind, legacy_id, namespaced_id FROM identity_claims "
+            "ORDER BY claim_kind, legacy_id"
+        ).fetchall():
+            history["identity_claims"].setdefault(str(row["claim_kind"]), {})[
+                str(row["legacy_id"])
+            ] = str(row["namespaced_id"])
+        for row in connection.execute(
+            "SELECT namespace, alias_key, canonical_id, username FROM identity_aliases "
+            "ORDER BY namespace, alias_key"
+        ).fetchall():
+            bucket = history["identity_aliases"].setdefault(
+                str(row["namespace"]), {"by_alias": {}, "by_user": {}}
+            )
+            bucket["by_alias"][str(row["alias_key"])] = str(row["canonical_id"])
+            bucket["by_user"][str(row["canonical_id"])] = str(row["username"])
+        return history
+
+    def _roast_document_from_sql(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, Any]:
+        roast = self._roast_document_default()
+        roast["cooldowns"] = {
+            str(row["cooldown_key"]): float(row["last_used_at"])
+            for row in connection.execute(
+                "SELECT cooldown_key, last_used_at FROM roast_cooldowns "
+                "ORDER BY cooldown_key"
+            ).fetchall()
+        }
+        roast["daily_roast_counts"] = {
+            self._event_key(
+                str(row["draw_date"]), str(row["group_id"]), str(row["user_id"])
+            ): int(row["roast_count"])
+            for row in connection.execute(
+                "SELECT draw_date, group_id, user_id, roast_count "
+                "FROM daily_roast_counts ORDER BY draw_date, group_id, user_id"
+            ).fetchall()
+            if int(row["roast_count"]) > 0
+        }
+        roast["daily_backdoors"] = {
+            str(row["backdoor_key"]): True
+            for row in connection.execute(
+                "SELECT backdoor_key FROM daily_backdoors WHERE used = 1 "
+                "ORDER BY draw_date, actor_id"
+            ).fetchall()
+        }
+        penalties: dict[str, Any] = {}
+        for row in connection.execute(
+            "SELECT user_id, due_date, failed, payload_json FROM eaten_penalties "
+            "ORDER BY user_id"
+        ).fetchall():
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                payload = {}
+            entry = payload if isinstance(payload, dict) else {}
+            entry["due_date"] = str(row["due_date"])
+            entry["failed"] = bool(row["failed"])
+            penalties[str(row["user_id"])] = entry
+        roast["eaten_penalties"] = penalties
+        events: dict[str, Any] = {}
+        for row in connection.execute(
+            "SELECT event_key, actor_id, outcome, created_at, payload_json "
+            "FROM eaten_events ORDER BY event_date, group_id, user_id"
+        ).fetchall():
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                payload = {}
+            entry = payload if isinstance(payload, dict) else {}
+            entry["actor_id"] = str(row["actor_id"])
+            entry["outcome"] = str(row["outcome"])
+            entry["at"] = int(row["created_at"])
+            events[str(row["event_key"])] = entry
+        roast["eaten_events"] = events
+        return roast
+
+    def _catalog_documents_from_sql(
+        self, connection: sqlite3.Connection
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        overrides: list[dict[str, Any]] = []
+        for row in connection.execute(
+            "SELECT pig_id, payload_json FROM catalog_overrides ORDER BY rowid"
+        ).fetchall():
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict) and str(payload.get("id") or row["pig_id"]):
+                payload["id"] = str(payload.get("id") or row["pig_id"])
+                overrides.append(payload)
+        tombstones = [
+            str(row["pig_id"])
+            for row in connection.execute(
+                "SELECT pig_id FROM catalog_tombstones ORDER BY pig_id"
+            ).fetchall()
+        ]
+        return overrides, tombstones
+
+    def _today_document_from_sql(
+        self, connection: sqlite3.Connection, preferred_date: str = ""
+    ) -> dict[str, Any]:
+        selected_date = str(preferred_date or "")
+        if not selected_date:
+            row = connection.execute("SELECT MAX(draw_date) FROM daily_draws").fetchone()
+            selected_date = str(row[0] or "") if row else ""
+        records: dict[str, Any] = {}
+        if selected_date:
+            rows = connection.execute(
+                "SELECT user_id, pig_id FROM daily_draws "
+                "WHERE draw_date = ? ORDER BY user_id",
+                (selected_date,),
+            ).fetchall()
+            for row in rows:
+                pig_id = str(row["pig_id"])
+                snapshot = connection.execute(
+                    "SELECT payload_json FROM pig_snapshots WHERE pig_id = ?",
+                    (pig_id,),
+                ).fetchone()
+                if snapshot:
+                    try:
+                        payload = json.loads(str(snapshot["payload_json"]))
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        payload = {"id": pig_id}
+                else:
+                    payload = {"id": pig_id}
+                records[str(row["user_id"])] = (
+                    payload if isinstance(payload, dict) else {"id": pig_id}
+                )
+        return {"date": selected_date, "records": records}
+
+    def _compatibility_documents_from_sql(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, Any]:
+        overrides, tombstones = self._catalog_documents_from_sql(connection)
+        return {
+            "pig_history.json": self._history_document_from_sql(connection),
+            "roast_state.json": self._roast_document_from_sql(connection),
+            "ai_roast_copies.json": self._ai_document_from_sql(connection),
+            "local_overrides.json": overrides,
+            "deleted_pigs.json": tombstones,
+            "rollpig_today.json": self._today_document_from_sql(connection),
+        }
+
+    def _repair_compatibility_documents_tx(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, Any]:
+        documents = self._compatibility_documents_from_sql(connection)
+        now = int(time.time())
+        for key, value in documents.items():
+            self._write_document_tx(connection, key, value, updated_at=now)
+        return documents
+
+    @staticmethod
+    def _write_authority(connection: sqlite3.Connection) -> str:
+        row = connection.execute(
+            "SELECT value FROM projection_meta WHERE key = 'write_authority'"
+        ).fetchone()
+        return str(row[0] or "") if row else ""
+
+    def load_runtime_snapshot(self) -> dict[str, Any]:
+        """Rebuild detached runtime state from normalized SQL tables only."""
+        with self._lock, self._connection() as connection:
+            history = self._history_document_from_sql(connection)
+            roast = self._roast_document_from_sql(connection)
+            ai = self._ai_document_from_sql(connection)
+            overrides, tombstones = self._catalog_documents_from_sql(connection)
+        return {
+            "source": "normalized-sql-v3",
+            "history": history,
+            "roast_state": roast,
+            "ai_roast_copies": ai,
+            "catalog_overrides": overrides,
+            "catalog_tombstones": tombstones,
+        }
+
     def claim_legacy_identity(
         self,
         *,
@@ -778,33 +1240,33 @@ class SQLiteStorage(StorageBackend):
         kind: str,
         accepted_claims: tuple[str, ...] = (),
     ) -> dict[str, Any]:
-        """Atomically claim one ambiguous legacy key without rewriting projections."""
+        """Atomically claim one ambiguous legacy key in normalized SQL."""
         namespaced = str(namespaced)
         legacy = str(legacy)
+        kind = str(kind)
         accepted = {str(item) for item in accepted_claims if str(item)}
         accepted.add(namespaced)
         with self.transaction() as connection:
-            history = self._valid_dict(
-                self._read_document_tx(
-                    connection,
-                    "pig_history.json",
-                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
-                )
-            )
-            claims_root = history.get("identity_claims")
-            if not isinstance(claims_root, dict):
-                claims_root = {}
-                history["identity_claims"] = claims_root
-            claims = claims_root.get(str(kind))
-            if not isinstance(claims, dict):
-                claims = {}
-                claims_root[str(kind)] = claims
-            claimed_by = str(claims.get(legacy) or "")
+            row = connection.execute(
+                "SELECT namespaced_id FROM identity_claims "
+                "WHERE claim_kind = ? AND legacy_id = ?",
+                (kind, legacy),
+            ).fetchone()
+            claimed_by = str(row["namespaced_id"] if row else "")
             claimed = not claimed_by or claimed_by in accepted
             changed = claimed and claimed_by != namespaced
             if changed:
-                claims[legacy] = namespaced
+                connection.execute(
+                    "INSERT INTO identity_claims(claim_kind, legacy_id, namespaced_id) "
+                    "VALUES (?, ?, ?) ON CONFLICT(claim_kind, legacy_id) DO UPDATE SET "
+                    "namespaced_id = excluded.namespaced_id",
+                    (kind, legacy, namespaced),
+                )
+                history = self._history_document_from_sql(connection)
                 self._write_document_tx(connection, "pig_history.json", history)
+            else:
+                history = self._history_document_from_sql(connection)
+            self._set_write_authority(connection)
             return {
                 "claimed": claimed,
                 "storage_key": legacy if claimed else namespaced,
@@ -818,49 +1280,38 @@ class SQLiteStorage(StorageBackend):
         canonical_id: str,
         username: str,
     ) -> dict[str, Any]:
-        """Merge one Telegram alias into the latest history document atomically."""
+        """Merge one username alias through normalized SQL uniqueness."""
         namespace = str(namespace)
         canonical_id = str(canonical_id)
         username = str(username).lstrip("@")
         alias_key = username.lower()
         with self.transaction() as connection:
-            history = self._valid_dict(
-                self._read_document_tx(
-                    connection,
-                    "pig_history.json",
-                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
-                )
-            )
-            aliases_root = history.get("identity_aliases")
-            if not isinstance(aliases_root, dict):
-                aliases_root = {}
-                history["identity_aliases"] = aliases_root
-            bucket = aliases_root.get(namespace)
-            if not isinstance(bucket, dict):
-                bucket = {"by_alias": {}, "by_user": {}}
-                aliases_root[namespace] = bucket
-            by_alias = bucket.get("by_alias")
-            if not isinstance(by_alias, dict):
-                by_alias = {}
-                bucket["by_alias"] = by_alias
-            by_user = bucket.get("by_user")
-            if not isinstance(by_user, dict):
-                by_user = {}
-                bucket["by_user"] = by_user
+            row = connection.execute(
+                "SELECT canonical_id, username FROM identity_aliases "
+                "WHERE namespace = ? AND alias_key = ?",
+                (namespace, alias_key),
+            ).fetchone()
             changed = not (
-                by_alias.get(alias_key) == canonical_id
-                and by_user.get(canonical_id) == username
+                row
+                and str(row["canonical_id"]) == canonical_id
+                and str(row["username"]) == username
             )
             if changed:
-                previous_user = str(by_alias.get(alias_key) or "")
-                if previous_user and previous_user != canonical_id:
-                    by_user.pop(previous_user, None)
-                previous_alias = str(by_user.get(canonical_id) or "").lower()
-                if previous_alias and previous_alias != alias_key:
-                    by_alias.pop(previous_alias, None)
-                by_alias[alias_key] = canonical_id
-                by_user[canonical_id] = username
+                connection.execute(
+                    "DELETE FROM identity_aliases "
+                    "WHERE namespace = ? AND (alias_key = ? OR canonical_id = ?)",
+                    (namespace, alias_key, canonical_id),
+                )
+                connection.execute(
+                    "INSERT INTO identity_aliases(" 
+                    "namespace, alias_key, canonical_id, username) VALUES (?, ?, ?, ?)",
+                    (namespace, alias_key, canonical_id, username),
+                )
+                history = self._history_document_from_sql(connection)
                 self._write_document_tx(connection, "pig_history.json", history)
+            else:
+                history = self._history_document_from_sql(connection)
+            self._set_write_authority(connection)
             return {"changed": changed, "history": history}
 
     @staticmethod
@@ -876,13 +1327,13 @@ class SQLiteStorage(StorageBackend):
 
     @staticmethod
     def _ai_document_default() -> dict[str, Any]:
-        return {"version": 1, "copies": {}}
+        return {"version": 2, "copies": {}, "attempts": {}}
 
     @staticmethod
     def _set_write_authority(connection: sqlite3.Connection) -> None:
         connection.execute(
             "INSERT INTO projection_meta(key, value) VALUES "
-            "('write_authority', 'sql-primary-v2.12') "
+            "('write_authority', 'sql-primary-v2.13') "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         )
 
@@ -922,16 +1373,7 @@ class SQLiteStorage(StorageBackend):
                 """,
                 (cooldown_key, group_id, actor_id, now),
             )
-            roast = self._valid_dict(
-                self._read_document_tx(
-                    connection, "roast_state.json", self._roast_document_default()
-                )
-            )
-            cooldowns = roast.get("cooldowns")
-            if not isinstance(cooldowns, dict):
-                cooldowns = {}
-                roast["cooldowns"] = cooldowns
-            cooldowns[cooldown_key] = now
+            roast = self._roast_document_from_sql(connection)
             self._write_document_tx(connection, "roast_state.json", roast)
             self._set_write_authority(connection)
             return {"remaining": 0, "claimed": True, "roast_state": roast}
@@ -971,24 +1413,7 @@ class SQLiteStorage(StorageBackend):
                 "DELETE FROM daily_roast_counts WHERE draw_date < ?",
                 (str(cutoff_date),),
             )
-            rows = connection.execute(
-                "SELECT draw_date, group_id, user_id, roast_count "
-                "FROM daily_roast_counts ORDER BY draw_date, group_id, user_id"
-            ).fetchall()
-            roast = self._valid_dict(
-                self._read_document_tx(
-                    connection, "roast_state.json", self._roast_document_default()
-                )
-            )
-            roast["daily_roast_counts"] = {
-                self._event_key(
-                    str(row["draw_date"]),
-                    str(row["group_id"]),
-                    str(row["user_id"]),
-                ): int(row["roast_count"])
-                for row in rows
-                if int(row["roast_count"]) > 0
-            }
+            roast = self._roast_document_from_sql(connection)
             self._write_document_tx(connection, "roast_state.json", roast)
             self._set_write_authority(connection)
             return {"count": total, "roast_state": roast}
@@ -1032,18 +1457,7 @@ class SQLiteStorage(StorageBackend):
                 "DELETE FROM daily_backdoors WHERE draw_date < ?",
                 (str(cutoff_date),),
             )
-            rows = connection.execute(
-                "SELECT backdoor_key FROM daily_backdoors "
-                "WHERE used = 1 ORDER BY draw_date, actor_id"
-            ).fetchall()
-            roast = self._valid_dict(
-                self._read_document_tx(
-                    connection, "roast_state.json", self._roast_document_default()
-                )
-            )
-            roast["daily_backdoors"] = {
-                str(row["backdoor_key"]): True for row in rows
-            }
+            roast = self._roast_document_from_sql(connection)
             self._write_document_tx(connection, "roast_state.json", roast)
             self._set_write_authority(connection)
             return {"consumed": True, "roast_state": roast}
@@ -1051,11 +1465,7 @@ class SQLiteStorage(StorageBackend):
     def _ai_document_from_sql(
         self, connection: sqlite3.Connection
     ) -> dict[str, Any]:
-        document = self._valid_dict(
-            self._read_document_tx(
-                connection, "ai_roast_copies.json", self._ai_document_default()
-            )
-        )
+        document = self._ai_document_default()
         copies: dict[str, dict[str, str]] = {}
         for row in connection.execute(
             "SELECT pig_id, generated_date, content FROM ai_roast_copies "
@@ -1064,8 +1474,39 @@ class SQLiteStorage(StorageBackend):
             copies.setdefault(str(row["pig_id"]), {})[
                 str(row["generated_date"])
             ] = str(row["content"])
+        attempts: dict[str, dict[str, str]] = {}
+        for row in connection.execute(
+            "SELECT pig_id, generated_date, status FROM ai_roast_generation_attempts "
+            "ORDER BY pig_id, generated_date"
+        ).fetchall():
+            attempts.setdefault(str(row["pig_id"]), {})[
+                str(row["generated_date"])
+            ] = str(row["status"])
         document["copies"] = copies
+        document["attempts"] = attempts
         return document
+
+    @staticmethod
+    def _selected_ai_copies(document: dict[str, Any], pig_id: str) -> dict[str, str]:
+        copies = document.get("copies", {})
+        selected = copies.get(str(pig_id), {}) if isinstance(copies, dict) else {}
+        return dict(selected) if isinstance(selected, dict) else {}
+
+    @staticmethod
+    def _prune_ai_rows(
+        connection: sqlite3.Connection, cutoff_date: str, through_date: str
+    ) -> None:
+        bounds = (str(cutoff_date), str(through_date))
+        connection.execute(
+            "DELETE FROM ai_roast_copies "
+            "WHERE generated_date < ? OR generated_date > ?",
+            bounds,
+        )
+        connection.execute(
+            "DELETE FROM ai_roast_generation_attempts "
+            "WHERE generated_date < ? OR generated_date > ?",
+            bounds,
+        )
 
     def get_ai_roast_copies(
         self,
@@ -1074,20 +1515,130 @@ class SQLiteStorage(StorageBackend):
         cutoff_date: str,
         through_date: str,
     ) -> dict[str, Any]:
-        """Read the seven-day cache from SQL and prune invalid dates."""
+        """Read the rolling seven-day cache from normalized SQL."""
         pig_id = str(pig_id)
         with self.transaction() as connection:
-            connection.execute(
-                "DELETE FROM ai_roast_copies "
-                "WHERE generated_date < ? OR generated_date > ?",
-                (str(cutoff_date), str(through_date)),
-            )
+            self._prune_ai_rows(connection, cutoff_date, through_date)
             document = self._ai_document_from_sql(connection)
             self._write_document_tx(connection, "ai_roast_copies.json", document)
             self._set_write_authority(connection)
-            selected = document.get("copies", {}).get(pig_id, {})
             return {
-                "copies": dict(selected) if isinstance(selected, dict) else {},
+                "copies": self._selected_ai_copies(document, pig_id),
+                "ai_roast_copies": document,
+            }
+
+    def claim_ai_roast_generation(
+        self,
+        *,
+        pig_id: str,
+        generated_date: str,
+        owner_token: str,
+        attempted_at: float,
+        cutoff_date: str,
+        through_date: str,
+    ) -> dict[str, Any]:
+        """Grant the one model-call opportunity for one pig and date."""
+        pig_id = str(pig_id).strip()
+        generated_date = str(generated_date)
+        owner_token = str(owner_token).strip()
+        if not pig_id or not generated_date or not owner_token:
+            raise ValueError("AI 文案生成权参数无效")
+        with self.transaction() as connection:
+            self._prune_ai_rows(connection, cutoff_date, through_date)
+            cached = connection.execute(
+                "SELECT content FROM ai_roast_copies "
+                "WHERE pig_id = ? AND generated_date = ?",
+                (pig_id, generated_date),
+            ).fetchone()
+            if cached:
+                document = self._ai_document_from_sql(connection)
+                self._write_document_tx(connection, "ai_roast_copies.json", document)
+                self._set_write_authority(connection)
+                return {
+                    "claimed": False,
+                    "status": "ready",
+                    "content": str(cached["content"]),
+                    "copies": self._selected_ai_copies(document, pig_id),
+                    "ai_roast_copies": document,
+                }
+            cursor = connection.execute(
+                "INSERT OR IGNORE INTO ai_roast_generation_attempts(" 
+                "pig_id, generated_date, status, owner_token, attempted_at, completed_at) "
+                "VALUES (?, ?, 'generating', ?, ?, 0)",
+                (pig_id, generated_date, owner_token, float(attempted_at)),
+            )
+            row = connection.execute(
+                "SELECT status, owner_token FROM ai_roast_generation_attempts "
+                "WHERE pig_id = ? AND generated_date = ?",
+                (pig_id, generated_date),
+            ).fetchone()
+            document = self._ai_document_from_sql(connection)
+            self._write_document_tx(connection, "ai_roast_copies.json", document)
+            self._set_write_authority(connection)
+            return {
+                "claimed": cursor.rowcount == 1,
+                "status": str(row["status"]),
+                "owner": str(row["owner_token"]),
+                "copies": self._selected_ai_copies(document, pig_id),
+                "ai_roast_copies": document,
+            }
+
+    def complete_ai_roast_generation(
+        self,
+        *,
+        pig_id: str,
+        generated_date: str,
+        owner_token: str,
+        content: str,
+        completed_at: float,
+        cutoff_date: str,
+        through_date: str,
+    ) -> dict[str, Any]:
+        """Finish the unique daily attempt as ready or failed."""
+        pig_id = str(pig_id).strip()
+        generated_date = str(generated_date)
+        owner_token = str(owner_token).strip()
+        text = str(content or "").strip()
+        with self.transaction() as connection:
+            self._prune_ai_rows(connection, cutoff_date, through_date)
+            attempt = connection.execute(
+                "SELECT status, owner_token FROM ai_roast_generation_attempts "
+                "WHERE pig_id = ? AND generated_date = ?",
+                (pig_id, generated_date),
+            ).fetchone()
+            if not attempt or str(attempt["owner_token"]) != owner_token:
+                raise ValueError("AI 文案生成权已失效")
+            if text:
+                connection.execute(
+                    "INSERT OR IGNORE INTO ai_roast_copies(" 
+                    "pig_id, generated_date, content) VALUES (?, ?, ?)",
+                    (pig_id, generated_date, text),
+                )
+                connection.execute(
+                    "UPDATE ai_roast_generation_attempts SET "
+                    "status = 'ready', completed_at = ? "
+                    "WHERE pig_id = ? AND generated_date = ? AND owner_token = ?",
+                    (float(completed_at), pig_id, generated_date, owner_token),
+                )
+            else:
+                connection.execute(
+                    "UPDATE ai_roast_generation_attempts SET "
+                    "status = 'failed', completed_at = ? "
+                    "WHERE pig_id = ? AND generated_date = ? AND owner_token = ?",
+                    (float(completed_at), pig_id, generated_date, owner_token),
+                )
+            stored = connection.execute(
+                "SELECT content FROM ai_roast_copies "
+                "WHERE pig_id = ? AND generated_date = ?",
+                (pig_id, generated_date),
+            ).fetchone()
+            document = self._ai_document_from_sql(connection)
+            self._write_document_tx(connection, "ai_roast_copies.json", document)
+            self._set_write_authority(connection)
+            return {
+                "status": "ready" if stored else "failed",
+                "content": str(stored["content"]) if stored else "",
+                "copies": self._selected_ai_copies(document, pig_id),
                 "ai_roast_copies": document,
             }
 
@@ -1100,22 +1651,26 @@ class SQLiteStorage(StorageBackend):
         cutoff_date: str,
         through_date: str,
     ) -> dict[str, Any]:
-        """Store one copy; the first cross-process writer wins for the day."""
+        """Compatibility writer; direct callers mark the attempt ready."""
         pig_id = str(pig_id)
         generated_date = str(generated_date)
         content = str(content).strip()
         if not pig_id or not generated_date or not content:
             raise ValueError("AI 文案缓存参数无效")
         with self.transaction() as connection:
-            connection.execute(
-                "DELETE FROM ai_roast_copies "
-                "WHERE generated_date < ? OR generated_date > ?",
-                (str(cutoff_date), str(through_date)),
-            )
+            self._prune_ai_rows(connection, cutoff_date, through_date)
             cursor = connection.execute(
                 "INSERT OR IGNORE INTO ai_roast_copies(" 
                 "pig_id, generated_date, content) VALUES (?, ?, ?)",
                 (pig_id, generated_date, content),
+            )
+            connection.execute(
+                "INSERT INTO ai_roast_generation_attempts(" 
+                "pig_id, generated_date, status, owner_token, attempted_at, completed_at) "
+                "VALUES (?, ?, 'ready', '', ?, ?) "
+                "ON CONFLICT(pig_id, generated_date) DO UPDATE SET "
+                "status = 'ready', completed_at = excluded.completed_at",
+                (pig_id, generated_date, time.time(), time.time()),
             )
             stored = connection.execute(
                 "SELECT content FROM ai_roast_copies "
@@ -1125,11 +1680,10 @@ class SQLiteStorage(StorageBackend):
             document = self._ai_document_from_sql(connection)
             self._write_document_tx(connection, "ai_roast_copies.json", document)
             self._set_write_authority(connection)
-            selected = document.get("copies", {}).get(pig_id, {})
             return {
                 "created": cursor.rowcount == 1,
                 "content": str(stored["content"]),
-                "copies": dict(selected) if isinstance(selected, dict) else {},
+                "copies": self._selected_ai_copies(document, pig_id),
                 "ai_roast_copies": document,
             }
 
@@ -1150,32 +1704,7 @@ class SQLiteStorage(StorageBackend):
             connection.execute(
                 "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)
             )
-            raw_overrides = self._read_document_tx(
-                connection, "local_overrides.json", []
-            )
-            overrides = [
-                dict(item)
-                for item in raw_overrides if isinstance(raw_overrides, list)
-                if isinstance(item, dict) and str(item.get("id") or "")
-            ]
-            index = next(
-                (i for i, item in enumerate(overrides) if str(item["id"]) == pig_id),
-                None,
-            )
-            if index is None:
-                overrides.append(payload)
-            else:
-                overrides[index] = payload
-            raw_tombstones = self._read_document_tx(
-                connection, "deleted_pigs.json", []
-            )
-            tombstones = sorted(
-                {
-                    str(item)
-                    for item in raw_tombstones if isinstance(raw_tombstones, list)
-                    if str(item) and str(item) != pig_id
-                }
-            )
+            overrides, tombstones = self._catalog_documents_from_sql(connection)
             self._write_document_tx(connection, "local_overrides.json", overrides)
             self._write_document_tx(connection, "deleted_pigs.json", tombstones)
             self._set_write_authority(connection)
@@ -1194,23 +1723,7 @@ class SQLiteStorage(StorageBackend):
                 "INSERT OR IGNORE INTO catalog_tombstones(pig_id) VALUES (?)",
                 (pig_id,),
             )
-            raw_overrides = self._read_document_tx(
-                connection, "local_overrides.json", []
-            )
-            overrides = [
-                dict(item)
-                for item in raw_overrides if isinstance(raw_overrides, list)
-                if isinstance(item, dict) and str(item.get("id") or "") != pig_id
-            ]
-            raw_tombstones = self._read_document_tx(
-                connection, "deleted_pigs.json", []
-            )
-            tombstones = sorted(
-                {
-                    *(str(item) for item in raw_tombstones if isinstance(raw_tombstones, list) and str(item)),
-                    pig_id,
-                }
-            )
+            overrides, tombstones = self._catalog_documents_from_sql(connection)
             self._write_document_tx(connection, "local_overrides.json", overrides)
             self._write_document_tx(connection, "deleted_pigs.json", tombstones)
             self._set_write_authority(connection)
@@ -1238,32 +1751,10 @@ class SQLiteStorage(StorageBackend):
         canonical_id = str(user_id)
         candidates = self._ordered_candidates(canonical_id, user_candidates)
         now = int(time.time())
-        history_default = {
-            "version": 1,
-            "users": {},
-            "daily": {},
-            "pig_snapshots": {},
-        }
-        roast_default = {
-            "version": 1,
-            "cooldowns": {},
-            "daily_backdoors": {},
-            "daily_roast_counts": {},
-            "eaten_penalties": {},
-            "eaten_events": {},
-        }
-        today_default = {"date": draw_date, "records": {}}
-
         with self.transaction() as connection:
-            history = self._valid_dict(
-                self._read_document_tx(connection, "pig_history.json", history_default)
-            )
-            roast = self._valid_dict(
-                self._read_document_tx(connection, "roast_state.json", roast_default)
-            )
-            today_doc = self._valid_dict(
-                self._read_document_tx(connection, "rollpig_today.json", today_default)
-            )
+            history = self._history_document_from_sql(connection)
+            roast = self._roast_document_from_sql(connection)
+            today_doc = self._today_document_from_sql(connection, draw_date)
 
             existing = None
             for candidate in candidates:
@@ -1327,7 +1818,7 @@ class SQLiteStorage(StorageBackend):
                 )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.12') "
+                    "('write_authority', 'sql-primary-v2.13') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -1385,7 +1876,7 @@ class SQLiteStorage(StorageBackend):
                     )
                     connection.execute(
                         "INSERT INTO projection_meta(key, value) VALUES "
-                        "('write_authority', 'sql-primary-v2.12') "
+                        "('write_authority', 'sql-primary-v2.13') "
                         "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                     )
                     return {
@@ -1413,7 +1904,7 @@ class SQLiteStorage(StorageBackend):
                     )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.12') "
+                    "('write_authority', 'sql-primary-v2.13') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -1562,7 +2053,7 @@ class SQLiteStorage(StorageBackend):
                 )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.12') "
+                "('write_authority', 'sql-primary-v2.13') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {
@@ -1677,34 +2168,9 @@ class SQLiteStorage(StorageBackend):
                 "DELETE FROM eaten_penalties WHERE due_date < ?", (draw_date,)
             )
 
-            history = self._valid_dict(
-                self._read_document_tx(
-                    connection,
-                    "pig_history.json",
-                    {"version": 1, "users": {}, "daily": {}, "pig_snapshots": {}},
-                )
-            )
-            roast = self._valid_dict(
-                self._read_document_tx(
-                    connection,
-                    "roast_state.json",
-                    {
-                        "version": 1,
-                        "cooldowns": {},
-                        "daily_backdoors": {},
-                        "daily_roast_counts": {},
-                        "eaten_penalties": {},
-                        "eaten_events": {},
-                    },
-                )
-            )
-            today_doc = self._valid_dict(
-                self._read_document_tx(
-                    connection,
-                    "rollpig_today.json",
-                    {"date": draw_date, "records": {}},
-                )
-            )
+            history = self._history_document_from_sql(connection)
+            roast = self._roast_document_from_sql(connection)
+            today_doc = self._today_document_from_sql(connection, draw_date)
             if today_doc.get("date") != draw_date:
                 today_doc = {"date": draw_date, "records": {}}
             today_doc.setdefault("records", {})[actual_id] = eaten_payload
@@ -1752,7 +2218,7 @@ class SQLiteStorage(StorageBackend):
             )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.12') "
+                "('write_authority', 'sql-primary-v2.13') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {
@@ -1807,6 +2273,43 @@ class SQLiteStorage(StorageBackend):
                 len(membership.get(str(user_id), set())) for user_id in records
             )
 
+        claims_root = (
+            history.get("identity_claims")
+            if isinstance(history.get("identity_claims"), dict)
+            else {}
+        )
+        identity_claims = sum(
+            sum(1 for legacy, target in claims.items() if str(legacy) and str(target))
+            for claims in claims_root.values()
+            if isinstance(claims, dict)
+        )
+        aliases_root = (
+            history.get("identity_aliases")
+            if isinstance(history.get("identity_aliases"), dict)
+            else {}
+        )
+        identity_aliases = 0
+        for bucket in aliases_root.values():
+            by_alias = bucket.get("by_alias", {}) if isinstance(bucket, dict) else {}
+            alias_to_user: dict[str, str] = {}
+            user_to_alias: dict[str, str] = {}
+            for alias, canonical in (
+                by_alias.items() if isinstance(by_alias, dict) else []
+            ):
+                alias_key = str(alias).lower()
+                user_id = str(canonical)
+                if not alias_key or not user_id:
+                    continue
+                previous_user = alias_to_user.get(alias_key)
+                if previous_user:
+                    user_to_alias.pop(previous_user, None)
+                previous_alias = user_to_alias.get(user_id)
+                if previous_alias:
+                    alias_to_user.pop(previous_alias, None)
+                alias_to_user[alias_key] = user_id
+                user_to_alias[user_id] = alias_key
+            identity_aliases += len(alias_to_user)
+
         roast = documents.get("roast_state.json")
         roast = roast if isinstance(roast, dict) else {}
         counts = roast.get("daily_roast_counts")
@@ -1817,7 +2320,6 @@ class SQLiteStorage(StorageBackend):
             except (TypeError, ValueError, json.JSONDecodeError):
                 continue
             valid_roast_counts += int(isinstance(parsed, list) and len(parsed) == 3)
-
         events = roast.get("eaten_events")
         valid_events = 0
         for raw_key, entry in events.items() if isinstance(events, dict) else ():
@@ -1828,20 +2330,29 @@ class SQLiteStorage(StorageBackend):
             except (TypeError, ValueError, json.JSONDecodeError):
                 continue
             valid_events += int(isinstance(parsed, list) and len(parsed) == 3)
-
         backdoors = roast.get("daily_backdoors")
         valid_backdoors = sum(
             1
-            for raw_key in backdoors if isinstance(backdoors, dict)
+            for raw_key in (backdoors if isinstance(backdoors, dict) else {})
             if ":" in str(raw_key) and str(raw_key).partition(":")[2]
         )
 
         ai = documents.get("ai_roast_copies.json")
         ai = ai if isinstance(ai, dict) else {}
         copies = ai.get("copies") if isinstance(ai.get("copies"), dict) else {}
+        attempts = ai.get("attempts") if isinstance(ai.get("attempts"), dict) else {}
         ai_count = sum(
             sum(1 for content in value.values() if str(content or "").strip())
             for value in copies.values()
+            if isinstance(value, dict)
+        )
+        attempt_count = sum(
+            sum(
+                1
+                for status in value.values()
+                if str(status) in {"generating", "ready", "failed"}
+            )
+            for value in attempts.values()
             if isinstance(value, dict)
         )
         overrides = documents.get("local_overrides.json")
@@ -1856,6 +2367,8 @@ class SQLiteStorage(StorageBackend):
             "pig_snapshots": sum(
                 1 for value in snapshots.values() if isinstance(value, dict)
             ),
+            "identity_claims": identity_claims,
+            "identity_aliases": identity_aliases,
             "eaten_penalties": sum(
                 1 for value in penalties.values() if isinstance(value, dict)
             )
@@ -1866,6 +2379,7 @@ class SQLiteStorage(StorageBackend):
             "daily_roast_counts": valid_roast_counts,
             "daily_backdoors": valid_backdoors,
             "ai_roast_copies": ai_count,
+            "ai_roast_generation_attempts": attempt_count,
             "catalog_overrides": sum(
                 1
                 for value in overrides
@@ -1880,24 +2394,71 @@ class SQLiteStorage(StorageBackend):
 
     def _projection_health(self, connection: sqlite3.Connection) -> dict[str, Any]:
         rows = connection.execute("SELECT key, payload FROM documents").fetchall()
-        documents = {
-            str(row["key"]): self._decode(str(row["payload"])) for row in rows
-        }
-        expected = self._expected_projection_counts(documents)
+        documents: dict[str, Any] = {}
+        decode_errors: dict[str, str] = {}
+        for row in rows:
+            key = str(row["key"])
+            try:
+                documents[key] = self._decode(str(row["payload"]))
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                decode_errors[key] = str(exc)
+        authority = self._write_authority(connection)
+        document_mismatches: dict[str, Any] = {}
+
+        def semantic_value(value: Any) -> Any:
+            if isinstance(value, dict):
+                normalized: dict[str, Any] = {}
+                for item_key, item_value in value.items():
+                    if str(item_key) == "version":
+                        continue
+                    normalized_value = semantic_value(item_value)
+                    if normalized_value in ({}, [], None):
+                        continue
+                    normalized[str(item_key)] = normalized_value
+                return normalized
+            if isinstance(value, list):
+                return [semantic_value(item) for item in value]
+            return value
+
+        if authority.startswith("sql-primary-"):
+            authoritative = self._compatibility_documents_from_sql(connection)
+            for key, expected_value in authoritative.items():
+                actual_value = documents.get(key)
+                expected_compare = semantic_value(expected_value)
+                actual_compare = semantic_value(actual_value)
+                if key in decode_errors or actual_compare != expected_compare:
+                    document_mismatches[f"document:{key}"] = {
+                        "expected": "normalized-sql",
+                        "actual": "invalid-or-stale",
+                    }
+            expected = self._expected_projection_counts(authoritative)
+        else:
+            expected = self._expected_projection_counts(documents)
         actual = {
             table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
             for table in expected
         }
-        mismatches = {
+        table_mismatches = {
             table: {"expected": expected[table], "actual": actual[table]}
             for table in expected
             if expected[table] != actual[table]
         }
+        mismatches = {**table_mismatches, **document_mismatches}
+        for key, message in decode_errors.items():
+            if not authority.startswith("sql-primary-") or key not in {
+                item.removeprefix("document:") for item in document_mismatches
+            }:
+                mismatches[f"document:{key}"] = {
+                    "expected": "valid-json",
+                    "actual": message,
+                }
         return {
             "projection_ok": not mismatches,
             "projection_mismatches": mismatches,
             "projection_expected": expected,
             "projection_actual": actual,
+            "projection_authority": authority or "compatibility-documents",
+            "projection_decode_errors": decode_errors,
         }
 
     @staticmethod
@@ -1908,12 +2469,15 @@ class SQLiteStorage(StorageBackend):
             "user_pigs",
             "user_stats",
             "pig_snapshots",
+            "identity_claims",
+            "identity_aliases",
             "eaten_penalties",
             "eaten_events",
             "roast_cooldowns",
             "daily_roast_counts",
             "daily_backdoors",
             "ai_roast_copies",
+            "ai_roast_generation_attempts",
             "catalog_overrides",
             "catalog_tombstones",
             "identities",
@@ -1922,15 +2486,23 @@ class SQLiteStorage(StorageBackend):
 
     def rebuild_projections(self) -> dict[str, Any]:
         with self.transaction() as connection:
-            rows = connection.execute(
-                "SELECT key, payload FROM documents ORDER BY key"
-            ).fetchall()
-            documents = {
-                str(row["key"]): self._decode(str(row["payload"])) for row in rows
-            }
-            self._clear_projections(connection)
-            for key, value in documents.items():
-                self._refresh_projection(connection, key, value)
+            authority = self._write_authority(connection)
+            if authority.startswith("sql-primary-"):
+                self._repair_compatibility_documents_tx(connection)
+                self._set_write_authority(connection)
+                action = "repaired-compatibility-documents-from-sql"
+            else:
+                rows = connection.execute(
+                    "SELECT key, payload FROM documents ORDER BY key"
+                ).fetchall()
+                documents = {
+                    str(row["key"]): self._decode(str(row["payload"]))
+                    for row in rows
+                }
+                self._clear_projections(connection)
+                for key, value in documents.items():
+                    self._refresh_projection(connection, key, value)
+                action = "rebuilt-normalized-projections-from-documents"
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES ('last_rebuild_at', ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -1938,11 +2510,18 @@ class SQLiteStorage(StorageBackend):
             )
             result = self._projection_health(connection)
             if not result["projection_ok"]:
-                raise RuntimeError("projection rebuild did not reconcile all tables")
-        return {"ok": True, **result}
+                raise RuntimeError("projection repair did not reconcile all storage layers")
+        return {"ok": True, "action": action, **result}
 
     def export_documents(self) -> dict[str, Any]:
-        with self._lock, self._connection() as connection:
+        with self.transaction() as connection:
+            health = self._projection_health(connection)
+            if (
+                self._write_authority(connection).startswith("sql-primary-")
+                and not health["projection_ok"]
+            ):
+                self._repair_compatibility_documents_tx(connection)
+                self._set_write_authority(connection)
             rows = connection.execute(
                 "SELECT key, payload FROM documents ORDER BY key"
             ).fetchall()
