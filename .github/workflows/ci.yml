@@ -45,8 +45,9 @@ jobs:
         run: |
           python tools/fix_v213_hardener_marker.py
           python tools/fix_v213_hardener_round2.py
+          python tools/fix_v213_hardener_round3.py
           python tools/harden_v213_sql_authority.py
-          rm tools/fix_v213_hardener_marker.py tools/fix_v213_hardener_round2.py tools/harden_v213_sql_authority.py
+          rm tools/fix_v213_hardener_marker.py tools/fix_v213_hardener_round2.py tools/fix_v213_hardener_round3.py tools/harden_v213_sql_authority.py
           python - <<'PY'
           from pathlib import Path
           path = Path('.github/workflows/ci.yml')
