@@ -360,3 +360,140 @@ def test_projection_tables_enforce_identity_foreign_keys(tmp_path):
                 "user_id, total_draws, active_days, duplicate_streak, payload_json"
                 ") VALUES ('missing-identity', 0, 0, 0, '{}')"
             )
+
+
+
+def test_schema_v2_migrates_identity_columns_and_group_index(tmp_path):
+    database = tmp_path / "rollpig.db"
+    with sqlite3.connect(database) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL);
+            INSERT INTO schema_migrations VALUES (1, 1);
+            CREATE TABLE identities(
+                identity_key TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL,
+                identity_type TEXT NOT NULL,
+                raw_id TEXT NOT NULL
+            );
+            CREATE TABLE daily_draws(
+                draw_date TEXT NOT NULL,
+                user_id TEXT NOT NULL REFERENCES identities(identity_key),
+                pig_id TEXT NOT NULL,
+                original_pig_id TEXT NOT NULL DEFAULT '',
+                group_ids_json TEXT NOT NULL DEFAULT '[]',
+                PRIMARY KEY(draw_date, user_id)
+            );
+            INSERT INTO identities VALUES ('v2|qq|user|1', 'qq', 'user', '1');
+            INSERT INTO daily_draws VALUES ('2026-08-04', 'v2|qq|user|1', 'pig', '', '["g1"]');
+            """
+        )
+    storage = SQLiteStorage(database, tmp_path, StorageManager.MANAGED_PATHS)
+    with storage._connection() as connection:
+        identity_columns = {row[1] for row in connection.execute("PRAGMA table_info(identities)")}
+        draw_columns = {row[1] for row in connection.execute("PRAGMA table_info(daily_draws)")}
+        groups = connection.execute("SELECT group_id FROM daily_draw_groups").fetchall()
+        version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
+    assert {"legacy_id", "created_at"} <= identity_columns
+    assert {"created_at", "was_new_unlock"} <= draw_columns
+    assert [row[0] for row in groups] == ["g1"]
+    assert version == 2
+
+
+def test_real_transaction_commits_and_rolls_back(tmp_path):
+    storage = SQLiteStorage(tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS)
+    with storage.transaction() as connection:
+        storage._remember_identity(connection, "v2|qq|user|ok")
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM identities WHERE identity_key = 'v2|qq|user|ok'"
+        ).fetchone()[0] == 1
+    with pytest.raises(RuntimeError):
+        with storage.transaction() as connection:
+            storage._remember_identity(connection, "v2|qq|user|rollback")
+            raise RuntimeError("abort")
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM identities WHERE identity_key = 'v2|qq|user|rollback'"
+        ).fetchone()[0] == 0
+
+
+def test_indexed_domain_reads_and_projection_rebuild(tmp_path):
+    values = _documents(tmp_path)
+    storage = SQLiteStorage(tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS)
+    storage.save_json_batch({tmp_path / key: value for key, value in values.items()})
+    collection = storage.get_user_collection(("v2|qq|user|10001",))
+    draw = storage.get_daily_draw("2026-08-02", ("v2|qq|user|10001",))
+    members = storage.get_group_members("2026-08-02", "v2|qq|group|20001")
+    victims = storage.get_eaten_victims("2026-08-02", "v2|qq|group|20001")
+    assert collection["pigs"]["pink-pig"]["count"] == 2
+    assert draw["original_pig_id"] == "pink-pig"
+    assert members == ["v2|qq|user|10001"]
+    assert victims == ["v2|qq|user|10001"]
+
+    with storage._connection() as connection:
+        connection.execute("DELETE FROM user_pigs")
+    broken = storage.verify()
+    assert broken["ok"] is False
+    assert "user_pigs" in broken["projection_mismatches"]
+    rebuilt = storage.rebuild_projections()
+    assert rebuilt["ok"] is True
+    assert storage.verify()["projection_ok"] is True
+
+
+def test_sql_collection_query_is_not_linear_in_all_users(tmp_path):
+    users = {
+        f"v2|qq|user|{index}": {
+            "total_draws": 1,
+            "active_days": 1,
+            "duplicate_streak": 0,
+            "pigs": {"pig": {"first_unlocked": "2026-01-01", "last_drawn": "2026-01-01", "count": 1}},
+        }
+        for index in range(25_000)
+    }
+    history = {"version": 1, "users": users, "daily": {}, "pig_snapshots": {}}
+    storage = SQLiteStorage(tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS)
+    storage.save_json(tmp_path / "pig_history.json", history)
+    started = time.monotonic()
+    result = storage.get_user_collection(("v2|qq|user|24999",))
+    elapsed = time.monotonic() - started
+    assert result["total_draws"] == 1
+    assert elapsed < 2
+
+
+def test_projection_verification_ignores_unprojectable_legacy_garbage(tmp_path):
+    values = _documents(tmp_path)
+    roast = values["roast_state.json"]
+    roast["daily_roast_counts"]["broken"] = 1
+    roast["eaten_events"]["broken"] = {"actor_id": "x"}
+    roast["daily_backdoors"]["broken"] = True
+    values["ai_roast_copies.json"]["copies"]["pink-pig"]["bad"] = ""
+    values["local_overrides.json"].append({})
+    values["deleted_pigs.json"].append("")
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    storage.save_json_batch(
+        {tmp_path / key: value for key, value in values.items()}
+    )
+    assert storage.verify()["projection_ok"] is True
+
+
+def test_dashboard_health_avoids_deep_document_projection_scan(
+    tmp_path, monkeypatch
+):
+    values = _documents(tmp_path)
+    storage = SQLiteStorage(
+        tmp_path / "rollpig.db", tmp_path, StorageManager.MANAGED_PATHS
+    )
+    storage.save_json_batch(
+        {tmp_path / key: value for key, value in values.items()}
+    )
+    monkeypatch.setattr(
+        storage,
+        "_projection_health",
+        lambda connection: (_ for _ in ()).throw(AssertionError("deep scan")),
+    )
+    health = storage.health()
+    assert health["ok"] is True
+    assert health["deep_verified"] is False

@@ -37,11 +37,11 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
 try:
-    from .rollpig_core import special_pig_state
+    from .services import DrawService, RoastService
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from rollpig_core import special_pig_state
+    from services import DrawService, RoastService
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.9.3 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.10.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -239,6 +239,11 @@ class RollPigPlugin(Star):
             busy_timeout_ms=self.storage_busy_timeout_ms,
         )
         self.storage = self.storage_manager.backend
+        self.draw_service = DrawService(
+            enable_new_pig_pity=self.enable_new_pig_pity,
+            pity_step_percent=self.pity_step_percent,
+        )
+        self.roast_service = RoastService()
         self._storage_admin_lock = asyncio.Lock()
         self._thumbnail_cache: dict[str, tuple[int, dict]] = {}
         self._pighub_preview_cache: dict[str, dict] = {}
@@ -383,6 +388,12 @@ class RollPigPlugin(Star):
             self.page_storage_verify,
             ["POST"],
             "验证今日小猪 SQLite 完整性",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/storage/rebuild",
+            self.page_storage_rebuild,
+            ["POST"],
+            "重建今日小猪 SQLite 投影索引",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/storage/export",
@@ -1591,8 +1602,12 @@ class RollPigPlugin(Star):
             return True
 
     def _get_user_collection(self, user_id: str) -> dict:
+        candidates = tuple(self._user_read_candidates(str(user_id)))
+        if getattr(self.storage, "supports_domain_reads", False):
+            stored = self.storage.get_user_collection(candidates)
+            return stored or {}
         users = self.history.get("users", {})
-        for candidate in self._user_read_candidates(str(user_id)):
+        for candidate in candidates:
             user = users.get(candidate, {})
             if isinstance(user, dict) and user:
                 return user
@@ -1609,26 +1624,26 @@ class RollPigPlugin(Star):
         )
 
     def _choose_daily_pig(self, user_id: str) -> dict:
-        """随机抽取；连续重复时逐步提高重抽到新猪的机会。"""
-        chosen = random.choice(self.pig_list)
-        if not self.enable_new_pig_pity:
-            return chosen
-        user = self._get_user_collection(user_id)
-        unlocked_ids = set(user.get("pigs", {}))
-        unseen = [
-            pig for pig in self.pig_list if str(pig.get("id")) not in unlocked_ids
-        ]
-        if not unseen or str(chosen.get("id")) not in unlocked_ids:
-            return chosen
-        streak = int(user.get("duplicate_streak", 0))
-        reroll_chance = min(0.80, streak * self.pity_step_percent / 100)
-        return random.choice(unseen) if random.random() < reroll_chance else chosen
+        """Delegate pure pity/selection policy to DrawService."""
+        return self.draw_service.choose(
+            self.pig_list,
+            self._get_user_collection(user_id),
+        )
 
     def _get_daily_pig(self, user_id: str, date_value: datetime.date) -> dict | None:
+        candidates = tuple(self._user_read_candidates(str(user_id)))
+        if getattr(self.storage, "supports_domain_reads", False):
+            stored = self.storage.get_daily_draw(date_value.isoformat(), candidates)
+            pig_id = str((stored or {}).get("pig_id") or "")
+            if not pig_id:
+                return None
+            return self._find_catalog_pig(pig_id) or self.history.get(
+                "pig_snapshots", {}
+            ).get(pig_id)
         day = self.history.get("daily", {}).get(date_value.isoformat(), {})
         records = day.get("records", {})
         pig_id = ""
-        for candidate in self._user_read_candidates(str(user_id)):
+        for candidate in candidates:
             pig_id = str(records.get(candidate, ""))
             if pig_id:
                 break
@@ -1639,14 +1654,31 @@ class RollPigPlugin(Star):
         ).get(pig_id)
 
     def _get_weekly_pig(self, user_id: str, date_value: datetime.date) -> tuple[dict | None, bool]:
-        """读取周报展示的小猪；被吃掉时保留原抽取结果并返回状态标记。"""
-        day = self.history.get("daily", {}).get(date_value.isoformat(), {})
+        """Read weekly display data, preserving the original pig after eating."""
         user_key = str(user_id)
+        candidates = tuple(self._user_read_candidates(user_key))
+        if getattr(self.storage, "supports_domain_reads", False):
+            stored = self.storage.get_daily_draw(date_value.isoformat(), candidates)
+            if not stored:
+                return None, False
+            pig_id = str(stored.get("pig_id") or "")
+            original_id = str(stored.get("original_pig_id") or "")
+            if pig_id == "eaten" and original_id:
+                original = self._find_catalog_pig(original_id) or self.history.get(
+                    "pig_snapshots", {}
+                ).get(original_id)
+                if original:
+                    return original, True
+            pig = self._find_catalog_pig(pig_id) or self.history.get(
+                "pig_snapshots", {}
+            ).get(pig_id)
+            return pig, False
+        day = self.history.get("daily", {}).get(date_value.isoformat(), {})
         records = day.get("records", {})
         originals = day.get("eaten_originals", {})
         pig_id = ""
         original_id = ""
-        for candidate in self._user_read_candidates(user_key):
+        for candidate in candidates:
             if not pig_id:
                 pig_id = str(records.get(candidate, ""))
             if not original_id:
@@ -2076,56 +2108,16 @@ class RollPigPlugin(Star):
     def _roast_block_reason(
         self, pig: dict | None, *, subject: str = "target"
     ) -> str | None:
-        """返回烧烤限制文案，并区分发动者与目标的叙述视角。"""
-        state = special_pig_state(pig)
-        if state == "normal":
-            return None
-        actor = subject == "actor"
-        if state == "missing":
-            return "你今天还没有抽取小猪。" if actor else "对方今天还没有抽取小猪。"
-        name = str((pig or {}).get("name") or (pig or {}).get("id") or "特殊形态").strip()
-        if state == "human":
-            if actor:
-                return "你今天是「人类」：只能围观，不能参与猪圈料理。"
-            return "对方今天是「人类」：猪圈劳动合同不支持把人送上烤架。"
-        if state == "eaten":
-            if actor:
-                return "你今天是「吃掉了」：盘子都空了，已经无法行动。"
-            return "对方今天是「吃掉了」：盘子都空了，不能继续参与烧烤流程。"
-        if actor:
-            return f"你今天是「{name}」：已经上桌了，不能再次参与烧烤。"
-        return f"对方今天是「{name}」：已经是熟食，不能再上一次烤架。"
+        return self.roast_service.roast_block_reason(pig, subject=subject)
 
     def _eat_actor_block_reason(self, pig: dict | None) -> str | None:
-        """检查发动者能否使用吃群友，文案始终以“你”指代发动者。"""
-        state = special_pig_state(pig)
-        if state == "normal":
-            return None
-        if state == "missing":
-            return "你今天还没有抽取小猪，不能发动吃群友。"
-        name = str((pig or {}).get("name") or (pig or {}).get("id") or "特殊形态").strip()
-        if state == "human":
-            return "你今天是「人类」：猪圈菜单不允许人类发动吃群友。"
-        if state == "eaten":
-            return "你今天是「吃掉了」：盘子都空了，已经无法行动。"
-        return f"你今天是「{name}」：已经上桌了，暂时不能去吃群友。"
+        return self.roast_service.eat_actor_block_reason(pig)
 
     def _eat_target_block_reason(self, pig: dict | None) -> str | None:
-        """检查目标能否被吃；猪排、猪油等熟食可以直接食用。"""
-        state = special_pig_state(pig)
-        if state in {"normal", "cooked"}:
-            return None
-        if state == "missing":
-            return "对方今天还没有抽取小猪。"
-        if state == "human":
-            return "对方今天是「人类」：吃人不在猪圈菜单里。"
-        return "对方今天已经是「吃掉了」：盘子空了，不能再吃一次。"
+        return self.roast_service.eat_target_block_reason(pig)
 
     def _eat_success_message(self, pig: dict) -> str:
-        """生成与目标形态一致的吃群友成功文案。"""
-        name = str(pig.get("name") or pig.get("id") or "今日小猪").strip()
-        action = "开袋即食成功" if special_pig_state(pig) == "cooked" else "吃群友成功"
-        return f" 🍴 {action}，「{name}」被吃掉了；明天抽猪可能失败。"
+        return self.roast_service.eat_success_message(pig)
 
     def _extract_roast_target_id(
         self, event: AstrMessageEvent, args: str = ""
@@ -2327,7 +2319,10 @@ class RollPigPlugin(Star):
         return False
 
     def _daily_eaten_victims(self, group_id: str, draw_date: str) -> list[str]:
-        """读取当日群日报可用的被吃成员；同一成员只出现一次。"""
+        """Read daily eaten victims from SQL when available."""
+        if getattr(self.storage, "supports_domain_reads", False):
+            stored = self.storage.get_eaten_victims(draw_date, group_id)
+            return stored or []
         events = self.roast_state.get("eaten_events", {})
         if not isinstance(events, dict):
             return []
@@ -2342,6 +2337,14 @@ class RollPigPlugin(Star):
                 if user_id not in victims:
                     victims.append(user_id)
         return victims
+
+    def _daily_group_members(self, group_id: str, draw_date: str) -> list[str]:
+        if getattr(self.storage, "supports_domain_reads", False):
+            stored = self.storage.get_group_members(draw_date, group_id)
+            return stored or []
+        day = self.history.get("daily", {}).get(draw_date, {})
+        members = day.get("groups", {}).get(group_id, [])
+        return [str(value) for value in members] if isinstance(members, list) else []
 
     def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
@@ -3576,8 +3579,7 @@ class RollPigPlugin(Star):
             return
         actor_id = self._event_sender_id(event)
         today = self._today()
-        day = self.history.get("daily", {}).get(today.isoformat(), {})
-        members = day.get("groups", {}).get(group_id, [])
+        members = self._daily_group_members(group_id, today.isoformat())
         candidates = []
         for user_id in members if isinstance(members, list) else []:
             user_id = str(user_id)
@@ -3621,8 +3623,7 @@ class RollPigPlugin(Star):
         if actor_reason:
             await event.send(event.plain_result(actor_reason))
             return
-        day = self.history.get("daily", {}).get(self._today().isoformat(), {})
-        members = day.get("groups", {}).get(group_id, [])
+        members = self._daily_group_members(group_id, self._today().isoformat())
         candidates = []
         for user_id in members if isinstance(members, list) else []:
             user_id = str(user_id)
@@ -3649,8 +3650,7 @@ class RollPigPlugin(Star):
             await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
             return
         today = self._today().isoformat()
-        day = self.history.get("daily", {}).get(today, {})
-        members = day.get("groups", {}).get(group_id, [])
+        members = self._daily_group_members(group_id, today)
         victims = self._daily_eaten_victims(group_id, today)
         await event.send(
             event.plain_result(
@@ -4259,6 +4259,25 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.exception("验证存储失败")
             return self._jsonify({"status": "error", "message": f"验证存储失败：{exc}"})
+
+    async def page_storage_rebuild(self):
+        """管理面板：由兼容文档事务性重建全部 SQL 投影。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not bool(payload.get("confirm")):
+                return self._jsonify({"status": "error", "message": "需要明确确认重建"})
+            async with self._storage_admin_lock:
+                data = await asyncio.to_thread(self.storage_manager.rebuild_projections)
+                self.storage = self.storage_manager.backend
+            logger.warning("SQLite 投影已从兼容文档完整重建")
+            return self._jsonify({"status": "ok", "data": data})
+        except StorageMigrationError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.exception("重建 SQLite 投影失败")
+            return self._jsonify({"status": "error", "message": f"重建失败：{exc}"})
 
     async def page_storage_export(self):
         """管理面板：导出固定目录中的 JSON ZIP，不接受自定义路径。"""
