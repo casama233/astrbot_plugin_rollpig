@@ -51,7 +51,10 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
 
   publish-v214:
-    if: github.ref == 'refs/heads/agent/publish-v2.14.0' && github.actor != 'github-actions[bot]'
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (github.ref == 'refs/heads/agent/publish-v2.14.0' ||
+       github.head_ref == 'agent/publish-v2.14.0')
     runs-on: ubuntu-latest
     permissions:
       contents: write
