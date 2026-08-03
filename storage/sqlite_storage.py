@@ -17,7 +17,7 @@ from .json_storage import JSONStorage
 class SQLiteStorage(StorageBackend):
     """SQLite-backed logical JSON documents with normalized read projections.
 
-    v2.11 makes normalized tables authoritative for daily draws and eat events.
+    v2.12 makes normalized tables authoritative for daily draws and eat events.
     Compatibility documents remain transactionally synchronized only for export,
     rollback and older code paths; these hot writes no longer rebuild whole tables.
     """
@@ -863,6 +863,359 @@ class SQLiteStorage(StorageBackend):
                 self._write_document_tx(connection, "pig_history.json", history)
             return {"changed": changed, "history": history}
 
+    @staticmethod
+    def _roast_document_default() -> dict[str, Any]:
+        return {
+            "version": 1,
+            "cooldowns": {},
+            "daily_backdoors": {},
+            "daily_roast_counts": {},
+            "eaten_penalties": {},
+            "eaten_events": {},
+        }
+
+    @staticmethod
+    def _ai_document_default() -> dict[str, Any]:
+        return {"version": 1, "copies": {}}
+
+    @staticmethod
+    def _set_write_authority(connection: sqlite3.Connection) -> None:
+        connection.execute(
+            "INSERT INTO projection_meta(key, value) VALUES "
+            "('write_authority', 'sql-primary-v2.12') "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        )
+
+    def consume_roast_cooldown(
+        self,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        cooldown_seconds: int,
+    ) -> dict[str, Any]:
+        """Claim one group-roast cooldown using the SQL primary key."""
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        cooldown_key = f"{group_id}:{actor_id}"
+        now = float(now)
+        cooldown_seconds = max(1, int(cooldown_seconds))
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT last_used_at FROM roast_cooldowns WHERE cooldown_key = ?",
+                (cooldown_key,),
+            ).fetchone()
+            if row:
+                remaining = int(float(row["last_used_at"]) + cooldown_seconds - now)
+                if remaining > 0:
+                    return {"remaining": remaining, "claimed": False}
+            self._remember_identity(connection, actor_id)
+            connection.execute(
+                """
+                INSERT INTO roast_cooldowns(
+                    cooldown_key, group_id, actor_id, last_used_at
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(cooldown_key) DO UPDATE SET
+                    group_id = excluded.group_id,
+                    actor_id = excluded.actor_id,
+                    last_used_at = excluded.last_used_at
+                """,
+                (cooldown_key, group_id, actor_id, now),
+            )
+            roast = self._valid_dict(
+                self._read_document_tx(
+                    connection, "roast_state.json", self._roast_document_default()
+                )
+            )
+            cooldowns = roast.get("cooldowns")
+            if not isinstance(cooldowns, dict):
+                cooldowns = {}
+                roast["cooldowns"] = cooldowns
+            cooldowns[cooldown_key] = now
+            self._write_document_tx(connection, "roast_state.json", roast)
+            self._set_write_authority(connection)
+            return {"remaining": 0, "claimed": True, "roast_state": roast}
+
+    def increment_roast_count(
+        self,
+        *,
+        draw_date: str,
+        group_id: str,
+        user_id: str,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        """Increment one daily roast counter and prune old rows atomically."""
+        draw_date = str(draw_date)
+        group_id = str(group_id)
+        user_id = str(user_id)
+        with self.transaction() as connection:
+            self._remember_identity(connection, user_id)
+            connection.execute(
+                """
+                INSERT INTO daily_roast_counts(
+                    draw_date, group_id, user_id, roast_count
+                ) VALUES (?, ?, ?, 1)
+                ON CONFLICT(draw_date, group_id, user_id) DO UPDATE SET
+                    roast_count = daily_roast_counts.roast_count + 1
+                """,
+                (draw_date, group_id, user_id),
+            )
+            total = int(
+                connection.execute(
+                    "SELECT roast_count FROM daily_roast_counts "
+                    "WHERE draw_date = ? AND group_id = ? AND user_id = ?",
+                    (draw_date, group_id, user_id),
+                ).fetchone()[0]
+            )
+            connection.execute(
+                "DELETE FROM daily_roast_counts WHERE draw_date < ?",
+                (str(cutoff_date),),
+            )
+            rows = connection.execute(
+                "SELECT draw_date, group_id, user_id, roast_count "
+                "FROM daily_roast_counts ORDER BY draw_date, group_id, user_id"
+            ).fetchall()
+            roast = self._valid_dict(
+                self._read_document_tx(
+                    connection, "roast_state.json", self._roast_document_default()
+                )
+            )
+            roast["daily_roast_counts"] = {
+                self._event_key(
+                    str(row["draw_date"]),
+                    str(row["group_id"]),
+                    str(row["user_id"]),
+                ): int(row["roast_count"])
+                for row in rows
+                if int(row["roast_count"]) > 0
+            }
+            self._write_document_tx(connection, "roast_state.json", roast)
+            self._set_write_authority(connection)
+            return {"count": total, "roast_state": roast}
+
+    def get_roast_count(
+        self, draw_date: str, group_id: str, user_candidates: tuple[str, ...]
+    ) -> int | None:
+        candidates = self._candidate_tuple(user_candidates)
+        with self._lock, self._connection() as connection:
+            for user_id in candidates:
+                row = connection.execute(
+                    "SELECT roast_count FROM daily_roast_counts "
+                    "WHERE draw_date = ? AND group_id = ? AND user_id = ?",
+                    (str(draw_date), str(group_id), user_id),
+                ).fetchone()
+                if row:
+                    return int(row["roast_count"])
+        return 0
+
+    def consume_daily_backdoor(
+        self,
+        *,
+        draw_date: str,
+        actor_id: str,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        """Consume one per-user daily backdoor with cross-process uniqueness."""
+        draw_date = str(draw_date)
+        actor_id = str(actor_id)
+        backdoor_key = f"{draw_date}:{actor_id}"
+        with self.transaction() as connection:
+            self._remember_identity(connection, actor_id)
+            cursor = connection.execute(
+                "INSERT OR IGNORE INTO daily_backdoors(" 
+                "backdoor_key, draw_date, actor_id, used) VALUES (?, ?, ?, 1)",
+                (backdoor_key, draw_date, actor_id),
+            )
+            if cursor.rowcount == 0:
+                return {"consumed": False}
+            connection.execute(
+                "DELETE FROM daily_backdoors WHERE draw_date < ?",
+                (str(cutoff_date),),
+            )
+            rows = connection.execute(
+                "SELECT backdoor_key FROM daily_backdoors "
+                "WHERE used = 1 ORDER BY draw_date, actor_id"
+            ).fetchall()
+            roast = self._valid_dict(
+                self._read_document_tx(
+                    connection, "roast_state.json", self._roast_document_default()
+                )
+            )
+            roast["daily_backdoors"] = {
+                str(row["backdoor_key"]): True for row in rows
+            }
+            self._write_document_tx(connection, "roast_state.json", roast)
+            self._set_write_authority(connection)
+            return {"consumed": True, "roast_state": roast}
+
+    def _ai_document_from_sql(
+        self, connection: sqlite3.Connection
+    ) -> dict[str, Any]:
+        document = self._valid_dict(
+            self._read_document_tx(
+                connection, "ai_roast_copies.json", self._ai_document_default()
+            )
+        )
+        copies: dict[str, dict[str, str]] = {}
+        for row in connection.execute(
+            "SELECT pig_id, generated_date, content FROM ai_roast_copies "
+            "ORDER BY pig_id, generated_date"
+        ).fetchall():
+            copies.setdefault(str(row["pig_id"]), {})[
+                str(row["generated_date"])
+            ] = str(row["content"])
+        document["copies"] = copies
+        return document
+
+    def get_ai_roast_copies(
+        self,
+        *,
+        pig_id: str,
+        cutoff_date: str,
+        through_date: str,
+    ) -> dict[str, Any]:
+        """Read the seven-day cache from SQL and prune invalid dates."""
+        pig_id = str(pig_id)
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM ai_roast_copies "
+                "WHERE generated_date < ? OR generated_date > ?",
+                (str(cutoff_date), str(through_date)),
+            )
+            document = self._ai_document_from_sql(connection)
+            self._write_document_tx(connection, "ai_roast_copies.json", document)
+            self._set_write_authority(connection)
+            selected = document.get("copies", {}).get(pig_id, {})
+            return {
+                "copies": dict(selected) if isinstance(selected, dict) else {},
+                "ai_roast_copies": document,
+            }
+
+    def store_ai_roast_copy(
+        self,
+        *,
+        pig_id: str,
+        generated_date: str,
+        content: str,
+        cutoff_date: str,
+        through_date: str,
+    ) -> dict[str, Any]:
+        """Store one copy; the first cross-process writer wins for the day."""
+        pig_id = str(pig_id)
+        generated_date = str(generated_date)
+        content = str(content).strip()
+        if not pig_id or not generated_date or not content:
+            raise ValueError("AI 文案缓存参数无效")
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM ai_roast_copies "
+                "WHERE generated_date < ? OR generated_date > ?",
+                (str(cutoff_date), str(through_date)),
+            )
+            cursor = connection.execute(
+                "INSERT OR IGNORE INTO ai_roast_copies(" 
+                "pig_id, generated_date, content) VALUES (?, ?, ?)",
+                (pig_id, generated_date, content),
+            )
+            stored = connection.execute(
+                "SELECT content FROM ai_roast_copies "
+                "WHERE pig_id = ? AND generated_date = ?",
+                (pig_id, generated_date),
+            ).fetchone()
+            document = self._ai_document_from_sql(connection)
+            self._write_document_tx(connection, "ai_roast_copies.json", document)
+            self._set_write_authority(connection)
+            selected = document.get("copies", {}).get(pig_id, {})
+            return {
+                "created": cursor.rowcount == 1,
+                "content": str(stored["content"]),
+                "copies": dict(selected) if isinstance(selected, dict) else {},
+                "ai_roast_copies": document,
+            }
+
+    def upsert_catalog_override(
+        self, *, record: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Upsert one local catalog record and clear its tombstone atomically."""
+        payload = self._clone(record)
+        pig_id = str(payload.get("id") or "").strip()
+        if not pig_id:
+            raise ValueError("小猪 ID 无效")
+        with self.transaction() as connection:
+            connection.execute(
+                "INSERT INTO catalog_overrides(pig_id, payload_json) VALUES (?, ?) "
+                "ON CONFLICT(pig_id) DO UPDATE SET payload_json = excluded.payload_json",
+                (pig_id, json.dumps(payload, ensure_ascii=False, sort_keys=True)),
+            )
+            connection.execute(
+                "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)
+            )
+            raw_overrides = self._read_document_tx(
+                connection, "local_overrides.json", []
+            )
+            overrides = [
+                dict(item)
+                for item in raw_overrides if isinstance(raw_overrides, list)
+                if isinstance(item, dict) and str(item.get("id") or "")
+            ]
+            index = next(
+                (i for i, item in enumerate(overrides) if str(item["id"]) == pig_id),
+                None,
+            )
+            if index is None:
+                overrides.append(payload)
+            else:
+                overrides[index] = payload
+            raw_tombstones = self._read_document_tx(
+                connection, "deleted_pigs.json", []
+            )
+            tombstones = sorted(
+                {
+                    str(item)
+                    for item in raw_tombstones if isinstance(raw_tombstones, list)
+                    if str(item) and str(item) != pig_id
+                }
+            )
+            self._write_document_tx(connection, "local_overrides.json", overrides)
+            self._write_document_tx(connection, "deleted_pigs.json", tombstones)
+            self._set_write_authority(connection)
+            return {"overrides": overrides, "tombstones": tombstones}
+
+    def delete_catalog_entry(self, *, pig_id: str) -> dict[str, Any]:
+        """Remove a local override and add one tombstone atomically."""
+        pig_id = str(pig_id).strip()
+        if not pig_id:
+            raise ValueError("小猪 ID 无效")
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM catalog_overrides WHERE pig_id = ?", (pig_id,)
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO catalog_tombstones(pig_id) VALUES (?)",
+                (pig_id,),
+            )
+            raw_overrides = self._read_document_tx(
+                connection, "local_overrides.json", []
+            )
+            overrides = [
+                dict(item)
+                for item in raw_overrides if isinstance(raw_overrides, list)
+                if isinstance(item, dict) and str(item.get("id") or "") != pig_id
+            ]
+            raw_tombstones = self._read_document_tx(
+                connection, "deleted_pigs.json", []
+            )
+            tombstones = sorted(
+                {
+                    *(str(item) for item in raw_tombstones if isinstance(raw_tombstones, list) and str(item)),
+                    pig_id,
+                }
+            )
+            self._write_document_tx(connection, "local_overrides.json", overrides)
+            self._write_document_tx(connection, "deleted_pigs.json", tombstones)
+            self._set_write_authority(connection)
+            return {"overrides": overrides, "tombstones": tombstones}
+
     def create_daily_draw(
         self,
         *,
@@ -974,7 +1327,7 @@ class SQLiteStorage(StorageBackend):
                 )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.11') "
+                    "('write_authority', 'sql-primary-v2.12') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -1032,7 +1385,7 @@ class SQLiteStorage(StorageBackend):
                     )
                     connection.execute(
                         "INSERT INTO projection_meta(key, value) VALUES "
-                        "('write_authority', 'sql-primary-v2.11') "
+                        "('write_authority', 'sql-primary-v2.12') "
                         "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                     )
                     return {
@@ -1060,7 +1413,7 @@ class SQLiteStorage(StorageBackend):
                     )
                 connection.execute(
                     "INSERT INTO projection_meta(key, value) VALUES "
-                    "('write_authority', 'sql-primary-v2.11') "
+                    "('write_authority', 'sql-primary-v2.12') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
                 return {
@@ -1209,7 +1562,7 @@ class SQLiteStorage(StorageBackend):
                 )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.11') "
+                "('write_authority', 'sql-primary-v2.12') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {
@@ -1399,7 +1752,7 @@ class SQLiteStorage(StorageBackend):
             )
             connection.execute(
                 "INSERT INTO projection_meta(key, value) VALUES "
-                "('write_authority', 'sql-primary-v2.11') "
+                "('write_authority', 'sql-primary-v2.12') "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
             )
             return {

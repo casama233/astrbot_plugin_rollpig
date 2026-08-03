@@ -83,7 +83,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/2.11.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/2.12.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -2171,11 +2171,23 @@ class RollPigPlugin(Star):
     def _save_roast_state(self) -> None:
         self.save_json(self.roast_state_path, self.roast_state)
 
-    def _consume_group_roast_cooldown(
+    async def _consume_group_roast_cooldown(
         self, group_id: str, actor_id: str
     ) -> int:
         """记录一次普通烤群友，返回剩余冷却秒数；0 表示已成功占用。"""
         storage_actor = self._storage_user_key(str(actor_id))
+        if getattr(self.storage, "supports_domain_writes", False):
+            result = await asyncio.to_thread(
+                self.storage.consume_roast_cooldown,
+                group_id=str(group_id),
+                actor_id=storage_actor,
+                now=time.time(),
+                cooldown_seconds=self.group_roast_cooldown_seconds,
+            )
+            roast_state = result.get("roast_state")
+            if isinstance(roast_state, dict):
+                self.roast_state = roast_state
+            return int(result.get("remaining", 0) or 0)
         key = f"{group_id}:{storage_actor}"
         now = time.time()
         with self._data_lock:
@@ -2200,14 +2212,26 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError, json.JSONDecodeError):
             return ""
 
-    def _record_group_roast(
+    async def _record_group_roast(
         self, group_id: str, user_id: str, draw_date: str | None = None
     ) -> int:
         """记录群聊中实际被烤的一次结果，返回该用户当日累计次数。"""
         draw_date = draw_date or self._today().isoformat()
         storage_id = self._storage_user_key(str(user_id))
-        key = self._roast_count_key(draw_date, group_id, storage_id)
         cutoff = (self._today() - datetime.timedelta(days=8)).isoformat()
+        if getattr(self.storage, "supports_domain_writes", False):
+            result = await asyncio.to_thread(
+                self.storage.increment_roast_count,
+                draw_date=draw_date,
+                group_id=str(group_id),
+                user_id=storage_id,
+                cutoff_date=cutoff,
+            )
+            roast_state = result.get("roast_state")
+            if isinstance(roast_state, dict):
+                self.roast_state = roast_state
+            return int(result.get("count", 0) or 0)
+        key = self._roast_count_key(draw_date, group_id, storage_id)
         with self._data_lock:
             counts = self.roast_state.setdefault("daily_roast_counts", {})
             if not isinstance(counts, dict):
@@ -2223,15 +2247,29 @@ class RollPigPlugin(Star):
             self._save_roast_state()
         return total
 
-    def _roast_protection_status(self, group_id: str, user_id: str) -> tuple[bool, int]:
+    async def _roast_protection_status(
+        self, group_id: str, user_id: str
+    ) -> tuple[bool, int]:
         """昨天被烤达到阈值的成员，今天自动获得普通烧烤保护。"""
         if not self.enable_roast_protection:
             return False, 0
         yesterday = (self._today() - datetime.timedelta(days=1)).isoformat()
         storage_id = self._storage_user_key(str(user_id))
-        key = self._roast_count_key(yesterday, group_id, storage_id)
-        counts = self.roast_state.get("daily_roast_counts", {})
-        count = int(counts.get(key, 0) or 0) if isinstance(counts, dict) else 0
+        if getattr(self.storage, "supports_domain_reads", False):
+            candidates = tuple(
+                dict.fromkeys((storage_id, *self._user_read_candidates(str(user_id))))
+            )
+            count = await asyncio.to_thread(
+                self.storage.get_roast_count,
+                yesterday,
+                str(group_id),
+                candidates,
+            )
+            count = int(count or 0)
+        else:
+            key = self._roast_count_key(yesterday, group_id, storage_id)
+            counts = self.roast_state.get("daily_roast_counts", {})
+            count = int(counts.get(key, 0) or 0) if isinstance(counts, dict) else 0
         return count >= self.roast_protection_threshold, count
 
     def _roast_protection_message(self, count: int) -> str:
@@ -2403,17 +2441,28 @@ class RollPigPlugin(Star):
         members = day.get("groups", {}).get(group_id, [])
         return [str(value) for value in members] if isinstance(members, list) else []
 
-    def _consume_daily_backdoor(self, actor_id: str) -> bool:
+    async def _consume_daily_backdoor(self, actor_id: str) -> bool:
         """普通后门每个用户每天仅消耗一次。"""
         storage_actor = self._storage_user_key(str(actor_id))
-        key = f"{self._today().isoformat()}:{storage_actor}"
+        draw_date = self._today().isoformat()
+        cutoff = (self._today() - datetime.timedelta(days=7)).isoformat()
+        if getattr(self.storage, "supports_domain_writes", False):
+            result = await asyncio.to_thread(
+                self.storage.consume_daily_backdoor,
+                draw_date=draw_date,
+                actor_id=storage_actor,
+                cutoff_date=cutoff,
+            )
+            roast_state = result.get("roast_state")
+            if isinstance(roast_state, dict):
+                self.roast_state = roast_state
+            return bool(result.get("consumed"))
+        key = f"{draw_date}:{storage_actor}"
         with self._data_lock:
             used = self.roast_state.setdefault("daily_backdoors", {})
             if used.get(key):
                 return False
             used[key] = True
-            # 只保留近期数据，避免状态文件无限增长。
-            cutoff = (self._today() - datetime.timedelta(days=7)).isoformat()
             self.roast_state["daily_backdoors"] = {
                 item: value
                 for item, value in used.items()
@@ -2465,27 +2514,57 @@ class RollPigPlugin(Star):
     async def _get_ai_roast_copy(
         self, event: AstrMessageEvent, pig: dict
     ) -> str | None:
-        """同一小猪每天只调用一次模型；后续随机复用近七天的缓存。"""
+        """同一小猪每天只保留一份 SQL 缓存；后续随机复用近七天内容。"""
         if not self.enable_ai_roast_copy:
             return None
         pig_id = str(pig.get("id") or "").strip()
         if not pig_id:
             return await self._generate_ai_roast_copy(event, pig)
-        today = self._today().isoformat()
+        today_value = self._today()
+        today = today_value.isoformat()
+        cutoff = (today_value - datetime.timedelta(days=6)).isoformat()
         async with self._ai_roast_lock(pig_id):
+            if getattr(self.storage, "supports_domain_writes", False):
+                cached = await asyncio.to_thread(
+                    self.storage.get_ai_roast_copies,
+                    pig_id=pig_id,
+                    cutoff_date=cutoff,
+                    through_date=today,
+                )
+                document = cached.get("ai_roast_copies")
+                if isinstance(document, dict):
+                    self.ai_roast_copies = document
+                recent = cached.get("copies")
+                recent = recent if isinstance(recent, dict) else {}
+                if today in recent:
+                    return random.choice(list(recent.values()))
+                generated = await self._generate_ai_roast_copy(event, pig)
+                if not generated:
+                    return None
+                stored = await asyncio.to_thread(
+                    self.storage.store_ai_roast_copy,
+                    pig_id=pig_id,
+                    generated_date=today,
+                    content=generated,
+                    cutoff_date=cutoff,
+                    through_date=today,
+                )
+                document = stored.get("ai_roast_copies")
+                if isinstance(document, dict):
+                    self.ai_roast_copies = document
+                return str(stored.get("content") or generated)
+
             with self._data_lock:
                 recent, changed = self._recent_ai_roast_copies(pig_id)
                 if changed:
                     self._save_ai_roast_copies()
                 if today in recent:
                     return random.choice(list(recent.values()))
-
             generated = await self._generate_ai_roast_copy(event, pig)
             if not generated:
                 return None
             with self._data_lock:
                 recent, _ = self._recent_ai_roast_copies(pig_id)
-                # 锁保护下当天不可能已有另一份；写入后先展示新文案。
                 recent[today] = generated
                 self.ai_roast_copies.setdefault("copies", {})[pig_id] = recent
                 self._save_ai_roast_copies()
@@ -2652,12 +2731,12 @@ class RollPigPlugin(Star):
         if reason:
             await event.send(event.plain_result(reason))
             return
-        protected, roast_count = self._roast_protection_status(group_id, target_id)
+        protected, roast_count = await self._roast_protection_status(group_id, target_id)
         if protected and not bypass:
             await event.send(event.plain_result(self._roast_protection_message(roast_count)))
             return
         if not bypass:
-            remaining = self._consume_group_roast_cooldown(group_id, actor_id)
+            remaining = await self._consume_group_roast_cooldown(group_id, actor_id)
             if remaining:
                 await event.send(
                     event.plain_result(
@@ -2679,13 +2758,13 @@ class RollPigPlugin(Star):
                 await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
                 return
             await event.send(event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。"))
-            self._record_group_roast(group_id, actor_id)
+            await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
             return
 
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
         await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
-        self._record_group_roast(group_id, target_id)
+        await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
 
     async def _eat_group_target(
@@ -2713,7 +2792,7 @@ class RollPigPlugin(Star):
         if target_reason:
             await event.send(event.plain_result(target_reason))
             return
-        protected, roast_count = self._roast_protection_status(group_id, target_id)
+        protected, roast_count = await self._roast_protection_status(group_id, target_id)
         if protected:
             await event.send(event.plain_result(self._roast_protection_message(roast_count)))
             return
@@ -3741,7 +3820,7 @@ class RollPigPlugin(Star):
             if user_id == actor_id:
                 continue
             pig = self._get_daily_pig(user_id, self._today())
-            protected, _ = self._roast_protection_status(group_id, user_id)
+            protected, _ = await self._roast_protection_status(group_id, user_id)
             if not self._eat_target_block_reason(pig) and not protected:
                 candidates.append(user_id)
         if not candidates:
@@ -3817,7 +3896,7 @@ class RollPigPlugin(Star):
         if reason:
             await event.send(event.plain_result(reason))
             return
-        if not is_super_phrase and not self._consume_daily_backdoor(actor_id):
+        if not is_super_phrase and not await self._consume_daily_backdoor(actor_id):
             await event.send(event.plain_result("普通后门每天只能使用一次，请明天再来。"))
             return
         await self._roast_group_target(event, target_id, bypass=True)
@@ -3986,6 +4065,106 @@ class RollPigPlugin(Star):
             old = self.custom_image_dir / f"{pig_id}.{ext}"
             if old != target:
                 old.unlink(missing_ok=True)
+
+    def _snapshot_custom_images(self, pig_id: str) -> dict[str, bytes]:
+        """Capture the current custom-image set for compensating rollback."""
+        snapshots: dict[str, bytes] = {}
+        for ext in self.IMAGE_EXTENSIONS:
+            image_path = self.custom_image_dir / f"{pig_id}.{ext}"
+            if image_path.exists():
+                snapshots[ext] = image_path.read_bytes()
+        return snapshots
+
+    def _restore_custom_images(self, pig_id: str, snapshots: dict[str, bytes]) -> None:
+        """Restore an image snapshot after a metadata transaction fails."""
+        for ext in self.IMAGE_EXTENSIONS:
+            (self.custom_image_dir / f"{pig_id}.{ext}").unlink(missing_ok=True)
+        for ext, data in snapshots.items():
+            target = self.custom_image_dir / f"{pig_id}.{ext}"
+            with tempfile.NamedTemporaryFile(
+                "wb",
+                dir=self.custom_image_dir,
+                prefix=f".{pig_id}.",
+                suffix=".restore.tmp",
+                delete=False,
+            ) as tmp:
+                tmp.write(data)
+                tmp_path = Path(tmp.name)
+            tmp_path.replace(target)
+
+    def _persist_catalog_override(
+        self, record: dict, normalized_image: bytes | None
+    ) -> None:
+        pig_id = str(record.get("id") or "")
+        with self._data_lock:
+            previous_images = (
+                self._snapshot_custom_images(pig_id) if normalized_image else {}
+            )
+            if normalized_image:
+                self._write_custom_image(pig_id, normalized_image)
+            try:
+                if getattr(self.storage, "supports_domain_writes", False):
+                    self.storage.upsert_catalog_override(record=dict(record))
+                else:
+                    overrides = self._validate_pig_records(
+                        self.load_json(self.local_overrides_path, [])
+                    )
+                    override_index = next(
+                        (
+                            i
+                            for i, item in enumerate(overrides)
+                            if str(item.get("id")) == pig_id
+                        ),
+                        None,
+                    )
+                    if override_index is None:
+                        overrides.append(dict(record))
+                    else:
+                        overrides[override_index] = dict(record)
+                    tombstones = {
+                        str(item) for item in self.load_json(self.tombstones_path, [])
+                    }
+                    tombstones.discard(pig_id)
+                    self.save_json_batch(
+                        {
+                            self.local_overrides_path: overrides,
+                            self.tombstones_path: sorted(tombstones),
+                        }
+                    )
+            except Exception:
+                if normalized_image:
+                    self._restore_custom_images(pig_id, previous_images)
+                raise
+            self._reload_catalog_layers()
+
+    def _persist_catalog_delete(self, pig_id: str) -> None:
+        with self._data_lock:
+            previous_images = self._snapshot_custom_images(pig_id)
+            for ext in self.IMAGE_EXTENSIONS:
+                (self.custom_image_dir / f"{pig_id}.{ext}").unlink(missing_ok=True)
+            try:
+                if getattr(self.storage, "supports_domain_writes", False):
+                    self.storage.delete_catalog_entry(pig_id=str(pig_id))
+                else:
+                    overrides = [
+                        dict(item)
+                        for item in self.load_json(self.local_overrides_path, [])
+                        if str(item.get("id")) != pig_id
+                    ]
+                    tombstones = {
+                        str(item) for item in self.load_json(self.tombstones_path, [])
+                    }
+                    tombstones.add(pig_id)
+                    self.save_json_batch(
+                        {
+                            self.local_overrides_path: overrides,
+                            self.tombstones_path: sorted(tombstones),
+                        }
+                    )
+            except Exception:
+                self._restore_custom_images(pig_id, previous_images)
+                raise
+            self._reload_catalog_layers()
 
     def _build_overview_data(self) -> dict:
         """Build the dashboard snapshot off the event-loop thread."""
@@ -4193,36 +4372,9 @@ class RollPigPlugin(Star):
                 record["source_url"] = pighub_url
             elif existing and existing.get("source_url"):
                 record["source_url"] = existing["source_url"]
-            with self._data_lock:
-                overrides = self._validate_pig_records(
-                    self.load_json(self.local_overrides_path, [])
-                )
-                override_index = next(
-                    (
-                        i
-                        for i, item in enumerate(overrides)
-                        if str(item.get("id")) == pig_id
-                    ),
-                    None,
-                )
-                if override_index is None:
-                    overrides.append(record)
-                else:
-                    overrides[override_index] = record
-                tombstones = {
-                    str(item)
-                    for item in self.load_json(self.tombstones_path, [])
-                }
-                tombstones.discard(pig_id)
-                if normalized_image:
-                    self._write_custom_image(pig_id, normalized_image)
-                self.save_json_batch(
-                    {
-                        self.local_overrides_path: overrides,
-                        self.tombstones_path: sorted(tombstones),
-                    }
-                )
-                self._reload_catalog_layers()
+            await asyncio.to_thread(
+                self._persist_catalog_override, record, normalized_image
+            )
             logger.info(f"管理页{'编辑' if existing else '新增'}小猪：{pig_id}")
             return self._jsonify(
                 {
@@ -4247,28 +4399,7 @@ class RollPigPlugin(Star):
                 raise ValueError("小猪 ID 无效")
             if not self._find_catalog_pig(pig_id):
                 raise ValueError("小猪不存在")
-            with self._data_lock:
-                overrides = [
-                    dict(item)
-                    for item in self.load_json(self.local_overrides_path, [])
-                    if str(item.get("id")) != pig_id
-                ]
-                tombstones = {
-                    str(item)
-                    for item in self.load_json(self.tombstones_path, [])
-                }
-                tombstones.add(pig_id)
-                self.save_json_batch(
-                    {
-                        self.local_overrides_path: overrides,
-                        self.tombstones_path: sorted(tombstones),
-                    }
-                )
-                for ext in self.IMAGE_EXTENSIONS:
-                    (self.custom_image_dir / f"{pig_id}.{ext}").unlink(
-                        missing_ok=True
-                    )
-                self._reload_catalog_layers()
+            await asyncio.to_thread(self._persist_catalog_delete, pig_id)
             logger.info(f"管理页删除小猪：{pig_id}")
             return self._jsonify(
                 {"status": "ok", "message": "小猪已删除，历史解锁统计已保留"}
