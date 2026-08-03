@@ -1,0 +1,15 @@
+{
+  "tag": "v2.8.0",
+  "stable": true,
+  "url": "https://github.com/casama233/astrbot_plugin_rollpig/releases/tag/v2.8.0",
+  "assets": {
+    "SHA256SUMS": {
+      "size": 100,
+      "url": "https://github.com/casama233/astrbot_plugin_rollpig/releases/download/v2.8.0/SHA256SUMS"
+    },
+    "astrbot_plugin_rollpig-v2.8.0.zip": {
+      "size": 19833856,
+      "url": "https://github.com/casama233/astrbot_plugin_rollpig/releases/download/v2.8.0/astrbot_plugin_rollpig-v2.8.0.zip"
+    }
+  }
+}
