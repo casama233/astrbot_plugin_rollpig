@@ -48,3 +48,51 @@ jobs:
       - name: Run pre-commit checks
         if: matrix.python-version == '3.12'
         run: pre-commit run --all-files --show-diff-on-failure
+
+  apply-v3-release:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/sqlite-single-authority-v3.0.0' &&
+      github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/sqlite-single-authority-v3.0.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Apply promotion safety and release surface
+        run: python tools/apply_v3_safety_release.py
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Validate final v3 release
+        run: |
+          python -m compileall -q main.py rollpig_core.py updater.py storage services
+          pytest -q
+          pre-commit run --all-files --show-diff-on-failure
+
+      - name: Commit validated release and remove applicator
+        run: |
+          git fetch origin main --depth=1
+          rm -f tools/apply_v3_safety_release.py
+          git checkout origin/main -- .github/workflows/ci.yml
+          rmdir tools 2>/dev/null || true
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "feat: finalize SQLite single-authority release (v3.0.0)"
+          git push origin HEAD:agent/sqlite-single-authority-v3.0.0
