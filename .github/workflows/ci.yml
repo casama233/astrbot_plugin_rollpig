@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - agent/fix-audit-findings-v2.4.0
+      - agent/publish-v2.14.0
   pull_request:
     branches:
       - main
@@ -48,3 +49,82 @@ jobs:
       - name: Run pre-commit checks
         if: matrix.python-version == '3.12'
         run: pre-commit run --all-files --show-diff-on-failure
+
+  publish-v214:
+    if: github.ref == 'refs/heads/agent/publish-v2.14.0' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Build stable archive and checksum
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path('metadata.yaml').read_text(encoding='utf-8')
+          match = re.search(r'^version:\s*["\x27]?([^"\x27\s]+)', text, re.MULTILINE)
+          if not match or match.group(1) != '2.14.0':
+              raise SystemExit('main metadata.yaml is not v2.14.0')
+          PY
+          mkdir -p dist/astrbot_plugin_rollpig
+          rsync -a ./ dist/astrbot_plugin_rollpig/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.venv/' \
+            --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' \
+            --exclude 'dist/' \
+            --exclude 'tests/' \
+            --exclude '*.pyc' \
+            --exclude '*.pyo' \
+            --exclude '.env' \
+            --exclude 'data/' \
+            --exclude 'plugin_data/'
+          (cd dist && zip -qr astrbot_plugin_rollpig-v2.14.0.zip astrbot_plugin_rollpig)
+          (cd dist && sha256sum astrbot_plugin_rollpig-v2.14.0.zip > SHA256SUMS)
+
+      - name: Create or repair stable Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v2.14.0 >/dev/null 2>&1; then
+            gh release upload v2.14.0 \
+              dist/astrbot_plugin_rollpig-v2.14.0.zip \
+              dist/SHA256SUMS \
+              --clobber
+          else
+            gh release create v2.14.0 \
+              dist/astrbot_plugin_rollpig-v2.14.0.zip \
+              dist/SHA256SUMS \
+              --target main \
+              --title '今日小猪 v2.14.0' \
+              --generate-notes
+          fi
+
+      - name: Verify published Release and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v2.14.0 --json tagName,isDraft,isPrerelease,assets > release.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('release.json').read_text(encoding='utf-8'))
+          assert payload['tagName'] == 'v2.14.0'
+          assert payload['isDraft'] is False
+          assert payload['isPrerelease'] is False
+          names = {item['name'] for item in payload['assets']}
+          assert {'astrbot_plugin_rollpig-v2.14.0.zip', 'SHA256SUMS'} <= names
+          PY
+          mkdir -p verify
+          (cd verify && gh release download v2.14.0 \
+            -p astrbot_plugin_rollpig-v2.14.0.zip \
+            -p SHA256SUMS)
+          (cd verify && sha256sum -c SHA256SUMS)
