@@ -1,19 +1,19 @@
 name: One-shot v2.8 branch integration
 
 on:
-  issue_comment:
-    types: [created]
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
-  pull-requests: read
+  issues: write
 
 jobs:
   integrate:
-    if: github.event.issue.pull_request && github.event.issue.number == 2 && github.event.comment.body == '/apply-v28'
+    if: github.event.issue.title == '[maintenance] apply v2.8 integration'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out target branch
+      - name: Check out fixed target branch
         uses: actions/checkout@v4
         with:
           ref: agent/storage-abstraction-safe-updater-v2.8.0
@@ -47,6 +47,11 @@ jobs:
           git add -A
           git commit -m "feat: add storage abstraction and safe panel updater"
           git push origin HEAD:agent/storage-abstraction-safe-updater-v2.8.0
+
+      - name: Close maintenance issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "${{ github.event.issue.number }}" --comment "v2.8 integration validated and committed."
 
       - name: Remove one-shot workflow from main
         if: success()
