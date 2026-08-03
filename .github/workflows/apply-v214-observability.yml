@@ -1,0 +1,56 @@
+name: Apply v2.14 observability follow-up
+
+on:
+  push:
+    branches:
+      - agent/sql-dashboard-analytics-v2.14.0
+    paths:
+      - tools/apply_v214_observability.py
+      - .github/workflows/apply-v214-observability.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/sql-dashboard-analytics-v2.14.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Apply observability follow-up
+        run: python tools/apply_v214_observability.py
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Compile source
+        run: python -m compileall -q main.py rollpig_core.py updater.py storage services
+
+      - name: Run complete tests
+        run: pytest -q
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Commit validated follow-up and remove applicator
+        run: |
+          rm -f tools/apply_v214_observability.py .github/workflows/apply-v214-observability.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: expose SQL write authority in storage status"
+          git push origin HEAD:agent/sql-dashboard-analytics-v2.14.0
