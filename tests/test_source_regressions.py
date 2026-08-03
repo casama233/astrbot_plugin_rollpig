@@ -264,3 +264,23 @@ def test_v214_dashboard_uses_sql_analytics_and_exposes_repair_status():
     assert "统计 SQL" in page
     assert "写入权威" in page
     assert "最近修复" in page
+
+
+def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
+    primary = (ROOT / "storage" / "sqlite_primary.py").read_text(encoding="utf-8")
+    manager = (ROOT / "storage" / "primary_manager.py").read_text(encoding="utf-8")
+    metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")
+    config = (ROOT / "_conf_schema.json").read_text(encoding="utf-8")
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'version: "3.0.0"' in metadata
+    assert "AstrBot-RollPig/3.0.0" in SOURCE
+    assert "sql-primary-v3.0" in primary
+    assert '"compatibility_mode": "on-demand"' in primary
+    assert 'connection.execute("DELETE FROM documents")' in primary
+    assert "RUNTIME_MANAGED_PATHS" in manager
+    assert "新安装直接建立 SQLite" in config
+    assert "兼容 JSON" in page
+    assert "按需生成" in page
+

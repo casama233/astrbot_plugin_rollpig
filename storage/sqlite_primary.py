@@ -31,10 +31,9 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
     )
 
     def _initialize(self) -> None:
-        # Run all historical migrations first, then promote the database to the
-        # v3 contract. Existing v2 projections are already transactionally kept
-        # in sync with their documents, so promotion must never replay a stale
-        # document over non-empty normalized tables.
+        # Run historical migrations first. Promotion is deliberately guarded:
+        # stale compatibility documents may be discarded, but normalized table
+        # damage must never be hidden by deleting the last recovery snapshot.
         super()._initialize()
         with self.transaction() as connection:
             migrated = {
@@ -44,6 +43,50 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
                 ).fetchall()
             }
             if 6 not in migrated:
+                integrity = str(
+                    connection.execute("PRAGMA integrity_check").fetchone()[0]
+                )
+                foreign_rows = connection.execute("PRAGMA foreign_key_check").fetchall()
+                if integrity != "ok" or foreign_rows:
+                    raise RuntimeError(
+                        "refusing v3 promotion of an invalid SQLite database"
+                    )
+
+                authority = self._write_authority(connection)
+                health = self._projection_health(connection)
+                table_mismatches = {
+                    key: value
+                    for key, value in health.get("projection_mismatches", {}).items()
+                    if not str(key).startswith("document:")
+                }
+                if table_mismatches and not authority.startswith("sql-primary-"):
+                    if health.get("projection_decode_errors"):
+                        raise RuntimeError(
+                            "refusing v3 promotion with invalid authority documents"
+                        )
+                    rows = connection.execute(
+                        "SELECT key, payload FROM documents ORDER BY key"
+                    ).fetchall()
+                    documents = {
+                        str(row["key"]): self._decode(str(row["payload"]))
+                        for row in rows
+                    }
+                    self._clear_projections(connection)
+                    for key, value in documents.items():
+                        self._refresh_projection(connection, key, value)
+                    health = self._projection_health(connection)
+                    table_mismatches = {
+                        key: value
+                        for key, value in health.get(
+                            "projection_mismatches", {}
+                        ).items()
+                        if not str(key).startswith("document:")
+                    }
+                if table_mismatches:
+                    raise RuntimeError(
+                        "refusing v3 promotion with inconsistent normalized tables"
+                    )
+
                 connection.execute("DELETE FROM documents")
                 self._set_write_authority(connection)
                 now = str(int(time.time()))
