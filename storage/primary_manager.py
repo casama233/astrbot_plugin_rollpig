@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import time
 import uuid
 import zipfile
@@ -135,7 +136,8 @@ class PrimaryStorageManager(LegacyStorageManager):
             ),
             "override_ids": sorted(
                 str(value.get("id"))
-                for value in overrides if isinstance(value, dict) and str(value.get("id") or "")
+                for value in overrides
+                if isinstance(value, dict) and str(value.get("id") or "")
             )
             if isinstance(overrides, list)
             else [],
@@ -144,8 +146,26 @@ class PrimaryStorageManager(LegacyStorageManager):
             else [],
         }
 
+    def _preserve_existing_database(self) -> str:
+        """Copy a rejected database and its sidecars before replacing it."""
+        if not self.database_path.exists():
+            return ""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        preserved = self.data_root / f"rollpig.db.rejected-{stamp}"
+        suffix = 0
+        while preserved.exists():
+            suffix += 1
+            preserved = self.data_root / f"rollpig.db.rejected-{stamp}-{suffix}"
+        shutil.copy2(self.database_path, preserved)
+        for sidecar_suffix in ("-wal", "-shm"):
+            source = Path(f"{self.database_path}{sidecar_suffix}")
+            if source.exists():
+                shutil.copy2(source, Path(f"{preserved}{sidecar_suffix}"))
+        return preserved.name
+
     def _replace_database(self, temporary: Path) -> None:
         self._remove_sqlite_sidecars(temporary)
+        self._last_replaced_database = self._preserve_existing_database()
         legacy_manager.os.replace(temporary, self.database_path)
         self._remove_sqlite_sidecars(self.database_path)
 
@@ -205,7 +225,8 @@ class PrimaryStorageManager(LegacyStorageManager):
                 raise StorageMigrationError("SQLite 规范化导入未通过完整性检查")
             exported = target.export_documents()
             expected_documents = {
-                str(key): SQLitePrimaryStorage._clone(value) for key, value in documents.items()
+                str(key): SQLitePrimaryStorage._clone(value)
+                for key, value in documents.items()
             }
             expected_documents["pig_history.json"] = (
                 SQLitePrimaryStorage._merge_today_into_history(
@@ -227,13 +248,17 @@ class PrimaryStorageManager(LegacyStorageManager):
             self._replace_database(temporary)
             backend = self._activate_sqlite()
             final_verification = backend.verify()
+            replaced_database = getattr(self, "_last_replaced_database", "")
             state = {
                 "active_backend": "sqlite",
                 "migrated_at": int(time.time()),
                 "backup_name": backup.name,
                 "documents": len(documents),
                 "schema_version": final_verification.get("schema_version", 0),
-                "source": "automatic-json-migration" if automatic else "manual-json-migration",
+                "source": "automatic-json-migration"
+                if automatic
+                else "manual-json-migration",
+                "replaced_database": replaced_database,
             }
             self.json_storage.save_json(self.state_path, state)
             result = {
@@ -242,6 +267,7 @@ class PrimaryStorageManager(LegacyStorageManager):
                 "backup_name": backup.name,
                 "documents": len(documents),
                 "verification": final_verification,
+                "replaced_database": replaced_database,
             }
             self._last_action = result
             return result
@@ -363,6 +389,12 @@ class PrimaryStorageManager(LegacyStorageManager):
             self._last_action = result
             return result
 
+    def rollback_to_json(self) -> dict[str, Any]:
+        with self._lock:
+            if isinstance(self.backend, SQLitePrimaryStorage):
+                self.backend.checkpoint()
+            return super().rollback_to_json()
+
     def status(self) -> dict[str, Any]:
         status = super().status()
         status["sqlite_default"] = self.mode != "json"
@@ -371,6 +403,9 @@ class PrimaryStorageManager(LegacyStorageManager):
         )
         status["managed_documents"] = sorted(self.RUNTIME_MANAGED_PATHS)
         status["json_cache_documents"] = ["pig_catalog.json"]
+        status["last_replaced_database"] = getattr(
+            self, "_last_replaced_database", ""
+        )
         return status
 
 
