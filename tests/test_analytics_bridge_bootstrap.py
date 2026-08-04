@@ -1,31 +1,28 @@
-from __future__ import annotations
-
-import shutil
-import subprocess
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "pages" / "pig-manager" / "ui-analytics.js"
-HARNESS = ROOT / "tests" / "analytics_bridge_harness.cjs"
+BOOTSTRAP = ROOT / "pages" / "pig-manager" / "ui-bootstrap.js"
 
 
-def test_bridge_ready_flag_is_set_only_inside_initialize():
-    source = SCRIPT.read_text(encoding="utf-8")
-    initialize = source.index("const initialize = bridge =>")
-    ready_assignment = source.index("window[READY_KEY] = true")
-    bridge_lookup = source.index("const bridge = window.AstrBotPluginPage")
-    assert initialize < ready_assignment < bridge_lookup
-    assert "previousState?.version === BOOTSTRAP_VERSION" in source
-    assert "MAX_WAIT_MS = 8000" in source
-    assert "window.setTimeout(waitForBridge, POLL_MS)" in source
-    assert "analyticsBridgeRetry" in source
+def test_analytics_requires_an_explicit_bootstrap_click_and_no_bridge_polling():
+    analytics = SCRIPT.read_text(encoding="utf-8")
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "const bridge = window.AstrBotPluginPage" in analytics
+    assert "button.addEventListener('click', load" in bootstrap
+    assert "bridge.apiGet('ui/assets'" in bootstrap
+    assert "waitForBridge" not in analytics
+    assert "MAX_WAIT_MS" not in analytics
+    assert "POLL_MS" not in analytics
+    assert "setInterval" not in analytics
+    assert "window.setTimeout(waitForBridge" not in analytics
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="node is required")
-def test_bridge_bootstrap_delay_duplicate_and_timeout():
-    result = subprocess.run(
-        ["node", str(HARNESS)], capture_output=True, text=True, check=False
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
+def test_missing_bridge_is_reported_only_after_the_user_clicks():
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    lookup = bootstrap.index("const bridge = window.AstrBotPluginPage")
+    click_binding = bootstrap.index("button.addEventListener('click', load")
+    load_function = bootstrap.index("const load = async () =>")
+    assert load_function < lookup < click_binding
+    assert "AstrBot Plugin Page Bridge 不存在" in bootstrap
+    assert "数据总览、猪猪图鉴和管理操作不受影响" in bootstrap

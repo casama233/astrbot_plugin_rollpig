@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test --test-timeout=15000 tests/browser/*.test.mjs"
+    "test": "node --test --test-timeout=15000 tests/browser/*.test.mjs",
+    "test:browser-perf": "node tests/browser/performance-browser.mjs"
   },
   "devDependencies": {
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "playwright-core": "1.54.2"
   }
 }

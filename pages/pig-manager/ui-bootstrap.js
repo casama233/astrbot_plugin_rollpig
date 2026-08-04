@@ -1,102 +1,65 @@
 (() => {
   'use strict';
-  const VERSION = '3.1.0';
+
+  const VERSION = '3.1.1';
   const STATE_KEY = '__rollpigUiBootstrapState';
-  const CACHE_KEY = `rollpig:authenticated-ui:${VERSION}`;
   const ALLOWED = new Map([
-    ['enterprise-theme', 'style'],
     ['analytics-theme', 'style'],
-    ['ui-feedback-core', 'script'],
-    ['ui-enterprise', 'script'],
     ['ui-analytics', 'script'],
   ]);
-  const SCRIPT_ORDER = ['ui-feedback-core', 'ui-enterprise', 'ui-analytics'];
-  const STYLE_ORDER = ['enterprise-theme', 'analytics-theme'];
-  const pageRoot = document.querySelector('.shell') || document.body;
-  const pageToken = pageRoot.dataset.rollpigPageToken ||
-    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  pageRoot.dataset.rollpigPageToken = pageToken;
+  const pageRoot = document.querySelector('.shell');
+  if (!pageRoot) return;
+
+  if (pageRoot.dataset.rollpigBootstrap === VERSION) return;
+  pageRoot.dataset.rollpigBootstrap = VERSION;
 
   const previous = window[STATE_KEY];
-  if (
-    previous?.version === VERSION &&
-    previous.pageToken === pageToken &&
-    ['loading', 'ready', 'partial'].includes(previous.status)
-  ) return;
+  previous?.abortController?.abort();
 
-  let resolveReady;
+  const abortController = new AbortController();
   const state = {
     version: VERSION,
-    pageToken,
-    status: 'loading',
-    errorCode: '',
-    errors: [],
+    root: pageRoot,
+    status: 'idle',
+    loadPromise: null,
     assets: {},
-    retry: null,
+    errors: [],
+    abortController,
     reportModuleError: null,
-    ready: new Promise(resolve => { resolveReady = resolve; }),
   };
   window[STATE_KEY] = state;
 
   const unwrap = response => {
-    if (response?.status === 'error') throw new Error(response.message || '后端拒绝读取增强资源');
+    if (response?.status === 'error') throw new Error(response.message || '后端拒绝读取深度分析资源');
     const first = response?.data ?? response;
-    if (first?.status === 'error') throw new Error(first.message || '增强资源返回错误');
+    if (first?.status === 'error') throw new Error(first.message || '深度分析资源返回错误');
     return first?.data ?? first;
-  };
-
-  const diagnosticHost = () => {
-    let host = document.getElementById('uiEnhancementStatus');
-    if (host) return host;
-    host = document.createElement('section');
-    host.id = 'uiEnhancementStatus';
-    host.className = 'panel';
-    host.setAttribute('role', 'status');
-    host.setAttribute('aria-live', 'polite');
-    host.style.cssText = 'display:none;margin:0 0 18px;padding:14px 18px;border-style:dashed';
-    const topbar = document.querySelector('.topbar');
-    if (topbar) topbar.insertAdjacentElement('afterend', host);
-    else document.body.prepend(host);
-    return host;
-  };
-
-  const showDiagnostic = (kind, message, retry = false) => {
-    const host = diagnosticHost();
-    host.style.display = '';
-    host.dataset.kind = kind;
-    const title = kind === 'loading'
-      ? '正在连接增强界面'
-      : kind === 'partial'
-        ? '部分增强模块未加载'
-        : '增强界面未加载';
-    host.innerHTML = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap"><div><strong>${title}</strong><div class="panel-desc" style="margin-top:5px"></div></div>${retry ? '<button type="button" class="btn ghost" id="uiEnhancementRetry">重试增强界面</button>' : ''}</div>`;
-    host.querySelector('.panel-desc').textContent = `${message} 核心数据总览、猪猪图鉴和管理操作不受影响。`;
-    host.querySelector('#uiEnhancementRetry')?.addEventListener('click', () => state.retry?.(), {once: true});
-  };
-
-  const clearDiagnostic = () => {
-    const host = document.getElementById('uiEnhancementStatus');
-    if (host) host.style.display = 'none';
   };
 
   const validateBundle = bundle => {
     if (!bundle || bundle.version !== VERSION || !Array.isArray(bundle.assets)) {
-      throw Object.assign(new Error(`增强资源版本不匹配：期望 ${VERSION}`), {code: 'version-mismatch'});
+      throw Object.assign(new Error(`深度分析资源版本不匹配：期望 ${VERSION}`), {code: 'version-mismatch'});
     }
     const seen = new Set();
     let total = 0;
     for (const asset of bundle.assets) {
       if (!asset || ALLOWED.get(asset.name) !== asset.kind || typeof asset.source !== 'string') {
-        throw Object.assign(new Error(`增强资源清单包含未知项目：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
+        throw Object.assign(new Error(`深度分析资源清单包含未知项目：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
       }
-      if (seen.has(asset.name)) throw Object.assign(new Error(`增强资源重复：${asset.name}`), {code: 'duplicate-asset'});
+      if (seen.has(asset.name)) {
+        throw Object.assign(new Error(`深度分析资源重复：${asset.name}`), {code: 'duplicate-asset'});
+      }
       seen.add(asset.name);
       total += asset.source.length;
     }
     for (const name of ALLOWED.keys()) {
-      if (!seen.has(name)) throw Object.assign(new Error(`增强资源缺失：${name}`), {code: 'missing-asset'});
+      if (!seen.has(name)) {
+        throw Object.assign(new Error(`深度分析资源缺失：${name}`), {code: 'missing-asset'});
+      }
     }
-    if (total > 1_500_000) throw Object.assign(new Error('增强资源总量超出安全限制'), {code: 'bundle-too-large'});
+    if (total > 768_000) {
+      throw Object.assign(new Error('深度分析资源总量超出安全限制'), {code: 'bundle-too-large'});
+    }
     return bundle;
   };
 
@@ -110,8 +73,36 @@
     if (!asset.sha256) return;
     const actual = await sha256(asset.source);
     if (actual && actual !== asset.sha256) {
-      throw Object.assign(new Error(`增强资源校验失败：${asset.name}`), {code: 'checksum-mismatch'});
+      throw Object.assign(new Error(`深度分析资源校验失败：${asset.name}`), {code: 'checksum-mismatch'});
     }
+  };
+
+  const statusHost = () => {
+    let host = pageRoot.querySelector('#analyticsLoadStatus');
+    if (host) return host;
+    host = document.createElement('section');
+    host.id = 'analyticsLoadStatus';
+    host.className = 'panel';
+    host.setAttribute('role', 'status');
+    host.setAttribute('aria-live', 'polite');
+    host.style.cssText = 'display:none;margin:0 0 18px;padding:14px 18px;border-style:dashed';
+    pageRoot.querySelector('.topbar')?.insertAdjacentElement('afterend', host);
+    return host;
+  };
+
+  const showStatus = (kind, message) => {
+    const host = statusHost();
+    host.dataset.kind = kind;
+    host.style.display = '';
+    host.innerHTML = '<strong></strong><div class="panel-desc" style="margin-top:5px"></div>';
+    host.querySelector('strong').textContent =
+      kind === 'loading' ? '正在载入深度分析' : '深度分析未载入';
+    host.querySelector('.panel-desc').textContent = message;
+  };
+
+  const hideStatus = () => {
+    const host = pageRoot.querySelector('#analyticsLoadStatus');
+    if (host) host.style.display = 'none';
   };
 
   const injectStyle = asset => {
@@ -142,70 +133,80 @@
     const script = document.createElement('script');
     script.dataset.rollpigUiAsset = asset.name;
     script.dataset.version = VERSION;
-    script.dataset.pageToken = pageToken;
     script.textContent = `try {\n${asset.source}\n} catch (error) { window.${STATE_KEY}?.reportModuleError(${JSON.stringify(asset.name)}, error); }\n//# sourceURL=rollpig-${asset.name}-${VERSION}.js`;
     document.body.appendChild(script);
     if (!state.errors.some(item => item.name === asset.name)) state.assets[asset.name] = 'ready';
   };
 
-  const applyBundle = async bundle => {
-    const byName = new Map(bundle.assets.map(asset => [asset.name, asset]));
-    for (const name of [...STYLE_ORDER, ...SCRIPT_ORDER]) await verifyAsset(byName.get(name));
-    STYLE_ORDER.forEach(name => injectStyle(byName.get(name)));
-    SCRIPT_ORDER.forEach(name => injectScript(byName.get(name)));
-    state.status = state.errors.length ? 'partial' : 'ready';
-    document.documentElement.dataset.rollpigEnhancedUi = state.status;
-    if (state.status === 'ready') clearDiagnostic();
-    else showDiagnostic('partial', state.errors.map(item => `${item.name}: ${item.message}`).join('；'), true);
-    resolveReady(state);
-  };
+  const withTimeout = (promise, milliseconds, message) => Promise.race([
+    promise,
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), milliseconds)),
+  ]);
 
-  const readCache = () => {
-    try {
-      const cached = window.sessionStorage?.getItem(CACHE_KEY);
-      return cached ? validateBundle(JSON.parse(cached)) : null;
-    } catch {
-      return null;
+  const topActions = pageRoot.querySelector('.top-actions');
+  if (!topActions) return;
+
+  let button = pageRoot.querySelector('#analyticsLoadBtn');
+  if (!button) {
+    button = document.createElement('button');
+    button.id = 'analyticsLoadBtn';
+    button.type = 'button';
+    button.className = 'btn ghost';
+    button.textContent = '深度分析';
+    button.title = '点击后才载入深度分析资源与数据';
+    const refreshButton = pageRoot.querySelector('#refreshBtn');
+    topActions.insertBefore(button, refreshButton || null);
+  }
+
+  const load = async () => {
+    const activeAnalytics = window.__rollpigAnalyticsUiState;
+    if (
+      activeAnalytics?.version === VERSION &&
+      activeAnalytics.root === pageRoot &&
+      pageRoot.querySelector('#analyticsSuite')
+    ) {
+      await activeAnalytics.refresh?.();
+      return;
     }
-  };
+    if (state.loadPromise) return state.loadPromise;
 
-  const saveCache = bundle => {
-    try { window.sessionStorage?.setItem(CACHE_KEY, JSON.stringify(bundle)); } catch { /* sandboxed storage is optional */ }
-  };
-
-  const fetchBundle = async ignoreCache => {
-    if (!ignoreCache) {
-      const cached = readCache();
-      if (cached) return cached;
-    }
-    const bridge = window.AstrBotPluginPage;
-    if (!bridge?.apiGet) throw Object.assign(new Error('AstrBot Plugin Page Bridge 不存在'), {code: 'bridge-missing'});
-    if (typeof bridge.ready === 'function') await bridge.ready();
-    const bundle = validateBundle(unwrap(await bridge.apiGet('ui/assets', {version: VERSION})));
-    saveCache(bundle);
-    return bundle;
-  };
-
-  const load = async ({ignoreCache = false} = {}) => {
     state.status = 'loading';
     state.errors = [];
-    state.errorCode = '';
-    showDiagnostic('loading', '正在通过 AstrBot 认证桥接读取企业主题与深度分析资源。');
-    try {
-      await applyBundle(await fetchBundle(ignoreCache));
-    } catch (error) {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = '载入中…';
+    showStatus('loading', '仅本次点击会通过认证桥接读取 Analytics 代码与聚合数据；核心页面不会等待它。');
+
+    state.loadPromise = (async () => {
+      const bridge = window.AstrBotPluginPage;
+      if (!bridge?.apiGet) {
+        throw Object.assign(new Error('AstrBot Plugin Page Bridge 不存在'), {code: 'bridge-missing'});
+      }
+      if (typeof bridge.ready === 'function') {
+        await withTimeout(bridge.ready(), 6000, '管理桥接在 6 秒内没有就绪');
+      }
+      const bundle = validateBundle(unwrap(await bridge.apiGet('ui/assets', {version: VERSION})));
+      const byName = new Map(bundle.assets.map(asset => [asset.name, asset]));
+      for (const name of ALLOWED.keys()) await verifyAsset(byName.get(name));
+      injectStyle(byName.get('analytics-theme'));
+      injectScript(byName.get('ui-analytics'));
+      if (state.errors.length) throw new Error(state.errors.map(item => item.message).join('；'));
+      state.status = 'ready';
+      hideStatus();
+      button.textContent = '刷新深度分析';
+      button.title = '重新读取深度分析聚合数据';
+    })().catch(error => {
       state.status = 'error';
-      state.errorCode = error?.code || 'asset-request-failed';
-      state.errors.push({name: 'bootstrap', message: error?.message || String(error)});
-      document.documentElement.dataset.rollpigEnhancedUi = 'error';
-      showDiagnostic('error', `原因：${error?.message || error}（${state.errorCode}）。`, true);
-      resolveReady(state);
-    }
+      showStatus('error', `原因：${error?.message || error}。数据总览、猪猪图鉴和管理操作不受影响。`);
+      button.textContent = '重试深度分析';
+    }).finally(() => {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      state.loadPromise = null;
+    });
+
+    return state.loadPromise;
   };
 
-  state.retry = () => {
-    try { window.sessionStorage?.removeItem(CACHE_KEY); } catch { /* optional */ }
-    load({ignoreCache: true});
-  };
-  load();
+  button.addEventListener('click', load, {signal: abortController.signal});
 })();
