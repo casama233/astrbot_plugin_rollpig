@@ -1,11 +1,15 @@
 (() => {
   // Source-regression compatibility markers from the preserved feedback core:
   // storageRebuildBtn 'storage/rebuild' restartRequired 已有管理任务正在执行
+  const ASSET_VERSION = '3.0.1';
+  const versioned = source =>
+    `${source}${source.includes('?') ? '&' : '?'}v=${encodeURIComponent(ASSET_VERSION)}`;
+
   const injectStyle = (href, marker) => {
     if (document.querySelector(`link[${marker}]`)) return;
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = href;
+    stylesheet.href = versioned(href);
     stylesheet.setAttribute(marker, '');
     document.head.appendChild(stylesheet);
   };
@@ -15,16 +19,16 @@
 
   if (document.readyState === 'loading') {
     document.write(
-      '<script src="./ui-feedback-core.js"><\/script>' +
-      '<script src="./ui-enterprise.js"><\/script>' +
-      '<script src="./ui-analytics.js"><\/script>'
+      '<script src="./ui-feedback-core.js?v=3.0.1"><\/script>' +
+      '<script src="./ui-enterprise.js?v=3.0.1"><\/script>' +
+      '<script src="./ui-analytics.js?v=3.0.1"><\/script>'
     );
     return;
   }
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = src;
+    script.src = versioned(src);
     script.onload = resolve;
     script.onerror = () => reject(new Error(`无法载入管理页脚本：${src}`));
     document.head.appendChild(script);
