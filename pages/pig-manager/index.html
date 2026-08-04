@@ -155,7 +155,2854 @@
 <div class="toast" id="toast"></div><div class="loading" id="loading"><div class="spinner"></div></div>
 
 <script src="/api/plugin/page/bridge-sdk.js"></script>
-<script src="./ui-feedback.js?v=3.0.3"></script>
+<!-- rollpig-inline-assets:start -->
+<style data-rollpig-enterprise-theme data-version="3.0.4">
+/*
+ * Rollpig enterprise admin theme
+ * UI-only override: no route, API, data model or business-flow changes.
+ */
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-strong: #ffffff;
+  --ink: #20242c;
+  --muted: #687080;
+  --line: #e5e8ed;
+  --line-strong: #d5d9e1;
+  --pink: #d74f70;
+  --pink-2: #e77d96;
+  --pink-soft: #fff0f4;
+  --plum: #765868;
+  --violet: #6f6bd7;
+  --blue: #477bd6;
+  --green: #23845f;
+  --orange: #b66a26;
+  --danger: #c73f55;
+  --shadow: 0 16px 40px rgba(24, 31, 45, .08);
+  --shadow-soft: 0 4px 14px rgba(24, 31, 45, .055);
+  --focus-ring: 0 0 0 3px rgba(215, 79, 112, .16);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.2, .8, .2, 1);
+}
+
+:root[data-theme="dark"] {
+  --bg: #111318;
+  --surface: #181b22;
+  --surface-solid: #181b22;
+  --surface-strong: #20242d;
+  --ink: #f2f4f7;
+  --muted: #9ca4b3;
+  --line: #2a2f39;
+  --line-strong: #3a414e;
+  --pink: #ef7794;
+  --pink-2: #f19aae;
+  --pink-soft: #34212a;
+  --plum: #c0a2b2;
+  --violet: #9691ef;
+  --blue: #78a6f2;
+  --green: #61c49a;
+  --orange: #e3a15c;
+  --danger: #ef6b7e;
+  --shadow: 0 18px 48px rgba(0, 0, 0, .28);
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, .22);
+  --focus-ring: 0 0 0 3px rgba(239, 119, 148, .20);
+}
+
+html {
+  background: var(--bg);
+  scrollbar-gutter: stable;
+}
+
+body {
+  background:
+    radial-gradient(circle at 5% -10%, color-mix(in srgb, var(--pink) 5%, transparent), transparent 30rem),
+    var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--pink) 22%, transparent);
+}
+
+.ambient,
+.noise {
+  display: none !important;
+}
+
+.shell {
+  width: min(1440px, calc(100% - 40px));
+  padding: 20px 0 56px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 20000;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-160%);
+  transition: transform .18s var(--ease);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.topbar {
+  top: 10px;
+  min-height: 64px;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  box-shadow: 0 6px 22px rgba(24, 31, 45, .06);
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+.logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--pink-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pink) 16%, var(--line));
+  font-size: 21px;
+}
+
+.brand {
+  gap: 10px;
+}
+
+.brand-title {
+  font-size: 14px;
+  font-weight: 720;
+  letter-spacing: -.01em;
+}
+
+.brand-sub {
+  margin-top: 1px;
+  font-size: 10px;
+  letter-spacing: .02em;
+}
+
+.nav {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+}
+
+.nav-btn {
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  transition: background-color .16s var(--ease), color .16s var(--ease), box-shadow .16s var(--ease);
+}
+
+.nav-btn:hover {
+  background: color-mix(in srgb, var(--surface-strong) 75%, transparent);
+}
+
+.nav-btn.active {
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(24, 31, 45, .08);
+}
+
+.top-actions {
+  gap: 8px;
+}
+
+.live {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 76%, transparent);
+  font-size: 10px;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: none;
+  animation: none;
+}
+
+.btn {
+  min-height: 36px;
+  padding: 8px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--pink);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 680;
+  letter-spacing: .005em;
+  transition:
+    background-color .16s var(--ease),
+    border-color .16s var(--ease),
+    color .16s var(--ease),
+    box-shadow .16s var(--ease),
+    transform .12s var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pink) 88%, #000);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--pink) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn.ghost {
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface-strong) 86%, var(--bg));
+  box-shadow: var(--shadow-soft);
+}
+
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: .48;
+  filter: saturate(.5);
+}
+
+.btn[aria-busy="true"] {
+  position: relative;
+  padding-left: 31px;
+}
+
+.btn[aria-busy="true"]::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: .75;
+  animation: enterpriseSpin .7s linear infinite;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 16px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring) !important;
+}
+
+.view.active {
+  animation: enterpriseViewIn .24s var(--ease) both;
+}
+
+.hero,
+.catalog-hero {
+  min-height: 0;
+  margin-bottom: 14px;
+  padding: 26px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(110deg, var(--surface-strong), color-mix(in srgb, var(--pink-soft) 40%, var(--surface-strong)));
+  box-shadow: var(--shadow-soft);
+}
+
+.hero {
+  grid-template-columns: minmax(0, 1.4fr) minmax(250px, .6fr);
+  align-items: center;
+}
+
+.hero::after {
+  width: 220px;
+  height: 220px;
+  top: -145px;
+  right: -80px;
+  border-color: color-mix(in srgb, var(--pink) 12%, transparent);
+  box-shadow: 0 0 0 32px color-mix(in srgb, var(--pink) 3%, transparent);
+  animation: none;
+}
+
+.eyebrow {
+  margin-bottom: 7px;
+  color: var(--pink);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .11em;
+}
+
+.hero h1,
+.catalog-hero h1 {
+  max-width: 760px;
+  font-size: clamp(28px, 3.2vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.hero .sub,
+.catalog-hero .sub {
+  max-width: 720px;
+  margin-top: 11px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.hero-side {
+  width: min(100%, 280px);
+  padding: 4px 0 4px 22px;
+}
+
+.hero-side-value {
+  margin: 3px 0 9px;
+  font-size: 28px;
+}
+
+.hero-side-line {
+  height: 3px;
+}
+
+.hero-side-line::after {
+  animation: none;
+}
+
+.metrics {
+  grid-template-columns: repeat(6, minmax(142px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.metric,
+.panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: none;
+}
+
+.metric {
+  min-height: 128px;
+  padding: 15px;
+  border-radius: var(--radius-md);
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
+}
+
+.metric:hover {
+  border-color: color-mix(in srgb, var(--tone, var(--pink)) 28%, var(--line));
+  box-shadow: 0 7px 20px rgba(24, 31, 45, .07);
+  transform: translateY(-2px);
+}
+
+.metric .label {
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.metric-icon {
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+.metric .value {
+  margin-top: 7px;
+  font-size: 27px;
+  letter-spacing: -.035em;
+}
+
+.metric .note {
+  font-size: 9px;
+}
+
+.metric-viz {
+  right: 10px;
+  bottom: 5px;
+  left: 10px;
+  height: 30px;
+  opacity: .62;
+}
+
+.dashboard-grid {
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.insight-stack {
+  gap: 14px;
+}
+
+.panel {
+  padding: 19px;
+  border-radius: var(--radius-md);
+  overflow: clip;
+}
+
+.panel-head {
+  margin-bottom: 15px;
+}
+
+.panel h2 {
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -.015em;
+}
+
+.panel-desc,
+.sync-feedback,
+.update-notes {
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.legend {
+  gap: 11px;
+  font-size: 9.5px;
+}
+
+.chart,
+.bar-list {
+  height: 280px;
+}
+
+.chart-tooltip {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.ring-panel {
+  min-height: 158px;
+  grid-template-columns: 126px 1fr;
+  gap: 16px;
+}
+
+.ring {
+  width: 118px;
+  height: 118px;
+}
+
+.ring-value {
+  font-size: 24px;
+}
+
+.insight-list {
+  gap: 10px;
+}
+
+.insight-item {
+  padding-bottom: 10px;
+}
+
+.bar-row {
+  grid-template-columns: minmax(68px, 104px) 1fr 32px;
+}
+
+.bar-track {
+  height: 7px;
+}
+
+.operation-card {
+  position: relative;
+  overflow: clip;
+}
+
+.sync-panel,
+.update-panel {
+  gap: 18px;
+}
+
+.sync-panel {
+  align-items: center;
+}
+
+.update-panel {
+  margin-top: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, auto);
+  align-items: center;
+}
+
+.operation-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--blue);
+}
+
+.operation-card--storage::before {
+  background: var(--violet);
+}
+
+.operation-card--update::before {
+  background: var(--orange);
+}
+
+.sync-copy {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sync-icon {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pink-soft) 52%, var(--surface-strong));
+  font-size: 17px;
+}
+
+.status-row {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pill {
+  min-height: 23px;
+  padding: 3px 8px;
+  border-color: var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 86%, var(--bg));
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.pill.is-success,
+.sync-feedback.is-success {
+  color: var(--green);
+}
+
+.pill.is-warning,
+.sync-feedback.is-warning {
+  color: var(--orange);
+}
+
+.pill.is-danger,
+.sync-feedback.is-danger {
+  color: var(--danger);
+}
+
+.pill.is-success {
+  border-color: color-mix(in srgb, var(--green) 26%, var(--line));
+  background: color-mix(in srgb, var(--green) 7%, var(--surface-strong));
+}
+
+.pill.is-warning {
+  border-color: color-mix(in srgb, var(--orange) 28%, var(--line));
+  background: color-mix(in srgb, var(--orange) 7%, var(--surface-strong));
+}
+
+.pill.is-danger {
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--line));
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface-strong));
+}
+
+.update-actions {
+  gap: 7px;
+  max-width: 520px;
+}
+
+.update-actions .btn {
+  white-space: nowrap;
+}
+
+.update-notes {
+  max-height: 112px;
+  padding-right: 4px;
+}
+
+.catalog-hero {
+  align-items: center;
+}
+
+.catalog-count {
+  font-size: 50px;
+  color: var(--pink);
+}
+
+.catalog-count small {
+  margin-top: 9px;
+  font-size: 9px;
+}
+
+.catalog-panel {
+  min-height: 520px;
+}
+
+.catalog-toolbar {
+  gap: 8px;
+}
+
+.search {
+  min-width: 270px;
+  min-height: 36px;
+  padding: 8px 11px 8px 34px;
+  border-color: var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  font-size: 12px;
+}
+
+.search:focus,
+.field input:focus,
+.field textarea:focus {
+  border-color: color-mix(in srgb, var(--pink) 55%, var(--line));
+  box-shadow: var(--focus-ring);
+}
+
+.pig-grid {
+  grid-template-columns: repeat(6, minmax(142px, 1fr));
+  gap: 11px;
+}
+
+.pig-card,
+.hub-card {
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  animation: enterpriseCardIn .22s var(--ease) both;
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
+}
+
+.pig-card {
+  padding: 9px;
+}
+
+.pig-card:hover,
+.hub-card:hover {
+  border-color: color-mix(in srgb, var(--pink) 25%, var(--line));
+  box-shadow: 0 7px 20px rgba(24, 31, 45, .07);
+  transform: translateY(-2px);
+}
+
+.pig-thumb {
+  border-radius: 9px;
+}
+
+.pig-thumb::after {
+  display: none;
+}
+
+.pig-name {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.pig-id {
+  font-size: 9px;
+}
+
+.pig-desc {
+  height: 32px;
+  margin-top: 6px;
+  font-size: 10.5px;
+}
+
+.pig-meta {
+  font-size: 9px;
+}
+
+.pig-actions {
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.pig-actions .btn {
+  min-height: 31px;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+
+.empty {
+  min-height: 180px;
+  padding: 58px 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  font-size: 12px;
+}
+
+.pagination {
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.pagination .btn {
+  min-height: 33px;
+}
+
+.modal {
+  padding: 18px;
+  background: rgba(12, 15, 22, .56);
+  backdrop-filter: blur(8px);
+}
+
+.dialog {
+  border-radius: var(--radius-lg);
+  background: var(--surface-solid);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+  animation: enterpriseDialogIn .22s var(--ease) both;
+}
+
+.dialog-head {
+  margin-bottom: 16px;
+}
+
+.dialog h2 {
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+
+.close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 21px;
+  transition: background-color .16s var(--ease), color .16s var(--ease);
+}
+
+.close:hover {
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--ink);
+  transform: none;
+}
+
+.flow {
+  margin: 3px 0 19px;
+}
+
+.flow-step {
+  font-size: 9.5px;
+}
+
+.flow-node {
+  width: 25px;
+  height: 25px;
+  box-shadow: none !important;
+}
+
+.flow-step.current .flow-node {
+  transform: none;
+}
+
+.form-grid {
+  gap: 13px;
+}
+
+.field {
+  gap: 5px;
+}
+
+.field label {
+  font-size: 10.5px;
+  font-weight: 680;
+}
+
+.field input,
+.field textarea {
+  padding: 9px 11px;
+  border-color: var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  font-size: 12px;
+}
+
+.field textarea {
+  min-height: 82px;
+  line-height: 1.6;
+}
+
+.hint {
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+
+.ai-progress {
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 45%, var(--surface));
+}
+
+.ai-progress-track {
+  height: 6px;
+}
+
+.upload {
+  grid-template-columns: 132px 1fr;
+  gap: 14px;
+  padding: 12px;
+  border-color: color-mix(in srgb, var(--pink) 28%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--pink-soft) 24%, var(--surface));
+}
+
+.preview {
+  width: 132px;
+  height: 132px;
+  border-radius: 10px;
+}
+
+.dialog-actions {
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.hub-toolbar {
+  gap: 8px;
+}
+
+.hub-grid {
+  gap: 10px;
+}
+
+.hub-card {
+  padding: 7px;
+}
+
+.hub-card.selected {
+  outline: 2px solid color-mix(in srgb, var(--pink) 24%, transparent);
+}
+
+.hub-thumb {
+  border-radius: 8px;
+}
+
+.toast {
+  right: 20px;
+  bottom: 20px;
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: #20242c;
+  color: #fff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .22);
+  font-size: 12px;
+  transform: translateY(8px);
+}
+
+.loading {
+  background: color-mix(in srgb, var(--bg) 58%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 2px;
+}
+
+#pageConfirmDialog {
+  background: rgba(12, 15, 22, .58) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+#pageConfirmDialog > section {
+  border-color: var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-solid) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28) !important;
+}
+
+#runtimeRestartNotice {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.has-busy-operation {
+  cursor: progress;
+}
+
+@keyframes enterpriseSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes enterpriseViewIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes enterpriseDialogIn {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes enterpriseCardIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 1220px) {
+  .metrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .pig-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    width: min(100% - 28px, 1440px);
+  }
+
+  .topbar {
+    top: 0;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-side {
+    width: 100%;
+    padding: 14px 0 0;
+  }
+
+  .update-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .update-actions {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .pig-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .shell {
+    width: min(100% - 20px, 1440px);
+    padding-top: 10px;
+  }
+
+  .topbar {
+    gap: 10px;
+    border-radius: var(--radius-md);
+  }
+
+  .nav {
+    order: 3;
+  }
+
+  .hero,
+  .catalog-hero {
+    padding: 21px 18px;
+    border-radius: var(--radius-md);
+  }
+
+  .hero h1,
+  .catalog-hero h1 {
+    font-size: 31px;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metric {
+    min-height: 124px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .sync-panel,
+  .catalog-hero {
+    align-items: stretch;
+  }
+
+  .sync-panel {
+    flex-direction: column;
+  }
+
+  .sync-panel > .btn {
+    width: 100%;
+  }
+
+  .catalog-toolbar,
+  .hub-toolbar {
+    gap: 7px;
+  }
+
+  .pig-grid,
+  .hub-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .update-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .update-actions .btn {
+    width: 100%;
+  }
+
+  .form-grid {
+    gap: 11px;
+  }
+
+  .upload {
+    grid-template-columns: 1fr;
+  }
+
+  .preview {
+    width: min(100%, 220px);
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .dialog {
+    padding: 18px;
+  }
+
+  .dialog-actions {
+    position: sticky;
+    bottom: -18px;
+    margin-right: -18px;
+    margin-left: -18px;
+    padding: 13px 18px 18px;
+    background: var(--surface-solid);
+  }
+}
+
+@media (max-width: 440px) {
+  .brand-sub {
+    display: none;
+  }
+
+  .metrics,
+  .pig-grid,
+  .hub-grid,
+  .update-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .metric {
+    min-height: 116px;
+  }
+
+  .catalog-count {
+    font-size: 42px;
+  }
+
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .dialog-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+
+  .btn:hover:not(:disabled),
+  .metric:hover,
+  .pig-card:hover,
+  .hub-card:hover {
+    transform: none;
+  }
+}
+
+</style>
+<style data-rollpig-analytics-theme data-version="3.0.4">
+/* RollPig commercial analytics layer — presentation only. */
+
+.analytics-suite {
+  --analytics-cyan: #62c8d3;
+  --analytics-purple: #8b83f5;
+  --analytics-amber: #e8a45c;
+  --analytics-grid: color-mix(in srgb, var(--line) 72%, transparent);
+  margin: 0 0 14px;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 12px);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 97%, transparent), color-mix(in srgb, var(--surface-strong) 98%, var(--pink-soft))),
+    var(--surface);
+  box-shadow: var(--shadow-soft);
+  overflow: clip;
+}
+
+.analytics-suite::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.analytics-suite__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+.analytics-suite__head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 740;
+  letter-spacing: -.02em;
+}
+
+.analytics-suite__head p {
+  max-width: 720px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.analytics-suite__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 27px;
+  color: var(--muted);
+  font: 600 9.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.analytics-suite__meta > span {
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 88%, var(--bg));
+}
+
+.analytics-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.analytics-kpi {
+  position: relative;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-strong) 96%, var(--bg));
+  overflow: hidden;
+}
+
+.analytics-kpi::after {
+  content: "";
+  position: absolute;
+  inset: auto -28px -36px auto;
+  width: 92px;
+  height: 92px;
+  border: 1px solid color-mix(in srgb, var(--pink) 10%, transparent);
+  border-radius: 50%;
+}
+
+.analytics-kpi__label {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+
+.analytics-kpi__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.analytics-kpi__row strong {
+  font-size: clamp(23px, 2.6vw, 31px);
+  line-height: 1;
+  letter-spacing: -.045em;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-delta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.analytics-delta.is-up,
+.analytics-delta.is-accent {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 9%, transparent);
+}
+
+.analytics-delta.is-down {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+}
+
+.analytics-delta.is-warning {
+  color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 9%, transparent);
+}
+
+.analytics-delta.is-flat {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.analytics-kpi__note {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.analytics-card {
+  grid-column: span 4;
+  min-width: 0;
+  min-height: 260px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-strong) 97%, var(--bg));
+  overflow: hidden;
+}
+
+.analytics-card--wide {
+  grid-column: span 8;
+}
+
+.analytics-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.analytics-card__head span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.analytics-card__head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: -.01em;
+}
+
+.analytics-card__head small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 550;
+  text-align: right;
+}
+
+.activity-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -7px 0 8px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.activity-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--pink) calc(18% + var(--step, 0%)), var(--surface));
+}
+
+.activity-legend i:nth-of-type(1) { --step: 0%; }
+.activity-legend i:nth-of-type(2) { --step: 18%; }
+.activity-legend i:nth-of-type(3) { --step: 38%; }
+.activity-legend i:nth-of-type(4) { --step: 62%; }
+
+.activity-heatmap {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(15px, 1fr));
+  gap: 5px;
+  min-height: 112px;
+  align-content: center;
+  padding: 11px;
+  border: 1px solid var(--analytics-grid);
+  border-radius: 8px;
+  background:
+    linear-gradient(var(--analytics-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--analytics-grid) 1px, transparent 1px),
+    color-mix(in srgb, var(--bg) 46%, var(--surface));
+  background-size: 24px 24px;
+}
+
+.activity-cell {
+  min-width: 0;
+  text-align: center;
+}
+
+.activity-cell i {
+  display: block;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--pink) 12%, var(--line));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--pink) calc(var(--intensity) * 74%), var(--surface));
+  transition: transform .14s var(--ease), border-color .14s var(--ease);
+}
+
+.activity-cell:hover i {
+  transform: translateY(-2px) scale(1.06);
+  border-color: color-mix(in srgb, var(--pink) 56%, var(--line));
+}
+
+.activity-cell span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font: 500 7px/1 ui-monospace, SFMono-Regular, monospace;
+}
+
+.activity-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.activity-summary span {
+  padding-left: 9px;
+  border-left: 2px solid color-mix(in srgb, var(--pink) 30%, var(--line));
+  color: var(--muted);
+  font-size: 8.5px;
+}
+
+.activity-summary b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 19px;
+}
+
+.compare-row__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.compare-row__top b {
+  color: var(--ink);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-row__top small {
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.compare-bars {
+  display: grid;
+  gap: 3px;
+}
+
+.compare-bars i {
+  display: block;
+  height: 5px;
+  min-width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink), var(--pink-2));
+}
+
+.compare-bars i + i {
+  background: color-mix(in srgb, var(--muted) 28%, var(--line));
+}
+
+.compare-legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 8.5px;
+}
+
+.compare-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.compare-legend i {
+  width: 8px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.compare-legend .is-current { background: var(--pink); }
+.compare-legend .is-previous { background: color-mix(in srgb, var(--muted) 36%, var(--line)); }
+
+.retention-layout {
+  display: grid;
+  grid-template-columns: 116px 1fr;
+  align-items: center;
+  gap: 15px;
+  min-height: 172px;
+}
+
+.retention-ring {
+  width: 108px;
+  height: 108px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--pink) calc(var(--rate) * 1%), var(--line) 0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pink) 8%, transparent);
+}
+
+.retention-ring::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--surface-strong);
+}
+
+.retention-ring div {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.retention-ring strong {
+  display: block;
+  font-size: 21px;
+  letter-spacing: -.04em;
+}
+
+.retention-ring span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.analytics-dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.analytics-dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.analytics-dl div:last-child {
+  border-bottom: 0;
+}
+
+.analytics-dl dt {
+  color: var(--muted);
+  font-size: 8.5px;
+}
+
+.analytics-dl dd {
+  margin: 0;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+
+.coverage-strip {
+  display: flex;
+  height: 10px;
+  margin: 24px 0 15px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.coverage-strip i {
+  min-width: 0;
+}
+
+.coverage-tone-1 { background: color-mix(in srgb, var(--pink) 30%, var(--surface)); }
+.coverage-tone-2 { background: color-mix(in srgb, var(--pink) 48%, var(--surface)); }
+.coverage-tone-3 { background: color-mix(in srgb, var(--pink) 65%, var(--surface)); }
+.coverage-tone-4 { background: color-mix(in srgb, var(--violet) 72%, var(--surface)); }
+.coverage-tone-5 { background: var(--violet); }
+
+.coverage-list {
+  display: grid;
+  gap: 7px;
+}
+
+.coverage-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+}
+
+.coverage-list span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.coverage-list span i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.coverage-list b {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-card__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 8.5px;
+}
+
+.platform-list {
+  display: grid;
+  gap: 11px;
+  margin-top: 18px;
+}
+
+.platform-row > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+  font-size: 9px;
+}
+
+.platform-row span {
+  max-width: 72%;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-row b {
+  font-variant-numeric: tabular-nums;
+}
+
+.platform-row > i,
+.ai-health > i {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.platform-row em,
+.ai-health em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--analytics-cyan), var(--analytics-purple));
+}
+
+.rising-table {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rising-table__head,
+.rising-table__row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.5fr) repeat(3, minmax(54px, .45fr));
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.rising-table__head {
+  background: color-mix(in srgb, var(--bg) 56%, var(--surface));
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.rising-table__row {
+  min-height: 39px;
+  border-top: 1px solid var(--line);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rising-table__row > span:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 7px;
+}
+
+.rising-table__row > span:first-child i {
+  grid-row: span 2;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 8px;
+}
+
+.rising-table__row b,
+.rising-table__row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rising-table__row b {
+  font-size: 9.5px;
+}
+
+.rising-table__row small {
+  color: var(--muted);
+  font: 500 7.5px/1.2 ui-monospace, SFMono-Regular, monospace;
+}
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  margin: 18px 0 15px;
+}
+
+.operations-grid div {
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 48%, var(--surface));
+}
+
+.operations-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.operations-grid strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-health > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 8.5px;
+}
+
+.ai-health b {
+  color: var(--ink);
+  font-size: 10px;
+}
+
+.ai-health em {
+  background: linear-gradient(90deg, var(--green), var(--analytics-cyan));
+}
+
+.analytics-skeleton {
+  position: relative;
+  min-height: 210px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--line) 50%, transparent);
+  overflow: hidden;
+}
+
+.analytics-skeleton::after,
+.analytics-kpi.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--surface-strong) 80%, transparent) 45%, transparent 70%);
+  transform: translateX(-100%);
+  animation: analyticsShimmer 1.25s linear infinite;
+}
+
+.analytics-kpi.is-loading {
+  display: grid;
+  align-content: center;
+  gap: 9px;
+}
+
+.analytics-kpi.is-loading i {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.analytics-kpi.is-loading i:nth-child(2) { width: 55%; height: 22px; }
+.analytics-kpi.is-loading i:nth-child(3) { width: 72%; }
+
+.analytics-empty,
+.analytics-error {
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  min-height: 130px;
+  color: var(--muted);
+  font-size: 9.5px;
+  text-align: center;
+}
+
+.analytics-error {
+  grid-column: 1 / -1;
+  min-height: 220px;
+  border: 1px dashed color-mix(in srgb, var(--danger) 35%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 4%, var(--surface));
+}
+
+.analytics-error strong {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.analytics-error .btn {
+  justify-self: center;
+  margin-top: 5px;
+}
+
+@keyframes analyticsShimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (max-width: 1180px) {
+  .analytics-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-card { grid-column: span 6; }
+  .analytics-card--wide { grid-column: span 12; }
+}
+
+@media (max-width: 820px) {
+  .analytics-suite { padding: 16px; }
+  .analytics-suite__head { flex-direction: column; }
+  .analytics-suite__meta { width: 100%; justify-content: flex-start; }
+  .analytics-card,
+  .analytics-card--wide { grid-column: span 12; }
+  .activity-heatmap { grid-template-columns: repeat(14, minmax(11px, 1fr)); gap: 4px; }
+}
+
+@media (max-width: 620px) {
+  .analytics-kpis { grid-template-columns: 1fr; }
+  .analytics-kpi { min-height: 100px; }
+  .activity-summary { grid-template-columns: repeat(2, 1fr); }
+  .retention-layout { grid-template-columns: 96px 1fr; }
+  .retention-ring { width: 90px; height: 90px; }
+  .retention-ring::before { width: 70px; height: 70px; }
+  .retention-ring strong { font-size: 18px; }
+  .rising-table__head,
+  .rising-table__row { grid-template-columns: minmax(130px, 1fr) repeat(3, 44px); gap: 6px; padding-inline: 8px; }
+}
+
+@media (max-width: 430px) {
+  .analytics-suite { margin-inline: 0; padding: 13px; }
+  .analytics-suite__meta { flex-wrap: wrap; }
+  .activity-heatmap { grid-template-columns: repeat(7, minmax(18px, 1fr)); }
+  .activity-cell span { font-size: 6.5px; }
+  .rising-table__head span:nth-child(3),
+  .rising-table__row > span:nth-child(3) { display: none; }
+  .rising-table__head,
+  .rising-table__row { grid-template-columns: minmax(125px, 1fr) 46px 48px; }
+  .operations-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analytics-skeleton::after,
+  .analytics-kpi.is-loading::after { animation: none; }
+  .activity-cell:hover i { transform: none; }
+}
+
+</style>
+<script data-rollpig-feedback-core data-version="3.0.4">
+(() => {
+  const bridge = window.AstrBotPluginPage;
+  if (!bridge || bridge.__rollpigFeedbackPatched) return;
+  bridge.__rollpigFeedbackPatched = true;
+
+  const $ = id => document.getElementById(id);
+  const originalGet = bridge.apiGet.bind(bridge);
+  const originalPost = bridge.apiPost.bind(bridge);
+  const mutationButtons = [
+    'syncBtn', 'storageVerifyBtn', 'storageRebuildBtn', 'storageExportBtn',
+    'storageMigrateBtn', 'storageRollbackBtn', 'updateCheckBtn', 'updateApplyBtn'
+  ];
+  const operations = {
+    'resources/sync': {button: 'syncBtn', pending: '启动中…', feedback: 'syncFeedback', message: '正在请求后端启动云资源同步'},
+    'storage/migrate': {button: 'storageMigrateBtn', pending: '迁移中…', feedback: 'storageFeedback', message: '正在备份 JSON、建立临时数据库并执行对账'},
+    'storage/verify': {button: 'storageVerifyBtn', pending: '验证中…', feedback: 'storageFeedback', message: '正在执行 SQLite 完整性、外键与投影检查'},
+    'storage/rebuild': {button: 'storageRebuildBtn', pending: '重建中…', feedback: 'storageFeedback', message: '正在从兼容文档事务性重建 SQLite 查询索引'},
+    'storage/export': {button: 'storageExportBtn', pending: '导出中…', feedback: 'storageFeedback', message: '正在生成 JSON 备份压缩包'},
+    'storage/rollback': {button: 'storageRollbackBtn', pending: '回滚中…', feedback: 'storageFeedback', message: '正在把 SQLite 最新数据安全写回 JSON'},
+    'updates/check': {button: 'updateCheckBtn', pending: '检查中…', feedback: 'updateFeedback', message: '正在连接官方仓库检查稳定版本'},
+    'updates/apply': {button: 'updateApplyBtn', pending: '安装中…', feedback: 'updateFeedback', message: '正在下载、校验、备份并替换插件代码'}
+  };
+  const state = {restartRequired: false, active: new Map(), restartTimer: null};
+
+  function errorText(error) {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'string') return error;
+    try { return JSON.stringify(error); } catch { return '未知错误'; }
+  }
+
+  function isMissingRoute(message) {
+    return /未找到该路由|route\s*not\s*found|404|not found/i.test(String(message || ''));
+  }
+
+  function ensureRestartBanner() {
+    let banner = $('runtimeRestartNotice');
+    if (banner) return banner;
+    const topbar = document.querySelector('.topbar');
+    if (!topbar) return null;
+    banner = document.createElement('section');
+    banner.id = 'runtimeRestartNotice';
+    banner.className = 'panel';
+    banner.setAttribute('role', 'alert');
+    banner.style.cssText = 'display:none;margin-top:14px;border-color:rgba(255,174,82,.55);background:rgba(255,174,82,.10);padding:16px 20px';
+    banner.innerHTML = '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div><strong style="font-size:16px">⚠️ 插件代码已更新，AstrBot 仍在运行旧后端</strong><div class="panel-desc" style="margin-top:6px">请先重启 AstrBot，再使用迁移、验证、重建、同步或安全更新。否则新页面会请求尚未注册的路由。</div></div><span class="pill warn">等待重启</span></div>';
+    topbar.insertAdjacentElement('afterend', banner);
+    return banner;
+  }
+
+  function applyRestartLocks() {
+    if (!state.restartRequired) return;
+    const banner = ensureRestartBanner();
+    if (banner) banner.style.display = '';
+    mutationButtons.forEach(id => {
+      const button = $(id);
+      if (!button) return;
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
+      button.title = '插件代码已更新，请先重启 AstrBot';
+    });
+    const storage = $('storageFeedback');
+    if (storage && !/重启 AstrBot/.test(storage.textContent || '')) {
+      storage.textContent = '插件代码已更新，但后端路由仍是旧版本。请先重启 AstrBot，再执行存储操作。';
+    }
+  }
+
+  function markRestartRequired(reason = '') {
+    state.restartRequired = true;
+    applyRestartLocks();
+    clearInterval(state.restartTimer);
+    state.restartTimer = setInterval(applyRestartLocks, 400);
+    const update = $('updateFeedback');
+    if (update) update.textContent = reason || '更新已安装到磁盘；请重启 AstrBot 后再继续操作。';
+  }
+
+  function routeError(path, error) {
+    const raw = errorText(error);
+    if (isMissingRoute(raw)) {
+      markRestartRequired(`接口「${path}」尚未注册。若刚完成插件更新，请先重启 AstrBot。`);
+      return new Error(`接口「${path}」未注册；当前页面与运行中的插件后端版本不一致。请重启 AstrBot 后重试。`);
+    }
+    return new Error(`请求「${path}」失败：${raw}`);
+  }
+
+  function setFeedback(id, message) {
+    const node = $(id);
+    if (node) node.textContent = message;
+  }
+
+  function beginOperation(path) {
+    const config = operations[path];
+    if (!config) return null;
+    if (state.restartRequired) throw new Error('插件正在等待重启，当前操作已阻止。请先重启 AstrBot。');
+    if (state.active.size) throw new Error('已有管理任务正在执行，请等待当前任务完成。');
+    const button = $(config.button);
+    const record = {
+      config,
+      button,
+      originalText: button?.textContent || '',
+      startedAt: Date.now(),
+      timer: null
+    };
+    state.active.set(path, record);
+    mutationButtons.forEach(id => {
+      const item = $(id);
+      if (item) item.disabled = true;
+    });
+    if (button) {
+      button.textContent = config.pending;
+      button.setAttribute('aria-busy', 'true');
+    }
+    const update = () => {
+      const seconds = Math.max(0, Math.floor((Date.now() - record.startedAt) / 1000));
+      setFeedback(config.feedback, `${config.message}… 已等待 ${seconds} 秒，请勿重复点击。`);
+    };
+    update();
+    record.timer = setInterval(update, 1000);
+    return record;
+  }
+
+  function finishOperation(path, outcome, detail = '') {
+    const record = state.active.get(path);
+    if (!record) return;
+    clearInterval(record.timer);
+    state.active.delete(path);
+    if (record.button) {
+      record.button.textContent = record.originalText;
+      record.button.removeAttribute('aria-busy');
+    }
+    mutationButtons.forEach(id => {
+      const item = $(id);
+      if (item) item.disabled = false;
+    });
+    const elapsed = ((Date.now() - record.startedAt) / 1000).toFixed(1);
+    if (outcome === 'success') {
+      setFeedback(record.config.feedback, `${detail || '操作完成'}（耗时 ${elapsed} 秒）。状态正在自动刷新。`);
+    } else {
+      setFeedback(record.config.feedback, `${detail || '操作失败'}（耗时 ${elapsed} 秒）。`);
+    }
+    if (state.restartRequired) applyRestartLocks();
+  }
+
+  bridge.apiGet = async function(path, params) {
+    try {
+      const response = await originalGet(path, params || {});
+      const payload = response?.data ?? response;
+      if (path === 'updates/status' && payload?.last_result?.restart_required) {
+        markRestartRequired(`已安装 ${payload.last_result.to_version || '新版本'}；必须重启 AstrBot 才能注册新路由并载入新代码。`);
+      }
+      return response;
+    } catch (error) {
+      if (path === 'storage/status' && isMissingRoute(errorText(error))) {
+        markRestartRequired('存储接口尚未注册。页面文件比当前运行的插件后端更新，请先重启 AstrBot。');
+        return {
+          status: 'ok',
+          data: {
+            configured_mode: '等待重启',
+            active_backend: '旧后端',
+            database_exists: false,
+            last_error: '页面已更新，但运行中的插件后端尚未重启',
+            health: {ok: false}
+          }
+        };
+      }
+      throw routeError(path, error);
+    }
+  };
+
+  bridge.apiPost = async function(path, payload) {
+    let started = false;
+    try {
+      beginOperation(path);
+      started = true;
+      const response = await originalPost(path, payload || {});
+      if (response?.status === 'error') throw new Error(response.message || '后端返回操作失败');
+      const data = response?.data ?? response;
+      if (path === 'updates/apply' && data?.restart_required !== false) {
+        markRestartRequired(`已安装 ${data?.to_version || '新版本'}；请立即重启 AstrBot 后再继续管理操作。`);
+      }
+      finishOperation(path, 'success', path === 'updates/check' ? '版本检查完成' : '操作完成');
+      return response;
+    } catch (error) {
+      const normalized = routeError(path, error);
+      if (started) finishOperation(path, 'error', normalized.message);
+      throw normalized;
+    }
+  };
+
+  document.addEventListener('click', event => {
+    if (!state.restartRequired) return;
+    const button = event.target.closest('button');
+    if (!button || !mutationButtons.includes(button.id)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    markRestartRequired('当前页面对应的新代码尚未在 AstrBot 进程中载入。请先重启 AstrBot。');
+  }, true);
+
+  const refreshButton = $('refreshBtn');
+  const loadingOverlay = $('loading');
+  let refreshStartedAt = 0;
+  let refreshResetTimer = null;
+  function finishRefresh(message) {
+    if (!refreshStartedAt || !refreshButton) return;
+    const elapsed = ((Date.now() - refreshStartedAt) / 1000).toFixed(1);
+    refreshStartedAt = 0;
+    clearTimeout(refreshResetTimer);
+    refreshButton.disabled = false;
+    refreshButton.textContent = '↻';
+    refreshButton.removeAttribute('aria-busy');
+    refreshButton.title = `${message}（耗时 ${elapsed} 秒）`;
+    const live = document.querySelector('.live');
+    if (live) live.innerHTML = `<i class="live-dot"></i>${message} · ${elapsed}s`;
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || button.id !== 'refreshBtn' || state.restartRequired) return;
+    refreshStartedAt = Date.now();
+    button.disabled = true;
+    button.textContent = '…';
+    button.setAttribute('aria-busy', 'true');
+    button.title = '正在刷新总览、图鉴、资源、版本与存储状态';
+    const live = document.querySelector('.live');
+    if (live) live.innerHTML = '<i class="live-dot"></i>正在刷新全部数据…';
+    refreshResetTimer = setTimeout(() => finishRefresh('刷新超时，请查看各状态卡片'), 30000);
+  }, true);
+  if (loadingOverlay) {
+    new MutationObserver(() => {
+      if (refreshStartedAt && !loadingOverlay.classList.contains('show')) {
+        setTimeout(() => finishRefresh('数据已刷新'), 50);
+      }
+    }).observe(loadingOverlay, {attributes: true, attributeFilter: ['class']});
+  }
+
+  const toast = $('toast');
+  if (toast) {
+    new MutationObserver(() => {
+      if (toast.classList.contains('show') && isMissingRoute(toast.textContent)) {
+        toast.textContent = '后端路由尚未载入：请重启 AstrBot 后重试';
+      }
+    }).observe(toast, {attributes: true, childList: true, subtree: true});
+  }
+
+  function ensurePageConfirmDialog() {
+    let overlay = $('pageConfirmDialog');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'pageConfirmDialog';
+    overlay.setAttribute('role', 'presentation');
+    overlay.style.cssText = 'display:none;position:fixed;inset:0;z-index:10050;background:rgba(7,10,18,.68);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px';
+    overlay.innerHTML = `
+      <section role="dialog" aria-modal="true" aria-labelledby="pageConfirmTitle" style="width:min(460px,100%);border:1px solid rgba(255,255,255,.18);border-radius:22px;background:var(--panel,#171a24);box-shadow:0 28px 80px rgba(0,0,0,.48);padding:24px">
+        <div class="eyebrow">Confirm Action</div>
+        <h2 id="pageConfirmTitle" style="margin:8px 0 10px">确认操作</h2>
+        <p id="pageConfirmMessage" class="panel-desc" style="white-space:pre-wrap;line-height:1.7;margin-bottom:22px"></p>
+        <div class="dialog-actions">
+          <button class="btn ghost" type="button" id="pageConfirmCancel">取消</button>
+          <button class="btn" type="button" id="pageConfirmAccept">继续</button>
+        </div>
+      </section>`;
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function showPageConfirm({title, message, confirmText = '继续', dangerous = false}) {
+    const overlay = ensurePageConfirmDialog();
+    const titleNode = $('pageConfirmTitle');
+    const messageNode = $('pageConfirmMessage');
+    const cancel = $('pageConfirmCancel');
+    const accept = $('pageConfirmAccept');
+    titleNode.textContent = title;
+    messageNode.textContent = message;
+    accept.textContent = confirmText;
+    accept.classList.toggle('danger', dangerous);
+    overlay.style.display = 'flex';
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = value => {
+        if (settled) return;
+        settled = true;
+        overlay.style.display = 'none';
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(value);
+      };
+      const onOverlay = event => { if (event.target === overlay) finish(false); };
+      const onKey = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      };
+      cancel.onclick = () => finish(false);
+      accept.onclick = () => finish(true);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onKey, true);
+      requestAnimationFrame(() => accept.focus());
+    });
+  }
+
+  const sandboxConfirmActions = {
+    storageMigrateBtn: {
+      title: '迁移到 SQLite',
+      message: '系统会先完整备份关键 JSON，再建立临时数据库、导入、哈希对账并执行完整性检查。任何一步失败都会继续使用原 JSON。',
+      confirmText: '开始迁移',
+      bypassCount: 1
+    },
+    storageRebuildBtn: {
+      title: '重建 SQLite 索引',
+      message: '将从 SQLite 内的兼容文档事务性重建查询索引。不会改变现有抽取结果，但重建期间会暂时锁定数据库写入。',
+      confirmText: '开始重建',
+      bypassCount: 1
+    },
+    storageRollbackBtn: {
+      title: '回滚到 JSON',
+      message: 'SQLite 中的最新数据将先原子写回 JSON 并完成哈希对账，原数据库会改名保留而不会删除。回滚后当前实例会立即改用 JSON。',
+      confirmText: '确认回滚',
+      dangerous: true,
+      bypassCount: 2
+    },
+    updateApplyBtn: {
+      title: '安装稳定版更新',
+      message: '更新器会下载官方稳定 Release，执行来源、校验和、压缩包、metadata 与 Python 语法检查，并在替换代码前完整备份。安装后必须重启 AstrBot。',
+      confirmText: '安装更新',
+      bypassCount: 1
+    },
+    aiDraftBtn: {
+      title: '覆盖现有 AI 文案',
+      message: '当前描述或完整文案已有内容。继续后，AI 生成结果会覆盖这些字段，但在保存小猪前仍可手动修改。',
+      confirmText: '覆盖并生成',
+      bypassCount: 1,
+      when: () => Boolean(
+        ($('pigDescription')?.value || '').trim() ||
+        ($('pigAnalysis')?.value || '').trim()
+      )
+    }
+  };
+
+  function invokeLegacyConfirmedHandler(button, bypassCount) {
+    const handler = button?.onclick;
+    if (typeof handler !== 'function') throw new Error('操作处理器尚未载入，请刷新页面后重试。');
+    const previousConfirm = window.confirm;
+    let remaining = Math.max(0, Number(bypassCount) || 0);
+    window.confirm = () => {
+      if (remaining <= 0) return false;
+      remaining -= 1;
+      return true;
+    };
+    try {
+      const result = handler.call(button, new MouseEvent('click', {cancelable: true}));
+      if (result && typeof result.catch === 'function') {
+        result.catch(error => console.error('[rollpig] confirmed action failed', error));
+      }
+    } finally {
+      window.confirm = previousConfirm;
+    }
+  }
+
+  let pageConfirmBusy = false;
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('button');
+    const config = button && sandboxConfirmActions[button.id];
+    if (!config || button.disabled || (config.when && !config.when())) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (pageConfirmBusy) return;
+    pageConfirmBusy = true;
+    try {
+      const accepted = await showPageConfirm(config);
+      if (accepted) invokeLegacyConfirmedHandler(button, config.bypassCount);
+    } catch (error) {
+      const message = errorText(error);
+      setFeedback(config.feedback || 'storageFeedback', `无法启动操作：${message}`);
+      console.error('[rollpig] page confirmation failed', error);
+    } finally {
+      pageConfirmBusy = false;
+    }
+  }, true);
+
+})();
+
+</script>
+<script data-rollpig-enterprise-ui data-version="3.0.4">
+(() => {
+  if (window.__rollpigEnterpriseUiReady) return;
+  window.__rollpigEnterpriseUiReady = true;
+
+  const root = document.documentElement;
+  root.classList.add('enterprise-ui');
+  root.dataset.uiVersion = '2.14';
+
+  const STATUS_RULES = [
+    {className: 'is-danger', pattern: /失败|错误|异常|损坏|不可用|未注册|需重启|等待重启|回滚/},
+    {className: 'is-warning', pattern: /警告|等待|检查中|读取中|同步中|迁移中|验证中|重建中|导出中|安装中|处理中|正在|未配置/},
+    {className: 'is-success', pattern: /成功|完成|正常|健康|已连接|已同步|可用|最新|通过/},
+  ];
+
+  const classifyStatus = node => {
+    if (!(node instanceof HTMLElement)) return;
+    const text = (node.textContent || '').trim();
+    node.classList.remove('is-success', 'is-warning', 'is-danger', 'is-neutral');
+    const match = STATUS_RULES.find(rule => rule.pattern.test(text));
+    node.classList.add(match?.className || 'is-neutral');
+  };
+
+  const decorateStatusNodes = scope => {
+    const nodes = [];
+    if (scope instanceof HTMLElement && scope.matches('.pill,.sync-feedback,[role="status"]')) {
+      nodes.push(scope);
+    }
+    scope.querySelectorAll?.('.pill,.sync-feedback,[role="status"]').forEach(node => nodes.push(node));
+    nodes.forEach(classifyStatus);
+  };
+
+  const addSkipLink = () => {
+    if (document.querySelector('.skip-link')) return;
+    const link = document.createElement('a');
+    link.className = 'skip-link';
+    link.href = '#view-overview';
+    link.textContent = '跳到主要内容';
+    document.body.prepend(link);
+  };
+
+  const decorateStructure = () => {
+    document.querySelectorAll('.sync-panel,.update-panel').forEach(panel => {
+      panel.classList.add('operation-card');
+    });
+
+    const storagePanel = document.getElementById('storageStatus')?.closest('.update-panel');
+    const updatePanel = document.getElementById('updateStatus')?.closest('.update-panel');
+    storagePanel?.classList.add('operation-card--storage');
+    updatePanel?.classList.add('operation-card--update');
+
+    document.querySelectorAll('.metric').forEach(metric => {
+      const label = metric.querySelector('.label')?.textContent?.trim();
+      if (label) metric.setAttribute('aria-label', label);
+    });
+
+    document.querySelectorAll('.panel').forEach(panel => {
+      if (!panel.hasAttribute('aria-label')) {
+        const heading = panel.querySelector('h2');
+        if (heading?.textContent?.trim()) panel.setAttribute('aria-label', heading.textContent.trim());
+      }
+    });
+
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      toast.setAttribute('aria-atomic', 'true');
+    }
+
+    const loading = document.getElementById('loading');
+    if (loading) {
+      loading.setAttribute('role', 'status');
+      loading.setAttribute('aria-live', 'polite');
+      loading.setAttribute('aria-label', '正在处理，请稍候');
+    }
+
+    document.querySelectorAll('.sync-feedback').forEach(node => {
+      node.setAttribute('aria-live', 'polite');
+      node.setAttribute('aria-atomic', 'true');
+    });
+
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.setAttribute('aria-hidden', modal.classList.contains('open') ? 'false' : 'true');
+      const dialog = modal.querySelector('.dialog');
+      if (dialog) {
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        const heading = dialog.querySelector('h2');
+        if (heading?.id) dialog.setAttribute('aria-labelledby', heading.id);
+        else if (heading?.textContent?.trim()) dialog.setAttribute('aria-label', heading.textContent.trim());
+      }
+    });
+
+    document.querySelectorAll('button').forEach(button => {
+      if (!button.hasAttribute('type') && !button.closest('form')) button.type = 'button';
+    });
+
+    decorateStatusNodes(document);
+  };
+
+  let lastFocused = null;
+  const syncModalState = modal => {
+    if (!(modal instanceof HTMLElement) || !modal.classList.contains('modal')) return;
+    const isOpen = modal.classList.contains('open');
+    modal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+
+    if (isOpen) {
+      lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      requestAnimationFrame(() => {
+        const target = modal.querySelector(
+          '[autofocus],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])'
+        );
+        target?.focus({preventScroll: true});
+      });
+    } else if (lastFocused?.isConnected) {
+      lastFocused.focus({preventScroll: true});
+      lastFocused = null;
+    }
+  };
+
+  const syncBusyState = () => {
+    const busy = Boolean(document.querySelector('[aria-busy="true"],.loading.show'));
+    document.body.classList.toggle('has-busy-operation', busy);
+  };
+
+  addSkipLink();
+  decorateStructure();
+  syncBusyState();
+
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'childList') {
+        record.addedNodes.forEach(node => {
+          if (node instanceof HTMLElement) {
+            decorateStatusNodes(node);
+            if (node.matches('.modal')) syncModalState(node);
+          }
+        });
+        if (record.target instanceof HTMLElement) classifyStatus(record.target);
+      }
+
+      if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+        if (record.attributeName === 'class') {
+          if (record.target.matches('.modal')) syncModalState(record.target);
+          if (record.target.matches('.pill,.sync-feedback,[role="status"]')) classifyStatus(record.target);
+        }
+        if (record.attributeName === 'aria-busy') syncBusyState();
+      }
+    }
+    syncBusyState();
+  });
+
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['class', 'aria-busy'],
+  });
+})();
+
+</script>
+<script data-rollpig-analytics-ui data-version="3.0.4">
+(() => {
+  const STATE_KEY = '__rollpigAnalyticsUiState';
+  const READY_KEY = '__rollpigAnalyticsUiReady';
+  const BOOTSTRAP_VERSION = '3.0.4';
+  const MAX_WAIT_MS = 8000;
+  const POLL_MS = 100;
+
+  const mounted = () => Boolean(document.getElementById('analyticsSuite'));
+  const previousState = window[STATE_KEY];
+
+  if (
+    previousState?.version === BOOTSTRAP_VERSION &&
+    previousState.starting
+  ) return;
+
+  if (
+    previousState?.version === BOOTSTRAP_VERSION &&
+    window[READY_KEY] &&
+    mounted()
+  ) {
+    previousState.refresh?.();
+    return;
+  }
+
+  if (previousState?.timer && window.clearTimeout) {
+    window.clearTimeout(previousState.timer);
+  }
+
+  window[READY_KEY] = false;
+  const state = {
+    version: BOOTSTRAP_VERSION,
+    starting: false,
+    initialized: false,
+    attempts: 0,
+    startedAt: 0,
+    timedOut: false,
+    timer: null,
+    refresh: null
+  };
+  window[STATE_KEY] = state;
+
+  const initialize = bridge => {
+    if (state.initialized && mounted()) {
+      state.refresh?.();
+      return;
+    }
+    window[READY_KEY] = true;
+    state.initialized = true;
+    state.timedOut = false;
+    state.timer = null;
+
+  const number = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 1});
+  const percent = value => `${number.format(Number(value || 0))}%`;
+  const format = value => number.format(Number(value || 0));
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+
+  const unwrap = response => {
+    const first = response?.data ?? response;
+    return first?.data ?? first;
+  };
+
+  const signed = value => {
+    const numeric = Number(value || 0);
+    if (!Number.isFinite(numeric)) return '—';
+    return `${numeric > 0 ? '+' : ''}${number.format(numeric)}%`;
+  };
+
+  const deltaClass = value => {
+    const numeric = Number(value || 0);
+    if (numeric > 0.05) return 'is-up';
+    if (numeric < -0.05) return 'is-down';
+    return 'is-flat';
+  };
+
+  function ensureSuite() {
+    let suite = document.getElementById('analyticsSuite');
+    if (suite) return suite;
+    const anchor = document.querySelector('#view-overview .metrics');
+    if (!anchor) return null;
+    suite = document.createElement('section');
+    suite.id = 'analyticsSuite';
+    suite.className = 'analytics-suite';
+    suite.setAttribute('aria-labelledby', 'analyticsSuiteTitle');
+    suite.innerHTML = `
+      <header class="analytics-suite__head">
+        <div>
+          <div class="eyebrow">Growth Intelligence</div>
+          <h2 id="analyticsSuiteTitle">猪圈深度分析</h2>
+          <p>比较最近两个 7 日周期，观察回访、解锁效率、图鉴覆盖与玩法运行健康。</p>
+        </div>
+        <div class="analytics-suite__meta">
+          <span class="analytics-live"><i></i><span id="analyticsSource">读取中</span></span>
+          <span id="analyticsLatency">—</span>
+        </div>
+      </header>
+      <div class="analytics-kpis" id="analyticsKpis" aria-live="polite">
+        ${Array.from({length: 4}, () => '<div class="analytics-kpi is-loading"><i></i><i></i><i></i></div>').join('')}
+      </div>
+      <div class="analytics-grid" id="analyticsGrid">
+        <article class="analytics-card analytics-card--wide" id="analyticsActivity">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card" id="analyticsComparison">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card" id="analyticsRetention">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card" id="analyticsCoverage">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card" id="analyticsPlatforms">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card analytics-card--wide" id="analyticsRising">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+        <article class="analytics-card" id="analyticsOperations">
+          <div class="analytics-skeleton analytics-skeleton--chart"></div>
+        </article>
+      </div>`;
+    anchor.insertAdjacentElement('afterend', suite);
+    return suite;
+  }
+
+  function cardHead(eyebrow, title, note = '') {
+    return `<header class="analytics-card__head"><div><span>${esc(eyebrow)}</span><h3>${esc(title)}</h3></div>${note ? `<small>${esc(note)}</small>` : ''}</header>`;
+  }
+
+  function renderKpis(data) {
+    const current = data.periods?.current || {};
+    const delta = data.deltas || {};
+    const retention = data.retention || {};
+    const catalog = data.catalog || {};
+    const items = [
+      {
+        label: '7 日活跃用户', value: format(current.active_users),
+        delta: signed(delta.active_users), className: deltaClass(delta.active_users),
+        note: `上周期 ${format(data.periods?.previous?.active_users)}`
+      },
+      {
+        label: '7 日新解锁', value: format(current.new_unlocks),
+        delta: signed(delta.new_unlocks), className: deltaClass(delta.new_unlocks),
+        note: `解锁效率 ${percent(current.unlock_efficiency)}`
+      },
+      {
+        label: '7 日回访率', value: percent(retention.rate),
+        delta: `${format(retention.returning_users)} 人回访`, className: 'is-accent',
+        note: `新增/回流 ${format(retention.new_current_users)} 人`
+      },
+      {
+        label: '零收藏猪猪', value: format(catalog.zero_collector_count),
+        delta: `中位解锁 ${format(catalog.median_unlocked)}`, className: catalog.zero_collector_count ? 'is-warning' : 'is-up',
+        note: `P90 ${format(catalog.p90_unlocked)} / ${format(catalog.catalog_count)}`
+      }
+    ];
+    document.getElementById('analyticsKpis').innerHTML = items.map(item => `
+      <article class="analytics-kpi">
+        <div class="analytics-kpi__label">${esc(item.label)}</div>
+        <div class="analytics-kpi__row"><strong>${esc(item.value)}</strong><span class="analytics-delta ${item.className}">${esc(item.delta)}</span></div>
+        <div class="analytics-kpi__note">${esc(item.note)}</div>
+      </article>`).join('');
+  }
+
+  function renderActivity(data) {
+    const rows = Array.isArray(data.activity) ? data.activity : [];
+    const maxUsers = Math.max(1, ...rows.map(item => Number(item.users || 0)));
+    const cells = rows.map(item => {
+      const intensity = Math.max(.07, Number(item.users || 0) / maxUsers);
+      const title = `${item.date} · 活跃 ${item.users || 0} · 新解锁 ${item.new_unlocks || 0} · 烧烤 ${item.roasts || 0} · 被吃 ${item.eats || 0}`;
+      return `<div class="activity-cell" style="--intensity:${intensity.toFixed(3)}" title="${esc(title)}"><i></i><span>${esc(String(item.date || '').slice(5))}</span></div>`;
+    }).join('');
+    const current = data.periods?.current || {};
+    document.getElementById('analyticsActivity').innerHTML = `
+      ${cardHead('28 Day Activity', '活跃热力与玩法脉冲', `${format(current.avg_daily_users)} 日均活跃`)}
+      <div class="activity-legend"><span>低</span><i></i><i></i><i></i><i></i><span>高</span></div>
+      <div class="activity-heatmap">${cells || '<div class="analytics-empty">暂时没有可展示的每日活动</div>'}</div>
+      <div class="activity-summary">
+        <span><b>${format(current.draws)}</b> 抽取</span>
+        <span><b>${format(current.new_unlocks)}</b> 新解锁</span>
+        <span><b>${format(data.operations?.roasts)}</b> 烧烤</span>
+        <span><b>${format(data.operations?.eats)}</b> 被吃事件</span>
+      </div>`;
+  }
+
+  function renderComparison(data) {
+    const current = data.periods?.current || {};
+    const previous = data.periods?.previous || {};
+    const rows = [
+      ['活跃用户', current.active_users, previous.active_users],
+      ['累计抽取', current.draws, previous.draws],
+      ['新解锁', current.new_unlocks, previous.new_unlocks]
+    ];
+    document.getElementById('analyticsComparison').innerHTML = `
+      ${cardHead('Period Compare', '双周期增长对比', '最近 7 日 vs 上一周期')}
+      <div class="compare-list">${rows.map(([label, now, before]) => {
+        const max = Math.max(1, Number(now || 0), Number(before || 0));
+        return `<div class="compare-row"><div class="compare-row__top"><span>${esc(label)}</span><b>${format(now)} <small>/ ${format(before)}</small></b></div><div class="compare-bars"><i style="width:${(Number(now || 0) / max * 100).toFixed(2)}%"></i><i style="width:${(Number(before || 0) / max * 100).toFixed(2)}%"></i></div></div>`;
+      }).join('')}</div>
+      <div class="compare-legend"><span><i class="is-current"></i>当前周期</span><span><i class="is-previous"></i>上一周期</span></div>`;
+  }
+
+  function renderRetention(data) {
+    const retention = data.retention || {};
+    const rate = Math.max(0, Math.min(100, Number(retention.rate || 0)));
+    document.getElementById('analyticsRetention').innerHTML = `
+      ${cardHead('Audience', '回访与新增用户')}
+      <div class="retention-layout">
+        <div class="retention-ring" style="--rate:${rate}"><div><strong>${percent(rate)}</strong><span>7 日回访率</span></div></div>
+        <dl class="analytics-dl">
+          <div><dt>回访用户</dt><dd>${format(retention.returning_users)}</dd></div>
+          <div><dt>本期新增/回流</dt><dd>${format(retention.new_current_users)}</dd></div>
+          <div><dt>上期活跃基数</dt><dd>${format(retention.previous_active_users)}</dd></div>
+        </dl>
+      </div>`;
+  }
+
+  function renderCoverage(data) {
+    const catalog = data.catalog || {};
+    const buckets = Array.isArray(catalog.distribution) ? catalog.distribution : [];
+    const total = Math.max(1, buckets.reduce((sum, item) => sum + Number(item.users || 0), 0));
+    document.getElementById('analyticsCoverage').innerHTML = `
+      ${cardHead('Collection Coverage', '图鉴覆盖分布', `Top 5 占抽取 ${percent(catalog.top5_draw_share)}`)}
+      <div class="coverage-strip">${buckets.map((item, index) => `<i class="coverage-tone-${index + 1}" style="width:${(Number(item.users || 0) / total * 100).toFixed(2)}%" title="${esc(item.label)}：${format(item.users)} 人"></i>`).join('')}</div>
+      <div class="coverage-list">${buckets.map((item, index) => `<div><span><i class="coverage-tone-${index + 1}"></i>${esc(item.label)}</span><b>${format(item.users)}</b></div>`).join('')}</div>
+      <footer class="analytics-card__footer"><span>长尾猪猪 ${format(catalog.long_tail_count)}</span><span>零收藏 ${format(catalog.zero_collector_count)}</span></footer>`;
+  }
+
+  function renderPlatforms(data) {
+    const rows = Array.isArray(data.platforms) ? data.platforms : [];
+    const max = Math.max(1, ...rows.map(item => Number(item.users || 0)));
+    document.getElementById('analyticsPlatforms').innerHTML = `
+      ${cardHead('Audience Mix', '平台用户构成', `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 个身份`)}
+      <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : '<div class="analytics-empty">暂无平台分布数据</div>'}</div>`;
+  }
+
+  function renderRising(data) {
+    const rows = Array.isArray(data.rising_pigs) ? data.rising_pigs : [];
+    document.getElementById('analyticsRising').innerHTML = `
+      ${cardHead('Momentum', '上升最快的猪猪', '当前 7 日与上一周期抽中次数差值')}
+      <div class="rising-table" role="table">
+        <div class="rising-table__head" role="row"><span>猪猪</span><span>本期</span><span>上期</span><span>变化</span></div>
+        ${rows.length ? rows.map((item, index) => `<div class="rising-table__row" role="row"><span><i>${index + 1}</i><b>${esc(item.name || item.id)}</b><small>${esc(item.id)}</small></span><span>${format(item.current)}</span><span>${format(item.previous)}</span><span class="analytics-delta ${Number(item.delta || 0) >= 0 ? 'is-up' : 'is-down'}">${Number(item.delta || 0) > 0 ? '+' : ''}${format(item.delta)}</span></div>`).join('') : '<div class="analytics-empty">还没有足够的双周期数据</div>'}
+      </div>`;
+  }
+
+  function renderOperations(data) {
+    const ops = data.operations || {};
+    const ai = ops.ai || {};
+    const totalAi = Number(ai.ready || 0) + Number(ai.failed || 0) + Number(ai.generating || 0);
+    const success = totalAi ? Number(ai.ready || 0) / totalAi * 100 : 0;
+    document.getElementById('analyticsOperations').innerHTML = `
+      ${cardHead('Runtime Signals', '玩法运行健康', '最近 7 日')}
+      <div class="operations-grid">
+        <div><span>烧烤次数</span><strong>${format(ops.roasts)}</strong></div>
+        <div><span>被吃事件</span><strong>${format(ops.eats)}</strong></div>
+        <div><span>AI 成功</span><strong>${format(ai.ready)}</strong></div>
+        <div><span>AI 失败</span><strong>${format(ai.failed)}</strong></div>
+      </div>
+      <div class="ai-health"><div><span>AI 文案成功率</span><b>${percent(success)}</b></div><i><em style="width:${Math.max(0, Math.min(100, success)).toFixed(2)}%"></em></i></div>`;
+  }
+
+  function render(data) {
+    ensureSuite();
+    renderKpis(data);
+    renderActivity(data);
+    renderComparison(data);
+    renderRetention(data);
+    renderCoverage(data);
+    renderPlatforms(data);
+    renderRising(data);
+    renderOperations(data);
+    const source = document.getElementById('analyticsSource');
+    const latency = document.getElementById('analyticsLatency');
+    if (source) source.textContent = data.source === 'normalized-sql' ? 'SQL 实时聚合' : 'JSON 兼容统计';
+    if (latency) latency.textContent = `${number.format(data.observability?.query_elapsed_ms || 0)} ms`;
+  }
+
+  function renderError(error) {
+    const suite = ensureSuite();
+    if (!suite) return;
+    const grid = document.getElementById('analyticsGrid');
+    const kpis = document.getElementById('analyticsKpis');
+    if (kpis) kpis.innerHTML = '';
+    if (grid) grid.innerHTML = `<div class="analytics-error"><strong>深度分析暂时不可用</strong><span>${esc(error?.message || error || '读取失败')}</span><button type="button" class="btn ghost" id="analyticsRetry">重新读取</button></div>`;
+    document.getElementById('analyticsRetry')?.addEventListener('click', loadInsights, {once: true});
+    const source = document.getElementById('analyticsSource');
+    if (source) source.textContent = '读取失败';
+  }
+
+  let pending = null;
+  async function loadInsights() {
+    ensureSuite();
+    if (pending) return pending;
+    pending = (async () => {
+      try {
+        const response = await bridge.apiGet('analytics/insights', {});
+        const data = unwrap(response);
+        if (!data || typeof data !== 'object') throw new Error('分析接口返回格式无效');
+        render(data);
+      } catch (error) {
+        renderError(error);
+      } finally {
+        pending = null;
+      }
+    })();
+    return pending;
+  }
+
+  const start = () => {
+    const suite = ensureSuite();
+    if (!suite) {
+      state.starting = false;
+      return;
+    }
+
+    window[READY_KEY] = true;
+    state.initialized = true;
+    state.starting = false;
+    state.refresh = loadInsights;
+    loadInsights();
+
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (
+      refreshBtn &&
+      refreshBtn.dataset.rollpigAnalyticsBound !== BOOTSTRAP_VERSION
+    ) {
+      refreshBtn.dataset.rollpigAnalyticsBound = BOOTSTRAP_VERSION;
+      refreshBtn.addEventListener('click', () => {
+        window.setTimeout(loadInsights, 180);
+      });
+    }
+
+    if (!window.__rollpigAnalyticsHashHandler) {
+      window.__rollpigAnalyticsHashHandler = () => {
+        if (location.hash.replace(/^#\/?/, '') !== 'catalog') {
+          window[STATE_KEY]?.refresh?.();
+        }
+      };
+      window.addEventListener(
+        'hashchange',
+        window.__rollpigAnalyticsHashHandler
+      );
+    }
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+  else start();
+  };
+
+  const renderBridgeError = () => {
+    if (window[READY_KEY]) return;
+    const anchor = document.querySelector('#view-overview .metrics');
+    if (!anchor) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderBridgeError, {once: true});
+      }
+      return;
+    }
+    let suite = document.getElementById('analyticsSuite');
+    if (!suite) {
+      suite = document.createElement('section');
+      suite.id = 'analyticsSuite';
+      suite.className = 'analytics-suite';
+      anchor.insertAdjacentElement('afterend', suite);
+    }
+    suite.innerHTML = '<div class="analytics-error"><strong>深度分析尚未连接管理桥接</strong><span>AstrBot 管理桥接在 8 秒内没有就绪。普通总览与管理功能不受影响，可点击重试。</span><button type="button" class="btn ghost" id="analyticsBridgeRetry">重新连接</button></div>';
+    document.getElementById('analyticsBridgeRetry')?.addEventListener('click', () => {
+      state.starting = true;
+      state.timedOut = false;
+      state.attempts = 0;
+      state.startedAt = performance.now();
+      suite.innerHTML = '<div class="analytics-skeleton analytics-skeleton--chart"></div>';
+      waitForBridge();
+    }, {once: true});
+  };
+
+  const waitForBridge = () => {
+    if (window[READY_KEY]) return;
+    const bridge = window.AstrBotPluginPage;
+    if (bridge) {
+      initialize(bridge);
+      return;
+    }
+    if (performance.now() - state.startedAt >= MAX_WAIT_MS) {
+      state.starting = false;
+      state.timedOut = true;
+      state.timer = null;
+      console.error('[rollpig] Analytics bootstrap timed out waiting for AstrBotPluginPage');
+      renderBridgeError();
+      return;
+    }
+    state.attempts += 1;
+    state.timer = window.setTimeout(waitForBridge, POLL_MS);
+  };
+
+  state.starting = true;
+  state.startedAt = performance.now();
+  waitForBridge();
+})();
+
+</script>
+<!-- rollpig-inline-assets:end -->
 <script type="module">
 const bridge=window.AstrBotPluginPage;
 const $=id=>document.getElementById(id);
