@@ -111,10 +111,11 @@ replace_pattern(
 
 changelog = read("CHANGELOG.md")
 entry = f'''## v{VERSION} (2026-08-04)
-### 管理页 UI 缓存修复
+### 管理页 UI 缓存与恢复证据修复
 - 修复从旧版本直接升级到 v3.0.0 后，浏览器可能继续使用旧版 `ui-feedback.js`，导致企业主题与 Analytics 增强层没有加载的问题。
 - 管理页入口、企业主题、Analytics 主题、反馈核心与增强脚本统一加入版本化缓存键；今后升级后无需依赖手动强制刷新才能看到新 UI。
-- 不修改 v3 的 SQLite 单一运行时权威、数据迁移、业务命令或管理写接口。
+- 修复检查损坏 SQLite 时可能由 SQLite 重写原始 `-shm` 旁路文件的问题；替换数据库前会先保存原始 WAL／SHM 恢复证据。
+- 不修改 v3 的 SQLite 单一运行时权威、数据迁移事实、业务命令或管理写接口。
 
 '''
 if entry not in changelog:
@@ -127,6 +128,123 @@ replace_once(
     "tests/test_dashboard_feedback.py",
     '    external = \'<script src="./ui-feedback.js"></script>\'',
     f'    external = \'<script src="./ui-feedback.js?v={VERSION}"></script>\'',
+)
+replace_once(
+    "tests/test_source_regressions.py",
+    '    assert \'<script src="./ui-feedback.js"></script>\' in page',
+    f'    assert \'<script src="./ui-feedback.js?v={VERSION}"></script>\' in page',
+)
+replace_once(
+    "tests/test_source_regressions.py",
+    '    assert \'version: "3.0.0"\' in metadata',
+    f'    assert \'version: "{VERSION}"\' in metadata',
+)
+replace_once(
+    "tests/test_source_regressions.py",
+    '    assert "AstrBot-RollPig/3.0.0" in SOURCE',
+    f'    assert "AstrBot-RollPig/{VERSION}" in SOURCE',
+)
+
+primary_path = "storage/primary_manager.py"
+helpers = '''    def _snapshot_existing_sidecars(self) -> dict[str, Path]:
+        """Copy SQLite sidecars before opening a possibly corrupt database."""
+        snapshots: dict[str, Path] = {}
+        for suffix in ("-wal", "-shm"):
+            source = Path(f"{self.database_path}{suffix}")
+            if not source.exists():
+                continue
+            snapshot = self.data_root / (
+                f".rollpig.db.preflight-{uuid.uuid4().hex}{suffix}"
+            )
+            shutil.copy2(source, snapshot)
+            snapshots[suffix] = snapshot
+        return snapshots
+
+    @staticmethod
+    def _discard_sidecar_snapshots(snapshots: dict[str, Path]) -> None:
+        for snapshot in snapshots.values():
+            snapshot.unlink(missing_ok=True)
+
+'''
+method_anchor = '    def _preserve_existing_database(self) -> str:\n'
+primary = read(primary_path)
+if helpers not in primary:
+    if primary.count(method_anchor) != 1:
+        raise SystemExit("storage/primary_manager.py: preserve method anchor missing")
+    primary = primary.replace(method_anchor, helpers + method_anchor, 1)
+write(primary_path, primary)
+
+old_preserve = '''    def _preserve_existing_database(self) -> str:
+        """Copy a rejected database and its sidecars before replacing it."""
+        if not self.database_path.exists():
+            return ""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        preserved = self.data_root / f"rollpig.db.rejected-{stamp}"
+        suffix = 0
+        while preserved.exists():
+            suffix += 1
+            preserved = self.data_root / f"rollpig.db.rejected-{stamp}-{suffix}"
+        shutil.copy2(self.database_path, preserved)
+        for sidecar_suffix in ("-wal", "-shm"):
+            source = Path(f"{self.database_path}{sidecar_suffix}")
+            if source.exists():
+                shutil.copy2(source, Path(f"{preserved}{sidecar_suffix}"))
+        return preserved.name
+'''
+new_preserve = '''    def _preserve_existing_database(self) -> str:
+        """Copy a rejected database and its original sidecars before replacement."""
+        if not self.database_path.exists():
+            return ""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        preserved = self.data_root / f"rollpig.db.rejected-{stamp}"
+        suffix = 0
+        while preserved.exists():
+            suffix += 1
+            preserved = self.data_root / f"rollpig.db.rejected-{stamp}-{suffix}"
+        shutil.copy2(self.database_path, preserved)
+        snapshots = getattr(self, "_rejected_sidecar_snapshots", None)
+        for sidecar_suffix in ("-wal", "-shm"):
+            source = (
+                snapshots.get(sidecar_suffix)
+                if snapshots is not None
+                else Path(f"{self.database_path}{sidecar_suffix}")
+            )
+            if source is not None and source.exists():
+                shutil.copy2(source, Path(f"{preserved}{sidecar_suffix}"))
+        if snapshots is not None:
+            self._discard_sidecar_snapshots(snapshots)
+            self._rejected_sidecar_snapshots = None
+        return preserved.name
+'''
+replace_once(primary_path, old_preserve, new_preserve)
+replace_once(
+    primary_path,
+    '''        if self.database_path.exists():
+            try:
+                candidate = self._new_sqlite()
+''',
+    '''        if self.database_path.exists():
+            sidecar_snapshots = self._snapshot_existing_sidecars()
+            try:
+                candidate = self._new_sqlite()
+''',
+)
+replace_once(
+    primary_path,
+    '''                self.backend = candidate
+                self._last_error = ""
+                return
+            except Exception as exc:
+                self.backend = self.json_storage
+''',
+    '''                self.backend = candidate
+                self._last_error = ""
+                self._discard_sidecar_snapshots(sidecar_snapshots)
+                return
+            except Exception as exc:
+                self._rejected_sidecar_snapshots = sidecar_snapshots
+                self.backend = self.json_storage
+''',
 )
 
 write(
