@@ -60,3 +60,5 @@ jobs:
           git add -A
           git commit -m "fix: inline authenticated admin assets (v3.0.4)"
           git push origin HEAD:fix/inline-admin-assets-v3.0.4
+
+# Triggered after workflow registration.
