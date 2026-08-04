@@ -10,11 +10,12 @@ permissions:
 
 concurrency:
   group: apply-authenticated-admin-ui-v310
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply:
     if: github.head_ref == 'feat/authenticated-admin-ui-v3.1.0'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - name: Check out feature branch
@@ -39,6 +40,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest pre-commit
           python -m pip check
+
+      - name: Patch jsdom cleanup contract
+        run: python scripts/fix_v310_browser_test_cleanup.py
 
       - name: Apply authenticated UI architecture
         run: python scripts/apply_authenticated_admin_ui_v310.py
