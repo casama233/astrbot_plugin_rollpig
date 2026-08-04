@@ -9,8 +9,8 @@ def test_v215_release_contract_and_analytics_assets():
     main = (ROOT / "main.py").read_text(encoding="utf-8")
     storage = (ROOT / "storage" / "sqlite_storage.py").read_text(encoding="utf-8")
     loader = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(encoding="utf-8")
-    assert 'version: "2.15.0"' in metadata
-    assert 'AstrBot-RollPig/2.15.0' in main
+    assert 'version: "3.0.0"' in metadata
+    assert 'AstrBot-RollPig/3.0.0' in main
     assert '/analytics/insights' in main
     assert 'get_dashboard_insights' in storage
     assert 'schema_version = 5' in storage
