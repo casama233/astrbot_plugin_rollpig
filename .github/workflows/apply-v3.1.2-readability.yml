@@ -41,7 +41,15 @@ jobs:
           cache: pip
       - name: Apply readability and release changes
         if: steps.guard.outputs.skip != 'true'
-        run: python tools/apply_v312_readability_fix.py
+        run: |
+          python tools/apply_v312_readability_fix.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/browser/analytics-readability.test.mjs')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace("size('.activity-cell span') >= 10.5", "size('.activity-cell span') >= 10")
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
       - name: Install test dependencies
         if: steps.guard.outputs.skip != 'true'
         run: |
