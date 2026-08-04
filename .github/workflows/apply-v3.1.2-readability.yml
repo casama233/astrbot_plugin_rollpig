@@ -1,0 +1,61 @@
+name: Apply v3.1.2 readability fix
+
+on:
+  push:
+    branches:
+      - main
+      - agent/v3.1.2-analytics-readable-type
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v312-readability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  patch-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[v3.1.2-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Apply readability and release changes
+        run: python tools/apply_v312_readability_fix.py
+      - name: Install test dependencies
+        run: |
+          npm ci
+          python -m pip install -r requirements.txt pytest
+      - name: Syntax and regression tests
+        run: |
+          node --check pages/pig-manager/ui-bootstrap.js
+          node --check pages/pig-manager/ui-analytics.js
+          npm test
+          python -m pytest -q
+          python -m compileall -q main.py updater.py services storage
+      - name: Chromium performance and readability tests
+        run: |
+          CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME_PATH"
+          CHROME_PATH="$CHROME_PATH" npm run test:browser-perf
+          CHROME_PATH="$CHROME_PATH" node tests/browser/readability-browser.mjs
+      - name: Commit verified result
+        shell: bash
+        run: |
+          git diff --check
+          git rm tools/apply_v312_readability_fix.py .github/workflows/apply-v3.1.2-readability.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: improve Analytics readability (v3.1.2) [v3.1.2-patched]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
