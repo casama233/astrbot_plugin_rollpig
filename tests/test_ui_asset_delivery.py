@@ -16,31 +16,27 @@ def method(name: str):
     return next(node for node in plugin.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name)
 
 
-def test_ui_asset_endpoint_is_read_only_and_uses_a_fixed_whitelist():
+def test_ui_asset_endpoint_is_read_only_and_only_serves_analytics():
     builder = ast.get_source_segment(MAIN, method("_build_ui_asset_bundle")) or ""
     endpoint = ast.get_source_segment(MAIN, method("page_ui_assets")) or ""
     assert "self.UI_ASSET_FILES" in builder
     assert ".resolve()" in builder
     assert "path.parent != root" in builder
-    assert "UI_ASSET_MAX_FILE_BYTES" in builder
-    assert "UI_ASSET_MAX_TOTAL_BYTES" in builder
     assert "asyncio.to_thread(self._build_ui_asset_bundle)" in endpoint
-    assert len(method("page_ui_assets").args.args) == 1
-    for filename in (
-        "enterprise-theme.css", "analytics-theme.css", "ui-feedback-core.js",
-        "ui-enterprise.js", "ui-analytics.js",
-    ):
-        assert filename in MAIN
+    assert '("analytics-theme", "style", "analytics-theme.css")' in MAIN
+    assert '("ui-analytics", "script", "ui-analytics.js")' in MAIN
+    assert "enterprise-theme.css" not in MAIN
+    assert "ui-feedback-core.js" not in MAIN
+    assert "ui-enterprise.js" not in MAIN
 
 
-def test_inline_bootstrap_matches_maintenance_source_and_has_failure_boundaries():
-    match = re.search(r'<script data-rollpig-bootstrap="3.1.0">(.*?)</script>', PAGE, re.S)
+def test_inline_bootstrap_matches_source_and_is_click_only():
+    match = re.search(r'<script data-rollpig-bootstrap="3.1.1">(.*?)</script>', PAGE, re.S)
     assert match and match.group(1).strip() == BOOTSTRAP.strip()
-    for marker in (
-        "uiEnhancementStatus", "reportModuleError", "sessionStorage",
-        "checksum-mismatch", "核心数据总览、猪猪图鉴和管理操作不受影响",
-        "bridge.apiGet('ui/assets'", "pageToken",
-    ):
-        assert marker in BOOTSTRAP
-    assert 'src="./ui-' not in PAGE
-    assert 'href="./enterprise-theme.css' not in PAGE
+    assert "analyticsLoadBtn" in BOOTSTRAP
+    assert "button.addEventListener('click', load" in BOOTSTRAP
+    assert "bridge.apiGet('ui/assets'" in BOOTSTRAP
+    assert "sessionStorage" not in BOOTSTRAP
+    assert "MutationObserver" not in BOOTSTRAP
+    assert "setInterval" not in BOOTSTRAP
+    assert "\n  load();\n" not in BOOTSTRAP
