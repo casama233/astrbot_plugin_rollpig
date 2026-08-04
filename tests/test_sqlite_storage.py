@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from storage import JSONStorage, SQLiteStorage, StorageManager, StorageMigrationError
+from storage import (
+    JSONStorage,
+    SQLitePrimaryStorage,
+    SQLiteStorage,
+    StorageManager,
+    StorageMigrationError,
+)
 
 
 def _documents(root: Path) -> dict[str, object]:
@@ -151,21 +157,24 @@ def test_sqlite_storage_projects_real_v28_shapes(tmp_path):
 def test_manager_migration_is_idempotent_and_auto_selects_sqlite(tmp_path):
     values = _documents(tmp_path)
     manager = StorageManager(tmp_path, mode="auto")
-    assert manager.backend.backend_name == "json"
-    first = manager.migrate_to_sqlite()
-    assert first["status"] == "migrated"
-    assert first["documents"] == len(values)
-    assert manager.backend.backend_name == "sqlite"
+    assert isinstance(manager.backend, SQLitePrimaryStorage)
+    assert manager._last_action["status"] == "auto-migrated"
+    assert manager._last_action["documents"] == len(values)
+    assert manager.verify()["ok"] is True
+    assert manager.verify()["schema_version"] == 6
+    with manager.backend._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
     second = manager.migrate_to_sqlite()
     assert second["status"] == "already-sqlite"
 
     restarted = StorageManager(tmp_path, mode="auto")
-    assert restarted.backend.backend_name == "sqlite"
-    assert restarted.verify()["ok"] is True
-    assert restarted.backend.load_json(tmp_path / "pig_history.json", {}) == values[
-        "pig_history.json"
-    ]
-
+    assert isinstance(restarted.backend, SQLitePrimaryStorage)
+    history = restarted.backend.load_json(tmp_path / "pig_history.json", {})
+    assert history["users"]["v2|qq|user|10001"]["total_draws"] == 2
+    assert history["daily"]["2026-08-02"]["records"][
+        "v2|qq|user|10001"
+    ] == "eaten"
+    assert list((tmp_path / "storage_backups").glob("*-json"))
 
 def test_migration_rejects_malformed_json_without_switching(tmp_path):
     _documents(tmp_path)
@@ -182,7 +191,6 @@ def test_migration_failure_keeps_json_and_removes_temporary_database(
     tmp_path, monkeypatch
 ):
     _documents(tmp_path)
-    manager = StorageManager(tmp_path, mode="auto")
     real_replace = __import__("os").replace
 
     def fail_database_replace(source, target):
@@ -191,40 +199,52 @@ def test_migration_failure_keeps_json_and_removes_temporary_database(
         return real_replace(source, target)
 
     monkeypatch.setattr("storage.manager.os.replace", fail_database_replace)
+    manager = StorageManager(tmp_path, mode="auto")
+    assert manager.backend.backend_name == "json"
+    assert "simulated" in manager._last_error
     with pytest.raises(StorageMigrationError, match="simulated"):
         manager.migrate_to_sqlite()
-    assert manager.backend.backend_name == "json"
     assert not (tmp_path / "rollpig.db").exists()
     assert not list(tmp_path.glob(".rollpig.db.migrating-*.tmp"))
     assert json.loads((tmp_path / "pig_history.json").read_text(encoding="utf-8"))[
         "users"
     ]
 
-
 def test_export_and_rollback_preserve_latest_sqlite_documents(tmp_path):
     _documents(tmp_path)
     manager = StorageManager(tmp_path, mode="auto")
-    manager.migrate_to_sqlite()
-    changed = manager.backend.load_json(tmp_path / "pig_history.json", {})
-    changed["users"]["v2|qq|user|10001"]["total_draws"] = 9
-    manager.backend.save_json(tmp_path / "pig_history.json", changed)
+    result = manager.backend.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|10001",
+        pig={"id": "blue-pig", "name": "蓝猪"},
+        group_id="v2|qq|group|20001",
+    )
+    assert result["created"] is True
 
     exported = manager.export_json_backup()
+    assert exported["generated_on_demand"] is True
     archive = tmp_path / "storage_exports" / exported["filename"]
     assert archive.exists()
     with zipfile.ZipFile(archive) as bundle:
         archived_history = json.loads(bundle.read("pig_history.json"))
-        assert archived_history["users"]["v2|qq|user|10001"]["total_draws"] == 9
+        assert archived_history["users"]["v2|qq|user|10001"]["total_draws"] == 3
+        assert archived_history["daily"]["2026-08-04"]["records"][
+            "v2|qq|user|10001"
+        ] == "blue-pig"
         assert "manifest.json" in bundle.namelist()
+    with manager.backend._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
 
-    result = manager.rollback_to_json()
-    assert result["status"] == "rolled-back"
+    rollback = manager.rollback_to_json()
+    assert rollback["status"] == "rolled-back"
     assert manager.backend.backend_name == "json"
     restored = json.loads((tmp_path / "pig_history.json").read_text(encoding="utf-8"))
-    assert restored["users"]["v2|qq|user|10001"]["total_draws"] == 9
+    assert restored["users"]["v2|qq|user|10001"]["total_draws"] == 3
+    assert restored["daily"]["2026-08-04"]["records"][
+        "v2|qq|user|10001"
+    ] == "blue-pig"
     assert not (tmp_path / "rollpig.db").exists()
     assert list(tmp_path.glob("rollpig.db.disabled-*"))
-
 
 def test_json_mode_never_activates_existing_sqlite(tmp_path):
     _documents(tmp_path)
@@ -1186,7 +1206,7 @@ def test_v213_identity_claims_and_aliases_are_sql_primary(tmp_path):
 
 
 
-def test_v213_sql_primary_rebuild_repairs_documents_without_overwriting_sql(tmp_path):
+def test_v3_promotion_discards_stale_documents_without_overwriting_sql(tmp_path):
     storage, _ = _empty_sql_documents(tmp_path)
     storage.create_daily_draw(
         draw_date="2026-08-04",
@@ -1213,16 +1233,17 @@ def test_v213_sql_primary_rebuild_repairs_documents_without_overwriting_sql(tmp_
             "WHERE key = 'pig_history.json'"
         )
         connection.execute(
-            "UPDATE documents SET payload = '{\"version\":1}', payload_sha256 = 'broken' "
-            "WHERE key = 'roast_state.json'"
+            "UPDATE documents SET payload = '{\"version\":1}', "
+            "payload_sha256 = 'broken' WHERE key = 'roast_state.json'"
         )
-        connection.execute(
-            "UPDATE documents SET payload = '{\"version\":2,\"copies\":{},\"attempts\":{}}', "
-            "payload_sha256 = 'broken' WHERE key = 'ai_roast_copies.json'"
-        )
+
     manager = StorageManager(tmp_path, mode="auto")
-    assert isinstance(manager.backend, SQLiteStorage)
-    assert manager._last_action == {"status": "auto-rebuilt-projections"}
+    assert isinstance(manager.backend, SQLitePrimaryStorage)
+    verification = manager.backend.verify()
+    assert verification["ok"] is True
+    assert verification["schema_version"] == 6
+    assert verification["documents"] == 0
+    assert verification["projection_authority"] == "sql-primary-v3.0"
     snapshot = manager.backend.load_runtime_snapshot()
     assert snapshot["history"]["daily"]["2026-08-04"]["records"][
         "v2|qq|user|1"
@@ -1232,15 +1253,13 @@ def test_v213_sql_primary_rebuild_repairs_documents_without_overwriting_sql(tmp_
         ensure_ascii=False,
     )
     assert snapshot["roast_state"]["daily_roast_counts"][roast_key] == 1
-    assert snapshot["ai_roast_copies"]["copies"]["pig-a"]["2026-08-04"] == "SQL 保留文案"
+    assert snapshot["ai_roast_copies"]["copies"]["pig-a"][
+        "2026-08-04"
+    ] == "SQL 保留文案"
     documents = manager.backend.export_documents()
     assert documents["pig_history.json"]["daily"]["2026-08-04"]["records"][
         "v2|qq|user|1"
     ] == "pig-a"
-    assert documents["ai_roast_copies.json"]["copies"]["pig-a"][
-        "2026-08-04"
-    ] == "SQL 保留文案"
-
 
 def test_v213_domain_draw_write_ignores_stale_compatibility_documents(tmp_path):
     storage, _ = _empty_sql_documents(tmp_path)
