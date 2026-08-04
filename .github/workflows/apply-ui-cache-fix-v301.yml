@@ -51,8 +51,45 @@ jobs:
       - name: Compile source
         run: python -m compileall -q main.py rollpig_core.py updater.py storage services tests
 
+      - name: Run focused cache tests
+        shell: bash
+        run: |
+          set +e
+          pytest -vv \
+            tests/test_ui_cache_busting.py \
+            tests/test_v301_release_contract.py \
+            tests/test_dashboard_feedback.py \
+            > pytest-focused.log 2>&1
+          status=$?
+          cat pytest-focused.log
+          exit $status
+
+      - name: Upload focused test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v301-focused-test-log
+          path: pytest-focused.log
+          if-no-files-found: warn
+          retention-days: 2
+
       - name: Run full tests
-        run: pytest -q
+        shell: bash
+        run: |
+          set +e
+          pytest -q > pytest-full.log 2>&1
+          status=$?
+          cat pytest-full.log
+          exit $status
+
+      - name: Upload full test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v301-full-test-log
+          path: pytest-full.log
+          if-no-files-found: warn
+          retention-days: 2
 
       - name: Run pre-commit checks
         run: pre-commit run --all-files --show-diff-on-failure
