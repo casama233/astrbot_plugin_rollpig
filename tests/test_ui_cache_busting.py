@@ -1,54 +1,67 @@
 from __future__ import annotations
 
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "3.0.4"
+VERSION = "3.0.5"
 PAGE = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
 LOADER = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(encoding="utf-8")
 
 
-def test_authenticated_plugin_page_uses_no_protected_asset_subrequests():
-    scripts = re.findall(r'<script[^>]+src="([^"]+)"', PAGE)
-    assert scripts == ["/api/plugin/page/bridge-sdk.js"]
-    assert 'src="./ui-feedback.js' not in PAGE
-    assert 'href="./enterprise-theme.css' not in PAGE
-    assert 'href="./analytics-theme.css' not in PAGE
-    for asset in (
-        "ui-feedback-core.js",
-        "ui-enterprise.js",
-        "ui-analytics.js",
+class PageParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.ids: set[str] = set()
+        self.scripts: list[dict[str, str]] = []
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if values.get("id"):
+            self.ids.add(values["id"])
+        if tag == "script":
+            self.scripts.append(values)
+
+
+def test_admin_page_stays_lightweight_and_keeps_all_internal_views():
+    assert len(PAGE.encode("utf-8")) < 300_000
+    assert "rollpig-inline-assets:start" not in PAGE
+    assert "data-rollpig-analytics-ui" not in PAGE
+    parser = PageParser()
+    parser.feed(PAGE)
+    for element_id in (
+        "view-overview",
+        "view-catalog",
+        "refreshBtn",
+        "storageStatus",
+        "updateStatus",
+        "pigGrid",
     ):
-        assert f'src="./{asset}' not in PAGE
+        assert element_id in parser.ids
 
 
-def test_inline_bundle_is_versioned_ordered_and_matches_sources():
-    markers = (
-        "data-rollpig-enterprise-theme",
-        "data-rollpig-analytics-theme",
-        "data-rollpig-feedback-core",
-        "data-rollpig-enterprise-ui",
-        "data-rollpig-analytics-ui",
-    )
-    for marker in markers:
-        assert marker in PAGE
-    assert PAGE.count(f'data-version="{VERSION}"') == len(markers)
-    assert PAGE.index('/api/plugin/page/bridge-sdk.js') < PAGE.index('data-rollpig-feedback-core')
-    assert PAGE.index('data-rollpig-analytics-ui') < PAGE.index('<script type="module">')
+def test_external_enhancement_loader_cannot_block_the_main_module():
+    loader = f'<script src="./ui-feedback.js?v={VERSION}"></script>'
+    assert loader in PAGE
+    assert PAGE.index(loader) < PAGE.index('<script type="module">')
+    assert "const bridge=window.AstrBotPluginPage" in PAGE
+    assert "loadOverview" in PAGE
+    assert "loadPigs" in PAGE
 
-    for source in (
+
+def test_loader_versions_maintenance_assets():
+    assert f"const ASSET_VERSION = '{VERSION}'" in LOADER
+    for asset in (
         "enterprise-theme.css",
         "analytics-theme.css",
         "ui-feedback-core.js",
         "ui-enterprise.js",
         "ui-analytics.js",
     ):
-        payload = (ROOT / "pages" / "pig-manager" / source).read_text(encoding="utf-8")
-        if source.endswith(".js"):
-            payload = payload.replace("</script", r"<\/script")
-        assert payload in PAGE, source
+        assert asset in LOADER
 
 
-def test_modular_loader_remains_versioned_for_maintenance_only():
-    assert f"const ASSET_VERSION = '{VERSION}'" in LOADER
+def test_main_module_is_extractable_for_node_syntax_validation():
+    match = re.search(r'<script type="module">(.*?)</script>', PAGE, re.S)
+    assert match and match.group(1).strip()

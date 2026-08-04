@@ -12,15 +12,13 @@ MAIN = (ROOT / "main.py").read_text(encoding="utf-8")
 
 
 def test_feedback_layer_loads_before_inline_module():
-    bridge = '<script src="/api/plugin/page/bridge-sdk.js"></script>'
-    feedback = 'data-rollpig-feedback-core'
-    enterprise = 'data-rollpig-enterprise-ui'
-    analytics = 'data-rollpig-analytics-ui'
-    assert bridge in PAGE
-    assert PAGE.index(bridge) < PAGE.index(feedback)
-    assert PAGE.index(feedback) < PAGE.index(enterprise) < PAGE.index(analytics)
-    assert PAGE.index(analytics) < PAGE.index('<script type="module">')
-    assert 'src="./ui-feedback.js' not in PAGE
+    external = '<script src="./ui-feedback.js?v=3.0.5"></script>'
+    assert external in PAGE
+    assert PAGE.index(external) < PAGE.index('<script type="module">')
+    assert "./ui-feedback-core.js" in LOADER
+    assert "./ui-enterprise.js" in LOADER
+    assert "./ui-analytics.js" in LOADER
+    assert "rollpig-inline-assets:start" not in PAGE
 
 
 def test_feedback_layer_explains_stale_runtime_routes():
