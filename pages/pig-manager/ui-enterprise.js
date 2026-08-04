@@ -1,10 +1,13 @@
 (() => {
-  if (window.__rollpigEnterpriseUiReady) return;
+  if (window.__rollpigEnterpriseUiReady) {
+    window.__rollpigEnterpriseUiRefresh?.();
+    return;
+  }
   window.__rollpigEnterpriseUiReady = true;
 
   const root = document.documentElement;
   root.classList.add('enterprise-ui');
-  root.dataset.uiVersion = '2.14';
+  root.dataset.uiVersion = '3.1';
 
   const STATUS_RULES = [
     {className: 'is-danger', pattern: /失败|错误|异常|损坏|不可用|未注册|需重启|等待重启|回滚/},
@@ -119,13 +122,23 @@
   };
 
   const syncBusyState = () => {
+    if (!document?.body) return;
     const busy = Boolean(document.querySelector('[aria-busy="true"],.loading.show'));
     document.body.classList.toggle('has-busy-operation', busy);
   };
 
-  addSkipLink();
-  decorateStructure();
-  syncBusyState();
+  window.__rollpigEnterpriseUiRefresh = () => {
+    if (!document?.body) return;
+    addSkipLink();
+    decorateStructure();
+    syncBusyState();
+  };
+  window.__rollpigEnterpriseUiRefresh();
+  window.addEventListener('pagehide', () => {
+    observer.disconnect();
+    window.__rollpigEnterpriseUiReady = false;
+    window.__rollpigEnterpriseUiRefresh = null;
+  }, {once: true});
 
   const observer = new MutationObserver(records => {
     for (const record of records) {

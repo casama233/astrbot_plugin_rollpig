@@ -1,0 +1,11 @@
+{
+  "name": "astrbot-plugin-rollpig-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-timeout=15000 tests/browser/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}
