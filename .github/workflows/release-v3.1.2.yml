@@ -64,3 +64,9 @@ jobs:
             --verify-tag \
             --title "v3.1.2 · Analytics 可读性修复" \
             --notes-file .github/release-v3.1.2.md
+      - name: Confirm published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v3.1.2 --json tagName,name,isDraft,isPrerelease
+          git push --force origin HEAD:refs/heads/automation/v3.1.2-release-confirmed
