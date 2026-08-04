@@ -87,7 +87,7 @@ try {
   assert.equal(defaultState.buttons, 1);
 
   await page.click('#analyticsLoadBtn');
-  await page.waitForSelector('#analyticsSuite');
+  await page.waitForSelector('#analyticsSuite', {state: 'attached'});
   await cdp.send('HeapProfiler.collectGarbage');
   const before = await cdp.send('Runtime.getHeapUsage');
 
@@ -96,7 +96,7 @@ try {
     await page.evaluate(body => { document.body.innerHTML = body; }, BODY_INNER);
     await page.addScriptTag({content: BOOTSTRAP});
     await page.click('#analyticsLoadBtn');
-    await page.waitForSelector('#analyticsSuite');
+    await page.waitForSelector('#analyticsSuite', {state: 'attached'});
   }
 
   await cdp.send('HeapProfiler.collectGarbage');
