@@ -1,7 +1,7 @@
 (() => {
   const STATE_KEY = '__rollpigAnalyticsUiState';
   const READY_KEY = '__rollpigAnalyticsUiReady';
-  const BOOTSTRAP_VERSION = '3.0.4';
+  const BOOTSTRAP_VERSION = '3.0.5';
   const MAX_WAIT_MS = 8000;
   const POLL_MS = 100;
 
