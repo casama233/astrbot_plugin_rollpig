@@ -83,7 +83,17 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.0.5 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.1.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+    )
+    UI_ASSET_VERSION = "3.1.0"
+    UI_ASSET_MAX_FILE_BYTES = 512 * 1024
+    UI_ASSET_MAX_TOTAL_BYTES = 2 * 1024 * 1024
+    UI_ASSET_FILES = (
+        ("enterprise-theme", "style", "enterprise-theme.css"),
+        ("analytics-theme", "style", "analytics-theme.css"),
+        ("ui-feedback-core", "script", "ui-feedback-core.js"),
+        ("ui-enterprise", "script", "ui-enterprise.js"),
+        ("ui-analytics", "script", "ui-analytics.js"),
     )
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -331,6 +341,12 @@ class RollPigPlugin(Star):
             self.page_analytics_insights,
             ["GET"],
             "今日小猪深度分析",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/ui/assets",
+            self.page_ui_assets,
+            ["GET"],
+            "今日小猪认证管理页增强资源",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/pigs",
@@ -4658,6 +4674,57 @@ class RollPigPlugin(Star):
                     "query_elapsed_ms": round((time.monotonic() - started) * 1000, 3)
                 },
             }
+
+    def _build_ui_asset_bundle(self) -> dict:
+        """Return fixed, local UI sources through the authenticated plugin bridge."""
+        root = (self.plugin_dir / "pages" / "pig-manager").resolve()
+        assets = []
+        total_bytes = 0
+        bundle_digest = hashlib.sha256()
+        for name, kind, filename in self.UI_ASSET_FILES:
+            path = (root / filename).resolve()
+            if path.parent != root or not path.is_file():
+                raise RuntimeError(f"管理页增强资源不存在：{filename}")
+            raw = path.read_bytes()
+            size = len(raw)
+            total_bytes += size
+            if size > self.UI_ASSET_MAX_FILE_BYTES:
+                raise RuntimeError(f"管理页增强资源过大：{filename}")
+            if total_bytes > self.UI_ASSET_MAX_TOTAL_BYTES:
+                raise RuntimeError("管理页增强资源总量超过安全限制")
+            try:
+                source = raw.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise RuntimeError(f"管理页增强资源不是 UTF-8：{filename}") from exc
+            digest = hashlib.sha256(raw).hexdigest()
+            bundle_digest.update(f"{name}:{kind}:{digest}\n".encode("utf-8"))
+            assets.append(
+                {
+                    "name": name,
+                    "kind": kind,
+                    "source": source,
+                    "sha256": digest,
+                    "bytes": size,
+                }
+            )
+        bundle_sha256 = bundle_digest.hexdigest()
+        return {
+            "version": self.UI_ASSET_VERSION,
+            "cache_key": f"{self.UI_ASSET_VERSION}-{bundle_sha256[:16]}",
+            "bundle_sha256": bundle_sha256,
+            "assets": assets,
+        }
+
+    async def page_ui_assets(self):
+        """Read-only authenticated delivery for the fixed admin UI asset whitelist."""
+        try:
+            data = await asyncio.to_thread(self._build_ui_asset_bundle)
+            return self._jsonify({"status": "ok", "data": data})
+        except Exception as exc:
+            logger.error(f"读取管理页增强资源失败：{exc}")
+            return self._jsonify(
+                {"status": "error", "message": "无法读取管理页增强资源；核心页面仍可使用"}
+            )
 
     async def page_analytics_insights(self):
         """管理面板：只读聚合分析；不返回用户、群组或聊天原始标识。"""

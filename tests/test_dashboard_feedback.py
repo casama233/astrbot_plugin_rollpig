@@ -11,11 +11,14 @@ ANALYTICS_THEME = (ROOT / "pages/pig-manager/analytics-theme.css").read_text(enc
 MAIN = (ROOT / "main.py").read_text(encoding="utf-8")
 
 
-def test_feedback_layer_is_kept_as_a_maintenance_source_only():
+def test_feedback_layer_is_delivered_through_the_authenticated_bridge():
     bridge = '<script src="/api/plugin/page/bridge-sdk.js"></script>'
+    bootstrap = (ROOT / "pages/pig-manager/ui-bootstrap.js").read_text(encoding="utf-8")
     assert bridge in PAGE
     assert 'src="./ui-feedback.js' not in PAGE
-    assert "rollpig-inline-assets:start" not in PAGE
+    assert "bridge.apiGet('ui/assets'" in bootstrap
+    assert "/ui/assets" in MAIN
+    assert "UI_ASSET_FILES" in MAIN
     assert "./ui-feedback-core.js" in LOADER
     assert "./ui-enterprise.js" in LOADER
     assert "./ui-analytics.js" in LOADER
