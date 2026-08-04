@@ -39,7 +39,9 @@ jobs:
           python -m pip check
 
       - name: Apply inline bundle fix
-        run: python scripts/apply_inline_admin_assets_v304.py
+        run: |
+          python scripts/apply_inline_admin_assets_v304.py
+          python scripts/patch_inline_contracts_v304.py
 
       - name: Validate frontend source syntax
         run: |
