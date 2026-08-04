@@ -57,6 +57,7 @@ def test_manual_retry_preserves_rejected_database_before_replacement(tmp_path):
     assert (tmp_path / preserved_name).read_bytes() == broken
     assert Path(f"{tmp_path / preserved_name}-wal").read_bytes() == b"rejected-wal"
     assert Path(f"{tmp_path / preserved_name}-shm").read_bytes() == b"rejected-shm"
+    assert not list(tmp_path.glob(".rollpig.db.preflight-*"))
     assert manager.verify()["ok"] is True
 
 

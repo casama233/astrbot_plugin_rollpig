@@ -146,8 +146,27 @@ class PrimaryStorageManager(LegacyStorageManager):
             else [],
         }
 
+    def _snapshot_existing_sidecars(self) -> dict[str, Path]:
+        """Copy SQLite sidecars before opening a possibly corrupt database."""
+        snapshots: dict[str, Path] = {}
+        for suffix in ("-wal", "-shm"):
+            source = Path(f"{self.database_path}{suffix}")
+            if not source.exists():
+                continue
+            snapshot = self.data_root / (
+                f".rollpig.db.preflight-{uuid.uuid4().hex}{suffix}"
+            )
+            shutil.copy2(source, snapshot)
+            snapshots[suffix] = snapshot
+        return snapshots
+
+    @staticmethod
+    def _discard_sidecar_snapshots(snapshots: dict[str, Path]) -> None:
+        for snapshot in snapshots.values():
+            snapshot.unlink(missing_ok=True)
+
     def _preserve_existing_database(self) -> str:
-        """Copy a rejected database and its sidecars before replacing it."""
+        """Copy a rejected database and its original sidecars before replacement."""
         if not self.database_path.exists():
             return ""
         stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -157,10 +176,18 @@ class PrimaryStorageManager(LegacyStorageManager):
             suffix += 1
             preserved = self.data_root / f"rollpig.db.rejected-{stamp}-{suffix}"
         shutil.copy2(self.database_path, preserved)
+        snapshots = getattr(self, "_rejected_sidecar_snapshots", None)
         for sidecar_suffix in ("-wal", "-shm"):
-            source = Path(f"{self.database_path}{sidecar_suffix}")
-            if source.exists():
+            source = (
+                snapshots.get(sidecar_suffix)
+                if snapshots is not None
+                else Path(f"{self.database_path}{sidecar_suffix}")
+            )
+            if source is not None and source.exists():
                 shutil.copy2(source, Path(f"{preserved}{sidecar_suffix}"))
+        if snapshots is not None:
+            self._discard_sidecar_snapshots(snapshots)
+            self._rejected_sidecar_snapshots = None
         return preserved.name
 
     def _replace_database(self, temporary: Path) -> None:
@@ -285,6 +312,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             self.backend = self.json_storage
             return
         if self.database_path.exists():
+            sidecar_snapshots = self._snapshot_existing_sidecars()
             try:
                 candidate = self._new_sqlite()
                 verification = candidate.verify()
@@ -302,8 +330,10 @@ class PrimaryStorageManager(LegacyStorageManager):
                     )
                 self.backend = candidate
                 self._last_error = ""
+                self._discard_sidecar_snapshots(sidecar_snapshots)
                 return
             except Exception as exc:
+                self._rejected_sidecar_snapshots = sidecar_snapshots
                 self.backend = self.json_storage
                 self._last_error = f"SQLite 不可用，已回退 JSON：{exc}"
                 return
