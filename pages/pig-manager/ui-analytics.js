@@ -1,9 +1,26 @@
 (() => {
-  if (window.__rollpigAnalyticsUiReady) return;
-  window.__rollpigAnalyticsUiReady = true;
+  const STATE_KEY = '__rollpigAnalyticsUiState';
+  const READY_KEY = '__rollpigAnalyticsUiReady';
+  const MAX_WAIT_MS = 8000;
+  const POLL_MS = 100;
 
-  const bridge = window.AstrBotPluginPage;
-  if (!bridge) return;
+  if (window[READY_KEY] || window[STATE_KEY]?.starting) return;
+
+  const state = window[STATE_KEY] || {
+    starting: false,
+    attempts: 0,
+    startedAt: 0,
+    timedOut: false,
+    timer: null
+  };
+  window[STATE_KEY] = state;
+
+  const initialize = bridge => {
+    if (window[READY_KEY]) return;
+    window[READY_KEY] = true;
+    state.starting = false;
+    state.timedOut = false;
+    state.timer = null;
 
   const number = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 1});
   const percent = value => `${number.format(Number(value || 0))}%`;
@@ -278,4 +295,55 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
   else start();
+  };
+
+  const renderBridgeError = () => {
+    if (window[READY_KEY]) return;
+    const anchor = document.querySelector('#view-overview .metrics');
+    if (!anchor) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderBridgeError, {once: true});
+      }
+      return;
+    }
+    let suite = document.getElementById('analyticsSuite');
+    if (!suite) {
+      suite = document.createElement('section');
+      suite.id = 'analyticsSuite';
+      suite.className = 'analytics-suite';
+      anchor.insertAdjacentElement('afterend', suite);
+    }
+    suite.innerHTML = '<div class="analytics-error"><strong>深度分析尚未连接管理桥接</strong><span>AstrBot 管理桥接在 8 秒内没有就绪。普通总览与管理功能不受影响，可点击重试。</span><button type="button" class="btn ghost" id="analyticsBridgeRetry">重新连接</button></div>';
+    document.getElementById('analyticsBridgeRetry')?.addEventListener('click', () => {
+      state.starting = true;
+      state.timedOut = false;
+      state.attempts = 0;
+      state.startedAt = performance.now();
+      suite.innerHTML = '<div class="analytics-skeleton analytics-skeleton--chart"></div>';
+      waitForBridge();
+    }, {once: true});
+  };
+
+  const waitForBridge = () => {
+    if (window[READY_KEY]) return;
+    const bridge = window.AstrBotPluginPage;
+    if (bridge) {
+      initialize(bridge);
+      return;
+    }
+    if (performance.now() - state.startedAt >= MAX_WAIT_MS) {
+      state.starting = false;
+      state.timedOut = true;
+      state.timer = null;
+      console.error('[rollpig] Analytics bootstrap timed out waiting for AstrBotPluginPage');
+      renderBridgeError();
+      return;
+    }
+    state.attempts += 1;
+    state.timer = window.setTimeout(waitForBridge, POLL_MS);
+  };
+
+  state.starting = true;
+  state.startedAt = performance.now();
+  waitForBridge();
 })();
