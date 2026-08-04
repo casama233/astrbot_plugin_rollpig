@@ -83,6 +83,7 @@ jobs:
           path = Path('pages/pig-manager/analytics-theme.css')
           path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8', newline='\n')
           PY
+          rm -f .github/workflows/release-v3.1.2.yml
           git diff --check
           rm -f tools/.v312-trigger
           git rm tools/apply_v312_readability_fix.py .github/workflows/apply-v3.1.2-readability.yml
