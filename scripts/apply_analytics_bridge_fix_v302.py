@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,7 +62,14 @@ loader = loader.replace("?v=3.0.1", f"?v={VERSION}")
 write("pages/pig-manager/ui-feedback.js", loader)
 
 changelog = read("CHANGELOG.md")
-entry = f'''## v{VERSION} (2026-08-04)\n### Analytics 初始化时序修复\n- 修复 AstrBot 管理桥接尚未就绪时，深度 Analytics 过早标记为已初始化并永久退出的问题。\n- Analytics 现在会以 100ms 间隔、最多 8 秒等待桥接；桥接就绪后才设置完成标记并读取聚合数据。\n- 重复注入保持幂等；桥接长期不可用时显示局部错误与“重新连接”，普通总览、图鉴和管理操作不受影响。\n- 所有管理页资源缓存键同步提升至 v{VERSION}，不修改 SQLite 单一权威、API 契约或业务流程。\n\n'''
+entry = f'''## v{VERSION} (2026-08-04)
+### Analytics 初始化时序修复
+- 修复 AstrBot 管理桥接尚未就绪时，深度 Analytics 过早标记为已初始化并永久退出的问题。
+- Analytics 现在会以 100ms 间隔、最多 8 秒等待桥接；桥接就绪后才设置完成标记并读取聚合数据。
+- 重复注入保持幂等；桥接长期不可用时显示局部错误与“重新连接”，普通总览、图鉴和管理操作不受影响。
+- 所有管理页资源缓存键同步提升至 v{VERSION}，不修改 SQLite 单一权威、API 契约或业务流程。
+
+'''
 if entry not in changelog:
     if not changelog.startswith("# 更新\n"):
         raise SystemExit("CHANGELOG.md: missing heading")
@@ -75,19 +81,124 @@ for path in (
     "tests/test_source_regressions.py",
     "tests/test_ui_cache_busting.py",
 ):
-    text = read(path).replace("3.0.1", VERSION)
-    write(path, text)
+    write(path, read(path).replace("3.0.1", VERSION))
 
 old_contract = ROOT / "tests/test_v301_release_contract.py"
 new_contract = ROOT / "tests/test_v302_release_contract.py"
 if old_contract.exists() and not new_contract.exists():
     old_contract.rename(new_contract)
-contract = new_contract.read_text(encoding="utf-8").replace("3.0.1", VERSION).replace("v301", "v302")
+contract = new_contract.read_text(encoding="utf-8")
+contract = contract.replace("3.0.1", VERSION).replace("v301", "v302")
 new_contract.write_text(contract, encoding="utf-8")
 
 write(
+    "tests/analytics_bridge_harness.cjs",
+    r"""const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const source = fs.readFileSync(
+  path.join(__dirname, '..', 'pages', 'pig-manager', 'ui-analytics.js'),
+  'utf8'
+);
+
+function context() {
+  let now = 0;
+  const timers = [];
+  const listeners = {};
+  const elements = new Map();
+  const anchor = {insertAdjacentElement(_where, node) { elements.set(node.id, node); }};
+  const document = {
+    readyState: 'loading',
+    querySelector(selector) { return selector === '#view-overview .metrics' ? anchor : null; },
+    getElementById(id) { return elements.get(id) || null; },
+    createElement() { return {id: '', className: '', innerHTML: '', addEventListener() {}}; },
+    addEventListener(name, fn) { listeners[name] = fn; }
+  };
+  const window = {
+    setTimeout(fn) { timers.push(fn); return timers.length; },
+    addEventListener() {}
+  };
+  const sandbox = {
+    window,
+    document,
+    performance: {now: () => now},
+    console,
+    Intl,
+    Promise,
+    Array,
+    Number,
+    String,
+    Math,
+    Object,
+    Error
+  };
+  vm.createContext(sandbox);
+  return {
+    sandbox,
+    window,
+    timers,
+    listeners,
+    advance(ms) {
+      now += ms;
+      const fn = timers.shift();
+      if (fn) fn();
+    }
+  };
+}
+
+const delayed = context();
+vm.runInContext(source, delayed.sandbox);
+if (delayed.window.__rollpigAnalyticsUiReady) throw new Error('ready set before bridge');
+if (delayed.timers.length !== 1) throw new Error('expected one wait timer');
+vm.runInContext(source, delayed.sandbox);
+if (delayed.timers.length !== 1) throw new Error('duplicate injection scheduled another timer');
+delayed.window.AstrBotPluginPage = {apiGet: async () => ({data: {}})};
+delayed.advance(100);
+if (!delayed.window.__rollpigAnalyticsUiReady) throw new Error('bridge arrival did not initialize');
+
+const missing = context();
+vm.runInContext(source, missing.sandbox);
+for (let i = 0; i < 80; i += 1) missing.advance(100);
+if (missing.window.__rollpigAnalyticsUiReady) throw new Error('timeout marked analytics ready');
+if (!missing.window.__rollpigAnalyticsUiState.timedOut) throw new Error('timeout state not recorded');
+if (missing.timers.length !== 0) throw new Error('polling continued after timeout');
+""",
+)
+
+write(
     "tests/test_analytics_bridge_bootstrap.py",
-    '''from __future__ import annotations\n\nimport json\nimport shutil\nimport subprocess\nfrom pathlib import Path\n\nimport pytest\n\nROOT = Path(__file__).resolve().parents[1]\nSCRIPT = ROOT / "pages" / "pig-manager" / "ui-analytics.js"\n\n\ndef test_bridge_ready_flag_is_set_only_inside_initialize():\n    source = SCRIPT.read_text(encoding="utf-8")\n    bridge_lookup = source.index("const bridge = window.AstrBotPluginPage")\n    initialize = source.index("const initialize = bridge =>")\n    ready_assignment = source.index("window[READY_KEY] = true")\n    assert initialize < ready_assignment < bridge_lookup\n    assert "window[STATE_KEY]?.starting" in source\n    assert "MAX_WAIT_MS = 8000" in source\n    assert "window.setTimeout(waitForBridge, POLL_MS)" in source\n    assert "analyticsBridgeRetry" in source\n\n\n@pytest.mark.skipif(shutil.which("node") is None, reason="node is required")\ndef test_bridge_bootstrap_delay_duplicate_and_timeout(tmp_path):\n    harness = tmp_path / "analytics-bootstrap-test.cjs"\n    harness.write_text(\n        f'''const fs = require('fs');\nconst vm = require('vm');\nconst source = fs.readFileSync({json.dumps(str(SCRIPT))}, 'utf8');\n\nfunction context() {{\n  let now = 0;\n  const timers = [];\n  const listeners = {{}};\n  const anchor = {{insertAdjacentElement() {{}}}};\n  const elements = new Map();\n  const document = {{\n    readyState: 'loading',\n    querySelector(selector) {{ return selector === '#view-overview .metrics' ? anchor : null; }},\n    getElementById(id) {{ return elements.get(id) || null; }},\n    createElement() {{\n      const node = {{id: '', className: '', innerHTML: '', addEventListener() {{}}}};\n      return node;\n    }},\n    addEventListener(name, fn) {{ listeners[name] = fn; }}\n  }};\n  anchor.insertAdjacentElement = (_where, node) => elements.set(node.id, node);\n  const window = {{\n    setTimeout(fn) {{ timers.push(fn); return timers.length; }},\n    addEventListener() {{}}\n  }};\n  const sandbox = {{window, document, performance: {{now: () => now}}, console, Intl, Promise, Array, Number, String, Math, Object, Error}};\n  vm.createContext(sandbox);\n  return {{sandbox, window, timers, listeners, advance(ms) {{ now += ms; const fn = timers.shift(); if (fn) fn(); }}};\n}}\n\nconst delayed = context();\nvm.runInContext(source, delayed.sandbox);\nif (delayed.window.__rollpigAnalyticsUiReady) throw new Error('ready set before bridge');\nif (delayed.timers.length !== 1) throw new Error('expected one wait timer');\nvm.runInContext(source, delayed.sandbox);\nif (delayed.timers.length !== 1) throw new Error('duplicate injection scheduled another timer');\ndelayed.window.AstrBotPluginPage = {{apiGet: async () => ({{data: {{}}}})}};\ndelayed.advance(100);\nif (!delayed.window.__rollpigAnalyticsUiReady) throw new Error('bridge arrival did not initialize');\n\nconst missing = context();\nvm.runInContext(source, missing.sandbox);\nfor (let i = 0; i < 80; i += 1) missing.advance(100);\nif (missing.window.__rollpigAnalyticsUiReady) throw new Error('timeout marked analytics ready');\nif (!missing.window.__rollpigAnalyticsUiState.timedOut) throw new Error('timeout state not recorded');\nif (missing.timers.length !== 0) throw new Error('polling continued after timeout');\n''',\n        encoding="utf-8",\n    )\n    result = subprocess.run(\n        ["node", str(harness)], capture_output=True, text=True, check=False\n    )\n    assert result.returncode == 0, result.stdout + result.stderr\n''',
+    r"""from __future__ import annotations
+
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "pages" / "pig-manager" / "ui-analytics.js"
+HARNESS = ROOT / "tests" / "analytics_bridge_harness.cjs"
+
+
+def test_bridge_ready_flag_is_set_only_inside_initialize():
+    source = SCRIPT.read_text(encoding="utf-8")
+    initialize = source.index("const initialize = bridge =>")
+    ready_assignment = source.index("window[READY_KEY] = true")
+    bridge_lookup = source.index("const bridge = window.AstrBotPluginPage")
+    assert initialize < ready_assignment < bridge_lookup
+    assert "window[STATE_KEY]?.starting" in source
+    assert "MAX_WAIT_MS = 8000" in source
+    assert "window.setTimeout(waitForBridge, POLL_MS)" in source
+    assert "analyticsBridgeRetry" in source
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is required")
+def test_bridge_bootstrap_delay_duplicate_and_timeout():
+    result = subprocess.run(
+        ["node", str(HARNESS)], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+""",
 )
 
 for temporary in (
