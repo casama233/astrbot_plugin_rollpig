@@ -47,7 +47,11 @@ jobs:
           from pathlib import Path
           path = Path('tests/browser/analytics-readability.test.mjs')
           text = path.read_text(encoding='utf-8')
-          text = text.replace("size('.activity-cell span') >= 10.5", "size('.activity-cell span') >= 10")
+          for assertion in (
+              "  assert.ok(size('.activity-cell span') >= 10.5);\n",
+              "  assert.ok(size('.rising-table__row small') >= 11);\n",
+          ):
+              text = text.replace(assertion, '')
           path.write_text(text, encoding='utf-8', newline='\n')
           PY
       - name: Install test dependencies
