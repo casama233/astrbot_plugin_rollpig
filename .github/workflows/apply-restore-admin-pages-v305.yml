@@ -36,7 +36,9 @@ jobs:
           python -m pip check
 
       - name: Apply recovery patch
-        run: python scripts/apply_restore_admin_pages_v305.py
+        run: |
+          python scripts/apply_restore_admin_pages_v305.py
+          python scripts/patch_v305_version_contract.py
 
       - name: Validate modular frontend source syntax
         run: |
