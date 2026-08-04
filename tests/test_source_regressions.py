@@ -273,8 +273,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.1.1"' in metadata
-    assert "AstrBot-RollPig/3.1.1" in SOURCE
+    assert 'version: "3.1.2"' in metadata
+    assert "AstrBot-RollPig/3.1.2" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
