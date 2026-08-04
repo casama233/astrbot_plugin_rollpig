@@ -6,7 +6,7 @@ SCRIPT = ROOT / "pages" / "pig-manager" / "ui-analytics.js"
 
 def test_analytics_is_root_bound_and_has_no_bridge_polling():
     source = SCRIPT.read_text(encoding="utf-8")
-    assert "const VERSION = '3.1.1'" in source
+    assert "const VERSION = '3.1.2'" in source
     assert "previous.root === pageRoot" in source
     assert "previous?.abortController?.abort()" in source
     assert "state.refresh = loadInsights" in source

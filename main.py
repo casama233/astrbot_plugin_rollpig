@@ -83,9 +83,9 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.1.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.1.2 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
-    UI_ASSET_VERSION = "3.1.1"
+    UI_ASSET_VERSION = "3.1.2"
     UI_ASSET_MAX_FILE_BYTES = 512 * 1024
     UI_ASSET_MAX_TOTAL_BYTES = 768 * 1024
     UI_ASSET_FILES = (
