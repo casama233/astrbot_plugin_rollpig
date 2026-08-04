@@ -1,0 +1,98 @@
+name: Apply authenticated admin UI v3.1.0
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-authenticated-admin-ui-v310
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.head_ref == 'feat/authenticated-admin-ui-v3.1.0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/authenticated-admin-ui-v3.1.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Python validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Apply authenticated UI architecture
+        run: python scripts/apply_authenticated_admin_ui_v310.py
+
+      - name: Generate deterministic npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Install frontend test dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate frontend source syntax
+        run: |
+          node --check pages/pig-manager/ui-bootstrap.js
+          node --check pages/pig-manager/ui-feedback.js
+          node --check pages/pig-manager/ui-feedback-core.js
+          node --check pages/pig-manager/ui-enterprise.js
+          node --check pages/pig-manager/ui-analytics.js
+
+      - name: Validate actual inline modules
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          bootstrap = re.search(r'<script data-rollpig-bootstrap="3\.1\.0">(.*?)</script>', page, re.S)
+          core = re.search(r'<script type="module">(.*?)</script>', page, re.S)
+          if not bootstrap or not core:
+              raise SystemExit('inline bootstrap or core module missing')
+          Path('/tmp/rollpig-bootstrap.js').write_text(bootstrap.group(1), encoding='utf-8')
+          Path('/tmp/rollpig-core.mjs').write_text(core.group(1), encoding='utf-8')
+          PY
+          node --check /tmp/rollpig-bootstrap.js
+          node --check /tmp/rollpig-core.mjs
+
+      - name: Run jsdom browser behavior tests
+        run: npm test
+
+      - name: Compile Python source
+        run: python -m compileall -q main.py rollpig_core.py updater.py storage services tests
+
+      - name: Run full pytest suite
+        run: pytest -q
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Commit validated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No validated changes to commit"
+          else
+            git commit -m "feat: restore authenticated enterprise admin UI (v3.1.0)"
+            git push origin HEAD:feat/authenticated-admin-ui-v3.1.0
+          fi
