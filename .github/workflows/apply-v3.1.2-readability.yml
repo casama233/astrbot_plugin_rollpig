@@ -2,7 +2,9 @@ name: Apply v3.1.2 readability fix
 
 on:
   push:
-    branches: [agent/v3.1.2-analytics-readable-type]
+    branches:
+      - main
+      - agent/v3.1.2-analytics-readable-type
 
 permissions:
   contents: write
@@ -18,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/v3.1.2-analytics-readable-type
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -56,4 +58,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix: improve Analytics readability (v3.1.2) [v3.1.2-patched]"
-          git push origin HEAD:agent/v3.1.2-analytics-readable-type
+          git push origin "HEAD:${GITHUB_REF_NAME}"
