@@ -55,7 +55,7 @@ function createDom({analyticsFailure = false} = {}) {
     ready: async () => {},
     apiGet: async pathName => {
       calls.push(pathName);
-      if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.1', assets: ASSETS}};
+      if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.2', assets: ASSETS}};
       if (pathName === 'analytics/insights') {
         if (analyticsFailure) throw new Error('analytics unavailable');
         return {status: 'ok', data: insights};
@@ -63,7 +63,7 @@ function createDom({analyticsFailure = false} = {}) {
       if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 4, total_draws: 7, today_users: 2, catalog_count: 6, average_unlocked: 2, average_unlock_rate: 33.3}, trend: [], top_pigs: []}};
       if (pathName === 'pigs') return {status: 'ok', data: {items: [], page: 1, pages: 1, total: 0}};
       if (pathName === 'resources/status') return {status: 'ok', data: {running: false, source: 'bundled', version: 'test', last_success: 0, last_attempt: 0, local_overrides: 0, deleted_count: 0, last_error: ''}};
-      if (pathName === 'updates/status') return {status: 'ok', data: {current_version: '3.1.1', enabled: true, busy: false, storage: {backend: 'sqlite'}}};
+      if (pathName === 'updates/status') return {status: 'ok', data: {current_version: '3.1.2', enabled: true, busy: false, storage: {backend: 'sqlite'}}};
       if (pathName === 'storage/status') return {status: 'ok', data: {configured_mode: 'auto', active_backend: 'sqlite', database_exists: true, health: {ok: true, schema_version: 6, analytics_source: 'normalized-sql', write_authority: 'sql-primary-v3.0', compatibility_mode: 'on-demand'}}};
       throw new Error(`unexpected GET ${pathName}`);
     },

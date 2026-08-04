@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '3.1.1';
+  const VERSION = '3.1.2';
   const STATE_KEY = '__rollpigUiBootstrapState';
   const ALLOWED = new Map([
     ['analytics-theme', 'style'],
