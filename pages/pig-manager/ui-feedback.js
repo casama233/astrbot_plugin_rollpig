@@ -1,7 +1,7 @@
 (() => {
   // Source-regression compatibility markers from the preserved feedback core:
   // storageRebuildBtn 'storage/rebuild' restartRequired 已有管理任务正在执行
-  const ASSET_VERSION = '3.0.4';
+  const ASSET_VERSION = '3.0.5';
   const versioned = source =>
     `${source}${source.includes('?') ? '&' : '?'}v=${encodeURIComponent(ASSET_VERSION)}`;
 
@@ -19,9 +19,9 @@
 
   if (document.readyState === 'loading') {
     document.write(
-      '<script src="./ui-feedback-core.js?v=3.0.4"><\/script>' +
-      '<script src="./ui-enterprise.js?v=3.0.4"><\/script>' +
-      '<script src="./ui-analytics.js?v=3.0.4"><\/script>'
+      '<script src="./ui-feedback-core.js?v=3.0.5"><\/script>' +
+      '<script src="./ui-enterprise.js?v=3.0.5"><\/script>' +
+      '<script src="./ui-analytics.js?v=3.0.5"><\/script>'
     );
     return;
   }
