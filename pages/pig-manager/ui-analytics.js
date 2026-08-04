@@ -1,24 +1,51 @@
 (() => {
   const STATE_KEY = '__rollpigAnalyticsUiState';
   const READY_KEY = '__rollpigAnalyticsUiReady';
+  const BOOTSTRAP_VERSION = '3.0.3';
   const MAX_WAIT_MS = 8000;
   const POLL_MS = 100;
 
-  if (window[READY_KEY] || window[STATE_KEY]?.starting) return;
+  const mounted = () => Boolean(document.getElementById('analyticsSuite'));
+  const previousState = window[STATE_KEY];
 
-  const state = window[STATE_KEY] || {
+  if (
+    previousState?.version === BOOTSTRAP_VERSION &&
+    previousState.starting
+  ) return;
+
+  if (
+    previousState?.version === BOOTSTRAP_VERSION &&
+    window[READY_KEY] &&
+    mounted()
+  ) {
+    previousState.refresh?.();
+    return;
+  }
+
+  if (previousState?.timer && window.clearTimeout) {
+    window.clearTimeout(previousState.timer);
+  }
+
+  window[READY_KEY] = false;
+  const state = {
+    version: BOOTSTRAP_VERSION,
     starting: false,
+    initialized: false,
     attempts: 0,
     startedAt: 0,
     timedOut: false,
-    timer: null
+    timer: null,
+    refresh: null
   };
   window[STATE_KEY] = state;
 
   const initialize = bridge => {
-    if (window[READY_KEY]) return;
+    if (state.initialized && mounted()) {
+      state.refresh?.();
+      return;
+    }
     window[READY_KEY] = true;
-    state.starting = false;
+    state.initialized = true;
     state.timedOut = false;
     state.timer = null;
 
@@ -283,14 +310,40 @@
   }
 
   const start = () => {
-    ensureSuite();
+    const suite = ensureSuite();
+    if (!suite) {
+      state.starting = false;
+      return;
+    }
+
+    window[READY_KEY] = true;
+    state.initialized = true;
+    state.starting = false;
+    state.refresh = loadInsights;
     loadInsights();
-    document.getElementById('refreshBtn')?.addEventListener('click', () => {
-      window.setTimeout(loadInsights, 180);
-    });
-    window.addEventListener('hashchange', () => {
-      if (location.hash.replace(/^#\/?/, '') !== 'catalog') loadInsights();
-    });
+
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (
+      refreshBtn &&
+      refreshBtn.dataset.rollpigAnalyticsBound !== BOOTSTRAP_VERSION
+    ) {
+      refreshBtn.dataset.rollpigAnalyticsBound = BOOTSTRAP_VERSION;
+      refreshBtn.addEventListener('click', () => {
+        window.setTimeout(loadInsights, 180);
+      });
+    }
+
+    if (!window.__rollpigAnalyticsHashHandler) {
+      window.__rollpigAnalyticsHashHandler = () => {
+        if (location.hash.replace(/^#\/?/, '') !== 'catalog') {
+          window[STATE_KEY]?.refresh?.();
+        }
+      };
+      window.addEventListener(
+        'hashchange',
+        window.__rollpigAnalyticsHashHandler
+      );
+    }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
