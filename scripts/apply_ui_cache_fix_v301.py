@@ -23,7 +23,9 @@ def replace_once(path: str, old: str, new: str) -> None:
         return
     count = text.count(old)
     if count != 1:
-        raise SystemExit(f"{path}: expected exactly one anchor, found {count}: {old!r}")
+        raise SystemExit(
+            f"{path}: expected exactly one anchor, found {count}: {old!r}"
+        )
     write(path, text.replace(old, new, 1))
 
 
@@ -31,7 +33,9 @@ def replace_pattern(path: str, pattern: str, replacement: str) -> None:
     text = read(path)
     updated, count = re.subn(pattern, replacement, text, count=1)
     if count != 1:
-        raise SystemExit(f"{path}: expected exactly one regex match, found {count}: {pattern!r}")
+        raise SystemExit(
+            f"{path}: expected exactly one regex match, found {count}: {pattern!r}"
+        )
     write(path, updated)
 
 
@@ -42,7 +46,8 @@ new_entry = f'<script src="./ui-feedback.js?v={VERSION}"></script>'
 if new_entry not in index:
     if index.count(old_entry) != 1:
         raise SystemExit(
-            f"{index_path}: expected one unversioned UI entry, found {index.count(old_entry)}"
+            f"{index_path}: expected one unversioned UI entry, "
+            f"found {index.count(old_entry)}"
         )
     index = index.replace(old_entry, new_entry, 1)
 index = index.replace("v3.0.0", f"v{VERSION}")
@@ -118,46 +123,90 @@ if entry not in changelog:
     changelog = changelog.replace("# 更新\n", "# 更新\n" + entry, 1)
 write("CHANGELOG.md", changelog)
 
-test_path = "tests/test_dashboard_feedback.py"
-test = read(test_path)
-test = test.replace(
-    'external = \'<script src="./ui-feedback.js"></script>\'',
-    f'external = \'<script src="./ui-feedback.js?v={VERSION}"></script>\'',
+replace_once(
+    "tests/test_dashboard_feedback.py",
+    '    external = \'<script src="./ui-feedback.js"></script>\'',
+    f'    external = \'<script src="./ui-feedback.js?v={VERSION}"></script>\'',
 )
-anchor = '    assert LOADER.index("./ui-enterprise.js") < LOADER.index("./ui-analytics.js")\n'
-extra = f'''    assert "const ASSET_VERSION = '{VERSION}'" in LOADER
+
+write(
+    "tests/test_ui_cache_busting.py",
+    f'''from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+VERSION = "{VERSION}"
+PAGE = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+    encoding="utf-8"
+)
+LOADER = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(
+    encoding="utf-8"
+)
+
+
+def test_versioned_loader_precedes_inline_module():
+    external = f'<script src="./ui-feedback.js?v={{VERSION}}"></script>'
+    assert external in PAGE
+    assert PAGE.index(external) < PAGE.index('<script type="module">')
+
+
+def test_loader_versions_every_enterprise_asset():
+    assert f"const ASSET_VERSION = '{{VERSION}}'" in LOADER
     assert "stylesheet.href = versioned(href)" in LOADER
     assert "script.src = versioned(src)" in LOADER
-    for asset in ("ui-feedback-core.js", "ui-enterprise.js", "ui-analytics.js"):
-        assert f"{{asset}}?v={VERSION}" in LOADER
-'''
-if extra not in test:
-    if test.count(anchor) != 1:
-        raise SystemExit("tests/test_dashboard_feedback.py: cache assertion anchor missing")
-    test = test.replace(anchor, anchor + extra, 1)
-write(test_path, test)
-
-old_contract = ROOT / "tests/test_v215_release_contract.py"
-new_contract = ROOT / "tests/test_v301_release_contract.py"
-contract = old_contract.read_text(encoding="utf-8") if old_contract.exists() else new_contract.read_text(encoding="utf-8")
-contract = contract.replace(
-    "test_v215_release_contract_and_analytics_assets",
-    "test_v301_release_contract_and_analytics_assets",
+    for asset in (
+        "enterprise-theme.css",
+        "analytics-theme.css",
+        "ui-feedback-core.js",
+        "ui-enterprise.js",
+        "ui-analytics.js",
+    ):
+        assert asset in LOADER
+    for asset in (
+        "ui-feedback-core.js",
+        "ui-enterprise.js",
+        "ui-analytics.js",
+    ):
+        assert f"{{asset}}?v={{VERSION}}" in LOADER
+''',
 )
-contract = contract.replace('version: "3.0.0"', f'version: "{VERSION}"')
-contract = contract.replace("AstrBot-RollPig/3.0.0", f"AstrBot-RollPig/{VERSION}")
-if f"ui-feedback.js?v={VERSION}" not in contract:
-    contract += f'''\n\ndef test_v301_dashboard_assets_are_cache_busted():
-    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
-    loader = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(encoding="utf-8")
+
+write(
+    "tests/test_v301_release_contract.py",
+    f'''from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_v301_release_contract_and_analytics_assets():
+    metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")
+    main = (ROOT / "main.py").read_text(encoding="utf-8")
+    updater = (ROOT / "updater.py").read_text(encoding="utf-8")
+    storage = (ROOT / "storage" / "sqlite_storage.py").read_text(
+        encoding="utf-8"
+    )
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    loader = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(
+        encoding="utf-8"
+    )
+    assert 'version: "{VERSION}"' in metadata
+    assert 'AstrBot-RollPig/{VERSION}' in main
+    assert 'AstrBot-RollPig-Safe-Updater/{VERSION}' in updater
+    assert '/analytics/insights' in main
+    assert 'get_dashboard_insights' in storage
+    assert 'schema_version = 5' in storage
+    assert 'sql-primary-v2.14' in storage
     assert './ui-feedback.js?v={VERSION}' in page
     assert "const ASSET_VERSION = '{VERSION}'" in loader
-    assert 'stylesheet.href = versioned(href)' in loader
-    assert 'script.src = versioned(src)' in loader
-'''
-new_contract.write_text(contract, encoding="utf-8")
-if old_contract.exists() and old_contract != new_contract:
-    old_contract.unlink()
+    assert './analytics-theme.css' in loader
+    assert './ui-analytics.js' in loader
+''',
+)
+
+(ROOT / "tests/test_v215_release_contract.py").unlink(missing_ok=True)
 
 for temporary in (
     ROOT / "scripts/apply_ui_cache_fix_v301.py",
