@@ -170,7 +170,7 @@ def test_dashboard_feedback_covers_restart_and_projection_rebuild():
     feedback = (ROOT / "pages" / "pig-manager" / "ui-feedback.js").read_text(
         encoding="utf-8"
     )
-    assert '<script src="./ui-feedback.js"></script>' in page
+    assert '<script src="./ui-feedback.js?v=3.0.1"></script>' in page
     assert "storageRebuildBtn" in feedback
     assert "'storage/rebuild'" in feedback
     assert "restartRequired" in feedback
@@ -274,8 +274,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.0.0"' in metadata
-    assert "AstrBot-RollPig/3.0.0" in SOURCE
+    assert 'version: "3.0.1"' in metadata
+    assert "AstrBot-RollPig/3.0.1" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
