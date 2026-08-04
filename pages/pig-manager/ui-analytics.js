@@ -1,54 +1,31 @@
 (() => {
+  'use strict';
   const STATE_KEY = '__rollpigAnalyticsUiState';
-  const READY_KEY = '__rollpigAnalyticsUiReady';
-  const BOOTSTRAP_VERSION = '3.1.0';
-  const MAX_WAIT_MS = 8000;
-  const POLL_MS = 100;
+  const VERSION = '3.1.1';
+  const pageRoot = document.querySelector('.shell');
+  const bridge = window.AstrBotPluginPage;
+  if (!pageRoot || !bridge?.apiGet) throw new Error('深度分析缺少页面根节点或管理桥接');
 
-  const mounted = () => Boolean(document.getElementById('analyticsSuite'));
-  const previousState = window[STATE_KEY];
-
+  const previous = window[STATE_KEY];
   if (
-    previousState?.version === BOOTSTRAP_VERSION &&
-    previousState.starting
-  ) return;
-
-  if (
-    previousState?.version === BOOTSTRAP_VERSION &&
-    window[READY_KEY] &&
-    mounted()
+    previous?.version === VERSION &&
+    previous.root === pageRoot &&
+    pageRoot.querySelector('#analyticsSuite')
   ) {
-    previousState.refresh?.();
+    previous.refresh?.();
     return;
   }
+  previous?.abortController?.abort();
 
-  if (previousState?.timer && window.clearTimeout) {
-    window.clearTimeout(previousState.timer);
-  }
-
-  window[READY_KEY] = false;
+  const abortController = new AbortController();
   const state = {
-    version: BOOTSTRAP_VERSION,
-    starting: false,
-    initialized: false,
-    attempts: 0,
-    startedAt: 0,
-    timedOut: false,
-    timer: null,
-    refresh: null
+    version: VERSION,
+    root: pageRoot,
+    mounted: false,
+    refresh: null,
+    abortController,
   };
   window[STATE_KEY] = state;
-
-  const initialize = bridge => {
-    if (state.initialized && mounted()) {
-      state.refresh?.();
-      return;
-    }
-    window[READY_KEY] = true;
-    state.initialized = true;
-    state.timedOut = false;
-    state.timer = null;
-
   const number = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 1});
   const percent = value => `${number.format(Number(value || 0))}%`;
   const format = value => number.format(Number(value || 0));
@@ -263,6 +240,7 @@
   }
 
   function render(data) {
+    if (window[STATE_KEY] !== state || !pageRoot.isConnected) return;
     ensureSuite();
     renderKpis(data);
     renderActivity(data);
@@ -279,6 +257,7 @@
   }
 
   function renderError(error) {
+    if (window[STATE_KEY] !== state || !pageRoot.isConnected) return;
     const suite = ensureSuite();
     if (!suite) return;
     const grid = document.getElementById('analyticsGrid');
@@ -309,94 +288,20 @@
     return pending;
   }
 
-  const start = () => {
+
+  const mount = () => {
     const suite = ensureSuite();
-    if (!suite) {
-      state.starting = false;
-      return;
-    }
-
-    window[READY_KEY] = true;
-    state.initialized = true;
-    state.starting = false;
+    if (!suite) throw new Error('深度分析挂载点不存在');
+    state.mounted = true;
     state.refresh = loadInsights;
+
+    const refreshButton = pageRoot.querySelector('#refreshBtn');
+    refreshButton?.addEventListener('click', () => {
+      if (window[STATE_KEY] === state) loadInsights();
+    }, {signal: abortController.signal});
+
     loadInsights();
-
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (
-      refreshBtn &&
-      refreshBtn.dataset.rollpigAnalyticsBound !== BOOTSTRAP_VERSION
-    ) {
-      refreshBtn.dataset.rollpigAnalyticsBound = BOOTSTRAP_VERSION;
-      refreshBtn.addEventListener('click', () => {
-        window.setTimeout(loadInsights, 180);
-      });
-    }
-
-    if (!window.__rollpigAnalyticsHashHandler) {
-      window.__rollpigAnalyticsHashHandler = () => {
-        if (location.hash.replace(/^#\/?/, '') !== 'catalog') {
-          window[STATE_KEY]?.refresh?.();
-        }
-      };
-      window.addEventListener(
-        'hashchange',
-        window.__rollpigAnalyticsHashHandler
-      );
-    }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
-  else start();
-  };
-
-  const renderBridgeError = () => {
-    if (window[READY_KEY]) return;
-    const anchor = document.querySelector('#view-overview .metrics');
-    if (!anchor) {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', renderBridgeError, {once: true});
-      }
-      return;
-    }
-    let suite = document.getElementById('analyticsSuite');
-    if (!suite) {
-      suite = document.createElement('section');
-      suite.id = 'analyticsSuite';
-      suite.className = 'analytics-suite';
-      anchor.insertAdjacentElement('afterend', suite);
-    }
-    suite.innerHTML = '<div class="analytics-error"><strong>深度分析尚未连接管理桥接</strong><span>AstrBot 管理桥接在 8 秒内没有就绪。普通总览与管理功能不受影响，可点击重试。</span><button type="button" class="btn ghost" id="analyticsBridgeRetry">重新连接</button></div>';
-    document.getElementById('analyticsBridgeRetry')?.addEventListener('click', () => {
-      state.starting = true;
-      state.timedOut = false;
-      state.attempts = 0;
-      state.startedAt = performance.now();
-      suite.innerHTML = '<div class="analytics-skeleton analytics-skeleton--chart"></div>';
-      waitForBridge();
-    }, {once: true});
-  };
-
-  const waitForBridge = () => {
-    if (window[READY_KEY]) return;
-    const bridge = window.AstrBotPluginPage;
-    if (bridge) {
-      initialize(bridge);
-      return;
-    }
-    if (performance.now() - state.startedAt >= MAX_WAIT_MS) {
-      state.starting = false;
-      state.timedOut = true;
-      state.timer = null;
-      console.error('[rollpig] Analytics bootstrap timed out waiting for AstrBotPluginPage');
-      renderBridgeError();
-      return;
-    }
-    state.attempts += 1;
-    state.timer = window.setTimeout(waitForBridge, POLL_MS);
-  };
-
-  state.starting = true;
-  state.startedAt = performance.now();
-  waitForBridge();
+  mount();
 })();
