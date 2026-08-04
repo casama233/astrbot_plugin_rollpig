@@ -67,7 +67,7 @@ try {
       ready: async () => {},
       apiGet: async pathName => {
         window.__rollpigCalls.push(pathName);
-        if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.1', assets}};
+        if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.2', assets}};
         if (pathName === 'analytics/insights') return {status: 'ok', data: insights};
         throw new Error(`unexpected path ${pathName}`);
       },
@@ -134,7 +134,7 @@ try {
   assert.ok(metrics.heap_growth_bytes < 24 * 1024 * 1024, `heap grew by ${metrics.heap_growth_bytes} bytes`);
 
   fs.mkdirSync(path.join(ROOT, 'docs'), {recursive: true});
-  fs.writeFileSync(path.join(ROOT, 'docs/performance-v3.1.1.json'), JSON.stringify(metrics, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(path.join(ROOT, 'docs/performance-v3.1.2.json'), JSON.stringify(metrics, null, 2) + '\n', 'utf8');
   console.log(JSON.stringify(metrics, null, 2));
 } finally {
   await browser.close();
