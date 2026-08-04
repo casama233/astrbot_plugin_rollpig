@@ -17,7 +17,7 @@ def test_bridge_ready_flag_is_set_only_inside_initialize():
     ready_assignment = source.index("window[READY_KEY] = true")
     bridge_lookup = source.index("const bridge = window.AstrBotPluginPage")
     assert initialize < ready_assignment < bridge_lookup
-    assert "window[STATE_KEY]?.starting" in source
+    assert "previousState?.version === BOOTSTRAP_VERSION" in source
     assert "MAX_WAIT_MS = 8000" in source
     assert "window.setTimeout(waitForBridge, POLL_MS)" in source
     assert "analyticsBridgeRetry" in source
