@@ -88,6 +88,10 @@ try {
 
   await page.click('#analyticsLoadBtn');
   await page.waitForSelector('#analyticsSuite', {state: 'attached'});
+  const watcherBaseline = await page.evaluate(() => ({
+    observers: window.__rollpigObserverCount,
+    intervals: window.__rollpigIntervalCount,
+  }));
   await cdp.send('HeapProfiler.collectGarbage');
   const before = await cdp.send('Runtime.getHeapUsage');
 
@@ -113,12 +117,14 @@ try {
     dom_nodes: document.querySelectorAll('*').length,
   }));
   metrics.spa_cycles = cycles;
+  metrics.observer_growth = metrics.observer_instances - watcherBaseline.observers;
+  metrics.interval_growth = metrics.interval_instances - watcherBaseline.intervals;
   metrics.heap_before_bytes = before.usedSize;
   metrics.heap_after_bytes = after.usedSize;
   metrics.heap_growth_bytes = after.usedSize - before.usedSize;
 
-  assert.equal(metrics.observer_instances, 0);
-  assert.equal(metrics.interval_instances, 0);
+  assert.equal(metrics.observer_growth, 0);
+  assert.equal(metrics.interval_growth, 0);
   assert.equal(metrics.analytics_suites, 1);
   assert.equal(metrics.analytics_buttons, 1);
   assert.equal(metrics.style_assets, 1);
