@@ -165,21 +165,16 @@ def test_storage_rebuild_api_keeps_csrf_and_confirmation():
 
 
 
-def test_dashboard_feedback_covers_restart_and_projection_rebuild():
+def test_dashboard_feedback_is_click_only_and_has_no_continuous_watchers():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
     bootstrap = (ROOT / "pages" / "pig-manager" / "ui-bootstrap.js").read_text(
         encoding="utf-8"
     )
-    feedback = (ROOT / "pages" / "pig-manager" / "ui-feedback-core.js").read_text(
-        encoding="utf-8"
-    )
     assert "rollpig-inline-assets:start" not in page
-    assert 'src="./ui-feedback.js' not in page
-    assert "bridge.apiGet('ui/assets'" in bootstrap
-    assert "storageRebuildBtn" in feedback
-    assert "'storage/rebuild'" in feedback
-    assert "restartRequired" in feedback
-    assert "已有管理任务正在执行" in feedback
+    assert "analyticsLoadBtn" in bootstrap
+    assert "sessionStorage" not in bootstrap
+    assert "MutationObserver" not in bootstrap
+    assert "setInterval" not in bootstrap
 
 
 def test_main_delegates_sql_primary_hot_writes():
@@ -278,8 +273,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.1.0"' in metadata
-    assert "AstrBot-RollPig/3.1.0" in SOURCE
+    assert 'version: "3.1.1"' in metadata
+    assert "AstrBot-RollPig/3.1.1" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
