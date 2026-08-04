@@ -11,16 +11,14 @@ ANALYTICS_THEME = (ROOT / "pages/pig-manager/analytics-theme.css").read_text(enc
 MAIN = (ROOT / "main.py").read_text(encoding="utf-8")
 
 
-def test_feedback_layer_loads_before_inline_module():
+def test_feedback_layer_is_kept_as_a_maintenance_source_only():
     bridge = '<script src="/api/plugin/page/bridge-sdk.js"></script>'
-    feedback = 'data-rollpig-feedback-core'
-    enterprise = 'data-rollpig-enterprise-ui'
-    analytics = 'data-rollpig-analytics-ui'
     assert bridge in PAGE
-    assert PAGE.index(bridge) < PAGE.index(feedback)
-    assert PAGE.index(feedback) < PAGE.index(enterprise) < PAGE.index(analytics)
-    assert PAGE.index(analytics) < PAGE.index('<script type="module">')
     assert 'src="./ui-feedback.js' not in PAGE
+    assert "rollpig-inline-assets:start" not in PAGE
+    assert "./ui-feedback-core.js" in LOADER
+    assert "./ui-enterprise.js" in LOADER
+    assert "./ui-analytics.js" in LOADER
 
 
 def test_feedback_layer_explains_stale_runtime_routes():
