@@ -1,0 +1,58 @@
+name: Apply v3.1.1 performance fix
+
+on:
+  push:
+    branches: [agent/v3.1.1-admin-performance]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[v3.1.1-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v3.1.1-admin-performance
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Apply source transformations
+        run: python tools/apply_v311_performance_fix.py
+      - name: Refresh Node lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install test dependencies
+        run: |
+          npm ci
+          python -m pip install -r requirements.txt pytest
+      - name: Syntax and regression tests
+        run: |
+          node --check pages/pig-manager/ui-bootstrap.js
+          node --check pages/pig-manager/ui-analytics.js
+          node --check pages/pig-manager/ui-enterprise.js
+          node --check pages/pig-manager/ui-feedback-core.js
+          npm test
+          python -m pytest -q
+          python -m compileall -q main.py updater.py services storage
+      - name: Chromium performance test
+        run: |
+          CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME_PATH"
+          CHROME_PATH="$CHROME_PATH" npm run test:browser-perf
+      - name: Validate and commit verified result
+        shell: bash
+        run: |
+          git diff --check
+          git rm tools/apply_v311_performance_fix.py .github/workflows/apply-v3.1.1-performance-fix.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: lazy-load Analytics admin UI (v3.1.1) [v3.1.1-patched]"
+          git push origin HEAD:agent/v3.1.1-admin-performance
