@@ -27,7 +27,25 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Apply source transformations
-        run: python tools/apply_v311_performance_fix.py
+        run: |
+          python tools/apply_v311_performance_fix.py
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          root = Path('pages/pig-manager')
+          bootstrap = (root / 'ui-bootstrap.js').read_text(encoding='utf-8').strip()
+          page_path = root / 'index.html'
+          page = page_path.read_text(encoding='utf-8')
+          page, count = re.subn(
+              r'<script data-rollpig-bootstrap="3\.1\.1">[\s\S]*?</script>',
+              lambda _match: '<script data-rollpig-bootstrap="3.1.1">\n' + bootstrap + '\n</script>',
+              page,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'expected one v3.1.1 inline bootstrap, found {count}')
+          page_path.write_text(page, encoding='utf-8', newline='\n')
+          PY
       - name: Refresh Node lockfile
         run: npm install --package-lock-only --ignore-scripts
       - name: Install test dependencies
