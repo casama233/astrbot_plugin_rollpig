@@ -1,1 +1,95 @@
-pending
+........................................................................ [ 57%]
+.......................................F...F.........                    [100%]
+=================================== FAILURES ===================================
+__________________ test_updater_stages_valid_official_release __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-pcrunner/pytest-0/test_updater_stages_valid_offi0')
+
+    def test_updater_stages_valid_official_release(tmp_path):
+        manager = _manager(tmp_path)
+        raw = _release_zip(extra={"updater.py": b"VALUE = 3\n"})
+>       result = manager._stage_validate_and_apply(
+            raw,
+            {
+                "current_version": "2.7.0",
+                "latest_version": "2.8.0",
+                "checksum_available": True,
+            },
+            hashlib.sha256(raw).hexdigest(),
+        )
+
+tests/test_storage_and_updater.py:114: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+updater.py:399: in _stage_validate_and_apply
+    self._validate_staging(staging, str(release["latest_version"]))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <updater.PluginUpdateManager object at 0x7480753e0cd0>
+staging = PosixPath('/tmp/rollpig-update-fhlx14xx/staging')
+expected_version = '2.8.0'
+
+    def _validate_staging(self, staging: Path, expected_version: str) -> None:
+        required = [staging / "main.py", staging / "metadata.yaml", staging / "resource" / "pig.json"]
+        if any(not path.is_file() for path in required):
+            raise UpdateError("Release 缺少 main.py、metadata.yaml 或 resource/pig.json")
+        metadata = (staging / "metadata.yaml").read_text(encoding="utf-8")
+        name = re.search(r'^name:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        author = re.search(r'^author:\s*["\']?([^"\'\n]+?)["\']?\s*$', metadata, re.MULTILINE)
+        repo = re.search(r'^repo:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        version = re.search(r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        if not name or name.group(1) != "astrbot_plugin_rollpig_plus":
+>           raise UpdateError("Release metadata 插件名不匹配")
+E           updater.UpdateError: Release metadata 插件名不匹配
+
+updater.py:498: UpdateError
+_____ test_state_write_failure_is_reported_as_warning_after_valid_install ______
+
+tmp_path = PosixPath('/tmp/pytest-of-pcrunner/pytest-0/test_state_write_failure_is_re0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x748075a4ca10>
+
+    def test_state_write_failure_is_reported_as_warning_after_valid_install(tmp_path, monkeypatch):
+        manager = _manager(tmp_path)
+        raw = _release_zip()
+    
+        def fail_state(_state):
+            raise OSError("disk metadata write failure")
+    
+        monkeypatch.setattr(manager, "_write_state", fail_state)
+>       result = manager._stage_validate_and_apply(
+            raw,
+            {
+                "current_version": "2.7.0",
+                "latest_version": "2.8.0",
+                "checksum_available": True,
+            },
+            hashlib.sha256(raw).hexdigest(),
+        )
+
+tests/test_storage_and_updater.py:179: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+updater.py:399: in _stage_validate_and_apply
+    self._validate_staging(staging, str(release["latest_version"]))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <updater.PluginUpdateManager object at 0x74807542a250>
+staging = PosixPath('/tmp/rollpig-update-cmt4osnm/staging')
+expected_version = '2.8.0'
+
+    def _validate_staging(self, staging: Path, expected_version: str) -> None:
+        required = [staging / "main.py", staging / "metadata.yaml", staging / "resource" / "pig.json"]
+        if any(not path.is_file() for path in required):
+            raise UpdateError("Release 缺少 main.py、metadata.yaml 或 resource/pig.json")
+        metadata = (staging / "metadata.yaml").read_text(encoding="utf-8")
+        name = re.search(r'^name:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        author = re.search(r'^author:\s*["\']?([^"\'\n]+?)["\']?\s*$', metadata, re.MULTILINE)
+        repo = re.search(r'^repo:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        version = re.search(r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        if not name or name.group(1) != "astrbot_plugin_rollpig_plus":
+>           raise UpdateError("Release metadata 插件名不匹配")
+E           updater.UpdateError: Release metadata 插件名不匹配
+
+updater.py:498: UpdateError
+=========================== short test summary info ============================
+FAILED tests/test_storage_and_updater.py::test_updater_stages_valid_official_release
+FAILED tests/test_storage_and_updater.py::test_state_write_failure_is_reported_as_warning_after_valid_install
+2 failed, 123 passed in 15.15s
