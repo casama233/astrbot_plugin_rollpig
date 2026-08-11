@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: test-rollpig-plus-full
-        name: test full rollpig_plus regression suite
-        entry: python -m pytest -q
+      - id: capture-rollpig-plus-pytest
+        name: capture full rollpig_plus pytest diagnostics
+        entry: python scripts/capture_phase2_pytest.py
         language: python
         additional_dependencies:
           - pytest
