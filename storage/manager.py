@@ -23,6 +23,9 @@ class StorageMigrationError(RuntimeError):
 class StorageManager:
     """Select, migrate, verify, export and roll back the storage backend."""
 
+    IDENTITY_BRIDGE_MARKER = ".rollpig-enhanced-origin.json"
+    IDENTITY_BRIDGE_VERSION = "3.1.4"
+
     MANAGED_PATHS = {
         "rollpig_today.json",
         "pig_history.json",
@@ -55,10 +58,41 @@ class StorageManager:
         self.export_root = self.data_root / "storage_exports"
         self.backup_root.mkdir(parents=True, exist_ok=True)
         self.export_root.mkdir(parents=True, exist_ok=True)
+        self._write_identity_bridge_marker()
         self._last_error = ""
         self._last_action: dict[str, Any] | None = None
         self.backend: StorageBackend = self.json_storage
         self._select_initial_backend()
+
+    def _write_identity_bridge_marker(self) -> None:
+        """Mark data created by the independently maintained enhanced fork.
+
+        The marker is deliberately written only to the historical data namespace.
+        It lets the future rollpig_plus package distinguish this fork's data from
+        MegSopern's original plugin before attempting any automatic migration.
+        """
+        if self.data_root.name != "astrbot_plugin_rollpig":
+            return
+        marker = self.data_root / self.IDENTITY_BRIDGE_MARKER
+        payload = {
+            "schema_version": 1,
+            "source_repository": "casama233/astrbot_plugin_rollpig",
+            "source_plugin_name": "astrbot_plugin_rollpig",
+            "bridge_version": self.IDENTITY_BRIDGE_VERSION,
+            "migration_target": "casama233/astrbot_plugin_rollpig_plus",
+            "written_at": int(time.time()),
+        }
+        temporary = self.data_root / (
+            f".{self.IDENTITY_BRIDGE_MARKER}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temporary, marker)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def _new_sqlite(self, path: Path | None = None) -> SQLiteStorage:
         return SQLiteStorage(
