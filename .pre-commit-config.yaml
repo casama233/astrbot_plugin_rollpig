@@ -1,16 +1,4 @@
 repos:
-  - repo: local
-    hooks:
-      - id: capture-rollpig-plus-pytest
-        name: capture full rollpig_plus pytest diagnostics
-        entry: python scripts/capture_phase2_pytest.py
-        language: python
-        additional_dependencies:
-          - pytest
-          - "Pillow>=10.0.0"
-          - "httpx>=0.27.0,<1.0.0"
-        pass_filenames: false
-        always_run: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
