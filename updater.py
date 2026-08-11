@@ -36,8 +36,9 @@ class PluginUpdateManager:
     """
 
     OFFICIAL_REPOSITORY = "casama233/astrbot_plugin_rollpig"
-    RELEASE_API = (
-        "https://api.github.com/repos/casama233/astrbot_plugin_rollpig/releases/latest"
+    PACKAGE_NAME = "astrbot_plugin_rollpig_plus"
+    RELEASES_API = (
+        "https://api.github.com/repos/casama233/astrbot_plugin_rollpig/releases?per_page=30"
     )
     ALLOWED_HOSTS = {
         "api.github.com",
@@ -120,7 +121,7 @@ class PluginUpdateManager:
         last_result.pop("backup_dir", None)
         return {
             "current_version": current,
-            "backend": "official-github-release",
+            "backend": "official-github-plus-release-channel",
             "official_repository": self.OFFICIAL_REPOSITORY,
             "busy": self._lock.locked(),
             "last_check_at": self._last_check_at,
@@ -144,9 +145,8 @@ class PluginUpdateManager:
                 raise UpdateError(f"检查更新失败：{exc}") from exc
 
     async def _check_unlocked(self) -> dict[str, Any]:
-        payload = await self._request_json(self.RELEASE_API)
-        if payload.get("draft") or payload.get("prerelease"):
-            raise UpdateError("GitHub latest 返回了草稿或预发布版本，已拒绝")
+        releases = await self._request_json_list(self.RELEASES_API)
+        payload = self._select_release_payload(releases)
 
         tag = str(payload.get("tag_name") or "")
         latest = self._normalise_version(tag)
@@ -160,22 +160,18 @@ class PluginUpdateManager:
 
         assets = payload.get("assets") if isinstance(payload.get("assets"), list) else []
         archive_asset = self._select_archive_asset(assets)
-        if archive_asset:
-            archive_name = str(archive_asset.get("name") or "rollpig-release.zip")
-            download_url = str(archive_asset.get("browser_download_url") or "")
-            expected_prefix = (
-                f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/download/"
-            )
-            if not download_url.startswith(expected_prefix):
-                raise UpdateError("Release 资源地址不属于官方仓库")
-        else:
-            archive_name = f"astrbot_plugin_rollpig_plus-v{latest}.zip"
-            download_url = str(payload.get("zipball_url") or "")
-            expected_api_prefix = (
-                f"https://api.github.com/repos/{self.OFFICIAL_REPOSITORY}/zipball/"
-            )
-            if not download_url.startswith(expected_api_prefix):
-                raise UpdateError("Release 源码包地址不属于官方仓库")
+        if not archive_asset:
+            raise UpdateError("RollPig Plus Release 缺少正式插件 ZIP 资源")
+        archive_name = str(archive_asset.get("name") or "")
+        expected_archive_name = f"{self.PACKAGE_NAME}-v{latest}.zip"
+        if archive_name != expected_archive_name:
+            raise UpdateError("RollPig Plus Release 插件 ZIP 名称与版本不匹配")
+        download_url = str(archive_asset.get("browser_download_url") or "")
+        expected_prefix = (
+            f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/download/"
+        )
+        if not download_url.startswith(expected_prefix):
+            raise UpdateError("Release 资源地址不属于官方仓库")
 
         checksum_url = self._select_checksum_url(assets, archive_name)
         expected_sha256 = ""
@@ -255,25 +251,43 @@ class PluginUpdateManager:
                     raise
                 raise UpdateError(f"安全更新失败：{exc}") from exc
 
-    @staticmethod
-    def _select_archive_asset(assets: list[Any]) -> dict[str, Any] | None:
+    @classmethod
+    def _select_archive_asset(cls, assets: list[Any]) -> dict[str, Any] | None:
+        prefix = f"{cls.PACKAGE_NAME}-v".lower()
         candidates = [
             item
             for item in assets
             if isinstance(item, dict)
+            and str(item.get("name") or "").lower().startswith(prefix)
             and str(item.get("name") or "").lower().endswith(".zip")
-            and "rollpig" in str(item.get("name") or "").lower()
         ]
         if not candidates:
             return None
-        candidates.sort(
-            key=lambda item: (
-                "astrbot_plugin_rollpig" not in str(item.get("name") or "").lower(),
-                "rollpig" not in str(item.get("name") or "").lower(),
-                str(item.get("name") or ""),
-            )
-        )
+        candidates.sort(key=lambda item: str(item.get("name") or ""))
         return candidates[0]
+
+    @classmethod
+    def _select_release_payload(cls, releases: list[Any]) -> dict[str, Any]:
+        candidates: list[tuple[tuple[int, int, int], dict[str, Any]]] = []
+        for item in releases:
+            if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
+                continue
+            tag = str(item.get("tag_name") or "")
+            try:
+                version = cls._normalise_version(tag)
+            except UpdateError:
+                continue
+            assets = item.get("assets") if isinstance(item.get("assets"), list) else []
+            archive = cls._select_archive_asset(assets)
+            if not archive:
+                continue
+            if str(archive.get("name") or "") != f"{cls.PACKAGE_NAME}-v{version}.zip":
+                continue
+            candidates.append((cls._version_tuple(version), item))
+        if not candidates:
+            raise UpdateError("未找到可验证的 RollPig Plus 稳定 Release")
+        candidates.sort(key=lambda entry: entry[0], reverse=True)
+        return candidates[0][1]
 
     @staticmethod
     def _select_checksum_url(assets: list[Any], archive_name: str) -> str:
@@ -316,6 +330,20 @@ class PluginUpdateManager:
             raise UpdateError("GitHub 返回了无效 JSON") from exc
         if not isinstance(payload, dict):
             raise UpdateError("GitHub Release 响应格式无效")
+        return payload
+
+    async def _request_json_list(self, url: str) -> list[Any]:
+        raw = await self._request_bytes(
+            url,
+            max_bytes=self.MAX_JSON_BYTES,
+            accept="application/vnd.github+json, application/json",
+        )
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise UpdateError("GitHub 返回了无效 JSON") from exc
+        if not isinstance(payload, list):
+            raise UpdateError("GitHub Releases 响应格式无效")
         return payload
 
     async def _request_bytes(self, url: str, *, max_bytes: int, accept: str) -> bytes:
