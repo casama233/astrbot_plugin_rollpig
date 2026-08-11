@@ -151,6 +151,11 @@ class PluginUpdateManager:
         tag = str(payload.get("tag_name") or "")
         latest = self._normalise_version(tag)
         current = self.current_version()
+        if self._version_tuple(latest) >= (3, 2, 0):
+            raise UpdateError(
+                "检测到今日小猪增强版已切换到新的插件身份；旧插件禁止直接覆盖安装 3.2.0+。"
+                "请从 AstrBot 插件市场安装「今日小猪 · 增强版」新包，完成数据迁移后再停用旧包。"
+            )
         html_url = str(payload.get("html_url") or "")
         expected_release_prefix = (
             f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/tag/"
@@ -323,7 +328,7 @@ class PluginUpdateManager:
         timeout = httpx.Timeout(self.timeout, connect=min(15.0, self.timeout))
         headers = {
             "Accept": accept,
-            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.1.3",
+            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.1.4",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         async with httpx.AsyncClient(
