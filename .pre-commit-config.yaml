@@ -1,9 +1,9 @@
 repos:
   - repo: local
     hooks:
-      - id: test-rollpig-plus-migration
-        name: test rollpig_plus identity migration
-        entry: python -m pytest -q tests/test_identity_migration_plus.py tests/test_identity_migration_bridge.py
+      - id: test-rollpig-plus-full
+        name: test full rollpig_plus regression suite
+        entry: python -m pytest -q
         language: python
         additional_dependencies:
           - pytest
