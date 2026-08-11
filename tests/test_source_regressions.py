@@ -114,6 +114,17 @@ def test_cooldown_protection_and_backdoor_use_claimed_storage_ids():
         assert "self._storage_user_key" in method
 
 
+def test_image_send_timeout_does_not_retry_with_a_second_result():
+    rendered = ast.get_source_segment(SOURCE, _method("send_rendered_pig")) or ""
+    fallback = ast.get_source_segment(SOURCE, _method("send_fallback_msg")) or ""
+    assert "delivery_uncertain" in rendered
+    assert "self._cleanup_temp_file_later(img_path)" in rendered
+    assert "if not img_path or not img_path.exists()" in rendered
+    assert "event.chain_result(msg_chain)" in fallback
+    assert "不再重复发送" in fallback
+    assert "event.plain_result(text_msg +" not in fallback
+
+
 
 def test_special_pig_copy_separates_actor_roast_and_eat_targets():
     eat = ast.get_source_segment(SOURCE, _method("_eat_group_target")) or ""
@@ -273,8 +284,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.1.2"' in metadata
-    assert "AstrBot-RollPig/3.1.2" in SOURCE
+    assert 'version: "3.1.3"' in metadata
+    assert "AstrBot-RollPig/3.1.3" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
@@ -282,4 +293,3 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     assert "新安装直接建立 SQLite" in config
     assert "兼容 JSON" in page
     assert "按需生成" in page
-

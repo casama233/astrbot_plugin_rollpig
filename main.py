@@ -83,8 +83,9 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.1.2 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.1.3 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
+    # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
     UI_ASSET_MAX_FILE_BYTES = 512 * 1024
     UI_ASSET_MAX_TOTAL_BYTES = 768 * 1024
@@ -4006,26 +4007,58 @@ class RollPigPlugin(Star):
         fallback_title: str = "今日小猪",
     ):
         """合成并发送小猪图片"""
-        # 使用线程池异步执行CPU密集型任务
-        img_path = await asyncio.to_thread(self.render_pig_image, pig_data)
-        if img_path and img_path.exists():
-            try:
-                if self._event_group_id(event):
-                    await self._send_with_mention(event, user_id, intro)
-                else:
-                    await event.send(event.plain_result(intro))
-                await event.send(event.image_result(str(img_path.absolute())))
-                logger.info("合成图片发送成功")
-                return
-            except Exception as e:
-                logger.error(f"发送合成图片失败：{str(e)}")
-            finally:
+        # 仅在图片尚未进入适配器发送流程时降级。适配器超时并不代表消息
+        # 一定未投递；若此时补发 fallback，慢适配器稍后成功时就会重复消息。
+        try:
+            img_path = await asyncio.to_thread(self.render_pig_image, pig_data)
+        except Exception as exc:
+            logger.error(f"合成图片失败，改用 fallback：{exc}")
+            await self.send_fallback_msg(event, pig_data, fallback_title)
+            return
+
+        if not img_path or not img_path.exists():
+            logger.warning("合成图片文件不存在，改用 fallback")
+            await self.send_fallback_msg(event, pig_data, fallback_title)
+            return
+
+        delivery_uncertain = False
+        try:
+            if self._event_group_id(event):
+                await self._send_with_mention(event, user_id, intro)
+            else:
+                await event.send(event.plain_result(intro))
+        except Exception as exc:
+            # 前置文案也可能已经抵达，因此继续尝试图片但不追加 fallback。
+            delivery_uncertain = True
+            logger.warning(f"合成图片前置文案投递状态不确定：{exc}")
+
+        try:
+            await event.send(event.image_result(str(img_path.absolute())))
+            logger.info("合成图片发送成功")
+        except Exception as exc:
+            delivery_uncertain = True
+            logger.warning(f"合成图片投递状态不确定，不再重复 fallback：{exc}")
+        finally:
+            if delivery_uncertain:
+                # 某些适配器会在请求超时后继续异步读取本地文件；延迟清理。
+                asyncio.create_task(self._cleanup_temp_file_later(img_path))
+            else:
                 try:
                     img_path.unlink(missing_ok=True)
                 except Exception as cleanup_err:
                     logger.warning(f"清理临时图片失败：{cleanup_err}")
 
-        await self.send_fallback_msg(event, pig_data, fallback_title)
+    async def _cleanup_temp_file_later(
+        self, path: Path, delay_seconds: int = 90
+    ) -> None:
+        """为投递状态不确定的图片保留短暂的适配器读取时间。"""
+        try:
+            await asyncio.sleep(max(1, delay_seconds))
+        finally:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception as cleanup_err:
+                logger.warning(f"延迟清理临时图片失败：{cleanup_err}")
 
     async def send_fallback_msg(
         self, event: AstrMessageEvent, pig_data: dict, title: str = "今日小猪"
@@ -4050,7 +4083,11 @@ class RollPigPlugin(Star):
                 text_msg += "\n\n（图片发送失败，仅展示文字信息）"
 
         msg_chain.append(Comp.Plain(text_msg))
-        await event.send(event.chain_result(msg_chain))
+        try:
+            await event.send(event.chain_result(msg_chain))
+        except Exception as exc:
+            # 图片链超时同样属于投递状态不确定，不能再补一条纯文本。
+            logger.warning(f"fallback 投递状态不确定，不再重复发送：{exc}")
 
     def _is_same_origin_request(self, request) -> bool:
         if not request:
