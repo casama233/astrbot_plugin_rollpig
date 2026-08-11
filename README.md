@@ -21,14 +21,14 @@ Bear_lele、MegSopern 的署名与 MIT License；增强分支由 casama233 继�
 每日用户可随机抽取专属“今日小猪”，并生成配图展示名称、描述和性格。无需繁琐配置，支持自定义猪猪库和素材。自动缓存结果，每日刷新，避免重复。适合群聊互动或签到，增添聊天趣味。
 ## 🔄 插件身份迁移说明
 
-从 v3.1.4 起，本增强分支进入独立插件身份迁移阶段。v3.1.4 本身不会移动或删除现有数据；未来 `3.2.0+` 将以 `casama233/astrbot_plugin_rollpig_plus` 独立身份发布，并通过验证后复制旧增强版数据，避免与 MegSopern 原版共用数据目录。旧版内置更新器不会直接覆盖安装新身份。
+v3.2.0 起本增强分支使用独立 AstrBot 插件身份 `casama233/astrbot_plugin_rollpig_plus`。首次安装会在确认旧目录来自本增强分支后，以 Copy → Verify → Atomic Commit 方式复制 SQLite/JSON 与自定义图片；旧目录不会被删除。若只发现无法确认来源的原版数据，则不会自动迁移。确认新插件数据正常后，请停用旧插件以避免重复指令。
 
 ## 📦 安装：
 
 ```bash
 # 克隆仓库到插件目录
 cd /AstrBot/data/plugins
-git clone https://github.com/casama233/astrbot_plugin_rollpig
+git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rollpig_plus
 
 # 控制台重启AstrBot
 ```

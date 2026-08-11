@@ -151,11 +151,6 @@ class PluginUpdateManager:
         tag = str(payload.get("tag_name") or "")
         latest = self._normalise_version(tag)
         current = self.current_version()
-        if self._version_tuple(latest) >= (3, 2, 0):
-            raise UpdateError(
-                "检测到今日小猪增强版已切换到新的插件身份；旧插件禁止直接覆盖安装 3.2.0+。"
-                "请从 AstrBot 插件市场安装「今日小猪 · 增强版」新包，完成数据迁移后再停用旧包。"
-            )
         html_url = str(payload.get("html_url") or "")
         expected_release_prefix = (
             f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/tag/"
@@ -174,7 +169,7 @@ class PluginUpdateManager:
             if not download_url.startswith(expected_prefix):
                 raise UpdateError("Release 资源地址不属于官方仓库")
         else:
-            archive_name = f"astrbot_plugin_rollpig-v{latest}.zip"
+            archive_name = f"astrbot_plugin_rollpig_plus-v{latest}.zip"
             download_url = str(payload.get("zipball_url") or "")
             expected_api_prefix = (
                 f"https://api.github.com/repos/{self.OFFICIAL_REPOSITORY}/zipball/"
@@ -328,7 +323,7 @@ class PluginUpdateManager:
         timeout = httpx.Timeout(self.timeout, connect=min(15.0, self.timeout))
         headers = {
             "Accept": accept,
-            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.1.4",
+            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.2.0",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         async with httpx.AsyncClient(
@@ -496,10 +491,13 @@ class PluginUpdateManager:
             raise UpdateError("Release 缺少 main.py、metadata.yaml 或 resource/pig.json")
         metadata = (staging / "metadata.yaml").read_text(encoding="utf-8")
         name = re.search(r'^name:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        author = re.search(r'^author:\s*["\']?([^"\'\n]+?)["\']?\s*$', metadata, re.MULTILINE)
         repo = re.search(r'^repo:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
         version = re.search(r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
-        if not name or name.group(1) != "astrbot_plugin_rollpig":
+        if not name or name.group(1) != "astrbot_plugin_rollpig_plus":
             raise UpdateError("Release metadata 插件名不匹配")
+        if not author or author.group(1).strip() != "casama233":
+            raise UpdateError("Release metadata 作者身份不匹配")
         if not repo or repo.group(1).rstrip("/") != f"https://github.com/{self.OFFICIAL_REPOSITORY}":
             raise UpdateError("Release metadata 官方仓库不匹配")
         if not version or self._normalise_version(version.group(1)) != expected_version:
