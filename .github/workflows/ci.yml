@@ -10,84 +10,13 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-plus:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'agent/rollpig-plus-v3.2.0'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out migration branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: agent/rollpig-plus-v3.2.0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Extract and apply staged implementation
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          workflow = Path('.github/workflows/agent-rollpig-plus-v3.2.0.yml').read_text(encoding='utf-8')
-          start = "          cat > /tmp/patch_plus.py <<'PY'\n"
-          end = "\n          PY\n          python /tmp/patch_plus.py"
-          if start not in workflow or end not in workflow:
-              raise SystemExit('embedded patch script not found')
-          segment = workflow.split(start, 1)[1].split(end, 1)[0]
-          lines = []
-          for line in segment.splitlines():
-              if line.startswith('          '):
-                  line = line[10:]
-              lines.append(line)
-          Path('/tmp/patch_plus.py').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-          python /tmp/patch_plus.py
-
-      - name: Install test dependencies
-        run: |
-          python -m pip install -r requirements.txt pytest
-          npm ci
-
-      - name: Validate plus migration
-        run: |
-          python -m pytest -q
-          npm test
-          python -m compileall -q main.py updater.py identity_migration.py services storage
-          python - <<'PY'
-          from pathlib import Path
-          metadata = Path('metadata.yaml').read_text(encoding='utf-8')
-          assert 'name: "astrbot_plugin_rollpig_plus"' in metadata
-          assert 'author: "casama233"' in metadata
-          assert 'version: "3.2.0"' in metadata
-          PY
-
-      - name: Commit verified implementation and restore CI
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin agent/rollpig-safe-identity-migration
-          git checkout origin/agent/rollpig-safe-identity-migration -- .github/workflows/ci.yml
-          git rm .github/workflows/agent-rollpig-plus-v3.2.0.yml
-          git rm .github/workflows/agent-rollpig-plus-trigger.yml
-          git add metadata.yaml main.py updater.py identity_migration.py CHANGELOG.md README.md tests .github/workflows/ci.yml
-          git commit -m "feat: isolate rollpig_plus identity and migrate legacy data safely"
-          git fetch origin agent/rollpig-plus-v3.2.0
-          git rebase origin/agent/rollpig-plus-v3.2.0
-          git push origin HEAD:agent/rollpig-plus-v3.2.0
-
   test:
     runs-on: ubuntu-latest
     strategy:
