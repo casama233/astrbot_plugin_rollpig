@@ -37,17 +37,29 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
 try:
+    from .identity_migration import (
+        migrate_legacy_config,
+        migrate_legacy_data,
+        validate_runtime_namespace,
+        warn_if_legacy_loaded,
+    )
     from .services import DrawService, RoastService
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from identity_migration import (
+        migrate_legacy_config,
+        migrate_legacy_data,
+        validate_runtime_namespace,
+        warn_if_legacy_loaded,
+    )
     from services import DrawService, RoastService
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
 
 class RollPigPlugin(Star):
-    PLUGIN_NAME = "astrbot_plugin_rollpig"
+    PLUGIN_NAME = "astrbot_plugin_rollpig_plus"
     IMAGE_EXTENSIONS = ("png", "jpg", "jpeg", "webp", "gif")
     CATALOG_PAGE_SIZE = 12
     CANVAS_WIDTH = 800  # 画布宽度
@@ -83,7 +95,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.1.4 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.2.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -97,6 +109,7 @@ class RollPigPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config or {}
+        self.identity_config_migration = migrate_legacy_config(self.config, logger=logger)
 
         # 配置项
         self.admins_id: set[str] = {
@@ -219,9 +232,16 @@ class RollPigPlugin(Star):
             storage_busy_timeout = 5000
         self.storage_busy_timeout_ms = min(30000, max(1000, storage_busy_timeout))
 
-        # 初始化路径
+        # 初始化路径。3.2.0 起代码、配置和数据必须使用独立命名空间。
         self.plugin_dir = Path(__file__).parent
-        self.plugin_data_dir = StarTools.get_data_dir("astrbot_plugin_rollpig")
+        validate_runtime_namespace(self.plugin_dir, self.config)
+        self.plugin_data_dir = StarTools.get_data_dir(self.PLUGIN_NAME)
+        self.identity_data_migration = migrate_legacy_data(
+            self.plugin_data_dir,
+            busy_timeout_ms=self.storage_busy_timeout_ms,
+            logger=logger,
+        )
+        warn_if_legacy_loaded(context, logger=logger)
         self.res_dir = self.plugin_dir / "resource"
         self.font_dir = self.res_dir / "font"  # 插件内字体目录（跨平台优先）
         self.piginfo_path = self.res_dir / "pig.json"
