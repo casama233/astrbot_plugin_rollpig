@@ -1,0 +1,760 @@
+name: Agent RollPig Plus v3.2.0
+
+on:
+  pull_request:
+    branches:
+      - agent/rollpig-safe-identity-migration
+
+permissions:
+  contents: write
+
+jobs:
+  build-plus:
+    if: github.event.pull_request.head.ref == 'agent/rollpig-plus-v3.2.0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: agent/rollpig-plus-v3.2.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply v3.2.0 isolated identity migration
+        shell: bash
+        run: |
+          cat > /tmp/patch_plus.py <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, got {count}: {old!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          metadata = Path("metadata.yaml")
+          text = metadata.read_text(encoding="utf-8")
+          for old, new in (
+              ('name: "astrbot_plugin_rollpig"', 'name: "astrbot_plugin_rollpig_plus"'),
+              ('version: "3.1.4"', 'version: "3.2.0"'),
+              ('author: "MegSopern, casama233"', 'author: "casama233"'),
+          ):
+              if old not in text:
+                  raise SystemExit(f"metadata.yaml: missing {old!r}")
+              text = text.replace(old, new, 1)
+          metadata.write_text(text, encoding="utf-8")
+
+          Path("identity_migration.py").write_text(r'''from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import sqlite3
+import time
+import uuid
+from pathlib import Path
+from typing import Any
+
+try:
+    from .storage import StorageManager
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from storage import StorageManager
+
+
+LEGACY_PLUGIN_NAME = "astrbot_plugin_rollpig"
+PLUGIN_NAME = "astrbot_plugin_rollpig_plus"
+BRIDGE_MARKER = ".rollpig-enhanced-origin.json"
+MIGRATION_STATE = "identity_migration_state.json"
+SOURCE_REPOSITORY = "casama233/astrbot_plugin_rollpig"
+TARGET_PLUGIN_ID = "casama233/astrbot_plugin_rollpig_plus"
+
+USER_JSON_FILES = (
+    "rollpig_today.json",
+    "pig_history.json",
+    "roast_state.json",
+    "ai_roast_copies.json",
+    "pig_catalog.json",
+    "local_overrides.json",
+    "deleted_pigs.json",
+)
+DISTINCTIVE_JSON_FILES = {
+    "pig_history.json",
+    "roast_state.json",
+    "ai_roast_copies.json",
+    "local_overrides.json",
+    "deleted_pigs.json",
+}
+SQL_FINGERPRINT_TABLES = {
+    "schema_migrations",
+    "projection_meta",
+    "identities",
+    "daily_draws",
+    "user_pigs",
+}
+
+
+class IdentityMigrationError(RuntimeError):
+    """Raised when a qualified legacy migration cannot be completed safely."""
+
+
+def _log(logger: Any, level: str, message: str) -> None:
+    if logger is None:
+        return
+    callback = getattr(logger, level, None)
+    if callable(callback):
+        callback(message)
+
+
+def _hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_bridge_marker(source: Path) -> dict[str, Any] | None:
+    marker_path = source / BRIDGE_MARKER
+    if not marker_path.exists():
+        return None
+    try:
+        payload = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise IdentityMigrationError("旧数据身份标记损坏，拒绝自动迁移") from exc
+    if not isinstance(payload, dict):
+        raise IdentityMigrationError("旧数据身份标记格式无效，拒绝自动迁移")
+    expected = {
+        "source_repository": SOURCE_REPOSITORY,
+        "source_plugin_name": LEGACY_PLUGIN_NAME,
+        "migration_target": TARGET_PLUGIN_ID,
+    }
+    mismatched = [key for key, value in expected.items() if payload.get(key) != value]
+    if mismatched:
+        raise IdentityMigrationError(
+            "旧数据身份标记与增强版来源不匹配：" + ", ".join(mismatched)
+        )
+    return payload
+
+
+def _inspect_sqlite(path: Path) -> dict[str, Any]:
+    try:
+        connection = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True, timeout=10)
+    except sqlite3.Error as exc:
+        raise IdentityMigrationError("无法只读打开旧 SQLite 数据库") from exc
+    try:
+        integrity_row = connection.execute("PRAGMA integrity_check").fetchone()
+        integrity = str(integrity_row[0]) if integrity_row else "missing"
+        foreign_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if integrity != "ok" or foreign_errors:
+            raise IdentityMigrationError("旧 SQLite 数据库未通过完整性或外键检查")
+        tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        versions: list[int] = []
+        if "schema_migrations" in tables:
+            versions = [
+                int(row[0])
+                for row in connection.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                ).fetchall()
+            ]
+        return {
+            "integrity": integrity,
+            "foreign_key_errors": len(foreign_errors),
+            "tables": sorted(tables),
+            "schema_versions": versions,
+            "enhanced_fingerprint": SQL_FINGERPRINT_TABLES.issubset(tables)
+            and bool(versions),
+        }
+    except sqlite3.Error as exc:
+        raise IdentityMigrationError("检查旧 SQLite 数据库失败") from exc
+    finally:
+        connection.close()
+
+
+def _qualify_source(source: Path) -> tuple[str, dict[str, Any]] | None:
+    marker = _validate_bridge_marker(source)
+    if marker is not None:
+        return "bridge-marker", marker
+
+    database = source / "rollpig.db"
+    if database.exists():
+        inspection = _inspect_sqlite(database)
+        if inspection["enhanced_fingerprint"]:
+            return "enhanced-sqlite-fingerprint", inspection
+        raise IdentityMigrationError(
+            "发现旧 SQLite，但无法确认它来自本增强分支；拒绝自动迁移"
+        )
+
+    distinctive = sorted(
+        name for name in DISTINCTIVE_JSON_FILES if (source / name).is_file()
+    )
+    if len(distinctive) >= 2:
+        return "enhanced-json-fingerprint", {"distinctive_files": distinctive}
+    return None
+
+
+def _copy_verified(source: Path, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    if _hash_file(source) != _hash_file(target):
+        raise IdentityMigrationError(f"复制校验失败：{source.name}")
+
+
+def _copy_tree_verified(source: Path, target: Path) -> int:
+    count = 0
+    for path in sorted(source.rglob("*")):
+        if path.is_symlink():
+            raise IdentityMigrationError(f"旧图片目录包含符号链接：{path.name}")
+        relative = path.relative_to(source)
+        destination = target / relative
+        if path.is_dir():
+            destination.mkdir(parents=True, exist_ok=True)
+            continue
+        if not path.is_file():
+            continue
+        _copy_verified(path, destination)
+        count += 1
+    return count
+
+
+def _backup_sqlite(source: Path, target: Path) -> dict[str, Any]:
+    inspection = _inspect_sqlite(source)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        source_connection = sqlite3.connect(
+            f"file:{source}?mode=ro", uri=True, timeout=15
+        )
+        destination_connection = sqlite3.connect(target, timeout=15)
+        try:
+            source_connection.backup(destination_connection)
+            destination_connection.commit()
+        finally:
+            destination_connection.close()
+            source_connection.close()
+    except sqlite3.Error as exc:
+        raise IdentityMigrationError("创建旧 SQLite 一致性快照失败") from exc
+    copied = _inspect_sqlite(target)
+    if copied["integrity"] != "ok" or copied["foreign_key_errors"]:
+        raise IdentityMigrationError("SQLite 快照未通过复制后检查")
+    return inspection
+
+
+def _manifest(root: Path) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.name == MIGRATION_STATE:
+            continue
+        if path.name.endswith(("-wal", "-shm")):
+            continue
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith(("storage_backups/", "storage_exports/")):
+            continue
+        manifest[relative] = _hash_file(path)
+    return manifest
+
+
+def _remove_generated_validation_artifacts(stage: Path) -> None:
+    for name in ("storage_backups", "storage_exports"):
+        path = stage / name
+        if path.exists():
+            shutil.rmtree(path)
+    for suffix in ("-wal", "-shm"):
+        Path(f"{stage / 'rollpig.db'}{suffix}").unlink(missing_ok=True)
+
+
+def migrate_legacy_data(
+    new_data_dir: Path,
+    *,
+    busy_timeout_ms: int = 5000,
+    logger: Any = None,
+) -> dict[str, Any]:
+    """Copy verified enhanced-fork data into the isolated plus namespace.
+
+    The old namespace is never moved, modified, or deleted. A successful migration
+    is committed by atomically replacing the empty framework-created destination
+    directory with a fully validated staging directory.
+    """
+    destination = Path(new_data_dir).resolve()
+    if destination.name != PLUGIN_NAME:
+        raise IdentityMigrationError(
+            f"新数据目录必须为 {PLUGIN_NAME}，实际为 {destination.name}"
+        )
+    destination.mkdir(parents=True, exist_ok=True)
+    if any(destination.iterdir()):
+        return {"status": "destination-not-empty", "migrated": False}
+
+    source = destination.parent / LEGACY_PLUGIN_NAME
+    if not source.is_dir():
+        return {"status": "no-legacy-data", "migrated": False}
+
+    qualification = _qualify_source(source)
+    if qualification is None:
+        _log(
+            logger,
+            "warning",
+            "发现 astrbot_plugin_rollpig 旧数据，但无法确认来自增强分支；已拒绝自动迁移。",
+        )
+        return {"status": "legacy-source-ambiguous", "migrated": False}
+
+    method, evidence = qualification
+    stage = destination.parent / f".{PLUGIN_NAME}.migrating-{uuid.uuid4().hex}"
+    stage.mkdir(parents=False, exist_ok=False)
+    copied_items = 0
+    try:
+        database = source / "rollpig.db"
+        source_db_inspection: dict[str, Any] | None = None
+        if database.is_file():
+            source_db_inspection = _backup_sqlite(database, stage / "rollpig.db")
+            copied_items += 1
+
+        for name in USER_JSON_FILES:
+            path = source / name
+            if path.is_file():
+                _copy_verified(path, stage / name)
+                try:
+                    json.loads((stage / name).read_text(encoding="utf-8"))
+                except (UnicodeError, json.JSONDecodeError) as exc:
+                    raise IdentityMigrationError(f"旧 JSON 数据损坏：{name}") from exc
+                copied_items += 1
+
+        images = source / "images"
+        copied_images = 0
+        if images.is_dir():
+            copied_images = _copy_tree_verified(images, stage / "images")
+            copied_items += copied_images
+
+        if copied_items == 0:
+            shutil.rmtree(stage)
+            return {"status": "qualified-but-empty", "migrated": False}
+
+        validator = StorageManager(
+            stage,
+            mode="auto",
+            busy_timeout_ms=busy_timeout_ms,
+        )
+        verification = validator.verify()
+        if (stage / "rollpig.db").exists() and not verification.get("ok"):
+            raise IdentityMigrationError("迁移暂存区未通过完整 SQLite 运行态验证")
+        backend = getattr(validator, "backend", None)
+        checkpoint = getattr(backend, "checkpoint", None)
+        if callable(checkpoint):
+            checkpoint()
+        _remove_generated_validation_artifacts(stage)
+
+        state = {
+            "schema_version": 1,
+            "status": "verified-copy",
+            "source_plugin": LEGACY_PLUGIN_NAME,
+            "source_repository": SOURCE_REPOSITORY,
+            "target_plugin": PLUGIN_NAME,
+            "target_plugin_id": TARGET_PLUGIN_ID,
+            "qualification": method,
+            "source_retained": True,
+            "migrated_at": int(time.time()),
+            "copied_images": copied_images,
+            "source_db": source_db_inspection,
+            "verification": {
+                "ok": bool(verification.get("ok")),
+                "integrity": verification.get("integrity"),
+                "foreign_key_errors": verification.get("foreign_key_errors", 0),
+                "schema_version": verification.get("schema_version", 0),
+            },
+            "files": _manifest(stage),
+        }
+        (stage / MIGRATION_STATE).write_text(
+            json.dumps(state, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        if any(destination.iterdir()):
+            raise IdentityMigrationError("迁移提交前新数据目录出现内容，拒绝覆盖")
+        destination.rmdir()
+        try:
+            os.replace(stage, destination)
+        except Exception:
+            destination.mkdir(parents=True, exist_ok=True)
+            raise
+        _log(
+            logger,
+            "info",
+            "今日小猪增强版旧数据已验证复制到 astrbot_plugin_rollpig_plus；旧数据仍完整保留。",
+        )
+        return {
+            "status": "migrated",
+            "migrated": True,
+            "qualification": method,
+            "source_retained": True,
+            "copied_images": copied_images,
+        }
+    except Exception as exc:
+        if stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+        destination.mkdir(parents=True, exist_ok=True)
+        if isinstance(exc, IdentityMigrationError):
+            raise
+        raise IdentityMigrationError(f"增强版身份数据迁移失败：{exc}") from exc
+
+
+def migrate_legacy_config(config: Any, *, logger: Any = None) -> dict[str, Any]:
+    """Copy only still-supported keys from the legacy config on first deploy."""
+    if not getattr(config, "first_deploy", False):
+        return {"status": "not-first-deploy", "migrated": False}
+    raw_path = getattr(config, "config_path", None)
+    if not raw_path:
+        return {"status": "config-path-unavailable", "migrated": False}
+    new_path = Path(str(raw_path))
+    expected_name = f"{PLUGIN_NAME}_config.json"
+    if new_path.name != expected_name:
+        _log(
+            logger,
+            "warning",
+            f"新插件配置文件名不是 {expected_name}；为避免命名空间冲突，拒绝自动迁移配置。",
+        )
+        return {"status": "unsafe-config-namespace", "migrated": False}
+    old_path = new_path.with_name(f"{LEGACY_PLUGIN_NAME}_config.json")
+    if not old_path.is_file():
+        return {"status": "no-legacy-config", "migrated": False}
+    try:
+        payload = json.loads(old_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        _log(logger, "warning", f"旧增强版配置无法读取，保留新插件默认配置：{exc}")
+        return {"status": "legacy-config-invalid", "migrated": False}
+    if not isinstance(payload, dict):
+        return {"status": "legacy-config-invalid", "migrated": False}
+    allowed = set(config.keys()) if hasattr(config, "keys") else set()
+    migrated = {key: value for key, value in payload.items() if key in allowed}
+    if not migrated:
+        return {"status": "no-compatible-config-keys", "migrated": False}
+    config.update(migrated)
+    save = getattr(config, "save_config", None)
+    if callable(save):
+        save()
+    _log(logger, "info", f"已迁移 {len(migrated)} 个旧增强版配置项到新插件命名空间。")
+    return {
+        "status": "migrated",
+        "migrated": True,
+        "keys": sorted(migrated),
+    }
+
+
+def validate_runtime_namespace(plugin_dir: Path, config: Any) -> None:
+    """Reject manual installs that would reuse the legacy code/config namespace."""
+    directory = Path(plugin_dir).resolve()
+    if directory.name != PLUGIN_NAME:
+        raise IdentityMigrationError(
+            "今日小猪增强版 3.2.0 必须安装在 astrbot_plugin_rollpig_plus 目录。"
+            "请通过 AstrBot 插件市场安装，或手动 clone 时显式指定该目录名。"
+        )
+    config_path = getattr(config, "config_path", None)
+    if config_path and Path(str(config_path)).name != f"{PLUGIN_NAME}_config.json":
+        raise IdentityMigrationError(
+            "AstrBot 为本插件分配了旧配置命名空间，已拒绝启动以避免覆盖原版配置。"
+        )
+
+
+def warn_if_legacy_loaded(context: Any, *, logger: Any = None) -> bool:
+    """Warn when the original/legacy package is simultaneously active."""
+    getter = getattr(context, "get_all_stars", None)
+    if not callable(getter):
+        return False
+    for star in getter() or []:
+        if getattr(star, "name", None) != LEGACY_PLUGIN_NAME:
+            continue
+        if getattr(star, "activated", True) is False:
+            continue
+        _log(
+            logger,
+            "warning",
+            "检测到 astrbot_plugin_rollpig 与 rollpig_plus 同时启用；两者指令重叠。"
+            "确认新插件数据无误后请停用旧插件。",
+        )
+        return True
+    return False
+''', encoding="utf-8")
+
+          main = Path("main.py")
+          text = main.read_text(encoding="utf-8")
+          old_import = '''try:\n    from .services import DrawService, RoastService\n    from .storage import StorageManager, StorageMigrationError\n    from .updater import PluginUpdateManager, UpdateError\nexcept ImportError:  # pragma: no cover - direct module loading compatibility\n    from services import DrawService, RoastService\n    from storage import StorageManager, StorageMigrationError\n    from updater import PluginUpdateManager, UpdateError\n'''
+          new_import = '''try:\n    from .identity_migration import (\n        migrate_legacy_config,\n        migrate_legacy_data,\n        validate_runtime_namespace,\n        warn_if_legacy_loaded,\n    )\n    from .services import DrawService, RoastService\n    from .storage import StorageManager, StorageMigrationError\n    from .updater import PluginUpdateManager, UpdateError\nexcept ImportError:  # pragma: no cover - direct module loading compatibility\n    from identity_migration import (\n        migrate_legacy_config,\n        migrate_legacy_data,\n        validate_runtime_namespace,\n        warn_if_legacy_loaded,\n    )\n    from services import DrawService, RoastService\n    from storage import StorageManager, StorageMigrationError\n    from updater import PluginUpdateManager, UpdateError\n'''
+          if old_import not in text:
+              raise SystemExit("main.py: import block changed unexpectedly")
+          text = text.replace(old_import, new_import, 1)
+          text = text.replace('PLUGIN_NAME = "astrbot_plugin_rollpig"', 'PLUGIN_NAME = "astrbot_plugin_rollpig_plus"', 1)
+          text = text.replace("AstrBot-RollPig/3.1.4", "AstrBot-RollPig/3.2.0", 1)
+          old_config = '''        super().__init__(context)\n        self.config = config or {}\n\n        # 配置项\n'''
+          new_config = '''        super().__init__(context)\n        self.config = config or {}\n        self.identity_config_migration = migrate_legacy_config(self.config, logger=logger)\n\n        # 配置项\n'''
+          if old_config not in text:
+              raise SystemExit("main.py: init config anchor changed unexpectedly")
+          text = text.replace(old_config, new_config, 1)
+          old_paths = '''        # 初始化路径\n        self.plugin_dir = Path(__file__).parent\n        self.plugin_data_dir = StarTools.get_data_dir("astrbot_plugin_rollpig")\n        self.res_dir = self.plugin_dir / "resource"\n'''
+          new_paths = '''        # 初始化路径。3.2.0 起代码、配置和数据必须使用独立命名空间。\n        self.plugin_dir = Path(__file__).parent\n        validate_runtime_namespace(self.plugin_dir, self.config)\n        self.plugin_data_dir = StarTools.get_data_dir(self.PLUGIN_NAME)\n        self.identity_data_migration = migrate_legacy_data(\n            self.plugin_data_dir,\n            busy_timeout_ms=self.storage_busy_timeout_ms,\n            logger=logger,\n        )\n        warn_if_legacy_loaded(context, logger=logger)\n        self.res_dir = self.plugin_dir / "resource"\n'''
+          if old_paths not in text:
+              raise SystemExit("main.py: data path anchor changed unexpectedly")
+          text = text.replace(old_paths, new_paths, 1)
+          main.write_text(text, encoding="utf-8")
+
+          updater = Path("updater.py")
+          text = updater.read_text(encoding="utf-8")
+          text = text.replace("AstrBot-RollPig-Safe-Updater/3.1.4", "AstrBot-RollPig-Safe-Updater/3.2.0", 1)
+          guard = '''        if self._version_tuple(latest) >= (3, 2, 0):\n            raise UpdateError(\n                "检测到今日小猪增强版已切换到新的插件身份；旧插件禁止直接覆盖安装 3.2.0+。"\n                "请从 AstrBot 插件市场安装「今日小猪 · 增强版」新包，完成数据迁移后再停用旧包。"\n            )\n'''
+          if guard not in text:
+              raise SystemExit("updater.py: v3.1.4 bridge guard missing")
+          text = text.replace(guard, "", 1)
+          text = text.replace('archive_name = f"astrbot_plugin_rollpig-v{latest}.zip"', 'archive_name = f"astrbot_plugin_rollpig_plus-v{latest}.zip"', 1)
+          old_validate = '''        name = re.search(r'^name:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        repo = re.search(r'^repo:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        version = re.search(r'^version:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        if not name or name.group(1) != "astrbot_plugin_rollpig":\n            raise UpdateError("Release metadata 插件名不匹配")\n        if not repo or repo.group(1).rstrip("/") != f"https://github.com/{self.OFFICIAL_REPOSITORY}":\n'''
+          new_validate = '''        name = re.search(r'^name:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        author = re.search(r'^author:\\s*["\\']?([^"\\'\\n]+?)["\\']?\\s*$', metadata, re.MULTILINE)\n        repo = re.search(r'^repo:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        version = re.search(r'^version:\\s*["\\']?([^"\\'\\s]+)', metadata, re.MULTILINE)\n        if not name or name.group(1) != "astrbot_plugin_rollpig_plus":\n            raise UpdateError("Release metadata 插件名不匹配")\n        if not author or author.group(1).strip() != "casama233":\n            raise UpdateError("Release metadata 作者身份不匹配")\n        if not repo or repo.group(1).rstrip("/") != f"https://github.com/{self.OFFICIAL_REPOSITORY}":\n'''
+          if old_validate not in text:
+              raise SystemExit("updater.py: staging validation anchor changed unexpectedly")
+          text = text.replace(old_validate, new_validate, 1)
+          updater.write_text(text, encoding="utf-8")
+
+          for path in ("tests/test_v312_release_contract.py", "tests/test_source_regressions.py"):
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if "3.1.4" not in text:
+                  raise SystemExit(f"{path}: expected v3.1.4 marker")
+              target.write_text(text.replace("3.1.4", "3.2.0"), encoding="utf-8")
+
+          Path("tests/test_identity_migration_bridge.py").write_text('''import json\nfrom pathlib import Path\n\nfrom storage import StorageManager\n\n\ndef test_bridge_marker_still_identifies_the_legacy_enhanced_namespace(tmp_path: Path):\n    legacy = tmp_path / "astrbot_plugin_rollpig"\n    StorageManager(legacy, mode="json")\n    marker = legacy / ".rollpig-enhanced-origin.json"\n    assert marker.is_file()\n    payload = json.loads(marker.read_text(encoding="utf-8"))\n    assert payload["source_repository"] == "casama233/astrbot_plugin_rollpig"\n    assert payload["source_plugin_name"] == "astrbot_plugin_rollpig"\n    assert payload["bridge_version"] == "3.1.4"\n    assert payload["migration_target"] == "casama233/astrbot_plugin_rollpig_plus"\n\n\ndef test_bridge_marker_is_never_written_to_plus_namespace(tmp_path: Path):\n    future = tmp_path / "astrbot_plugin_rollpig_plus"\n    StorageManager(future, mode="json")\n    assert not (future / ".rollpig-enhanced-origin.json").exists()\n''', encoding="utf-8")
+
+          Path("tests/test_identity_migration_plus.py").write_text(r'''import json
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from identity_migration import (
+    IdentityMigrationError,
+    migrate_legacy_config,
+    migrate_legacy_data,
+    validate_runtime_namespace,
+)
+from storage import StorageManager
+
+
+def _write_marker(root: Path) -> None:
+    (root / ".rollpig-enhanced-origin.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_repository": "casama233/astrbot_plugin_rollpig",
+                "source_plugin_name": "astrbot_plugin_rollpig",
+                "bridge_version": "3.1.4",
+                "migration_target": "casama233/astrbot_plugin_rollpig_plus",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_valid_bridge_json_is_copied_verified_and_source_is_retained(tmp_path: Path):
+    old = tmp_path / "astrbot_plugin_rollpig"
+    new = tmp_path / "astrbot_plugin_rollpig_plus"
+    old.mkdir()
+    new.mkdir()
+    _write_marker(old)
+    history = {"version": 1, "users": {"u": {"pigs": {}}}, "daily": {}, "pig_snapshots": {}}
+    roast = {"version": 1, "cooldowns": {}}
+    (old / "pig_history.json").write_text(json.dumps(history), encoding="utf-8")
+    (old / "roast_state.json").write_text(json.dumps(roast), encoding="utf-8")
+    (old / "images").mkdir()
+    (old / "images" / "custom.png").write_bytes(b"custom-image")
+
+    result = migrate_legacy_data(new)
+
+    assert result["status"] == "migrated"
+    assert result["source_retained"] is True
+    assert (old / "pig_history.json").is_file()
+    assert (old / "images" / "custom.png").read_bytes() == b"custom-image"
+    assert json.loads((new / "pig_history.json").read_text(encoding="utf-8")) == history
+    assert (new / "images" / "custom.png").read_bytes() == b"custom-image"
+    state = json.loads((new / "identity_migration_state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "verified-copy"
+    assert state["source_retained"] is True
+    assert state["qualification"] == "bridge-marker"
+    assert state["verification"]["ok"] is True
+
+
+def test_original_style_legacy_data_is_not_auto_migrated(tmp_path: Path):
+    old = tmp_path / "astrbot_plugin_rollpig"
+    new = tmp_path / "astrbot_plugin_rollpig_plus"
+    old.mkdir()
+    new.mkdir()
+    (old / "rollpig_today.json").write_text('{"date":"2026-08-11","records":{}}', encoding="utf-8")
+
+    result = migrate_legacy_data(new)
+
+    assert result["status"] == "legacy-source-ambiguous"
+    assert list(new.iterdir()) == []
+    assert (old / "rollpig_today.json").is_file()
+
+
+def test_corrupt_qualified_sqlite_aborts_without_committing_destination(tmp_path: Path):
+    old = tmp_path / "astrbot_plugin_rollpig"
+    new = tmp_path / "astrbot_plugin_rollpig_plus"
+    old.mkdir()
+    new.mkdir()
+    _write_marker(old)
+    (old / "rollpig.db").write_bytes(b"not-a-sqlite-database")
+
+    with pytest.raises(IdentityMigrationError):
+        migrate_legacy_data(new)
+
+    assert list(new.iterdir()) == []
+    assert (old / "rollpig.db").read_bytes() == b"not-a-sqlite-database"
+
+
+def test_sqlite_wal_snapshot_is_migrated_through_backup_api(tmp_path: Path):
+    old = tmp_path / "astrbot_plugin_rollpig"
+    new = tmp_path / "astrbot_plugin_rollpig_plus"
+    old.mkdir()
+    new.mkdir()
+    manager = StorageManager(old, mode="auto")
+    assert manager.verify()["ok"] is True
+    database = old / "rollpig.db"
+    writer = sqlite3.connect(database)
+    try:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute(
+            "INSERT INTO projection_meta(key, value) VALUES ('migration_wal_probe', 'present') "
+            "ON CONFLICT(key) DO UPDATE SET value='present'"
+        )
+        writer.commit()
+        result = migrate_legacy_data(new)
+    finally:
+        writer.close()
+
+    assert result["status"] == "migrated"
+    check = sqlite3.connect(new / "rollpig.db")
+    try:
+        row = check.execute(
+            "SELECT value FROM projection_meta WHERE key='migration_wal_probe'"
+        ).fetchone()
+    finally:
+        check.close()
+    assert row == ("present",)
+    assert (old / "rollpig.db").is_file()
+
+
+class FakeConfig(dict):
+    def __init__(self, path: Path):
+        super().__init__({"timezone": "local", "enable_roast": True, "new_only": 7})
+        self.config_path = str(path)
+        self.first_deploy = True
+        self.saved = False
+
+    def save_config(self):
+        self.saved = True
+        Path(self.config_path).write_text(json.dumps(self), encoding="utf-8")
+
+
+def test_config_migration_copies_only_current_schema_keys(tmp_path: Path):
+    new_path = tmp_path / "astrbot_plugin_rollpig_plus_config.json"
+    old_path = tmp_path / "astrbot_plugin_rollpig_config.json"
+    old_path.write_text(
+        json.dumps({"timezone": "Asia/Hong_Kong", "enable_roast": False, "removed_key": 99}),
+        encoding="utf-8",
+    )
+    config = FakeConfig(new_path)
+
+    result = migrate_legacy_config(config)
+
+    assert result["status"] == "migrated"
+    assert config["timezone"] == "Asia/Hong_Kong"
+    assert config["enable_roast"] is False
+    assert config["new_only"] == 7
+    assert "removed_key" not in config
+    assert config.saved is True
+
+
+def test_runtime_namespace_rejects_manual_clone_into_legacy_directory(tmp_path: Path):
+    legacy_dir = tmp_path / "astrbot_plugin_rollpig"
+    legacy_dir.mkdir()
+    config = FakeConfig(tmp_path / "astrbot_plugin_rollpig_plus_config.json")
+    with pytest.raises(IdentityMigrationError):
+        validate_runtime_namespace(legacy_dir, config)
+
+
+def test_phase2_metadata_and_updater_use_new_identity():
+    metadata = Path("metadata.yaml").read_text(encoding="utf-8")
+    assert 'name: "astrbot_plugin_rollpig_plus"' in metadata
+    assert 'author: "casama233"' in metadata
+    assert 'version: "3.2.0"' in metadata
+    updater = Path("updater.py").read_text(encoding="utf-8")
+    assert 'name.group(1) != "astrbot_plugin_rollpig_plus"' in updater
+    assert 'author.group(1).strip() != "casama233"' in updater
+    assert "禁止直接覆盖安装 3.2.0+" not in updater
+''', encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8")
+          header = "# 更新\n\n"
+          if not text.startswith(header):
+              raise SystemExit("CHANGELOG.md: unexpected header")
+          entry = (
+              "## v3.2.0 (2026-08-11)\n\n"
+              "### 独立插件身份与安全迁移\n\n"
+              "- 插件市场身份切换为 `casama233/astrbot_plugin_rollpig_plus`，代码目录、配置和数据命名空间与原版彻底分离。\n"
+              "- 首次安装会优先验证 v3.1.4 来源标记；没有标记时仅接受增强版 SQLite/多文件指纹，避免把 MegSopern 原版数据误迁移。\n"
+              "- 旧数据采用 SQLite backup 或逐文件 SHA-256 的 Copy → Verify → Atomic Commit 流程，迁移成功后旧目录仍完整保留。\n"
+              "- 新配置首次创建时只迁移当前 schema 仍支持的旧配置项；未知或废弃字段不会带入。\n"
+              "- 拒绝在旧 `astrbot_plugin_rollpig` 代码/配置命名空间内启动，防止手动 clone 导致两个插件共用配置。\n"
+              "- 检测到旧插件同时启用时给出指令冲突警告，不会擅自停用或删除旧插件。\n\n"
+          )
+          changelog.write_text(header + entry + text[len(header):], encoding="utf-8")
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+          text = text.replace(
+              "从 v3.1.4 起，本增强分支进入独立插件身份迁移阶段。v3.1.4 本身不会移动或删除现有数据；未来 `3.2.0+` 将以 `casama233/astrbot_plugin_rollpig_plus` 独立身份发布，并通过验证后复制旧增强版数据，避免与 MegSopern 原版共用数据目录。旧版内置更新器不会直接覆盖安装新身份。",
+              "v3.2.0 起本增强分支使用独立 AstrBot 插件身份 `casama233/astrbot_plugin_rollpig_plus`。首次安装会在确认旧目录来自本增强分支后，以 Copy → Verify → Atomic Commit 方式复制 SQLite/JSON 与自定义图片；旧目录不会被删除。若只发现无法确认来源的原版数据，则不会自动迁移。确认新插件数据正常后，请停用旧插件以避免重复指令。",
+              1,
+          )
+          old_clone = "git clone https://github.com/casama233/astrbot_plugin_rollpig"
+          new_clone = "git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rollpig_plus"
+          if old_clone not in text:
+              raise SystemExit("README.md: clone command not found")
+          text = text.replace(old_clone, new_clone, 1)
+          readme.write_text(text, encoding="utf-8")
+          PY
+          python /tmp/patch_plus.py
+      - name: Install test dependencies
+        run: |
+          python -m pip install -r requirements.txt pytest
+          npm ci
+      - name: Validate plus migration
+        run: |
+          python -m pytest -q
+          npm test
+          python -m compileall -q main.py updater.py identity_migration.py services storage
+          python - <<'PY'
+          from pathlib import Path
+          metadata = Path('metadata.yaml').read_text(encoding='utf-8')
+          assert 'name: "astrbot_plugin_rollpig_plus"' in metadata
+          assert 'author: "casama233"' in metadata
+          assert 'version: "3.2.0"' in metadata
+          assert not Path('.github/workflows/agent-rollpig-identity-migration.yml').exists()
+          PY
+      - name: Commit verified plus implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/agent-rollpig-plus-v3.2.0.yml
+          git add metadata.yaml main.py updater.py identity_migration.py CHANGELOG.md README.md tests
+          git commit -m "feat: isolate rollpig_plus identity and migrate legacy data safely"
+          git fetch origin agent/rollpig-plus-v3.2.0
+          git rebase origin/agent/rollpig-plus-v3.2.0
+          git push origin HEAD:agent/rollpig-plus-v3.2.0
