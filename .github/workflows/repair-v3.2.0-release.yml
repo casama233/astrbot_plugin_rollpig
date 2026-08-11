@@ -1,0 +1,117 @@
+name: Repair v3.2.0 RollPig Plus Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-v3.2.0-release
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'casama233/astrbot_plugin_rollpig'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Verify target identity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('metadata.yaml').read_text(encoding='utf-8')
+          assert 'name: "astrbot_plugin_rollpig_plus"' in text
+          assert 'version: "3.2.0"' in text
+          assert 'author: "casama233"' in text
+          PY
+
+      - name: Remove stale v3.2.0 release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view v3.2.0 >/dev/null 2>&1; then
+            gh release delete v3.2.0 --yes
+          fi
+          if git ls-remote --exit-code --tags origin refs/tags/v3.2.0 >/dev/null 2>&1; then
+            git push origin :refs/tags/v3.2.0
+          fi
+          git tag -d v3.2.0 >/dev/null 2>&1 || true
+
+      - name: Remove one-time repair workflow from release tree
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/repair-v3.2.0-release.yml
+          git commit -m "ci: finalize rollpig_plus release infrastructure"
+          git push origin HEAD:main
+
+      - name: Build clean plus archive and checksum
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import zipfile
+
+          root = 'astrbot_plugin_rollpig_plus'
+          asset = Path('astrbot_plugin_rollpig_plus-v3.2.0.zip')
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          excluded_prefixes = (
+              '.github/', 'tests/', 'scripts/', 'node_modules/', '__pycache__/'
+          )
+          excluded_files = {'.pre-commit-config.yaml', '.gitignore'}
+          with zipfile.ZipFile(asset, 'w', zipfile.ZIP_DEFLATED) as archive:
+              for name in tracked:
+                  if not name or name in excluded_files or name.startswith(excluded_prefixes):
+                      continue
+                  path = Path(name)
+                  if path.is_file():
+                      archive.write(path, f'{root}/{name}')
+          if not asset.is_file() or asset.stat().st_size == 0:
+              raise SystemExit('release archive was not created')
+          PY
+          sha256sum astrbot_plugin_rollpig_plus-v3.2.0.zip > SHA256SUMS
+
+      - name: Recreate clean v3.2.0 latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TARGET="$(git rev-parse HEAD)"
+          cat > /tmp/release-notes.md <<'EOF'
+          ## 今日小豬 · 增強版 v3.2.0
+
+          v3.2.0 完成增強分支的獨立 AstrBot 插件身份切換：`casama233/astrbot_plugin_rollpig_plus`。
+
+          ### 重要升級方式
+          - 本版本不是舊 `astrbot_plugin_rollpig` 的就地覆蓋升級。
+          - v3.1.4 bridge 使用者請以新的 `astrbot_plugin_rollpig_plus` 身份安裝本版本。
+          - 首次啟動會驗證舊增強版來源，再以 Copy → Verify → Atomic Commit 複製資料；舊資料不會刪除。
+          - 無法安全判定來源時會拒絕自動遷移，而不是冒險搬錯原版資料。
+          - 確認新插件資料正常後，再停用舊插件以避免重複指令。
+
+          ### 安全與驗證
+          - 新資料命名空間：`data/plugin_data/astrbot_plugin_rollpig_plus`
+          - SQLite 使用 backup API；JSON / 自訂圖片使用 SHA-256 校驗。
+          - updater 驗證 package name、author、repository、version。
+          - Python：125 tests passed
+          - Node/browser：6 tests passed
+          - compileall / pre-commit：passed
+          EOF
+          gh release create v3.2.0 \
+            astrbot_plugin_rollpig_plus-v3.2.0.zip \
+            SHA256SUMS \
+            --target "$TARGET" \
+            --title "今日小豬 · 增強版 v3.2.0" \
+            --notes-file /tmp/release-notes.md \
+            --latest
