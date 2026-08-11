@@ -4,18 +4,22 @@ on:
   push:
     branches:
       - agent/rollpig-safe-identity-migration
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   build-bridge:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'agent/rollpig-safe-identity-migration'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: agent/rollpig-safe-identity-migration
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
