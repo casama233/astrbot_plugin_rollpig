@@ -18,8 +18,9 @@ def _manager(tmp_path: Path) -> PluginUpdateManager:
     (plugin / "resource").mkdir(parents=True)
     data.mkdir()
     (plugin / "metadata.yaml").write_text(
-        'name: "astrbot_plugin_rollpig"\n'
+        'name: "astrbot_plugin_rollpig_plus"\n'
         'version: "2.7.0"\n'
+        'author: "casama233"\n'
         'repo: "https://github.com/casama233/astrbot_plugin_rollpig"\n',
         encoding="utf-8",
     )
@@ -35,8 +36,9 @@ def _release_zip(version: str = "2.8.0", extra: dict[str, bytes] | None = None) 
         archive.writestr(root + "main.py", "VALUE = 2\n")
         archive.writestr(
             root + "metadata.yaml",
-            'name: "astrbot_plugin_rollpig"\n'
+            'name: "astrbot_plugin_rollpig_plus"\n'
             f'version: "{version}"\n'
+            'author: "casama233"\n'
             'repo: "https://github.com/casama233/astrbot_plugin_rollpig"\n',
         )
         archive.writestr(root + "resource/pig.json", "[]\n")
@@ -145,14 +147,13 @@ def test_unsigned_release_requires_explicit_confirmation(tmp_path, monkeypatch):
         asyncio.run(manager.apply_update(confirm_unsigned=False))
 
 
-
 def test_updater_ignores_unrelated_release_zip_assets(tmp_path):
     manager = _manager(tmp_path)
     assets = [
         {"name": "website-assets.zip", "browser_download_url": "https://example.invalid/a"},
-        {"name": "astrbot_plugin_rollpig-v2.8.0.zip", "browser_download_url": "https://example.invalid/b"},
+        {"name": "astrbot_plugin_rollpig_plus-v2.8.0.zip", "browser_download_url": "https://example.invalid/b"},
     ]
-    assert manager._select_archive_asset(assets)["name"] == "astrbot_plugin_rollpig-v2.8.0.zip"
+    assert manager._select_archive_asset(assets)["name"] == "astrbot_plugin_rollpig_plus-v2.8.0.zip"
     assert manager._select_archive_asset(assets[:1]) is None
 
 
