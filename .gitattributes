@@ -1,0 +1,12 @@
+# Keep generated source archives focused on runtime files for AstrBot marketplace delivery.
+.github/ export-ignore
+.pre-commit-config.yaml export-ignore
+CONTRIBUTING.md export-ignore
+docs/ export-ignore
+package.json export-ignore
+package-lock.json export-ignore
+tests/ export-ignore
+
+# Optional large Traditional-Chinese fallback font. The plugin keeps system/font fallbacks;
+# excluding this asset is necessary to stay below AstrBot marketplace's 16 MiB package cap.
+resource/font/HanyiYongZiXiaoXiongMaoFan.ttf export-ignore
