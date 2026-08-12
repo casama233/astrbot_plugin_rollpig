@@ -10,7 +10,7 @@ def test_v312_release_contract_is_readable_lazy_and_versioned():
     bootstrap = (ROOT / "pages/pig-manager/ui-bootstrap.js").read_text(encoding="utf-8")
     page = (ROOT / "pages/pig-manager/index.html").read_text(encoding="utf-8")
     css = (ROOT / "pages/pig-manager/analytics-theme.css").read_text(encoding="utf-8")
-    assert 'version: "3.2.0"' in metadata
+    assert 'version: "3.2.1"' in metadata
     assert "AstrBot-RollPig/3.2.0" in main
     assert "AstrBot-RollPig-Safe-Updater/3.2.0" in updater
     assert "analyticsLoadBtn" in bootstrap
