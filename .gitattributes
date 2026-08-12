@@ -7,6 +7,7 @@ package.json export-ignore
 package-lock.json export-ignore
 tests/ export-ignore
 
-# Optional large Traditional-Chinese fallback font. The plugin keeps system/font fallbacks;
-# excluding this asset is necessary to stay below AstrBot marketplace's 16 MiB package cap.
+# Large decorative/fallback fonts remain available in the source repository, while
+# marketplace/release archives use the plugin's existing system-font fallback chain.
 resource/font/HanyiYongZiXiaoXiongMaoFan.ttf export-ignore
+resource/font/荆南麦圆体.otf export-ignore
