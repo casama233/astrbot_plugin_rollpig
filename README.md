@@ -3,166 +3,199 @@
 ![astrbot_plugin_rollpig](https://raw.githubusercontent.com/casama233/astrbot_plugin_rollpig/main/logo.png)
 
 # astrbot_plugin_rollpig
-_✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 今日小猪 ✨_ 
 
-本仓库是基于 `MegSopern/astrbot_plugin_rollpig` 的功能增强维护分支。保留原作者
-Bear_lele、MegSopern 的署名与 MIT License；增强分支由 casama233 继续维护。
-上游项目：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)。
+_✨ AstrBot「今日小豬」增強維護版 ✨_
 
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-orange.svg)](https://github.com/Soulter/AstrBot)
-[![GitHub](https://img.shields.io/badge/作者-MegSopern-pink)](https://github.com/MegSopern)
-![动态访问量](https://count.kjchmc.cn/get/@astrbot_plugin_rollpig?theme=gelbooru)
+[![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-orange.svg)](https://github.com/AstrBotDevs/AstrBot)
+![版本](https://img.shields.io/badge/version-3.2.0-pink.svg)
+![動態訪問量](https://count.kjchmc.cn/get/@astrbot_plugin_rollpig?theme=gelbooru)
 
 </div>
 
-## 🌟 项目介绍
-每日用户可随机抽取专属“今日小猪”，并生成配图展示名称、描述和性格。无需繁琐配置，支持自定义猪猪库和素材。自动缓存结果，每日刷新，避免重复。适合群聊互动或签到，增添聊天趣味。
-## 🔄 插件身份迁移说明
+> [!IMPORTANT]
+> 自 **v3.2.0** 起，本增強分支使用獨立插件身份 `astrbot_plugin_rollpig_plus`。若你曾使用本倉庫 v3.1.4 或更早版本，請先閱讀下方「升級與身份遷移」以及 [`docs/OPERATIONS.md`](docs/OPERATIONS.md)。
 
-v3.2.0 起本增强分支使用独立 AstrBot 插件身份 `casama233/astrbot_plugin_rollpig_plus`。首次安装会在确认旧目录来自本增强分支后，以 Copy → Verify → Atomic Commit 方式复制 SQLite/JSON 与自定义图片；旧目录不会被删除。若只发现无法确认来源的原版数据，则不会自动迁移。确认新插件数据正常后，请停用旧插件以避免重复指令。
+## 專案簡介
 
-## 📦 安装：
+這是一個為 AstrBot 維護的「今日小豬」互動插件。每位使用者每天可抽取一隻固定的小豬，並在之後逐步解鎖永久圖鑑；同時提供昨日／明日／週報、圖鑑搜尋、烤豬、群友互動、管理面板、雲端資源同步與 SQLite 持久化等功能。
+
+本倉庫基於 `MegSopern/astrbot_plugin_rollpig` 持續增強，保留 Bear_lele、MegSopern 的原作者署名與 MIT License。
+
+- 上游 AstrBot 版本：`>= 4.24.2`
+- Python：`>= 3.10`
+- 主要 Python 依賴：`Pillow >= 10.0.0`、`httpx >= 0.27.0, < 1.0.0`
+- 當前插件版本：`3.2.0`
+
+## 主要功能
+
+- **每日固定抽取**：同一使用者同一天重複查詢不會改變結果。
+- **永久豬圈圖鑑**：記錄解鎖種類、抽取次數、本命豬與 `EX Lv.`。
+- **連續重複保底**：可配置地提高下一次抽到未解鎖小豬的機率。
+- **昨日／明日／本週**：可查昨日紀錄、明日固定預測與七日週報。
+- **圖鑑探索**：支援隨機展示與按 ID、名稱、描述、完整文案搜尋。
+- **烤豬玩法**：支援今日烤豬、烤群友、隨機烤群友、吃群友與群聊日報。
+- **AI 烤豬文案**：可選啟用；模型不可用、超時或失敗時自動回退本地模板。
+- **管理面板**：新增／編輯／刪除小豬、PigHub 選圖、資源同步、統計、SQLite 維護與安全更新。
+- **公共資源同步**：下載前限制來源、大小與圖片像素，並以 manifest 尺寸與 SHA-256 驗證後原子替換。
+- **SQLite 單一運行時權威**：v3.0 起規範化 SQLite 表是預設運行時資料來源；JSON 僅保留作兼容、匯出與災難回退用途。
+- **獨立身份遷移**：v3.2.0 起與原版插件的程式、配置及資料命名空間分離。
+
+## 安裝
+
+### 方法一：AstrBot 插件管理介面
+
+若你的 AstrBot 插件來源已索引本增強版，請搜尋 **「今日小豬 · 增強版」** 或插件名 `astrbot_plugin_rollpig_plus` 安裝。
+
+### 方法二：手動安裝
 
 ```bash
-# 克隆仓库到插件目录
 cd /AstrBot/data/plugins
 git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rollpig_plus
-
-# 控制台重启AstrBot
 ```
 
-## 🐷 使用 🐷
+安裝完成後重啟 AstrBot，並確認後台載入的插件名稱為 `astrbot_plugin_rollpig_plus`。
 
-**今日小猪／今日小豬** - 抽取今天属于你的小猪类型 🐖
+> [!WARNING]
+> 不要把 v3.2.0+ 手動 clone 到舊目錄名 `astrbot_plugin_rollpig` 後直接啟動。新版本會檢查插件身份與命名空間，以避免增強版和原版共用配置或資料。
 
-- 每个用户每天只能抽取一次 🐽  
-- 重复抽取不会改变结果 🐷  
-- 每天 0 点自动重置 🐖
+## 快速開始
 
-**我的猪圈／我的豬圈 [页码]** - 查看永久解锁的小猪图鉴
+最推薦先輸入：
 
-- 每次抽取会永久记录已解锁的小猪
-- 重复抽中会累计该小猪的抽取次数
-- 重复抽中会提升 `EX Lv.`，图鉴同时展示本命猪与最高等级
-- 连续重复时触发渐进保底，提高后续解锁新猪的机会
-- 图鉴每页展示 12 只小猪，例如：`/我的猪圈 2`
+```text
+/豬豬幫助
+```
 
-### 更多玩法
+插件會生成完整的聊天指令幫助卡。常用指令如下：
 
-| 指令 | 功能 |
+| 指令 | 用途 |
 | --- | --- |
-| `/昨日小猪`／`/昨日小豬` | 查看昨天真实抽到的小猪 |
-| `/明日小猪`／`/明日小豬` | 查看明日固定预测与猪运星级，不提前解锁 |
-| `/本周小猪`／`/本週小豬` | 生成本周七日小猪周报 |
-| `/随机小猪 [1-9]`／`/隨機小豬` | 从本地图鉴随机展示，不影响今日结果 |
-| `/找猪 关键词`／`/找豬` | 按 ID、名称、描述或完整文案搜索本地图鉴 |
-| `/今日烤猪`／`/今日烤豬` | 把今日小猪生成趣味料理卡，不改变抽取结果 |
+| `/今日小豬` | 抽取或查看自己今天的小豬 |
+| `/今日小豬 @某人` | 啟用 `at_view_pig` 後只讀查看對方今日結果，不會替對方抽取 |
+| `/我的豬圈 [頁碼]` | 查看永久圖鑑，每頁 12 隻 |
+| `/昨日小豬` | 查看昨天真實抽取紀錄 |
+| `/明日小豬` | 查看明日固定預測與 1–5 星豬運，不提前解鎖 |
+| `/本週小豬` | 生成本週七日小豬週報 |
+| `/隨機小豬 [1-9]` | 從本地圖鑑隨機展示，不影響每日結果 |
+| `/找豬 關鍵詞` | 按 ID、名稱、描述或完整文案搜尋 |
+| `/今日烤豬` | 把自己今日小豬生成趣味料理卡 |
+| `/烤群友 @某人` | 群聊中嘗試烤指定群友 |
+| `/隨機烤群友` | 從本群今日可烤成員中隨機選擇 |
+| `/吃群友 @某人` | 以可配置成功率吃掉群友；失敗時發起者會變成「吃掉了」 |
+| `/隨機吃群友` | 從本群今日可吃成員中隨機選擇 |
+| `/豬圈日報` | 顯示本群今日抽豬與被吃概況 |
 
-昨日和本周记录从升级至 v1.5.0 后开始完整保存；升级当天现有的今日记录会自动迁移。
+完整指令、別名、限制條件、後門口令與群聊玩法規則請看：[`docs/COMMANDS.md`](docs/COMMANDS.md)。
 
-## 🖥️ 猪圈管理面板
+## 管理面板
 
-AstrBot 管理面板的「插件页面」中会出现「今日小猪」管理页，支持：
+在 AstrBot 管理介面的「插件頁面」中開啟 **今日小豬** 管理頁，可完成：
 
-- 新增小猪：一次填写 ID、名称、描述、完整文案并上传图片
-- 也可在面板内搜索／分页浏览 PigHub.top，选定图片后手动填写名称、描述与文案
-- PigHub 选图后可填写画面／创作引导词，并在生成 AI 草稿时查看实时阶段进度
-- 上传图片自动居中裁切并标准化为 `512×512 PNG`
-- 搜索、编辑、删除现有小猪；历史解锁统计不会因删除素材而丢失
-- 查看云资源版本与同步状态，并可在管理面板手动立即同步
-- 检查并安全安装官方稳定 Release；更新前校验、备份，完成后由管理员手动重启 AstrBot
-- 查看总使用人数、累计抽取、今日活跃、人均解锁、平均收藏率
-- 查看近 14 日使用／解锁折线图与热门小猪柱状图
+- 查看總使用者、累計抽取、今日活躍、人均解鎖與收藏率。
+- 查看近 14 日趨勢、熱門小豬與按需載入的深度 Analytics。
+- 新增、搜尋、編輯、刪除小豬。
+- 上傳圖片並標準化為 `512×512 PNG`。
+- 從 PigHub.top 搜尋／瀏覽圖片並建立本地小豬資料。
+- 手動同步公共資源並查看同步狀態。
+- 檢查與安裝本倉庫最新穩定 Release。
+- 查看 SQLite 狀態、執行備份／匯出／驗證／回退等維護操作。
 
-管理页修改后的图鉴和图片保存在 AstrBot 的插件数据目录中，升级插件时不会覆盖。图鉴按以下优先级合并：
+管理面板中的本地新增、編輯與圖片會儲存在插件資料目錄，不會因更新插件程式碼而被覆蓋。
 
-1. 公共云资源（不可用时回退插件内置资源）
-2. 管理面板的本地新增／编辑与自定义图片
-3. 本地删除屏蔽（确保已删除的云端小猪不会在下次同步后复活）
+## 配置
 
-公共资源默认每 24 小时检查一次，单文件限制 10 MiB。下载会校验 manifest 中的尺寸与 SHA-256，并在整包通过后才原子替换；任何失败都继续使用旧缓存或内置资源。
+所有可配置項目都定義於 `_conf_schema.json`。推薦直接透過 AstrBot 插件配置介面修改，而不是手工編輯運行時配置檔。
 
-### 管理面板安全更新
+完整配置表、預設值與建議請看：[`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)。
 
-版本更新入口固定连接 `casama233/astrbot_plugin_rollpig` 的最新稳定 GitHub Release，不接受自定义 URL、分支或预发布版本。更新包限制为 64 MiB、最多 3000 个文件和 256 MiB 解压体积，并拒绝路径穿越、符号链接及异常压缩比。若 Release 提供 SHA-256 文件会强制核对；若未提供，管理面板会明确警告并要求二次确认。代码替换前会在插件数据目录创建备份，失败自动回滚，且不会覆盖图鉴、历史、惩罚、本地图片或 AstrBot 配置。安装完成后不会自动重启。
+常見項目包括：
 
-### SQLite 存储与安全迁移
+- `at_view_pig`：是否允許 @ 他人只讀查看今日小豬。
+- `enable_new_pig_pity` / `pity_step_percent`：連續重複保底。
+- `enable_roast` / `enable_group_roast` / `enable_group_eat`：烤豬與群聊玩法開關。
+- `eat_success_percent`：吃群友成功率。
+- `eaten_next_day_failure_percent`：被吃後次日抽豬失敗率。
+- `enable_ai_roast_copy`：AI 烤豬文案。
+- `timezone`：每日邊界時區。
+- `resource_sync_*`：公共資源同步。
+- `storage_backend` / `storage_busy_timeout_ms`：資料後端與 SQLite 寫鎖等待時間。
 
-v2.9.0 新增可选 SQLite 后端。默认 `storage_backend=auto`：只有 `rollpig.db` 已存在且通过 `PRAGMA integrity_check` 与 `foreign_key_check` 时才会启用 SQLite，否则继续使用原 JSON。旧安装不会静默忽略旧数据。
+## 資料、資源與優先級
 
-管理面板可执行迁移、验证、导出 JSON ZIP 与回滚。迁移会先备份七份关键 JSON，建立临时数据库，导入完整兼容文档并刷新正交投影表，逐文件核对 SHA-256 后才原子替换为 `rollpig.db`。失败会保留原 JSON 且不切换。SQLite 使用 `WAL`、`foreign_keys=ON`、`synchronous=NORMAL` 与可配置的 `busy_timeout`。
+小豬圖鑑會按以下邏輯組合：
 
-v2.10 起，SQLite 模式下的用户图鉴、每日结果、群成员与被吃名单已经直接查询索引表，并提供投影对账、自动修复和手动重建。兼容文档目前仍是写入权威层；v3.0 才会把每日抽取与吃群友改成增量 SQL 事务，并在验证完成后将 SQLite 设为默认。
+1. 公共雲端資源；不可用時回退插件內置 `resource/`。
+2. 管理面板建立的本地新增／編輯與自訂圖片。
+3. 本地刪除屏蔽；被刪除的雲端小豬不會在下次同步後自動復活。
 
-可在插件配置中关闭连续重复保底或今日烤猪，并调整每层保底增加的概率。
+對一般管理員而言，**建議透過管理面板維護小豬**。直接修改倉庫內 `resource/pig.json` 與 `resource/image/` 更適合開發或提交上游資源，因為它們屬於插件程式包本身。
 
----
-
-## 🐖 新增小猪 🐖
-
-插件资源路径：
-
-```
-astrbot_plugin_rollpig/resource
-```
-
-- **pig.json** 小猪信息，例如：
+內置資料格式：
 
 ```json
 [
-    {
-        "id": "pig",
-        "name": "猪",
-        "description": "普通小猪",
-        "analysis": "你性格温和，喜欢简单的生活，容易满足。在别人眼中可能有些慵懒，但你知道如何享受生活的美好。"
-    }
+  {
+    "id": "pig",
+    "name": "豬",
+    "description": "普通小豬",
+    "analysis": "你性格溫和，喜歡簡單的生活。"
+  }
 ]
 ```
 
-- **image/** 小猪图片  
-    - 图片命名需和信息中的 `id` 一致  
-    - 支持图片类型：`["png", "jpg", "jpeg", "webp", "gif"]`
+對應圖片可使用 `png`、`jpg`、`jpeg`、`webp`、`gif`，檔名需與 `id` 相同，例如 `pig.png`。
 
----
+## SQLite、備份與恢復
 
-### 🐽 目录结构示例 🐽
+v3.0 起，規範化 SQLite 表是正常模式下的單一運行時權威；`storage_backend=auto` 會讓新安裝直接建立 SQLite，舊 JSON 安裝則先備份、導入臨時資料庫並完成完整性與事實級對帳後再原子切換。
 
+`storage_backend=json` 僅建議作緊急災難回退；若資料庫無效，插件會保留恢復證據並避免以損壞資料覆蓋有效資料。
+
+詳細資料檔、遷移流程、備份、安全更新與故障排查請看：[`docs/OPERATIONS.md`](docs/OPERATIONS.md)。
+
+## 升級與身份遷移
+
+v3.2.0 起，本增強版使用獨立資料與配置命名空間。首次安裝時只會在能確認舊資料確實來自本增強分支時執行遷移；流程為 **Copy → Verify → Atomic Commit**，成功後舊資料仍保留，不會自動刪除。
+
+若同時啟用了舊插件，系統只會警告，不會替你停用或移除。請確認新插件資料正常後再手動停用舊插件，避免重複註冊指令。
+
+## 開發與測試
+
+```bash
+python -m pip install -r requirements.txt pytest pre-commit
+python -m compileall -q main.py rollpig_core.py updater.py storage services
+pytest -q
+pre-commit run --all-files --show-diff-on-failure
 ```
-astrbot_plugin_rollpig/
-├─ main.py               # 插件主逻辑（AstrBot插件核心）
-└─ resource/
-    ├─ pig.json          # 小猪信息数据
-    └─ image/
-        └─ pig.png       # 小猪图片（与id对应）
+
+管理頁另有 Node.js 測試：
+
+```bash
+npm ci
+npm test
 ```
 
----
+詳細開發規範見 [`CONTRIBUTING.md`](CONTRIBUTING.md)。版本變更見 [`CHANGELOG.md`](CHANGELOG.md)。
 
-## 🐖 注意事项 🐖
+## 文檔索引
 
-- 新增小猪时只需在 `pig.json` 添加对象，并将对应图片放到 `image/` 文件夹即可 🐷  
-- 图片自动按 id 匹配，无需在 JSON 中写图片后缀 🐖  
+- [`docs/COMMANDS.md`](docs/COMMANDS.md) — 聊天指令、別名與玩法規則
+- [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — 全部配置項目
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — 安裝升級、遷移、存儲、同步、更新與故障排查
+- [`docs/README.md`](docs/README.md) — 文檔目錄與歷史技術說明索引
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — 開發與貢獻流程
+- [`CHANGELOG.md`](CHANGELOG.md) — 發版歷史
 
-## 🎖️ 致谢
-- 本插件基于[nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)的核心逻辑进行改造。
-- 欢迎前往原仓库为作者的辛苦付出点亮 ⭐ Star 支持！
+## 致謝
 
-## 📜 许可证
+- 原始核心邏輯：[Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
+- AstrBot 版本上游：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)
+- 本增強維護分支：`casama233/astrbot_plugin_rollpig`
 
-本项目采用 [MIT 许可证](LICENSE) 开源，详情请查阅许可证文件
+## License
+
+本專案採用 [MIT License](LICENSE)。衍生維護仍保留原作者署名與授權資訊。
 
 ![Star History Chart](https://api.star-history.com/svg?repos=casama233/astrbot_plugin_rollpig&type)
-
-
-## 2.4.0 稳定性与安全更新
-
-- 今日抽取改为单事务写入，避免并发造成今日结果与永久图鉴不一致。
-- `@他人` 仅查看已有结果，不再替对方抽取，也不能绕过被吃惩罚。
-- 用户与群组 ID 加入平台命名空间；旧数据在读取时保持兼容。
-- JSON 损坏时保留 `.corrupt-*` 副本，并优先尝试 `.bak` 恢复。
-- AI 文案增加可配置超时并按小猪分片加锁，避免单次模型卡住全部请求。
-- 云资源限制重定向主机、拒绝私网解析、限制图片像素，并边下载边落盘。
-- 管理页写操作增加同源与 CSRF 校验；缩略图改用压缩 PNG，降低响应体积。
-- 新增每日边界时区配置，并修正图片句柄与裁剪行为。
