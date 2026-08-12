@@ -91,6 +91,7 @@ jobs:
             --exclude '.pre-commit-config.yaml' \
             --exclude 'CONTRIBUTING.md' \
             --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
+            --exclude 'resource/font/荆南麦圆体.otf' \
             --exclude '*.pyc' \
             --exclude '*.pyo' \
             --exclude '.env' \
@@ -99,10 +100,10 @@ jobs:
           (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
 
           archive_size=$(stat -c%s "dist/$ARCHIVE")
-          marketplace_limit=$((16 * 1024 * 1024))
+          marketplace_limit=16000000
           echo "Release archive size: $archive_size bytes"
           if [ "$archive_size" -gt "$marketplace_limit" ]; then
-            echo "::error::Release archive exceeds AstrBot marketplace limit: $archive_size > $marketplace_limit bytes (16 MiB)"
+            echo "::error::Release archive exceeds AstrBot marketplace limit: $archive_size > $marketplace_limit bytes (16 MB)"
             exit 1
           fi
 
