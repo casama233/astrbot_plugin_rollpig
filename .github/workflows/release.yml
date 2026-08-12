@@ -84,13 +84,29 @@ jobs:
             --exclude 'dist/' \
             --exclude 'tests/' \
             --exclude 'scripts/' \
+            --exclude 'docs/' \
             --exclude 'node_modules/' \
+            --exclude 'package.json' \
+            --exclude 'package-lock.json' \
+            --exclude '.pre-commit-config.yaml' \
+            --exclude 'CONTRIBUTING.md' \
+            --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
+            --exclude 'resource/font/荆南麦圆体.otf' \
             --exclude '*.pyc' \
             --exclude '*.pyo' \
             --exclude '.env' \
             --exclude 'data/' \
             --exclude 'plugin_data/'
           (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
+
+          archive_size=$(stat -c%s "dist/$ARCHIVE")
+          marketplace_limit=16000000
+          echo "Release archive size: $archive_size bytes"
+          if [ "$archive_size" -gt "$marketplace_limit" ]; then
+            echo "::error::Release archive exceeds AstrBot marketplace limit: $archive_size > $marketplace_limit bytes (16 MB)"
+            exit 1
+          fi
+
           (cd dist && sha256sum "$ARCHIVE" > SHA256SUMS)
 
       - name: Publish stable GitHub Release
