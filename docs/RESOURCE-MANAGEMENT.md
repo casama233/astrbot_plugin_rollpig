@@ -1,12 +1,12 @@
 # 小豬資源管理手冊
 
-本文對應 v3.3.0，面向需要維護本地圖鑑、私人豬源或 PigHub 投稿的插件管理員。
+本文對應 v3.4.0，面向需要維護本地圖鑑、AstrBot／私人豬源或 PigHub 投稿的插件管理員。
 
 ## 1. 資源分層模型
 
 最終圖鑑不是由單一 `pig.json` 直接覆蓋，而是按層合併：
 
-1. **基礎層**：成功同步的私人源；沒有有效私人源時使用插件內置資源。
+1. **基礎層**：成功同步的 AstrBot 專用源或私人源；遠端不可用時使用插件內置資源。
 2. **本地覆蓋層**：管理面板新增的記錄，以及對基礎記錄的名稱、描述、文案或圖片修改。
 3. **刪除屏蔽層**：被管理員刪除的 ID，優先級最高。
 
@@ -39,7 +39,7 @@
 4. 回到編輯視窗，選擇「本地上傳」替換圖片。
 5. 保存後圖片會統一為 `512×512 PNG`。
 
-下載的是目前真正生效的圖片：本地圖片優先，其次私人源，最後才是內置資源。
+下載的是目前真正生效的圖片：本地圖片優先，其次 AstrBot／私人源，最後才是內置資源。
 
 ### 取消屏蔽
 
@@ -48,9 +48,15 @@
 3. 點擊「取消屏蔽」並再次確認。
 4. 面板會同時刷新總覽、圖鑑、資源層與同步狀態。
 
-## 3. 私人 manifest
+## 3. AstrBot 專用源與私人 manifest
 
-插件沒有內置公共完整豬源。`resource_manifest_url` 應指向你有權使用的 HTTPS manifest。
+插件預設連接本專案維護的 AstrBot v1 專用源：
+
+```text
+https://curryudon.top/astrbot-rollpig/v1/manifest.json
+```
+
+你也可以把 `resource_manifest_url` 改成有權使用的 HTTPS 私人 manifest。
 
 最小示例：
 
@@ -108,13 +114,15 @@
 
 舊版預填的 `https://pig.felislab.cc/resources/rollpig/manifest.json` 屬於 `nonebot-plugin-rollpig-plus` 的受限官方源。服務端會對本 AstrBot 插件回傳 HTTP 403，並拒絕未授權客戶端。
 
-這不是 manifest 解析、圖片格式或 SQLite 問題。v3.3.0 的處理方式：
+這不是 manifest 解析、圖片格式或 SQLite 問題。v3.4.0 的處理方式：
 
-- 新安裝預設關閉私人源同步。
-- `resource_manifest_url` 預設留空。
-- 既有配置不被靜默刪除，方便管理員看到原始故障原因。
-- 面板識別受限來源的 403 後，顯示明確診斷並停用重複同步。
-- 沒有私人源時繼續使用內置資源與全部本地改動。
+- 新安裝預設啟用 AstrBot v1 專用源。
+- 舊 nonebot URL 會精確遷移到新來源；自訂私人 URL 不會被覆蓋。
+- 新來源要求 `X-RollPig-Client`、`X-RollPig-Protocol` 與 AstrBot 版本化 User-Agent。
+- 普通瀏覽器、錯誤客戶端和 nonebot 請求會回傳 HTTP 403，AstrBot v1 客戶端正常取得資源。
+- 遠端失敗時仍保留既有快取，沒有快取時回退內置資源與全部本地改動。
+
+協議標頭可被開源客戶端模仿，作用是阻擋誤用與不相容客戶端，不等同密碼學認證。封閉私人源請額外加入每實例 Token 或 mTLS。來源的建構、部署與回退見 [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md)。
 
 ## 5. PigHub 公共審核投稿
 
@@ -157,7 +165,7 @@
 
 ### 面板顯示「來源不可用」
 
-檢查是否仍指向舊 nonebot 受限源。改成自有 manifest，或保持同步關閉。
+舊 nonebot 地址在 v3.4.0 會自動遷移。若自訂源仍顯示不可用，檢查 HTTPS、協議欄位、大小、SHA-256 與伺服器回應。
 
 ### 取消屏蔽後仍看不到小豬
 

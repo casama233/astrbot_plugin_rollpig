@@ -1,6 +1,6 @@
 # 配置參考
 
-本文對應 v3.3.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
+本文對應 v3.4.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
 
 > [!NOTE]
 > 程式會對數值配置再次做範圍夾取與類型容錯，因此超出範圍的值通常會被限制到安全區間；仍建議只填本文列出的有效值。
@@ -49,9 +49,9 @@ AI 烤豬文案預設關閉。啟用後，同一隻小豬同一天最多實際�
 
 | 配置鍵 | 類型 | 預設 | 有效值／範圍 | 說明 |
 | --- | --- | --- | --- | --- |
-| `resource_sync_enabled` | bool | `false` | `true` / `false` | 是否自動同步私人小豬資源。關閉不會刪除既有快取。 |
-| `resource_manifest_url` | string | 空字串 | HTTPS URL | 你有權使用的私人 manifest；沒有配置時使用插件內置基礎層。 |
-| `resource_sync_interval_hours` | float | `24` | `1-168` | 啟用後自動檢查私人資源的時間間隔。 |
+| `resource_sync_enabled` | bool | `true` | `true` / `false` | 是否自動同步 AstrBot／私人小豬資源。關閉不會刪除既有快取。 |
+| `resource_manifest_url` | string | AstrBot v1 專用源 | HTTPS URL | 預設使用本專案維護的來源，也可改成相容私人 manifest。 |
+| `resource_sync_interval_hours` | float | `24` | `1-168` | 啟用後自動檢查遠端資源的時間間隔。 |
 | `resource_sync_timeout` | float | `30` | `2-120` | 資源網路連線超時秒數；圖片讀取會保留更寬裕的下限並帶重試。 |
 | `resource_use_system_proxy` | bool | `false` | `true` / `false` | 是否讓 HTTP 客戶端信任系統代理環境。預設直連，避免失效代理造成 TLS 卡住。 |
 | `resource_max_file_size_mb` | int | `10` | `1-50` | 單個資源檔大小上限（MiB）；也用於 PigHub 圖片導入限制。 |
@@ -68,7 +68,7 @@ AI 烤豬文案預設關閉。啟用後，同一隻小豬同一天最多實際�
 
 如果同步失敗，插件會繼續使用既有快取或內置資源，不會先刪掉可用資料。
 
-v3.3.0 不再預填 `pig.felislab.cc`。該地址屬於 nonebot 專用受限來源，實測會拒絕本 AstrBot 插件；既有安裝的配置不會被自動改寫，管理面板會根據 HTTP 403 顯示診斷。完整格式與排錯方式見 [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md)。
+v3.4.0 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。來源要求 AstrBot v1 的 Client／Protocol 標頭與版本化 User-Agent；普通瀏覽器和 nonebot 客戶端會收到 HTTP 403。精確匹配舊 `pig.felislab.cc` 地址的配置會遷移到新來源，其他自訂 URL 保持不變。完整格式與排錯方式見 [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md)。
 
 ## 管理面板安全更新
 

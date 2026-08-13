@@ -3,7 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_v330_release_contract_is_readable_lazy_and_versioned():
+def test_v340_release_contract_is_readable_lazy_and_versioned():
     metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")
     main = (ROOT / "main.py").read_text(encoding="utf-8")
     updater = (ROOT / "updater.py").read_text(encoding="utf-8")
@@ -13,9 +13,9 @@ def test_v330_release_contract_is_readable_lazy_and_versioned():
     release_workflow = (ROOT / ".github/workflows/release.yml").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.3.0"' in metadata
-    assert "AstrBot-RollPig/3.3.0" in main
-    assert "AstrBot-RollPig-Safe-Updater/3.3.0" in updater
+    assert 'version: "3.4.0"' in metadata
+    assert "AstrBot-RollPig/3.4.0" in main
+    assert "AstrBot-RollPig-Safe-Updater/3.4.0" in updater
     assert "analyticsLoadBtn" in bootstrap
     assert "sessionStorage" not in bootstrap
     assert "v3.1.2 readable typography override" in css

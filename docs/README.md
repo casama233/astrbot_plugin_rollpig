@@ -10,6 +10,7 @@
 | [`COMMANDS.md`](COMMANDS.md) | 完整聊天指令、別名、上下文限制與玩法規則 |
 | [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 全配置說明、預設值與建議 |
 | [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、PigHub 投稿與同步排錯 |
+| [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、協議閘門、部署與回退 |
 | [`OPERATIONS.md`](OPERATIONS.md) | 身份遷移、SQLite、備份、同步、安全更新與故障排查 |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 開發環境、測試、提交與文檔維護規範 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 版本變更記錄 |

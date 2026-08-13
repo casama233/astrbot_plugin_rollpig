@@ -278,13 +278,26 @@ def test_v330_pighub_submission_uses_fixed_bounded_endpoints():
     assert "只能提交本地新增或本地覆盖的小猪" in payload
 
 
-def test_v330_private_resource_sync_is_opt_in_without_rejected_default():
+def test_v340_astrbot_resource_source_replaces_rejected_nonebot_default():
     config = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
-    assert config["resource_sync_enabled"]["default"] is False
-    assert config["resource_manifest_url"]["default"] == ""
+    assert config["resource_sync_enabled"]["default"] is True
+    assert config["resource_manifest_url"]["default"] == (
+        "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
+    )
     assert "pig.felislab.cc/resources/rollpig" not in json.dumps(
         config, ensure_ascii=False
     )
+
+    init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
+    client = ast.get_source_segment(SOURCE, _method("_resource_request_headers")) or ""
+    sync = ast.get_source_segment(SOURCE, _method("sync_cloud_resources")) or ""
+    assert "LEGACY_REJECTED_RESOURCE_URL" in init
+    assert "OFFICIAL_RESOURCE_MANIFEST_URL" in init
+    assert "X-RollPig-Client" in client
+    assert "X-RollPig-Protocol" in client
+    assert "extra_headers=self._resource_request_headers()" in sync
+    assert "manifest 协议版本不受支持" in sync
+    assert "AstrBot 官方资源源客户端标识不匹配" in sync
 
 
 
@@ -340,8 +353,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.3.0"' in metadata
-    assert "AstrBot-RollPig/3.3.0" in SOURCE
+    assert 'version: "3.4.0"' in metadata
+    assert "AstrBot-RollPig/3.4.0" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
