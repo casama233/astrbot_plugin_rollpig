@@ -78,16 +78,16 @@
         "default": "auto"
     },
     "resource_sync_enabled": {
-        "description": "开启私人小猪资源同步",
-        "hint": "需同时填写你有权使用的 manifest；每次更新只替换基础层，本地新增、编辑与删除屏蔽不会被覆盖",
+        "description": "开启 AstrBot 小猪资源同步",
+        "hint": "默认使用本项目维护的 AstrBot 专用源；每次更新只替换基础层，本地新增、编辑与删除屏蔽不会被覆盖",
         "type": "bool",
-        "default": false
+        "default": true
     },
     "resource_manifest_url": {
         "description": "云端资源 manifest 地址",
-        "hint": "必须是你有权使用的 HTTPS 私人源；插件不再预填会拒绝第三方客户端的 nonebot 官方源",
+        "hint": "默认使用 AstrBot 专用源；也可改成你有权使用、兼容 v1 manifest 协议的 HTTPS 私人源",
         "type": "string",
-        "default": ""
+        "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
     },
     "resource_sync_interval_hours": {
         "description": "云资源自动同步间隔（小时）",
