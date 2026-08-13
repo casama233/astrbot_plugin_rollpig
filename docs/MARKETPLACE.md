@@ -38,7 +38,7 @@ https://github.com/casama233/astrbot_plugin_rollpig
 
 v3.2.0 的 Release ZIP 為 19,933,444 bytes，超過官方 16 MB 上限。v3.2.1 起採用以下市場分發策略：
 
-- 不打包測試、開發配置、文件站資料與 Node 測試依賴資訊。
+- 不打包測試、開發配置與 Node 測試依賴資訊；README 導航所需的 `docs/` 隨包保留。
 - 市場與 Release 精簡包不打包 `resource/font/HanyiYongZiXiaoXiongMaoFan.ttf` 與 `resource/font/荆南麦圆体.otf` 兩個大型、非核心字體。
 - 兩個字體仍保留在 Git 倉庫，原始碼 clone / 開發環境不受影響。
 - 精簡包保留 `可爱字体.ttf`、小豬圖片、資料、Plugin Pages 與全部運行程式碼；缺少裝飾/兜底字體時使用現有系統字體降級鏈。
@@ -56,7 +56,7 @@ AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、�
 {
   "name": "astrbot_plugin_rollpig_plus",
   "display_name": "今日小豬 · 增強版",
-  "desc": "獨立維護的今日小豬增強版 fork，保留原作者署名與 MIT License；SQLite 單一運行時權威、按需 JSON 備份與安全更新",
+  "desc": "獨立維護的今日小豬增強版；提供永久圖鑑、群聊玩法、本地資源分層、PigHub 審核投稿、SQLite 安全存儲與管理面板",
   "author": "casama233",
   "repo": "https://github.com/casama233/astrbot_plugin_rollpig",
   "tags": ["娛樂", "群聊互動", "每日抽取", "圖鑑", "WebUI"],
@@ -67,7 +67,7 @@ AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、�
 市場卡片的短描述由 `metadata.yaml` 的 `short_desc` 提供：
 
 ```text
-每日抽小豬、圖鑑收集、群友互動與管理面板
+每日抽小豬、圖鑑收集、群友互動與可視化資源管理
 ```
 
 ## 發佈前檢查

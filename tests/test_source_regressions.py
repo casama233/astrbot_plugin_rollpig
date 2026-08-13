@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -231,6 +232,61 @@ def test_catalog_image_changes_are_compensated_on_metadata_failure():
     assert "_restore_custom_images" in delete
 
 
+def test_v330_resource_management_routes_are_safe_and_complete():
+    original = ast.get_source_segment(SOURCE, _method("page_pig_original_image")) or ""
+    layers = ast.get_source_segment(SOURCE, _method("page_catalog_layers")) or ""
+    unblock = ast.get_source_segment(SOURCE, _method("page_pig_unblock")) or ""
+    submit = ast.get_source_segment(SOURCE, _method("page_pig_submit_pighub")) or ""
+    restore = ast.get_source_segment(SOURCE, _method("_persist_catalog_restore")) or ""
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "_find_catalog_pig" in original
+    assert "asyncio.to_thread(self._original_image_payload" in original
+    assert "_build_catalog_layers" in layers
+    assert "_is_authorized_write_request" in unblock
+    assert "_persist_catalog_restore" in unblock
+    assert "restore_catalog_entry" in restore
+    assert "_is_authorized_write_request" in submit
+    assert 'payload.get("confirm") is not True' in submit
+    assert "_submit_local_pig_to_pighub" in submit
+
+    for marker in (
+        'id="view-layers"',
+        "catalog/layers",
+        "pigs/unblock",
+        "pigs/submit-pighub",
+        'id="downloadOriginalBtn"',
+        "pigs/original-image",
+    ):
+        assert marker in page
+
+
+def test_v330_pighub_submission_uses_fixed_bounded_endpoints():
+    submit = ast.get_source_segment(
+        SOURCE, _method("_submit_local_pig_to_pighub")
+    ) or ""
+    payload = ast.get_source_segment(
+        SOURCE, _method("_pighub_submission_payload")
+    ) or ""
+    assert "self.PIGHUB_UPLOAD_API" in submit
+    assert "self.PIGHUB_PENDING_API" in submit
+    assert submit.count("self._read_response_limited") == 2
+    assert "follow_redirects=False" in submit
+    assert "self.PIGHUB_SUBMISSION_MAX_SIZE" in payload
+    assert "只能提交本地新增或本地覆盖的小猪" in payload
+
+
+def test_v330_private_resource_sync_is_opt_in_without_rejected_default():
+    config = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
+    assert config["resource_sync_enabled"]["default"] is False
+    assert config["resource_manifest_url"]["default"] == ""
+    assert "pig.felislab.cc/resources/rollpig" not in json.dumps(
+        config, ensure_ascii=False
+    )
+
+
 
 def test_v213_runtime_uses_sql_snapshot_and_unique_ai_generation_claim():
     init = ast.get_source_segment(SOURCE, _method("__init__")) or ""
@@ -284,8 +340,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.2.1"' in metadata
-    assert "AstrBot-RollPig/3.2.0" in SOURCE
+    assert 'version: "3.3.0"' in metadata
+    assert "AstrBot-RollPig/3.3.0" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary

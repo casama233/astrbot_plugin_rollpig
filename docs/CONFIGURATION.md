@@ -1,6 +1,6 @@
 # 配置參考
 
-本文對應 v3.2.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
+本文對應 v3.3.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
 
 > [!NOTE]
 > 程式會對數值配置再次做範圍夾取與類型容錯，因此超出範圍的值通常會被限制到安全區間；仍建議只填本文列出的有效值。
@@ -45,18 +45,18 @@ AI 烤豬文案預設關閉。啟用後，同一隻小豬同一天最多實際�
 
 主題時間使用插件的每日時區設定。
 
-## 公共資源同步
+## 私人資源同步
 
 | 配置鍵 | 類型 | 預設 | 有效值／範圍 | 說明 |
 | --- | --- | --- | --- | --- |
-| `resource_sync_enabled` | bool | `true` | `true` / `false` | 是否自動同步公共小豬資源。關閉不會刪除已存在的本地快取。 |
-| `resource_manifest_url` | string | `https://pig.felislab.cc/resources/rollpig/manifest.json` | HTTPS URL | 公共資源 manifest。程式會限制協議與網路目的地，避免不安全下載。 |
-| `resource_sync_interval_hours` | float | `24` | `1-168` | 自動檢查公共資源的時間間隔。 |
+| `resource_sync_enabled` | bool | `false` | `true` / `false` | 是否自動同步私人小豬資源。關閉不會刪除既有快取。 |
+| `resource_manifest_url` | string | 空字串 | HTTPS URL | 你有權使用的私人 manifest；沒有配置時使用插件內置基礎層。 |
+| `resource_sync_interval_hours` | float | `24` | `1-168` | 啟用後自動檢查私人資源的時間間隔。 |
 | `resource_sync_timeout` | float | `30` | `2-120` | 資源網路連線超時秒數；圖片讀取會保留更寬裕的下限並帶重試。 |
 | `resource_use_system_proxy` | bool | `false` | `true` / `false` | 是否讓 HTTP 客戶端信任系統代理環境。預設直連，避免失效代理造成 TLS 卡住。 |
 | `resource_max_file_size_mb` | int | `10` | `1-50` | 單個資源檔大小上限（MiB）；也用於 PigHub 圖片導入限制。 |
 
-### 自訂 manifest 的注意事項
+### manifest 注意事項
 
 雖然 `resource_manifest_url` 可配置，但它不是任意檔案下載器。插件仍會：
 
@@ -67,6 +67,8 @@ AI 烤豬文案預設關閉。啟用後，同一隻小豬同一天最多實際�
 - 整包通過後才原子替換 active 資源。
 
 如果同步失敗，插件會繼續使用既有快取或內置資源，不會先刪掉可用資料。
+
+v3.3.0 不再預填 `pig.felislab.cc`。該地址屬於 nonebot 專用受限來源，實測會拒絕本 AstrBot 插件；既有安裝的配置不會被自動改寫，管理面板會根據 HTTP 403 顯示診斷。完整格式與排錯方式見 [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md)。
 
 ## 管理面板安全更新
 

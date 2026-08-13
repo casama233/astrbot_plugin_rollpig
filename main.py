@@ -61,6 +61,14 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 class RollPigPlugin(Star):
     PLUGIN_NAME = "astrbot_plugin_rollpig_plus"
     IMAGE_EXTENSIONS = ("png", "jpg", "jpeg", "webp", "gif")
+    IMAGE_MIME_TYPES = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+        "gif": "image/gif",
+    }
+    ORIGINAL_IMAGE_DOWNLOAD_MAX_SIZE = 50 * 1024 * 1024
     CATALOG_PAGE_SIZE = 12
     CANVAS_WIDTH = 800  # 画布宽度
     CANVAS_HEIGHT = 800  # 画布高度
@@ -83,6 +91,10 @@ class RollPigPlugin(Star):
     )
     PIGHUB_ORIGIN = "https://pighub.top/"
     PIGHUB_IMAGE_BASE_URL = "https://pighub.top/data/"
+    PIGHUB_UPLOAD_API = "https://img.scdn.io/api/v1.php"
+    PIGHUB_PENDING_API = "https://pighub.top/api/images/pending/add"
+    PIGHUB_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024
+    PIGHUB_RESPONSE_MAX_SIZE = 256 * 1024
     PIGHUB_THUMBNAIL_SIZE = 160
     PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
     PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
@@ -95,7 +107,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.2.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.3.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -184,12 +196,12 @@ class RollPigPlugin(Star):
         image_theme = str(self.config.get("image_theme", "auto") or "auto").lower()
         self.image_theme = image_theme if image_theme in {"auto", "light", "dark"} else "auto"
         self.resource_sync_enabled = self.config.get(
-            "resource_sync_enabled", True
+            "resource_sync_enabled", False
         )
         self.resource_manifest_url = str(
             self.config.get(
                 "resource_manifest_url",
-                "https://pig.felislab.cc/resources/rollpig/manifest.json",
+                "",
             )
             or ""
         ).strip()
@@ -285,6 +297,7 @@ class RollPigPlugin(Star):
         self._pighub_thumbnail_failures: dict[str, float] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
+        self._pighub_submit_lock = asyncio.Lock()
         self._daily_draw_lock = asyncio.Lock()
         self._ai_roast_copy_locks: dict[str, asyncio.Lock] = {}
         self._csrf_token = secrets.token_urlsafe(32)
@@ -373,6 +386,12 @@ class RollPigPlugin(Star):
             "今日小猪图鉴管理",
         )
         context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pigs/original-image",
+            self.page_pig_original_image,
+            ["GET"],
+            "下载小猪原图用于重修",
+        )
+        context.register_web_api(
             f"/{self.PLUGIN_NAME}/pigs/save",
             self.page_pig_save,
             ["POST"],
@@ -389,6 +408,24 @@ class RollPigPlugin(Star):
             self.page_pig_delete,
             ["POST"],
             "删除小猪",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/catalog/layers",
+            self.page_catalog_layers,
+            ["GET"],
+            "查看本地覆盖与删除屏蔽",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pigs/unblock",
+            self.page_pig_unblock,
+            ["POST"],
+            "取消屏蔽小猪",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/pigs/submit-pighub",
+            self.page_pig_submit_pighub,
+            ["POST"],
+            "提交本地小猪到 PigHub 审核",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/resources/status",
@@ -1032,13 +1069,30 @@ class RollPigPlugin(Star):
             except Exception:
                 pass
         state = self._cloud_state()
+        last_error = str(status.get("last_error") or "")
+        manifest_host = str(
+            urlsplit(self.resource_manifest_url).hostname or ""
+        ).lower()
+        source_rejected = manifest_host == "pig.felislab.cc" and "403" in last_error
+        diagnosis = ""
+        if source_rejected:
+            diagnosis = (
+                "该地址是 nonebot-plugin-rollpig-plus 的受限官方源，"
+                "服务端会拒绝本 AstrBot 插件；请换成你有权使用的私人 manifest。"
+            )
+        elif not self.resource_manifest_url:
+            diagnosis = "尚未配置私人 manifest 地址；本地与内置小猪仍可正常使用。"
+        elif not self.resource_sync_enabled:
+            diagnosis = "自动同步目前已关闭；仍可在确认来源可用后手动同步。"
         return {
             "enabled": bool(self.resource_sync_enabled),
             "source": self._catalog_source,
             "version": str(state.get("resource_version") or "builtin"),
             "last_success": int(state.get("synced_at") or 0),
             "last_attempt": int(status.get("last_attempt") or 0),
-            "last_error": str(status.get("last_error") or ""),
+            "last_error": last_error,
+            "diagnosis": diagnosis,
+            "source_rejected": source_rejected,
             "interval_hours": self.resource_sync_interval_hours,
             "manifest_url": self.resource_manifest_url,
             "local_overrides": len(
@@ -1502,6 +1556,153 @@ class RollPigPlugin(Star):
             return await self._download_limited(
                 client, url, self.resource_max_file_size
             )
+
+    @staticmethod
+    async def _read_response_limited(
+        response: httpx.Response, max_size: int
+    ) -> bytes:
+        length = str(response.headers.get("Content-Length") or "")
+        if length.isdigit() and int(length) > max_size:
+            raise ValueError("远端响应超过安全大小上限")
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes():
+            total += len(chunk)
+            if total > max_size:
+                raise ValueError("远端响应超过安全大小上限")
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    def _pighub_submission_payload(
+        self, pig_id: str
+    ) -> tuple[dict, bytes, str, str, str]:
+        """Resolve one local override to the upload fields accepted by PigHub."""
+        with self._data_lock:
+            overrides = self._validate_pig_records(
+                self._runtime_document(
+                    "catalog_overrides", self.local_overrides_path, []
+                )
+            )
+            record = next(
+                (dict(item) for item in overrides if item["id"] == pig_id), None
+            )
+            if not record:
+                raise ValueError("只能提交本地新增或本地覆盖的小猪")
+            path = self.find_image_file(pig_id)
+            if not path or not path.is_file():
+                raise ValueError("这只本地小猪没有可提交的图片")
+            raw = path.read_bytes()
+        if not raw:
+            raise ValueError("小猪图片为空")
+        if len(raw) > self.PIGHUB_SUBMISSION_MAX_SIZE:
+            raise ValueError("PigHub 投稿图片不能超过 10MB")
+        extension = path.suffix.lower().lstrip(".")
+        if extension not in {"png", "jpg", "jpeg", "gif"}:
+            with PILImage.open(io.BytesIO(raw)) as source:
+                output = io.BytesIO()
+                ImageOps.exif_transpose(source).convert("RGBA").save(
+                    output, "PNG", optimize=True
+                )
+                raw = output.getvalue()
+            extension = "png"
+        if len(raw) > self.PIGHUB_SUBMISSION_MAX_SIZE:
+            raise ValueError("转换后的 PigHub 投稿图片超过 10MB")
+        mime = self.IMAGE_MIME_TYPES[extension]
+        upload_filename = f"{pig_id}.{extension}"
+        review_name = re.sub(
+            r"[/\\\x00-\x1f]", "-", str(record.get("name") or pig_id)
+        ).strip(" .") or pig_id
+        review_filename = f"{review_name}.{extension}"
+        return record, raw, upload_filename, review_filename, mime
+
+    async def _submit_local_pig_to_pighub(self, pig_id: str) -> dict:
+        """Use PigHub's documented web upload flow and return its review result."""
+        record, raw, upload_filename, review_filename, mime = await asyncio.to_thread(
+            self._pighub_submission_payload, pig_id
+        )
+        async with self._pighub_submit_lock:
+            async with self._new_http_client(
+                follow_redirects=False, request_timeout=30
+            ) as client:
+                async with client.stream(
+                    "POST",
+                    self.PIGHUB_UPLOAD_API,
+                    files={"image": (upload_filename, raw, mime)},
+                    data={"name": str(record.get("name") or pig_id)},
+                    headers={
+                        "Origin": self.PIGHUB_ORIGIN.rstrip("/"),
+                        "Referer": self.PIGHUB_ORIGIN + "upload",
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    upload_raw = await self._read_response_limited(
+                        response, self.PIGHUB_RESPONSE_MAX_SIZE
+                    )
+                try:
+                    upload = json.loads(upload_raw.decode("utf-8-sig"))
+                except Exception as exc:
+                    raise ValueError("PigHub 图片托管服务返回了无效数据") from exc
+                upload_data = upload.get("data") if isinstance(upload, dict) else None
+                image_url = str(
+                    (upload.get("url") if isinstance(upload, dict) else "")
+                    or (upload_data.get("url") if isinstance(upload_data, dict) else "")
+                    or ""
+                ).strip()
+                if (
+                    not isinstance(upload, dict)
+                    or not upload.get("success")
+                    or not image_url
+                ):
+                    message = (
+                        str(upload.get("message") or "图片托管失败")
+                        if isinstance(upload, dict)
+                        else "图片托管失败"
+                    )
+                    raise ValueError(f"PigHub 投稿失败：{message[:160]}")
+                parsed = urlsplit(image_url)
+                if (
+                    parsed.scheme != "https"
+                    or not parsed.hostname
+                    or parsed.username
+                    or parsed.password
+                    or len(image_url) > 2048
+                ):
+                    raise ValueError("PigHub 图片托管服务返回了不安全的图片地址")
+                async with client.stream(
+                    "POST",
+                    self.PIGHUB_PENDING_API,
+                    data={"url": image_url, "filename": review_filename},
+                    headers={
+                        "Origin": self.PIGHUB_ORIGIN.rstrip("/"),
+                        "Referer": self.PIGHUB_ORIGIN + "upload",
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    pending_raw = await self._read_response_limited(
+                        response, self.PIGHUB_RESPONSE_MAX_SIZE
+                    )
+                try:
+                    pending = json.loads(pending_raw.decode("utf-8-sig"))
+                except Exception as exc:
+                    raise ValueError("PigHub 审核接口返回了无效数据") from exc
+                if not isinstance(pending, dict) or str(pending.get("code")) != "0":
+                    message = (
+                        str(
+                            pending.get("message")
+                            or pending.get("msg")
+                            or "加入审核队列失败"
+                        )
+                        if isinstance(pending, dict)
+                        else "加入审核队列失败"
+                    )
+                    raise ValueError(f"PigHub 投稿失败：{message[:160]}")
+                return {
+                    "id": pig_id,
+                    "name": str(record.get("name") or pig_id),
+                    "image_url": image_url,
+                    "review_url": self.PIGHUB_ORIGIN + "upload",
+                    "message": "已提交到 PigHub 审核队列",
+                }
 
     def _pighub_thumbnail_path(self, image_url: str) -> Path:
         """将可信 URL 映射为固定文件名，避免把远端路径写入本地文件系统。"""
@@ -4331,6 +4532,98 @@ class RollPigPlugin(Star):
                 raise
             self._reload_catalog_layers()
 
+    def _persist_catalog_restore(self, pig_id: str) -> None:
+        """Remove a local tombstone without inventing a missing base record."""
+        with self._data_lock:
+            tombstones = {
+                str(item)
+                for item in self._runtime_document(
+                    "catalog_tombstones", self.tombstones_path, []
+                )
+            }
+            if pig_id not in tombstones:
+                raise ValueError("该小猪没有被本地屏蔽")
+            if getattr(self.storage, "supports_domain_writes", False):
+                result = self.storage.restore_catalog_entry(pig_id=str(pig_id))
+                self._runtime_snapshot["catalog_overrides"] = result.get(
+                    "overrides", []
+                )
+                self._runtime_snapshot["catalog_tombstones"] = result.get(
+                    "tombstones", []
+                )
+            else:
+                tombstones.discard(pig_id)
+                self.save_json(self.tombstones_path, sorted(tombstones))
+            self._reload_catalog_layers()
+
+    def _build_catalog_layers(self) -> dict:
+        """Build dashboard-safe views of local overrides and tombstones."""
+        with self._data_lock:
+            cloud = self._load_cloud_pigs()
+            base = cloud or self._bundled_pigs
+            base_source = "cloud" if cloud else "bundled"
+            base_map = {str(item.get("id")): dict(item) for item in base}
+            overrides = self._validate_pig_records(
+                self._runtime_document(
+                    "catalog_overrides", self.local_overrides_path, []
+                )
+            )
+            tombstones = sorted(
+                {
+                    str(item)
+                    for item in self._runtime_document(
+                        "catalog_tombstones", self.tombstones_path, []
+                    )
+                    if re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", str(item))
+                }
+            )
+            snapshots = self.history.get("pig_snapshots", {})
+            override_items: list[dict] = []
+            for record in overrides:
+                item = dict(record)
+                pig_id = item["id"]
+                base_exists = pig_id in base_map
+                item.update(
+                    {
+                        "thumbnail": self._thumbnail_pixels(pig_id),
+                        "custom_image": any(
+                            (self.custom_image_dir / f"{pig_id}.{ext}").exists()
+                            for ext in self.IMAGE_EXTENSIONS
+                        ),
+                        "base_exists": base_exists,
+                        "layer_kind": "override" if base_exists else "local",
+                    }
+                )
+                override_items.append(item)
+            blocked_items: list[dict] = []
+            for pig_id in tombstones:
+                record = base_map.get(pig_id)
+                if not record and isinstance(snapshots, dict):
+                    snapshot = snapshots.get(pig_id)
+                    record = dict(snapshot) if isinstance(snapshot, dict) else None
+                item = record or {
+                    "id": pig_id,
+                    "name": pig_id,
+                    "description": "来源中暂时没有这只小猪",
+                    "analysis": "取消屏蔽后，只有来源再次提供同 ID 资源时才会显示。",
+                }
+                item = dict(item)
+                item["id"] = pig_id
+                item.update(
+                    {
+                        "thumbnail": self._thumbnail_pixels(pig_id),
+                        "base_exists": pig_id in base_map,
+                    }
+                )
+                blocked_items.append(item)
+            return {
+                "overrides": override_items,
+                "tombstones": blocked_items,
+                "override_count": len(override_items),
+                "tombstone_count": len(blocked_items),
+                "base_source": base_source,
+            }
+
     def _build_overview_data(self) -> dict:
         """Build the dashboard snapshot off the event-loop thread."""
         with self._data_lock:
@@ -4844,6 +5137,43 @@ class RollPigPlugin(Star):
             logger.error(f"今日小猪管理页列表失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "获取小猪列表失败"})
 
+    def _original_image_payload(self, pig_id: str) -> dict:
+        """Read the resolved full-size image for an authenticated admin download."""
+        path = self.find_image_file(pig_id)
+        if not path or not path.is_file():
+            raise ValueError("该小猪没有可下载的原图")
+        raw = path.read_bytes()
+        if not raw:
+            raise ValueError("小猪原图为空")
+        if len(raw) > self.ORIGINAL_IMAGE_DOWNLOAD_MAX_SIZE:
+            raise ValueError("小猪原图超过 50MB，无法通过管理面板下载")
+        extension = path.suffix.lower().lstrip(".")
+        mime_type = self.IMAGE_MIME_TYPES.get(extension)
+        if not mime_type:
+            raise ValueError("小猪原图格式不受支持")
+        return {
+            "filename": f"{pig_id}-original.{extension}",
+            "mime_type": mime_type,
+            "bytes": len(raw),
+            "base64": base64.b64encode(raw).decode("ascii"),
+        }
+
+    async def page_pig_original_image(self):
+        """管理面板：下载当前生效的完整图片，供本地重修后重新上传。"""
+        try:
+            pig_id = str(request.query.get("id", "") or "").strip().lower()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
+                raise ValueError("小猪 ID 无效")
+            if not self._find_catalog_pig(pig_id):
+                raise ValueError("小猪不存在")
+            data = await asyncio.to_thread(self._original_image_payload, pig_id)
+            return self._jsonify({"status": "ok", "data": data})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.error(f"管理页下载小猪原图失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "下载小猪原图失败"})
+
     async def page_pig_suggest(self):
         """管理面板：为 PigHub 小猪生成可编辑的描述与文案草稿。"""
         try:
@@ -4924,7 +5254,7 @@ class RollPigPlugin(Star):
             }
             if pighub_url:
                 record["source_url"] = pighub_url
-            elif existing and existing.get("source_url"):
+            elif not image_content and existing and existing.get("source_url"):
                 record["source_url"] = existing["source_url"]
             await asyncio.to_thread(
                 self._persist_catalog_override, record, normalized_image
@@ -4963,6 +5293,86 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"今日小猪管理页删除失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "删除小猪失败"})
+
+    async def page_catalog_layers(self):
+        """管理面板：查看本地覆盖记录和删除屏蔽清单。"""
+        try:
+            data = await asyncio.to_thread(self._build_catalog_layers)
+            return self._jsonify({"status": "ok", "data": data})
+        except Exception as exc:
+            logger.error(f"读取小猪本地资源层失败：{exc}", exc_info=True)
+            return self._jsonify(
+                {"status": "error", "message": "读取本地资源管理清单失败"}
+            )
+
+    async def page_pig_unblock(self):
+        """管理面板：取消一个本地删除屏蔽。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify(
+                    {"status": "error", "message": "请求来源或令牌无效"}
+                )
+            pig_id = str(
+                payload.get("id") if isinstance(payload, dict) else ""
+            ).strip()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
+                raise ValueError("小猪 ID 无效")
+            await asyncio.to_thread(self._persist_catalog_restore, pig_id)
+            visible = bool(self._find_catalog_pig(pig_id))
+            message = (
+                "屏蔽已取消，小猪已恢复显示"
+                if visible
+                else "屏蔽已取消；当前基础源没有同 ID 资源，可重新新增这只小猪"
+            )
+            logger.info(f"管理页取消屏蔽小猪：{pig_id}")
+            return self._jsonify(
+                {"status": "ok", "message": message, "data": {"visible": visible}}
+            )
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.error(f"今日小猪管理页取消屏蔽失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "取消屏蔽失败"})
+
+    async def page_pig_submit_pighub(self):
+        """管理面板：经明确确认后提交本地图片到 PigHub 人工审核。"""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify(
+                    {"status": "error", "message": "请求来源或令牌无效"}
+                )
+            if not isinstance(payload, dict) or payload.get("confirm") is not True:
+                raise ValueError("提交前必须明确确认会把图片公开发送到 PigHub")
+            pig_id = str(payload.get("id") or "").strip()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
+                raise ValueError("小猪 ID 无效")
+            result = await self._submit_local_pig_to_pighub(pig_id)
+            logger.info(f"管理页已提交小猪到 PigHub 审核：{pig_id}")
+            return self._jsonify(
+                {"status": "ok", "message": result["message"], "data": result}
+            )
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                f"PigHub 投稿接口返回 HTTP {exc.response.status_code}"
+            )
+            return self._jsonify(
+                {
+                    "status": "error",
+                    "message": f"PigHub 投稿服务返回 HTTP {exc.response.status_code}",
+                }
+            )
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            logger.warning(f"PigHub 投稿网络失败：{exc}")
+            return self._jsonify(
+                {"status": "error", "message": "PigHub 投稿网络连接失败，请稍后再试"}
+            )
+        except Exception as exc:
+            logger.error(f"提交小猪到 PigHub 失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "PigHub 投稿失败"})
 
     async def page_update_status(self):
         """管理面板：返回本地版本、存储后端与最近更新状态。"""

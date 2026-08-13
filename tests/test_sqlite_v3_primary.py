@@ -86,6 +86,27 @@ def test_v3_hot_domain_writes_never_persist_compatibility_documents(tmp_path):
         assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
 
 
+def test_v330_catalog_tombstone_can_be_restored_transactionally(tmp_path):
+    storage = StorageManager(tmp_path, mode="auto").backend
+    record = {
+        "id": "local-pig",
+        "name": "本地猪",
+        "description": "本地限定",
+        "analysis": "取消屏蔽测试",
+    }
+    storage.upsert_catalog_override(record=record)
+    deleted = storage.delete_catalog_entry(pig_id="local-pig")
+    assert deleted == {"overrides": [], "tombstones": ["local-pig"]}
+
+    restored = storage.restore_catalog_entry(pig_id="local-pig")
+    assert restored == {"overrides": [], "tombstones": []}
+    with storage._connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM catalog_tombstones WHERE pig_id = 'local-pig'"
+        ).fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
+
+
 def test_v3_rejects_full_runtime_snapshot_writes(tmp_path):
     storage = StorageManager(tmp_path, mode="auto").backend
     with pytest.raises(RuntimeError, match="禁止整份 JSON 写回"):

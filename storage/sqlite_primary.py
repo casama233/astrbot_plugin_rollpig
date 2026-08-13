@@ -641,6 +641,19 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
             self._mark_primary_write_tx(connection)
             return {"overrides": overrides, "tombstones": tombstones}
 
+    def restore_catalog_entry(self, *, pig_id: str) -> dict[str, Any]:
+        """Remove one catalog tombstone so its base record may appear again."""
+        pig_id = str(pig_id).strip()
+        if not pig_id:
+            raise ValueError("小猪 ID 无效")
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)
+            )
+            overrides, tombstones = self._catalog_documents_from_sql(connection)
+            self._mark_primary_write_tx(connection)
+            return {"overrides": overrides, "tombstones": tombstones}
+
     @staticmethod
     def _valid_pig(value: Any) -> bool:
         return isinstance(value, dict) and bool(str(value.get("id") or "").strip())
