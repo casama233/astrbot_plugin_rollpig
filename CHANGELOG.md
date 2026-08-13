@@ -1,5 +1,18 @@
 # 更新
 
+## v3.4.0 (2026-08-14)
+
+### 版本主題：AstrBot 專用豬源
+
+- 建立 `AstrBot RollPig Resource Protocol v1`，以 `schema_version`、`client`、版本化 User-Agent 及專用請求標頭區分 AstrBot 增強版客戶端。
+- 上線 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`，首版提供完整 99 筆小豬資料與 99 張圖片。
+- 普通瀏覽器、錯誤 Client／Protocol 與 nonebot 客戶端請求回傳 HTTP 403；正確 AstrBot v1 請求回傳 200。
+- 新安裝預設啟用新來源；舊 `pig.felislab.cc` 受限地址會精確遷移，自訂私人來源不會被覆蓋。
+- 官方來源強制校驗 manifest 的協議版本與客戶端標識；私人 manifest 保留向下兼容。
+- 新增可重現的資源源建構器，拒絕壞資料、缺圖、多圖、非法 ID、超大或無法解碼圖片，並生成逐檔大小及 SHA-256。
+- 新增資源源 CI Artifact、OpenResty 路由範本及完整維護手冊，正式部署採不可變版本目錄與原子連結切換，支援快速回退。
+- 明確說明專用標頭是相容性閘門而非秘密；真正封閉的私人源應另加每實例 Token 或 mTLS。
+
 ## v3.3.0 (2026-08-14)
 
 ### 版本主題：可視化資源治理

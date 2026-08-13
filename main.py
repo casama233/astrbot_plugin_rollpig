@@ -60,6 +60,14 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 class RollPigPlugin(Star):
     PLUGIN_NAME = "astrbot_plugin_rollpig_plus"
+    RESOURCE_CLIENT_ID = PLUGIN_NAME
+    RESOURCE_PROTOCOL_VERSION = "1"
+    OFFICIAL_RESOURCE_MANIFEST_URL = (
+        "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
+    )
+    LEGACY_REJECTED_RESOURCE_URL = (
+        "https://pig.felislab.cc/resources/rollpig/manifest.json"
+    )
     IMAGE_EXTENSIONS = ("png", "jpg", "jpeg", "webp", "gif")
     IMAGE_MIME_TYPES = {
         "png": "image/png",
@@ -107,7 +115,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.3.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.4.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -195,16 +203,31 @@ class RollPigPlugin(Star):
         )
         image_theme = str(self.config.get("image_theme", "auto") or "auto").lower()
         self.image_theme = image_theme if image_theme in {"auto", "light", "dark"} else "auto"
-        self.resource_sync_enabled = self.config.get(
-            "resource_sync_enabled", False
-        )
-        self.resource_manifest_url = str(
+        self.resource_sync_enabled = self.config.get("resource_sync_enabled", True)
+        configured_manifest_url = str(
             self.config.get(
                 "resource_manifest_url",
-                "",
+                self.OFFICIAL_RESOURCE_MANIFEST_URL,
             )
             or ""
         ).strip()
+        self.resource_source_migrated = (
+            configured_manifest_url == self.LEGACY_REJECTED_RESOURCE_URL
+        )
+        self.resource_manifest_url = (
+            self.OFFICIAL_RESOURCE_MANIFEST_URL
+            if not configured_manifest_url or self.resource_source_migrated
+            else configured_manifest_url
+        )
+        if self.resource_source_migrated:
+            self.config["resource_manifest_url"] = self.resource_manifest_url
+            save_config = getattr(self.config, "save_config", None)
+            if callable(save_config):
+                try:
+                    save_config()
+                except Exception as exc:
+                    logger.warning(f"保存 AstrBot 专用资源源迁移配置失败：{exc}")
+            logger.info("已把失效的 nonebot 资源地址迁移为 AstrBot 专用资源源")
         try:
             sync_hours = float(
                 self.config.get("resource_sync_interval_hours", 24)
@@ -1074,14 +1097,15 @@ class RollPigPlugin(Star):
             urlsplit(self.resource_manifest_url).hostname or ""
         ).lower()
         source_rejected = manifest_host == "pig.felislab.cc" and "403" in last_error
+        official_source = self.resource_manifest_url == self.OFFICIAL_RESOURCE_MANIFEST_URL
         diagnosis = ""
         if source_rejected:
             diagnosis = (
                 "该地址是 nonebot-plugin-rollpig-plus 的受限官方源，"
                 "服务端会拒绝本 AstrBot 插件；请换成你有权使用的私人 manifest。"
             )
-        elif not self.resource_manifest_url:
-            diagnosis = "尚未配置私人 manifest 地址；本地与内置小猪仍可正常使用。"
+        elif official_source and not self.resource_sync_enabled:
+            diagnosis = "AstrBot 专用资源源已就绪；开启自动同步后会按设定间隔检查更新。"
         elif not self.resource_sync_enabled:
             diagnosis = "自动同步目前已关闭；仍可在确认来源可用后手动同步。"
         return {
@@ -1095,6 +1119,9 @@ class RollPigPlugin(Star):
             "source_rejected": source_rejected,
             "interval_hours": self.resource_sync_interval_hours,
             "manifest_url": self.resource_manifest_url,
+            "official_source": official_source,
+            "client_protocol": self.RESOURCE_PROTOCOL_VERSION,
+            "source_migrated": self.resource_source_migrated,
             "local_overrides": len(
                 self._runtime_document(
                     "catalog_overrides", self.local_overrides_path, []
@@ -1209,6 +1236,7 @@ class RollPigPlugin(Star):
         *,
         follow_redirects: bool,
         request_timeout: float | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> httpx.AsyncClient:
         """公共资源默认直连，避免错误的环境代理阻塞 TLS；可由配置显式启用代理。"""
         timeout_seconds = (
@@ -1221,6 +1249,9 @@ class RollPigPlugin(Star):
             if request_timeout is None
             else timeout_seconds
         )
+        headers = {"User-Agent": self.USER_AGENT}
+        if extra_headers:
+            headers.update(extra_headers)
         options = {
             "timeout": httpx.Timeout(
                 connect=timeout_seconds,
@@ -1229,10 +1260,18 @@ class RollPigPlugin(Star):
                 pool=max(15, timeout_seconds),
             ),
             "follow_redirects": False,
-            "headers": {"User-Agent": self.USER_AGENT},
+            "headers": headers,
             "trust_env": self.resource_use_system_proxy,
         }
         return httpx.AsyncClient(**options)
+
+    def _resource_request_headers(self) -> dict[str, str]:
+        """Identify the open AstrBot resource protocol without pretending it is a secret."""
+        return {
+            "Accept": "application/json",
+            "X-RollPig-Client": self.RESOURCE_CLIENT_ID,
+            "X-RollPig-Protocol": self.RESOURCE_PROTOCOL_VERSION,
+        }
 
     async def _download_manifest_item(
         self,
@@ -1267,7 +1306,10 @@ class RollPigPlugin(Star):
             staging = self.resource_root / f".incoming-{uuid.uuid4().hex}"
             previous = self.resource_root / "previous"
             try:
-                async with self._new_http_client(follow_redirects=True) as client:
+                async with self._new_http_client(
+                    follow_redirects=True,
+                    extra_headers=self._resource_request_headers(),
+                ) as client:
                     manifest_raw = await self._download_limited(
                         client,
                         self.resource_manifest_url,
@@ -1276,6 +1318,17 @@ class RollPigPlugin(Star):
                     manifest = json.loads(manifest_raw.decode("utf-8-sig"))
                     if not isinstance(manifest, dict):
                         raise ValueError("manifest 必须是 JSON 对象")
+                    schema_version = manifest.get("schema_version")
+                    source_client = str(manifest.get("client") or "").strip()
+                    if schema_version not in (None, 1, "1"):
+                        raise ValueError("manifest 协议版本不受支持")
+                    if source_client and source_client != self.RESOURCE_CLIENT_ID:
+                        raise ValueError("manifest 不是为本 AstrBot 插件发布的资源")
+                    if self.resource_manifest_url == self.OFFICIAL_RESOURCE_MANIFEST_URL:
+                        if schema_version not in (1, "1"):
+                            raise ValueError("AstrBot 官方资源源缺少协议版本")
+                        if source_client != self.RESOURCE_CLIENT_ID:
+                            raise ValueError("AstrBot 官方资源源客户端标识不匹配")
                     version = str(manifest.get("resource_version") or "").strip()
                     if not version:
                         raise ValueError("manifest 缺少 resource_version")
