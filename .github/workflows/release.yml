@@ -84,7 +84,6 @@ jobs:
             --exclude 'dist/' \
             --exclude 'tests/' \
             --exclude 'scripts/' \
-            --exclude 'docs/' \
             --exclude 'node_modules/' \
             --exclude 'package.json' \
             --exclude 'package-lock.json' \
@@ -118,9 +117,15 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
           ARCHIVE: ${{ steps.meta.outputs.archive }}
         run: |
+          notes_file=".github/release-v${VERSION}.md"
+          if [[ -f "$notes_file" ]]; then
+            notes_args=(--notes-file "$notes_file")
+          else
+            notes_args=(--generate-notes)
+          fi
           gh release create "$TAG" \
             "dist/$ARCHIVE" \
             "dist/SHA256SUMS" \
             --target "$GITHUB_SHA" \
             --title "$DISPLAY_NAME v$VERSION" \
-            --generate-notes
+            "${notes_args[@]}"

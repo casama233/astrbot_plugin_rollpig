@@ -2134,6 +2134,21 @@ class SQLiteStorage(StorageBackend):
             self._set_write_authority(connection)
             return {"overrides": overrides, "tombstones": tombstones}
 
+    def restore_catalog_entry(self, *, pig_id: str) -> dict[str, Any]:
+        """Remove one tombstone and keep JSON compatibility exports in sync."""
+        pig_id = str(pig_id).strip()
+        if not pig_id:
+            raise ValueError("小猪 ID 无效")
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)
+            )
+            overrides, tombstones = self._catalog_documents_from_sql(connection)
+            self._write_document_tx(connection, "local_overrides.json", overrides)
+            self._write_document_tx(connection, "deleted_pigs.json", tombstones)
+            self._set_write_authority(connection)
+            return {"overrides": overrides, "tombstones": tombstones}
+
     def create_daily_draw(
         self,
         *,
@@ -3034,4 +3049,3 @@ class SQLiteStorage(StorageBackend):
             **observability,
             **verification,
         }
-

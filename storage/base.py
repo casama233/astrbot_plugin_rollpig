@@ -75,6 +75,9 @@ class StorageBackend(ABC):
     def delete_catalog_entry(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    def restore_catalog_entry(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     def claim_ai_roast_generation(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
