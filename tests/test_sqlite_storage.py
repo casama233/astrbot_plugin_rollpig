@@ -1013,6 +1013,12 @@ def test_sql_primary_catalog_override_and_delete_are_atomic(tmp_path):
     assert documents["local_overrides.json"] == []
     assert documents["deleted_pigs.json"] == ["local-pig"]
 
+    restored = storage.restore_catalog_entry(pig_id="local-pig")
+    assert restored == {"overrides": [], "tombstones": []}
+    restored_documents = storage.export_documents()
+    assert restored_documents["local_overrides.json"] == []
+    assert restored_documents["deleted_pigs.json"] == []
+
 
 def test_sql_primary_catalog_write_rolls_back_with_document_failure(
     tmp_path, monkeypatch
