@@ -194,9 +194,7 @@ class RoastReservationMixin:
             remaining = await self._consume_group_roast_cooldown(group_id, actor_id)
             if remaining:
                 await event.send(
-                    event.plain_result(
-                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再来埋伏。"
-                    )
+                    event.plain_result(self._group_roast_unavailable_message(remaining))
                 )
                 return True
             with self._data_lock:
