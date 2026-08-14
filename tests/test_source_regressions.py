@@ -104,15 +104,18 @@ def test_telegram_aliases_bridge_username_and_numeric_id():
     assert "self._resolve_mention_user_id(event, raw_id)" in target
 
 
-def test_cooldown_protection_and_backdoor_use_claimed_storage_ids():
+def test_charge_protection_and_backdoor_use_claimed_storage_ids():
+    charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
+    assert "self._storage_user_key" in charge
     for name in (
-        "_consume_group_roast_cooldown",
         "_record_group_roast",
         "_roast_protection_status",
         "_consume_daily_backdoor",
     ):
         method = ast.get_source_segment(SOURCE, _method(name)) or ""
         assert "self._storage_user_key" in method
+    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
+    assert "_consume_group_roast_charge" in cooldown
 
 
 def test_image_send_timeout_does_not_retry_with_a_second_result():
@@ -206,6 +209,7 @@ def test_identity_metadata_uses_sql_merge_in_sqlite_mode():
 
 
 def test_main_delegates_v212_sql_hot_writes():
+    charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
     cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
     counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
     protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
@@ -213,7 +217,8 @@ def test_main_delegates_v212_sql_hot_writes():
     ai = ast.get_source_segment(SOURCE, _method("_get_ai_roast_copy")) or ""
     save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
     delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
-    assert "asyncio.to_thread" in cooldown and "consume_roast_cooldown" in cooldown
+    assert "asyncio.to_thread" in charge and "consume_roast_charge" in charge
+    assert "_consume_group_roast_charge" in cooldown
     assert "asyncio.to_thread" in counts and "increment_roast_count" in counts
     assert "get_roast_count" in protection
     assert "consume_daily_backdoor" in backdoor
@@ -400,8 +405,8 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.6.4"' in metadata
-    assert "AstrBot-RollPig/3.6.4" in SOURCE
+    assert 'version: "3.6.5"' in metadata
+    assert "AstrBot-RollPig/3.6.5" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary

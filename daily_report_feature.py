@@ -87,6 +87,34 @@ class DailyReportMixin:
             return False
         return default
 
+    def _daily_report_group_manager(self, event: AstrMessageEvent, actor_id: str) -> bool:
+        """Only AstrBot administrators may manage per-group automatic reports."""
+        try:
+            return bool(self._is_admin_id(event, actor_id))
+        except Exception:
+            return False
+
+    def _daily_report_group_auto_enabled(self, group_id: str) -> bool:
+        with self._data_lock:
+            group = self.daily_report_state.get("groups", {}).get(str(group_id), {})
+            return bool(group.get("auto_enabled", False)) if isinstance(group, dict) else False
+
+    def _set_daily_report_group_auto(
+        self, group_id: str, enabled: bool, *, actor_id: str = ""
+    ) -> None:
+        now = int(time.time())
+        today = self._today().isoformat()
+        with self._data_lock:
+            groups = self.daily_report_state.setdefault("groups", {})
+            group = groups.setdefault(str(group_id), {})
+            was_enabled = bool(group.get("auto_enabled", False))
+            group["auto_enabled"] = bool(enabled)
+            group["auto_updated_at"] = now
+            group["auto_updated_by"] = str(actor_id or "")
+            if enabled and not was_enabled:
+                group["auto_enabled_since"] = today
+            self._save_daily_report_state_locked()
+
     def _init_daily_report_feature(self) -> None:
         config = self.config if isinstance(self.config, dict) or hasattr(self.config, "get") else {}
         self.enable_daily_report = self._report_bool(
@@ -255,6 +283,7 @@ class DailyReportMixin:
         with self._data_lock:
             groups = self.daily_report_state.setdefault("groups", {})
             group = groups.setdefault(str(group_id), {})
+            group.setdefault("auto_enabled", False)
             if umo:
                 group["umo"] = umo
             group["platform"] = platform
@@ -832,9 +861,16 @@ class DailyReportMixin:
                 fill=palette["secondary"],
             )
         else:
+            variety = int(report.get("pig_variety", 0) or 0)
+            peak = int(report.get("popular_peak", 0) or 0)
+            summary = (
+                f"今天 {variety} 种小猪各出现 1 次，尚未形成热门形态。"
+                if variety > 1 and peak == 1
+                else "今天还没有形成流行趋势。"
+            )
             draw.text(
                 (76, pop_y + 105),
-                "今天还没有形成流行趋势。",
+                summary,
                 font=label_font,
                 fill=palette["muted"],
             )
@@ -917,9 +953,15 @@ class DailyReportMixin:
             font=small_font,
             fill=palette["muted"],
         )
+        detail_missing = int(report.get("roast_detail_missing", 0) or 0)
+        footer_line = (
+            f"烤猪总数另含 {detail_missing} 笔仅有总量的历史记录 · 人物称号只按可追溯玩法事件计算"
+            if detail_missing > 0
+            else f"自动推送 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机延迟"
+        )
         draw.text(
             (68, footer_y + 58),
-            f"自动推送 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机延迟",
+            footer_line,
             font=small_font,
             fill=palette["secondary"],
         )
@@ -1068,6 +1110,15 @@ class DailyReportMixin:
                     self.timezone,
                     delay,
                 )
+                # Automatic reports belong to the report natural day. Random
+                # delay may approach midnight but must never schedule after it.
+                day_end = datetime.datetime.combine(
+                    report_date + datetime.timedelta(days=1),
+                    datetime.time.min,
+                    tzinfo=self.timezone,
+                ) - datetime.timedelta(seconds=5)
+                if due > day_end:
+                    due = day_end
                 job = {
                     "status": "pending",
                     "delay_seconds": delay,
@@ -1225,7 +1276,9 @@ class DailyReportMixin:
             groups = {
                 str(group_id): dict(value)
                 for group_id, value in self.daily_report_state.get("groups", {}).items()
-                if isinstance(value, dict) and str(value.get("umo") or "").strip()
+                if isinstance(value, dict)
+                and str(value.get("umo") or "").strip()
+                and bool(value.get("auto_enabled", False))
             }
 
         now_ts = int(now.timestamp())
@@ -1240,7 +1293,10 @@ class DailyReportMixin:
             if now < base_due:
                 continue
             date_key = report_date.isoformat()
-            for group_id in groups:
+            for group_id, group_meta in groups.items():
+                enabled_since = str(group_meta.get("auto_enabled_since") or "")
+                if enabled_since and date_key < enabled_since:
+                    continue
                 members = self._daily_group_members(group_id, date_key)
                 if self.daily_report_skip_empty_groups and not members:
                     continue
@@ -1320,17 +1376,59 @@ class DailyReportMixin:
             victim_id=victim_id,
         )
 
-    async def pigsty_daily_report(self, event: AstrMessageEvent):
-        """Render the current group's rich report; manual views never sacrifice."""
+    async def pigsty_daily_report(self, event: AstrMessageEvent, args: str = ""):
+        """manual views never sacrifice; manage per-group automatic push."""
         self._claim_command_event(event)
         if not self.enable_daily_report:
             await event.send(event.plain_result("猪圈日报功能已在配置中关闭。"))
             return
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
+            await event.send(event.plain_result("猪圈日报只能在群聊中使用。"))
             return
         actor_id = self._event_sender_id(event)
+        action = str(args or "").strip().lower()
+        enable_actions = {"开启", "開啟", "启用", "啟用", "on", "enable"}
+        disable_actions = {"关闭", "關閉", "停用", "off", "disable"}
+        status_actions = {"状态", "狀態", "status"}
+        if action in enable_actions | disable_actions | status_actions:
+            enabled = self._daily_report_group_auto_enabled(group_id)
+            if action in status_actions:
+                global_state = "开启" if self.daily_report_auto_send else "关闭"
+                group_state = "已开启" if enabled else "未开启（默认）"
+                await event.send(
+                    event.plain_result(
+                        f"本群猪圈日报自动推送：{group_state}\n"
+                        f"全局自动推送总开关：{global_state}\n"
+                        f"计划时间：{self.daily_report_send_time}，随机延迟最多 "
+                        f"{self.daily_report_random_delay_minutes} 分钟（不会跨自然日）"
+                    )
+                )
+                return
+            if not self._daily_report_group_manager(event, actor_id):
+                await event.send(
+                    event.plain_result("只有 AstrBot 管理员可以修改日报自动推送。")
+                )
+                return
+            target = action in enable_actions
+            self._set_daily_report_group_auto(group_id, target, actor_id=actor_id)
+            if target:
+                suffix = "" if self.daily_report_auto_send else "；但全局自动推送总开关目前关闭"
+                await event.send(
+                    event.plain_result(
+                        f"已开启本群猪圈日报自动推送。将在自然日结束前按 "
+                        f"{self.daily_report_send_time} + 随机延迟发送{suffix}。"
+                    )
+                )
+            else:
+                await event.send(event.plain_result("已关闭本群猪圈日报自动推送。手动 /猪圈日报 仍可使用。"))
+            return
+        if action:
+            await event.send(
+                event.plain_result("用法：/猪圈日报、/猪圈日报 开启、/猪圈日报 关闭、/猪圈日报 状态")
+            )
+            return
+
         draw_date = self._today().isoformat()
         members = self._daily_group_members(group_id, draw_date)
         if not members:
