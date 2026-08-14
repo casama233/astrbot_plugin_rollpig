@@ -100,29 +100,74 @@ jobs:
           )
           PY
 
-      - name: Build isolated market record
+      - name: Build checked-out revision snapshot
         run: |
-          cat > .cache/rollpig-market-smoke.json <<'JSON'
-          {
-            "astrbot_plugin_rollpig_plus": {
-              "name": "astrbot_plugin_rollpig_plus",
-              "display_name": "今日小豬 · 增強版",
-              "desc": "AstrBot market smoke-test record",
-              "version": "3.6.2",
-              "author": "casama233",
-              "repo": "https://github.com/casama233/astrbot_plugin_rollpig"
-            }
-          }
-          JSON
+          mkdir -p .cache/plugin-source
+          git archive HEAD | tar -x -C .cache/plugin-source
+          test -f .cache/plugin-source/main.py
+          test -f .cache/plugin-source/metadata.yaml
 
-      - name: Run official AstrBot plugin smoke validator
+      - name: Run official AstrBot plugin load worker against checked-out revision
+        shell: bash
         run: |
+          set +e
           python .cache/PluginCollection/scripts/validate_plugins/run.py \
-            --plugins-json .cache/rollpig-market-smoke.json \
-            --plugin-name astrbot_plugin_rollpig_plus \
+            --worker \
             --astrbot-path .cache/AstrBot \
-            --report-path astrbot-market-smoke-report.json \
-            --max-workers 1
+            --plugin-source-dir .cache/plugin-source \
+            --plugin-dir-name astrbot_plugin_rollpig_plus \
+            --normalized-repo-url https://github.com/casama233/astrbot_plugin_rollpig \
+            > .cache/astrbot-worker-output.txt 2>&1
+          worker_status=$?
+          set -e
+          cat .cache/astrbot-worker-output.txt
+
+          WORKER_STATUS="$worker_status" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path('.cache/astrbot-worker-output.txt').read_text(
+              encoding='utf-8', errors='replace'
+          )
+          payload = None
+          for line in reversed(output.splitlines()):
+              try:
+                  candidate = json.loads(line)
+              except json.JSONDecodeError:
+                  continue
+              if isinstance(candidate, dict):
+                  payload = candidate
+                  break
+          if payload is None:
+              payload = {
+                  'plugin': 'astrbot_plugin_rollpig_plus',
+                  'repo': 'https://github.com/casama233/astrbot_plugin_rollpig',
+                  'normalized_repo_url': 'https://github.com/casama233/astrbot_plugin_rollpig',
+                  'ok': False,
+                  'stage': 'worker',
+                  'message': 'official worker returned no structured JSON',
+                  'severity': 'fail',
+                  'details': output,
+              }
+          severity = payload.get('severity') or ('pass' if payload.get('ok') else 'fail')
+          report = {
+              'summary': {
+                  'total': 1,
+                  'passed': 1 if severity == 'pass' else 0,
+                  'warned': 1 if severity == 'warn' else 0,
+                  'failed': 1 if severity == 'fail' else 0,
+              },
+              'results': [payload],
+              'checked_revision': os.environ.get('GITHUB_SHA'),
+              'validation_mode': 'official-worker-current-checkout',
+          }
+          Path('astrbot-market-smoke-report.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          exit "$worker_status"
 
       - name: Upload smoke report
         if: always()
