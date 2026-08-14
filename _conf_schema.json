@@ -55,7 +55,7 @@
     },
     "enable_roast_reservation": {
         "description": "开启预约烤猪",
-        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗正常冷却，后续群友可免费添柴，目标在本群抽猪后自动按 60/30/10 结算",
+        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友可免费添柴，目标在本群抽猪后自动按 60/30/10 结算",
         "type": "bool",
         "default": true
     },
@@ -84,10 +84,16 @@
         "default": 20
     },
     "group_roast_cooldown_hours": {
-        "description": "烤群友冷却时间（小时）",
-        "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；创建预约也会消耗一次，后续添柴不消耗；后门口令会绕过此限制",
+        "description": "烤箱每格能量恢复时间（小时）",
+        "hint": "沿用旧冷却配置作为每格能量的恢复周期，范围 1-72，默认 8；缺失能量按队列逐格恢复，后门口令不消耗能量",
         "type": "float",
         "default": 8
+    },
+    "group_roast_max_charges": {
+        "description": "烤箱最大能量格数",
+        "hint": "按发起者 × 群组独立储存，范围 1-5，默认 2；普通烤群友与创建预约各消耗 1 格，后续添柴和预约触发不重复消耗",
+        "type": "int",
+        "default": 2
     },
     "enable_roast_protection": {
         "description": "开启被烤保护机制",
@@ -115,7 +121,7 @@
     },
     "daily_report_auto_send": {
         "description": "每天自动发送猪圈日报",
-        "hint": "在当天有 RollPig 活动且已记录群会话时，按配置时间自动把日报图片发送回群聊",
+        "hint": "全局自动推送总开关；仅对已由 AstrBot 管理员在群内显式开启的群生效，群默认关闭",
         "type": "bool",
         "default": true
     },

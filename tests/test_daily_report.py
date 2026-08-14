@@ -104,6 +104,16 @@ def test_daily_report_contract_keeps_sacrifice_opt_in():
     assert "unified_msg_origin" in feature
     assert "self.context.send_message(umo, chain)" in feature
     assert "daily_report_sacrifice" in feature
+    scheduled_start = feature.index("    async def _send_scheduled_daily_report")
+    scheduled_end = feature.index("    async def _daily_report_tick", scheduled_start)
+    scheduled = feature[scheduled_start:scheduled_end]
+    assert "if self.daily_report_random_eat_enabled:" in scheduled
+    assert "await self._apply_job_sacrifice(group_id, draw_date)" in scheduled
+    manual_start = feature.index("    async def pigsty_daily_report")
+    manual_end = feature.index("    async def terminate", manual_start)
+    manual = feature[manual_start:manual_end]
+    assert "_apply_job_sacrifice" not in manual
+    assert "daily_report_random_eat_enabled" not in manual
 
 
 def test_daily_report_does_not_invent_a_popular_pig_for_all_unique_draws():
