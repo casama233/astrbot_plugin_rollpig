@@ -30,7 +30,9 @@ jobs:
           python -m pip install -r requirements.txt pytest pre-commit
 
       - name: Apply command boundary refactor
-        run: python scripts/_refactor_command_boundary.py
+        run: |
+          python scripts/_refactor_command_boundary.py
+          python scripts/_patch_v361_command_contract.py
 
       - name: Compile source
         run: |
@@ -54,11 +56,11 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm scripts/_refactor_command_boundary.py
+          git rm scripts/_refactor_command_boundary.py scripts/_patch_v361_command_contract.py
           git add \
             main.py legacy_main.py daily_report_feature.py ex_variant_feature.py \
             roast_reservation_feature.py tests/test_command_registration_boundary.py \
-            docs/ARCHITECTURE.md CHANGELOG.md
+            tests/test_v361_hotfix_contract.py docs/ARCHITECTURE.md CHANGELOG.md
           git diff --cached --check
           git commit -m 'refactor: move command registration to main entrypoint'
           git push origin HEAD:refactor/command-registration-boundary
