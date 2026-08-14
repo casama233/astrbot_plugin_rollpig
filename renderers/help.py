@@ -9,15 +9,17 @@ from PIL import ImageDraw, ImageFont
 
 try:
     from ..help_system import HelpEntry, HelpSection
+    from ..wiki_links import WIKI_HOME_URL
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from help_system import HelpEntry, HelpSection
+    from wiki_links import WIKI_HOME_URL
 
 
 CARD_WIDTH = 1040
 OUTER_MARGIN = 28
 COLUMN_GAP = 18
 HEADER_HEIGHT = 176
-FOOTER_HEIGHT = 70
+FOOTER_HEIGHT = 96
 SECTION_GAP = 18
 SECTION_HEADER_HEIGHT = 54
 ROW_GAP = 8
@@ -219,6 +221,7 @@ def render_help_card(
     detail_font = _font_variant(font_bold, 17)
     badge_font = _font_variant(font_bold, 16)
     footer_font = _font_variant(font_bold, 16)
+    footer_url_font = _font_variant(font_bold, 14)
 
     column_width = (CARD_WIDTH - OUTER_MARGIN * 2 - COLUMN_GAP) // 2
     prepared = prepare_help_sections(
@@ -282,12 +285,19 @@ def render_help_card(
             )
         y += row_height + SECTION_GAP
 
-    footer = "功能开关变化后，帮助内容会随当前配置重新生成"
+    footer = "完整玩法 · 管理 · 投稿 · 排障，请前往 今日小猪 Wiki"
     footer_width = _text_width(footer, footer_font)
     draw.text(
-        ((CARD_WIDTH - footer_width) // 2, height - 45),
+        ((CARD_WIDTH - footer_width) // 2, height - 68),
         footer,
         font=footer_font,
+        fill=palette["accent"],
+    )
+    url_width = _text_width(WIKI_HOME_URL, footer_url_font)
+    draw.text(
+        ((CARD_WIDTH - url_width) // 2, height - 40),
+        WIKI_HOME_URL,
+        font=footer_url_font,
         fill=palette["muted"],
     )
 
