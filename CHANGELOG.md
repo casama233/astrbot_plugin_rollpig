@@ -14,6 +14,8 @@
 - 新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 圖片解析順位，並以單元與 AST 契約測試鎖定；PIL renderer、同步、寫入、storage schema 與資源協議均不變。
 - 完成 renderer boundary 第三階段：單豬卡、永久圖鑑、隨機／搜尋九宮格與本週小豬的 PIL 繪製移入 `renderers/`；`legacy_main.py` 僅準備 domain read model 與視圖依賴後委派。
 - 新增 renderer 架構契約與獨立輸出 smoke；`renderers/` 禁止 AstrBot/storage/同步依賴，collection 與 weekly domain read 仍留在插件 orchestration，視覺與命令行為不變。
+- 完成 roast/group interaction boundary 第四階段：`render_roast_image` 移入 `renderers/roast.py`；料理卡 renderer 僅接受明確 view input，不取得 plugin instance。
+- 普通烤群友與預約烤豬共用 `RoastService` 的單一 60/30/10 outcome policy；`DailyReportMixin` 改為 outcome event hook，不再複製完整烤豬流程。現有保護、冷卻、後門、反噬、預約一次性與資料 schema 均不變。
 
 ## v3.6.2 (2026-08-14)
 

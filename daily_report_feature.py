@@ -1302,90 +1302,23 @@ class DailyReportMixin:
         except asyncio.CancelledError:
             pass
 
-    async def _roast_group_target(
+    def _record_roast_outcome_event(
         self,
-        event: AstrMessageEvent,
-        target_id: str,
+        kind: str,
+        group_id: str,
         *,
-        bypass: bool = False,
+        actor_id: str,
+        target_id: str,
+        victim_id: str = "",
     ) -> None:
-        """Base roast flow plus auditable outcome events for daily awards."""
-        actor_id = self._event_sender_id(event)
-        group_id = self._event_group_id(event)
-        if not group_id:
-            await event.send(event.plain_result("烤群友只能在群聊中使用。"))
-            return
-        if not target_id:
-            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
-            return
-        if target_id == actor_id:
-            await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
-            return
-        target_pig = self._get_daily_pig(target_id, self._today())
-        reason = self._roast_block_reason(target_pig)
-        if reason:
-            await event.send(event.plain_result(reason))
-            return
-        protected, roast_count = await self._roast_protection_status(group_id, target_id)
-        if protected and not bypass:
-            await event.send(event.plain_result(self._roast_protection_message(roast_count)))
-            return
-        if not bypass:
-            remaining = await self._consume_group_roast_cooldown(group_id, actor_id)
-            if remaining:
-                await event.send(
-                    event.plain_result(
-                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再试。"
-                    )
-                )
-                return
-
-        result = "success" if bypass else random.choices(
-            ["success", "escape", "backlash"], weights=[60, 30, 10], k=1
-        )[0]
-        if result == "escape":
-            self._record_daily_report_event(
-                group_id,
-                "roast_escape",
-                actor_id=actor_id,
-                target_id=target_id,
-            )
-            await event.send(event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。"))
-            return
-        if result == "backlash":
-            actor_pig = self._get_daily_pig(actor_id, self._today())
-            actor_reason = self._roast_block_reason(actor_pig, subject="actor")
-            victim_id = "" if actor_reason else actor_id
-            self._record_daily_report_event(
-                group_id,
-                "roast_backlash",
-                actor_id=actor_id,
-                target_id=target_id,
-                victim_id=victim_id,
-            )
-            if actor_reason:
-                await event.send(
-                    event.plain_result(
-                        "🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"
-                    )
-                )
-                return
-            await event.send(event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。"))
-            await self._record_group_roast(group_id, actor_id)
-            await self._send_roast_card(event, actor_pig, actor_id)
-            return
-
+        """Observe the base roast flow while preserving report-enable semantics."""
         self._record_daily_report_event(
             group_id,
-            "roast_success",
+            kind,
             actor_id=actor_id,
             target_id=target_id,
-            victim_id=target_id,
+            victim_id=victim_id,
         )
-        prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
-        await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
-        await self._record_group_roast(group_id, target_id)
-        await self._send_roast_card(event, target_pig, target_id)
 
     async def pigsty_daily_report(self, event: AstrMessageEvent):
         """Render the current group's rich report; manual views never sacrifice."""

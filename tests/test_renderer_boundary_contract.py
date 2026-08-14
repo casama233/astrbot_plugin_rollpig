@@ -7,6 +7,7 @@ RENDERER_FILES = (
     ROOT / "renderers" / "common.py",
     ROOT / "renderers" / "pig_card.py",
     ROOT / "renderers" / "catalog.py",
+    ROOT / "renderers" / "roast.py",
     ROOT / "renderers" / "weekly.py",
 )
 
@@ -59,6 +60,7 @@ def test_legacy_render_facades_do_not_draw_directly():
         "render_pig_image": "render_pig_card",
         "render_pigsty_image": "render_pigsty",
         "render_catalog_grid": "render_catalog_grid_image",
+        "render_roast_image": "render_roast_card_image",
         "render_weekly_summary": "render_weekly_summary_image",
     }
     forbidden_draw_names = {"PILImage", "ImageDraw", "ImageOps", "tempfile"}

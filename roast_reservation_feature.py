@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import random
 import time
 from typing import Any
 
@@ -390,9 +389,7 @@ class RoastReservationMixin:
         pending = self._pending_roast_reservation(draw_date, group_id, target_id)
         if not pending:
             return
-        outcome = random.choices(
-            ["success", "escape", "backlash"], weights=[60, 30, 10], k=1
-        )[0]
+        outcome = self.roast_service.choose_group_roast_outcome()
         async with self._roast_reservation_lock:
             with self._data_lock:
                 resolved = resolve_reservation(
