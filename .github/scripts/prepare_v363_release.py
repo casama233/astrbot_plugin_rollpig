@@ -1,8 +1,5 @@
 from pathlib import Path
 
-VERSION_OLD = "3.6.2"
-VERSION_NEW = "3.6.3"
-
 
 def read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
@@ -20,13 +17,9 @@ def replace_once(path: str, old: str, new: str) -> None:
     write(path, text.replace(old, new, 1))
 
 
-# Stable version metadata / protocol-facing headers.
+# Stable version metadata / protocol-facing headers. The AstrBot revision smoke no
+# longer embeds a release version; since #64 it validates the checked-out snapshot.
 replace_once("metadata.yaml", 'version: "3.6.2"', 'version: "3.6.3"')
-replace_once(
-    ".github/workflows/astrbot-market-smoke.yml",
-    '"version": "3.6.2"',
-    '"version": "3.6.3"',
-)
 replace_once(
     "legacy_main.py",
     "AstrBot-RollPig/3.6.2 (+https://github.com/casama233/astrbot_plugin_rollpig)",
@@ -54,6 +47,8 @@ for path, old, new in (
 
 # README current-version badge, highlights and upgrade targets.
 readme = read("README.md")
+if readme.count("current-3.6.2-ef5d82") != 1:
+    raise RuntimeError("README current-version badge marker not found exactly once")
 readme = readme.replace("current-3.6.2-ef5d82", "current-3.6.3-ef5d82", 1)
 start = readme.find("## 3.6.2 版本亮點\n")
 end_marker = "完整變更請閱讀 [CHANGELOG](CHANGELOG.md)"
@@ -112,7 +107,6 @@ new_head = """# 更新
 - PR #68 的 identity-fragment collection merge **未包含在本版**；該修復仍需完成 claim-aware end-to-end 驗證，避免跨平台串資料、重算保底或虛增 EX count。
 
 """
-# Preserve only historical releases after v3.6.2.
 changelog = new_head + changelog[pos:]
 write("CHANGELOG.md", changelog)
 
