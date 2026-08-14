@@ -300,6 +300,31 @@ def test_v350_public_source_submission_is_fixed_bounded_and_complete():
     assert "只能提交本地新增或本地覆盖的小猪" in payload
 
 
+def test_v350_review_authority_is_backend_only_and_absent_from_release():
+    schema = (ROOT / "_conf_schema.json").read_text(encoding="utf-8")
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    reviews = ast.get_source_segment(
+        SOURCE, _method("page_public_source_reviews")
+    ) or ""
+    token = ast.get_source_segment(
+        SOURCE, _method("_public_source_admin_token")
+    ) or ""
+
+    assert "public_source_admin" not in schema
+    assert "Authorization" not in page
+    assert "public_source_admin.token" not in page
+    assert '{"enabled": False, "items": []}' in reviews
+    assert "public_source_admin_token_path" in token
+    assert "read_text" in token
+    assert "--exclude 'source_service/'" in workflow
+    assert "--exclude 'deploy/'" in workflow
+
+
 def test_v340_astrbot_resource_source_replaces_rejected_nonebot_default():
     config = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
     assert config["resource_sync_enabled"]["default"] is True
