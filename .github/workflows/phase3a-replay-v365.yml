@@ -1,0 +1,133 @@
+name: Phase 3A Replay v3.6.5
+
+on:
+  push:
+    branches:
+      - feature/roast-charge
+    paths:
+      - .github/workflows/phase3a-replay-v365.yml
+
+permissions:
+  contents: write
+
+jobs:
+  replay-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/roast-charge
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+      - name: Fetch replay refs
+        run: |
+          git fetch origin tmp/phase3a-replay-source:refs/remotes/origin/tmp/phase3a-replay-source
+          git fetch origin tmp/phase3a-verified-final:refs/remotes/origin/tmp/phase3a-verified-final
+      - name: Restore verified inputs
+        run: |
+          git show origin/tmp/phase3a-replay-source:roast_charges.py > roast_charges.py
+          git show origin/tmp/phase3a-replay-source:tests/test_roast_charges.py > tests/test_roast_charges.py
+          git show origin/tmp/phase3a-replay-source:tests/test_roast_charge_storage.py > tests/test_roast_charge_storage.py
+          git show origin/tmp/phase3a-replay-source:tests/test_roast_charge_boundary_contract.py > tests/test_roast_charge_boundary_contract.py
+          git show origin/tmp/phase3a-replay-source:scripts/_apply_phase3a_roast_charge.py > scripts/_apply_phase3a_roast_charge.py
+          git show origin/tmp/phase3a-replay-source:scripts/_apply_phase3a_roast_charge_v2.py > scripts/_apply_phase3a_roast_charge_v2.py
+          git show origin/tmp/phase3a-verified-final:docs/ROAST-CHARGES.md > docs/ROAST-CHARGES.md
+      - name: Apply charge implementation
+        run: python scripts/_apply_phase3a_roast_charge_v2.py
+      - name: Upgrade source contracts and changelog
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_source_regressions.py')
+          source = path.read_text(encoding='utf-8')
+          old = '''def test_cooldown_protection_and_backdoor_use_claimed_storage_ids():
+              for name in (
+                  "_consume_group_roast_cooldown",
+                  "_record_group_roast",
+                  "_roast_protection_status",
+                  "_consume_daily_backdoor",
+              ):
+                  method = ast.get_source_segment(SOURCE, _method(name)) or ""
+                  assert "self._storage_user_key" in method
+          '''
+          new = '''def test_charge_protection_and_backdoor_use_claimed_storage_ids():
+              charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
+              assert "self._storage_user_key" in charge
+              for name in (
+                  "_record_group_roast",
+                  "_roast_protection_status",
+                  "_consume_daily_backdoor",
+              ):
+                  method = ast.get_source_segment(SOURCE, _method(name)) or ""
+                  assert "self._storage_user_key" in method
+              cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
+              assert "_consume_group_roast_charge" in cooldown
+          '''
+          if old not in source:
+              raise SystemExit('claimed-storage regression marker not found')
+          source = source.replace(old, new, 1)
+          old2 = '''def test_main_delegates_v212_sql_hot_writes():
+              cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
+              counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
+              protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
+              backdoor = ast.get_source_segment(SOURCE, _method("_consume_daily_backdoor")) or ""
+              ai = ast.get_source_segment(SOURCE, _method("_get_ai_roast_copy")) or ""
+              save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
+              delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
+              assert "asyncio.to_thread" in cooldown and "consume_roast_cooldown" in cooldown
+          '''
+          new2 = '''def test_main_delegates_v212_sql_hot_writes():
+              charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
+              cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
+              counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
+              protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
+              backdoor = ast.get_source_segment(SOURCE, _method("_consume_daily_backdoor")) or ""
+              ai = ast.get_source_segment(SOURCE, _method("_get_ai_roast_copy")) or ""
+              save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
+              delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
+              assert "asyncio.to_thread" in charge and "consume_roast_charge" in charge
+              assert "_consume_group_roast_charge" in cooldown
+          '''
+          if old2 not in source:
+              raise SystemExit('sql-hot-write regression marker not found')
+          source = source.replace(old2, new2, 1)
+          path.write_text(source, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          addition = '''## 未發佈\n\n### Added\n- Phase 3A 烤箱 Charge：普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗可儲存能量，預設 2 格；沿用 `group_roast_cooldown_hours` 作每格恢復週期，新增 `group_roast_max_charges`（1–5，預設 2）。\n- SQLite/JSON 共用同一 token-bucket policy；舊 `roast_cooldowns.last_used_at` lazy 遷移為 charge state，活動中的舊冷卻視為已消耗 1 格，避免升級重置或雙重懲罰。\n- 預約主廚建立預約消耗 1 格，添柴與日後觸發不重複消耗；後門 bypass 與 60/30/10 outcome policy 保持不變。\n\n'''
+          if marker not in text:
+              raise SystemExit('Unreleased marker missing')
+          if 'Phase 3A 烤箱 Charge' not in text:
+              text = text.replace(marker, addition, 1)
+          changelog.write_text(text, encoding='utf-8')
+          PY
+      - name: Run focused tests
+        run: pytest -q tests/test_roast_charges.py tests/test_roast_charge_storage.py tests/test_roast_charge_boundary_contract.py
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py roast_charges.py roast_reservation_feature.py storage services
+      - name: Run full suite
+        run: pytest -q
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Diff check
+        run: git diff --check
+      - name: Commit verified implementation
+        run: |
+          rm -f scripts/_apply_phase3a_roast_charge.py scripts/_apply_phase3a_roast_charge_v2.py
+          git rm .github/workflows/phase3a-replay-v365.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: add roast charge Phase 3A"
+          git push origin HEAD:feature/roast-charge
