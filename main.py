@@ -13,17 +13,20 @@ try:
     from .daily_report_feature import DailyReportMixin
     from .ex_variant_feature import ExVariantMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from .oven_charge_feature import OvenChargeMixin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from oven_charge_feature import OvenChargeMixin
     from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
 
 
 class RollPigPlugin(
+    OvenChargeMixin,
     RoastReservationMixin,
     DailyReportMixin,
     ExVariantMixin,
@@ -101,8 +104,18 @@ class RollPigPlugin(
 
     @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行點火'}, priority=1000)
     async def force_roast_group_member(self, event: AstrMessageEvent, args: str=''):
-        """后门口令：绕过烤群友冷却与概率，但不绕过资格限制。"""
+        """后门口令：绕过烤群友能量与概率，但不绕过资格限制。"""
         return await super().force_roast_group_member(event, args)
+
+    @filter.command('烤箱补货', alias={'烤箱補貨', '烤箱补给', '烤箱補給'}, priority=1000)
+    async def oven_refill(self, event: AstrMessageEvent):
+        """发起本群今日烤箱补货活动。"""
+        return await super().oven_refill(event)
+
+    @filter.command('添煤', alias={'加煤', '烤箱添煤'}, priority=1000)
+    async def oven_refill_support(self, event: AstrMessageEvent):
+        """为当前群的烤箱补货活动贡献一份支持。"""
+        return await super().oven_refill_support(event)
 
     @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
     async def pigsty_daily_report(self, event: AstrMessageEvent):
