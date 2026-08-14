@@ -17,9 +17,11 @@ try:
         help_sections_fingerprint,
     )
     from .renderers.help import render_help_card
+    from .wiki_links import WIKI_HOME_URL, WIKI_TROUBLESHOOTING_URL
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from help_system import HelpFeatureState, build_help_sections, help_sections_fingerprint
     from renderers.help import render_help_card
+    from wiki_links import WIKI_HOME_URL, WIKI_TROUBLESHOOTING_URL
 
 
 _HELP_CACHE_LOCK = threading.Lock()
@@ -28,7 +30,7 @@ _HELP_CACHE_LOCK = threading.Lock()
 class HelpFeatureMixin:
     """Configuration-aware RollPig help model, rendering and caching."""
 
-    HELP_RENDER_CACHE_VERSION = 2
+    HELP_RENDER_CACHE_VERSION = 3
     HELP_RENDER_CACHE_KEEP = 8
 
     def _help_feature_state(self) -> HelpFeatureState:
@@ -174,10 +176,22 @@ class HelpFeatureMixin:
         try:
             output = await asyncio.to_thread(self.render_help_image)
             await event.send(event.image_result(str(output.absolute())))
+            try:
+                await event.send(
+                    event.plain_result(
+                        "📖 想看完整玩法、管理、投稿與排障？今日小豬 Wiki：\n"
+                        f"{WIKI_HOME_URL}"
+                    )
+                )
+            except Exception as link_exc:
+                logger.warning(f"發送今日小豬 Wiki 入口失敗：{link_exc}")
         except Exception as exc:
             logger.error(f"生成豬豬幫助圖片失敗：{exc}", exc_info=True)
             await event.send(
-                event.plain_result("豬豬幫助圖片生成失敗，請查看後台日誌。")
+                event.plain_result(
+                    "豬豬幫助圖片生成失敗，請查看後台日誌。\n"
+                    f"🧯 排障指南：{WIKI_TROUBLESHOOTING_URL}"
+                )
             )
         finally:
             if output:
