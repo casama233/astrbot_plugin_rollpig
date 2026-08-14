@@ -60,8 +60,8 @@ def test_only_rich_daily_report_is_registered():
     assert "async def pigsty_daily_report" in rich
     commands = {node.name: node for node in _command_functions(main)}
     assert "pigsty_daily_report" in commands
-    segment = ast.get_source_segment(main, commands["pigsty_daily_report"]) or ""
-    assert "猪圈日报" in segment
+    decorators = [ast.unparse(dec) for dec in commands["pigsty_daily_report"].decorator_list]
+    assert any("猪圈日报" in decorator for decorator in decorators)
 
 
 def test_all_rollpig_command_implementations_claim_the_event():
