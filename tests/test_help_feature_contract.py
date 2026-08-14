@@ -37,7 +37,21 @@ def test_help_rendering_is_offloaded_from_event_loop():
 def test_help_cache_identity_comes_from_actual_visible_sections():
     cls = _class("help_feature.py", "HelpFeatureMixin")
     source = ast.unparse(_method(cls, "_help_cache_identity"))
-    assert "help_sections_fingerprint(self._help_sections(), theme=theme)" in source
+    assert "self._help_sections()" in source
+    assert "HELP_RENDER_CACHE_VERSION" in source
+    assert "self._help_font_identity()" in source
+    assert "help_sections_fingerprint" in source
+
+
+def test_help_cache_keeps_master_and_returns_disposable_output():
+    cls = _class("help_feature.py", "HelpFeatureMixin")
+    ensure_source = ast.unparse(_method(cls, "_ensure_help_master"))
+    render_source = ast.unparse(_method(cls, "render_help_image"))
+
+    assert "self._valid_help_master(master)" in ensure_source
+    assert "staging.replace(master)" in ensure_source
+    assert "os.link(master, output)" in render_source
+    assert "shutil.copyfile(master, output)" in render_source
 
 
 def test_help_renderer_uses_low_cpu_png_compression():
