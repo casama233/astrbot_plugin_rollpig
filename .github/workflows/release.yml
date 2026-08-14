@@ -92,12 +92,12 @@ jobs:
             --exclude '.pre-commit-config.yaml' \
             --exclude 'CONTRIBUTING.md' \
             --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
-            --exclude 'resource/font/荆南麦圆体.otf' \
             --exclude '*.pyc' \
             --exclude '*.pyo' \
             --exclude '.env' \
             --exclude 'data/' \
             --exclude 'plugin_data/'
+          test -f "dist/$PLUGIN_NAME/resource/font/荆南麦圆体.otf"
           (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
 
           archive_size=$(stat -c%s "dist/$ARCHIVE")
