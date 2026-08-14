@@ -60,6 +60,12 @@ class StorageBackend(ABC):
     def consume_roast_charge(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    def start_oven_refill(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def support_oven_refill(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     def increment_roast_count(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 

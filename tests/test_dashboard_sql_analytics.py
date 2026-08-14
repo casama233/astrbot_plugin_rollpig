@@ -55,7 +55,7 @@ def test_sql_dashboard_overview_aggregates_normalized_tables(tmp_path):
         {"id": "pig-b", "draws": 1, "collectors": 1},
     ]
     assert overview["observability"]["analytics_source"] == "normalized-sql"
-    assert overview["observability"]["schema_version"] == 5
+    assert overview["observability"]["schema_version"] == 7
 
 
 def test_dashboard_indexes_and_repair_observability(tmp_path):

@@ -19,7 +19,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
     """
 
     supports_lazy_compatibility_export = True
-    schema_version = 6
+    schema_version = 7
 
     RUNTIME_DOCUMENT_KEYS = (
         "pig_history.json",
@@ -352,6 +352,66 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
                 )
                 self._mark_primary_write_tx(connection)
             return {"changed": changed}
+
+    def start_oven_refill(
+        self,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_count: int,
+        now: float,
+        daily_limit: int,
+        ratio_percent: int,
+        minimum_supporters: int,
+        extra_per_success: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        with self.transaction() as connection:
+            result = self._start_oven_refill_tx(
+                connection,
+                draw_date=draw_date,
+                group_id=group_id,
+                actor_id=actor_id,
+                active_count=active_count,
+                now=now,
+                daily_limit=daily_limit,
+                ratio_percent=ratio_percent,
+                minimum_supporters=minimum_supporters,
+                extra_per_success=extra_per_success,
+                cutoff_date=cutoff_date,
+            )
+            if result.get("state") == "started":
+                self._mark_primary_write_tx(connection)
+            return result
+
+    def support_oven_refill(
+        self,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_actor_ids: list[str] | tuple[str, ...],
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        with self.transaction() as connection:
+            result = self._support_oven_refill_tx(
+                connection,
+                draw_date=draw_date,
+                group_id=group_id,
+                actor_id=actor_id,
+                active_actor_ids=active_actor_ids,
+                now=now,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+                cutoff_date=cutoff_date,
+            )
+            if result.get("state") in {"supported", "succeeded", "failed"}:
+                self._mark_primary_write_tx(connection)
+            return result
 
     def consume_roast_charge(
         self,

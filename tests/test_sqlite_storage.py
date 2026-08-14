@@ -161,7 +161,7 @@ def test_manager_migration_is_idempotent_and_auto_selects_sqlite(tmp_path):
     assert manager._last_action["status"] == "auto-migrated"
     assert manager._last_action["documents"] == len(values)
     assert manager.verify()["ok"] is True
-    assert manager.verify()["schema_version"] == 6
+    assert manager.verify()["schema_version"] == 7
     with manager.backend._connection() as connection:
         assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
     second = manager.migrate_to_sqlite()
@@ -417,7 +417,7 @@ def test_schema_v2_migrates_identity_columns_and_group_index(tmp_path):
     assert {"legacy_id", "created_at"} <= identity_columns
     assert {"created_at", "was_new_unlock"} <= draw_columns
     assert [row[0] for row in groups] == ["g1"]
-    assert version == 5
+    assert version == 7
 
 
 def test_real_transaction_commits_and_rolls_back(tmp_path):
@@ -1247,7 +1247,7 @@ def test_v3_promotion_discards_stale_documents_without_overwriting_sql(tmp_path)
     assert isinstance(manager.backend, SQLitePrimaryStorage)
     verification = manager.backend.verify()
     assert verification["ok"] is True
-    assert verification["schema_version"] == 6
+    assert verification["schema_version"] == 7
     assert verification["documents"] == 0
     assert verification["projection_authority"] == "sql-primary-v3.0"
     snapshot = manager.backend.load_runtime_snapshot()

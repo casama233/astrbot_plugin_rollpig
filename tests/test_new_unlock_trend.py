@@ -134,4 +134,4 @@ def test_schema_v4_backfills_existing_zero_unlock_flags(tmp_path):
         ("2026-08-01", 1),
         ("2026-08-02", 0),
     ]
-    assert version == 5
+    assert version == 7
