@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import random
 from typing import Any, Mapping
 
 try:
@@ -9,7 +11,10 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class RoastService:
-    """Eligibility and copy rules for roast/eat actions."""
+    """Pure eligibility, outcome and copy policy for roast/eat actions."""
+
+    GROUP_ROAST_OUTCOMES = ("success", "escape", "backlash")
+    GROUP_ROAST_WEIGHTS = (60, 30, 10)
 
     @staticmethod
     def _name(pig: Mapping[str, Any] | None) -> str:
@@ -69,3 +74,30 @@ class RoastService:
             else "吃群友成功"
         )
         return f" 🍴 {action}，「{name}」被吃掉了；明天抽猪可能失败。"
+
+    def choose_group_roast_outcome(self, *, bypass: bool = False, rng=None) -> str:
+        """Return the existing 60/30/10 roast outcome from one policy source."""
+        if bypass:
+            return "success"
+        chooser = rng or random
+        return str(
+            chooser.choices(
+                self.GROUP_ROAST_OUTCOMES,
+                weights=self.GROUP_ROAST_WEIGHTS,
+                k=1,
+            )[0]
+        )
+
+    @staticmethod
+    def format_cooldown(seconds: int) -> str:
+        seconds = max(1, int(seconds))
+        hours, remainder = divmod(seconds, 3600)
+        minutes = max(1, math.ceil(remainder / 60)) if remainder else 0
+        return f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+
+    @staticmethod
+    def roast_protection_message(count: int) -> str:
+        return (
+            f"🛡️ 对方昨天被烤了 {count} 次，今天已获得猪圈保护。"
+            "普通烧烤会被拦截；后门强制模式仍可突破保护。"
+        )
