@@ -7,6 +7,10 @@ delegate to the inherited implementation and keep AstrBot handler ownership,
 priority and unload semantics bound to the real Star entry point.
 """
 
+import asyncio
+import threading
+
+from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 
 try:
@@ -16,6 +20,7 @@ try:
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
+    from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
@@ -23,6 +28,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
+    from state_persistence import DebouncedSnapshotWriter
 
 
 class RollPigPlugin(
@@ -35,11 +41,88 @@ class RollPigPlugin(
 ):
     """RollPig Plus with growth, roast reservations and rich daily reports."""
 
+    DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS = 2.0
+
+    def __init__(self, context, config):
+        config_view = config if hasattr(config, "get") else {}
+        try:
+            render_concurrency = int(config_view.get("image_render_concurrency", 2))
+        except (TypeError, ValueError):
+            render_concurrency = 2
+        self.image_render_concurrency = min(8, max(1, render_concurrency))
+        self._image_render_slots = threading.BoundedSemaphore(
+            self.image_render_concurrency
+        )
+        super().__init__(context, config)
+        self._daily_report_state_writer = DebouncedSnapshotWriter(
+            state_lock=self._data_lock,
+            snapshot_factory=lambda: self.daily_report_state,
+            write_snapshot=lambda snapshot: self.save_json(
+                self.daily_report_state_path, snapshot
+            ),
+            delay_seconds=self.DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS,
+            on_error=lambda exc: logger.warning(
+                f"猪圈日报状态延迟落盘失败，将自动重试：{exc}"
+            ),
+        )
+
+    def _save_daily_report_state_locked(self) -> None:
+        """Coalesce hot report metadata writes after startup initialization."""
+        writer = getattr(self, "_daily_report_state_writer", None)
+        if writer is None:
+            return super()._save_daily_report_state_locked()
+        writer.mark_dirty()
+
+    async def terminate(self):
+        """Drain report work, then force the newest debounced snapshot to disk."""
+        task = getattr(self, "_daily_report_task", None)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        writer = getattr(self, "_daily_report_state_writer", None)
+        if writer is not None:
+            try:
+                await asyncio.to_thread(writer.close_and_flush)
+            except Exception as exc:
+                logger.warning(f"插件卸载时最终保存猪圈日报状态失败：{exc}")
+        await super().terminate()
+
+    def _run_with_render_slot(self, renderer, *args, **kwargs):
+        """Apply CPU backpressure without occupying the asyncio event loop."""
+        with self._image_render_slots:
+            return renderer(*args, **kwargs)
+
+    def render_pig_image(self, pig_data):
+        return self._run_with_render_slot(super().render_pig_image, pig_data)
+
+    def render_pigsty_image(self, user_id, page):
+        return self._run_with_render_slot(super().render_pigsty_image, user_id, page)
+
+    def render_catalog_grid(self, pigs, title, subtitle):
+        return self._run_with_render_slot(
+            super().render_catalog_grid, pigs, title, subtitle
+        )
+
+    def render_weekly_summary(self, user_id):
+        return self._run_with_render_slot(super().render_weekly_summary, user_id)
+
+    def render_roast_image(self, pig, user_id, ai_copy=None):
+        return self._run_with_render_slot(
+            super().render_roast_image, pig, user_id, ai_copy
+        )
+
+    def render_daily_report_image(self, report):
+        return self._run_with_render_slot(super().render_daily_report_image, report)
+
     # BEGIN MAIN COMMAND REGISTRATION
     # Decorators stay on the real Star entry module; implementations live below.
     @filter.command('猪猪帮助', alias={'豬豬幫助', '小猪帮助', '小豬幫助', 'rollpig帮助', 'rollpig幫助'}, priority=1000)
     async def rollpig_help(self, event: AstrMessageEvent):
-        """展示今日小猪的完整指令说明。"""
+        """展示按当前配置动态生成的完整指令说明。"""
         return await super().rollpig_help(event)
 
     @filter.command('今日小猪', alias={'今日小豬', '今天是什么小猪', '今天是什麼小豬', '抽小猪', '抽小豬', '我的小猪', '我的小豬', 'rollpig'}, priority=1000)
