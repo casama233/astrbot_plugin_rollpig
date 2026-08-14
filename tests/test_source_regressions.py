@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = (ROOT / "main.py").read_text(encoding="utf-8")
+SOURCE = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 
 
 def _method(name: str):
