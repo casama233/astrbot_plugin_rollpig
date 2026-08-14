@@ -82,10 +82,11 @@ def test_prune_state_keeps_group_routing_but_drops_old_daily_data():
 def test_entrypoint_layers_focused_features_over_existing_plugin():
     root = __import__("pathlib").Path(__file__).resolve().parents[1]
     entry = (root / "main.py").read_text(encoding="utf-8")
-    assert (
-        "class RollPigPlugin(DailyReportMixin, ExVariantMixin, _BaseRollPigPlugin)"
-        in entry
-    )
+    assert "RoastReservationMixin" in entry
+    assert "DailyReportMixin" in entry
+    assert "ExVariantMixin" in entry
+    assert "_BaseRollPigPlugin" in entry
+    assert "from .roast_reservation_feature import RoastReservationMixin" in entry
     assert "from .daily_report_feature import DailyReportMixin" in entry
     assert "from .ex_variant_feature import ExVariantMixin" in entry
     assert "legacy_main" in entry
