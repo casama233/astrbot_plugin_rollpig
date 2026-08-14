@@ -46,6 +46,7 @@ class HelpFeatureMixin:
             enable_roast_reservation=bool(
                 getattr(self, "enable_roast_reservation", True)
             ),
+            enable_oven_refill=bool(getattr(self, "enable_oven_refill", True)),
             enable_group_eat=bool(getattr(self, "enable_group_eat", True)),
             enable_roast_protection=bool(
                 getattr(self, "enable_roast_protection", True)
@@ -179,5 +180,8 @@ class HelpFeatureMixin:
                 event.plain_result("豬豬幫助圖片生成失敗，請查看後台日誌。")
             )
         finally:
-            if output:
-                output.unlink(missing_ok=True)
+            if output is not None:
+                try:
+                    Path(output).unlink(missing_ok=True)
+                except OSError:
+                    pass
