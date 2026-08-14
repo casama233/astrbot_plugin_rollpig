@@ -1,0 +1,46 @@
+name: Temporary integrate latest main
+
+on:
+  push:
+    branches:
+      - fix/group-report-and-source-review-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Merge latest main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge --no-edit origin/main
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pre-commit
+      - name: Compile
+        run: python -m compileall -q .
+      - name: Test
+        run: pytest -q
+      - name: Pre-commit
+        run: pre-commit run --all-files
+      - name: Diff check
+        run: git diff --check HEAD~1 HEAD || true
+      - name: Remove temporary workflow
+        run: |
+          rm -f .github/workflows/tmp-rebase-report-review-fix.yml
+          git add -A
+          git commit -m 'chore: remove temporary integration workflow'
+      - name: Push verified integration
+        run: git push origin HEAD:fix/group-report-and-source-review-hardening
