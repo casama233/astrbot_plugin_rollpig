@@ -24,6 +24,22 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Harden temporary patch markers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/_tmp_apply_roast_boundary.py')
+          source = path.read_text(encoding='utf-8')
+          replacements = {
+              '"    def render_help_image(\\n",': '"    def render_help_image(self) -> Path:\\n",',
+              '"    async def pigsty_daily_report(\\n",': '"    async def pigsty_daily_report(self, event: AstrMessageEvent):\\n",',
+          }
+          for old, new in replacements.items():
+              assert source.count(old) == 1, (old, source.count(old))
+              source = source.replace(old, new, 1)
+          path.write_text(source, encoding='utf-8')
+          PY
+
       - name: Apply boundary refactor
         run: python scripts/_tmp_apply_roast_boundary.py
 
