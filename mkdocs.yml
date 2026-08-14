@@ -53,8 +53,8 @@ nav:
 theme:
   name: material
   language: zh
-  logo: assets/pig-nose.svg
-  favicon: assets/pig-nose.svg
+  logo: assets/plugin-logo.png
+  favicon: assets/plugin-logo.png
   icon:
     repo: fontawesome/brands/github
   features:
@@ -108,10 +108,12 @@ markdown_extensions:
 extra_css:
   - stylesheets/extra.css
   - stylesheets/wiki-v2.css
+  - stylesheets/brand-icons.css
 
 extra_javascript:
   - javascripts/pigsty.js
   - javascripts/wiki-v2.js
+  - javascripts/brand-icons.js
 
 extra:
   social:
