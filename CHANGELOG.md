@@ -2,7 +2,10 @@
 
 ## 未發佈
 
-- 暫無。
+### 架構
+
+- 完成 command registration boundary 第一階段：15 個 RollPig 指令 decorator 全部收回 `main.py` 真正 Star 入口，helper/mixin 僅保留業務方法；每個 command 顯式 `priority=1000` 並由薄 wrapper 委派，移除 v3.6.2 的 runtime handler rebind / registry 重排 workaround。
+- 新增 AST 契約測試，禁止 `legacy_main.py` / feature mixin 再註冊 AstrBot command，並要求入口 wrapper 保持完整指令面與 `super()` 委派。
 
 ## v3.6.2 (2026-08-14)
 

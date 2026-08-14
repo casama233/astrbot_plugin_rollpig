@@ -3,11 +3,13 @@
 本文記錄 v3.5.x 之後的漸進式拆分方向。目標不是一次重寫 `legacy_main.py`，而是在不改變既有 SQLite／JSON 權威資料與玩法語義的前提下，讓新功能有穩定的接入點。
 
 
-## AstrBot handler 所有權契約
+## AstrBot command registration boundary
 
-v3.6.0 起核心實作可繼續拆在 `legacy_main.py` 或 feature mixin，但 AstrBot 的 handler metadata 會在 decorator 執行時使用函數的 `__module__`。真正的 Star 入口仍是 `main.py`，因此 `main.py` 必須在匯入 feature 後把本插件 handler 的 `handler_module_path` 重新綁定到入口模組；否則 WakingCheck 可以看見指令，`StarRequestSubStage` 卻可能因 `star_map` 找不到 helper module 而跳過 handler。
+v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command` / `@filter.command_group` 必須直接定義在真正的 `main.py` Star 入口；`legacy_main.py` 與 feature mixin 只保留可測試的業務方法。`main.py` 的薄 wrapper 只負責 AstrBot 註冊並 `await super().<handler>(...)` 委派，不複製玩法邏輯。
 
-所有 RollPig command 同時使用高於普通消息 handler 的明確優先級，並在自身 handler 入口停止事件傳播。`.github/workflows/astrbot-market-smoke.yml` 會用目前 AstrBot master 實際匯入插件並驗證 handler owner、priority 與 `roll_pig` 存在性；任何後續架構拆分都不得移除這項契約。
+所有 RollPig command 在 decorator 上顯式聲明 `priority=1000`，既不依賴註冊順序，也不需要 import 後重新排序 registry。handler 內仍保留 `event.stop_event()` 作為第二層隔離。AstrBot Market Smoke 必須同時驗證 `handler.__module__ == main`、`handler_module_path == main` 與 priority；任何後續拆分都不得把 command decorator 移回 helper module。
+
+這是漸進式拆分的第一個硬邊界：**命令註冊屬於入口，玩法實作屬於 service/feature。** 後續可以安全地逐步搬走 `legacy_main.py` 內容，而不再改變 AstrBot 的 handler ownership。
 
 ## Gameplay Event v1
 

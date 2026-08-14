@@ -5,6 +5,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+HELPER_FILES = (
+    "legacy_main.py",
+    "daily_report_feature.py",
+    "ex_variant_feature.py",
+    "roast_reservation_feature.py",
+)
 
 
 def _source(name: str) -> str:
@@ -30,28 +36,46 @@ def _command_functions(source: str) -> list[ast.AsyncFunctionDef]:
     return result
 
 
+def _async_functions(source: str) -> dict[str, ast.AsyncFunctionDef]:
+    tree = ast.parse(source)
+    return {
+        node.name: node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef)
+    }
+
+
 def test_only_rich_daily_report_is_registered():
     legacy = _source("legacy_main.py")
     rich = _source("daily_report_feature.py")
-    assert '@filter.command("猪圈日报"' not in legacy
+    main = _source("main.py")
     assert "async def _legacy_pigsty_daily_report" in legacy
-    assert '"猪圈日报",' in rich
     assert "async def pigsty_daily_report" in rich
+    commands = {node.name: node for node in _command_functions(main)}
+    assert "pigsty_daily_report" in commands
+    decorators = [ast.unparse(dec) for dec in commands["pigsty_daily_report"].decorator_list]
+    assert any("猪圈日报" in decorator for decorator in decorators)
 
 
-def test_all_rollpig_command_handlers_claim_the_event():
-    legacy = _source("legacy_main.py")
-    functions = _command_functions(legacy)
-    assert functions
+def test_all_rollpig_command_implementations_claim_the_event():
+    main = _source("main.py")
+    command_names = {node.name for node in _command_functions(main)}
+    assert command_names
+
+    implementations: dict[str, tuple[str, ast.AsyncFunctionDef]] = {}
+    for filename in HELPER_FILES:
+        source = _source(filename)
+        for name, node in _async_functions(source).items():
+            if name in command_names:
+                implementations[name] = (source, node)
+
+    assert set(implementations) == command_names
     missing = []
-    for node in functions:
-        segment = ast.get_source_segment(legacy, node) or ""
+    for name, (source, node) in implementations.items():
+        segment = ast.get_source_segment(source, node) or ""
         if "self._claim_command_event(event)" not in segment:
-            missing.append(node.name)
+            missing.append(name)
     assert missing == []
-    rich = _source("daily_report_feature.py")
-    daily = next(node for node in _command_functions(rich) if node.name == "pigsty_daily_report")
-    assert "self._claim_command_event(event)" in (ast.get_source_segment(rich, daily) or "")
 
 
 def test_traditional_font_prefers_packaged_cjk_face():
