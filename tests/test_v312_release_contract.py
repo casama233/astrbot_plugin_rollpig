@@ -24,7 +24,7 @@ def test_v340_release_contract_is_readable_lazy_and_versioned():
     assert '--notes-file "$notes_file"' in release_workflow
 
 
-def test_release_packages_ship_title_font_and_keep_cjk_fallback():
+def test_release_packages_ship_round_cjk_font_and_use_it_before_dejavu():
     entrypoint = (ROOT / "main.py").read_text(encoding="utf-8")
     release_workflow = (ROOT / ".github/workflows/release.yml").read_text(
         encoding="utf-8"
@@ -37,14 +37,20 @@ def test_release_packages_ship_title_font_and_keep_cjk_fallback():
     excluded_preferred_font = f"--exclude '{preferred_font}'"
 
     assert (ROOT / preferred_font).is_file()
+    assert not (ROOT / "resource/font/可爱字体.ttf").exists()
     assert excluded_preferred_font not in release_workflow
     assert excluded_preferred_font not in marketplace_workflow
     assert f'test -f "dist/$PLUGIN_NAME/{preferred_font}"' in release_workflow
     assert f'test -f "dist/$plugin_name/{preferred_font}"' in marketplace_workflow
 
-    preferred_index = entrypoint.index('self.font_dir / "荆南麦圆体.otf"')
-    bundled_fallback_index = entrypoint.index('self.font_dir / "可爱字体.ttf"')
-    dejavu_index = entrypoint.index(
+    regular_start = entrypoint.index("def _init_regular_font")
+    bold_start = entrypoint.index("def _init_bold_font")
+    regular_block = entrypoint[regular_start:bold_start]
+    bold_block = entrypoint[bold_start:]
+
+    assert regular_block.index('self.font_dir / "荆南麦圆体.otf"') < regular_block.index(
+        '"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"'
+    )
+    assert bold_block.index('self.font_dir / "荆南麦圆体.otf"') < bold_block.index(
         '"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"'
     )
-    assert preferred_index < bundled_fallback_index < dejavu_index
