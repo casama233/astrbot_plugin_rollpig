@@ -1,0 +1,65 @@
+name: Temporary final merge latest main for daily report
+
+on:
+  push:
+    branches:
+      - fix/daily-report-admin-sacrifice-contract
+    paths:
+      - .github/workflows/tmp-final-merge-main-daily-report.yml
+
+permissions:
+  contents: write
+
+jobs:
+  merge-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/daily-report-admin-sacrifice-contract
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Merge latest main and prefer main changelog
+        shell: bash
+        run: |
+          git fetch origin main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-commit origin/main || true
+          conflicts="$(git diff --name-only --diff-filter=U)"
+          unexpected="$(printf '%s\n' "$conflicts" | grep -v '^CHANGELOG.md$' | sed '/^$/d' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected merge conflicts:"
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+          if printf '%s\n' "$conflicts" | grep -qx 'CHANGELOG.md'; then
+            git checkout --theirs CHANGELOG.md
+            git add CHANGELOG.md
+          fi
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo 'Unresolved conflicts remain'
+            exit 1
+          fi
+          git add -A
+          git commit -m 'chore: merge latest main into daily report fix'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pre-commit
+      - name: Compile
+        run: python -m compileall -q .
+      - name: Full test suite
+        run: pytest -q
+      - name: Pre-commit
+        run: pre-commit run --all-files
+      - name: Diff check
+        run: git diff --check origin/main...HEAD
+      - name: Remove helper and push
+        run: |
+          rm .github/workflows/tmp-final-merge-main-daily-report.yml
+          git add -A
+          git commit -m 'chore: remove temporary final integration workflow'
+          git push origin HEAD:fix/daily-report-admin-sacrifice-contract
