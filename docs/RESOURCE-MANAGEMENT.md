@@ -39,7 +39,7 @@
 4. 回到編輯視窗，選擇「本地上傳」替換圖片。
 5. 保存後圖片會統一為 `512×512 PNG`。
 
-下載的是目前真正生效的圖片：本地圖片優先，其次 AstrBot／私人源，最後才是內置資源。
+下載的是目前真正生效的圖片：本地圖片優先，其次 AstrBot／私人源的 EX／基礎圖片，最後才是內置資源。只要某 ID 存在本地資料 override，遠端／內置 EX 文案差分也不會蓋過本地內容。
 
 ### 取消屏蔽
 
@@ -92,6 +92,15 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ]
 ```
 
+
+### 可選 EX Lv. 差分
+
+Resource Protocol v1 可選增加 `pig_ex_variants.json` 與 `ex_variants/`。manifest 對應增加 `ex_variants` 檔案 metadata 及 `variant_images` 陣列；沒有這些欄位的既有 v1／私人來源仍然有效。
+
+EX Lv.1–5 可分別覆蓋圖片、描述或完整文案，未配置欄位會向較低等級繼承。差分不允許修改 ID、名稱或玩法規則。完整格式與顯示語義見 [`EX-VARIANTS.md`](EX-VARIANTS.md)。
+
+差分 JSON 與圖片會和基礎資源一起執行大小、SHA-256、解碼、整包預算與 staging 校驗；任一差分失敗時不會切換 active 資源。
+
 ### 必要條件
 
 - manifest 必須是 HTTPS URL。
@@ -100,7 +109,7 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 - `pig.json` 中每個 ID 都必須存在同名圖片。
 - ID 只允許小寫字母、數字、`-`、`_`，長度 1–64。
 - 圖片副檔名只允許 PNG、JPG、JPEG、WEBP、GIF。
-- manifest 最多 500 張圖片，整包聲明大小不得超過 128 MiB。
+- 基礎 manifest 最多 500 張圖片；可選 EX 差分最多 1000 張圖片，基礎與差分合計仍受 128 MiB 整包上限限制。
 - 單檔上限由 `resource_max_file_size_mb` 控制。
 
 ### 部署建議
