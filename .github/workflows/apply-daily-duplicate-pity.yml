@@ -1,0 +1,38 @@
+name: Apply daily duplicate pity patch
+
+on:
+  push:
+    branches:
+      - feature/daily-duplicate-pity
+    paths:
+      - .github/workflows/apply-daily-duplicate-pity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/daily-duplicate-pity
+          fetch-depth: 0
+
+      - name: Apply patch
+        run: python tools/apply_daily_duplicate_pity_patch.py
+
+      - name: Validate patched Python and schema
+        run: |
+          python -m compileall -q main.py services
+          python -m json.tool _conf_schema.json > /dev/null
+
+      - name: Commit clean feature changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-daily-duplicate-pity.yml tools/apply_daily_duplicate_pity_patch.py
+          git add main.py services/draw_service.py _conf_schema.json README.md docs/CONFIGURATION.md tests/test_draw_service_pity.py
+          git commit -m "feat: add cross-day duplicate pity bonus"
+          git push origin HEAD:feature/daily-duplicate-pity
