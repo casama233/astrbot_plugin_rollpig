@@ -1,0 +1,47 @@
+name: Temporary merge latest main for daily report
+
+on:
+  push:
+    branches:
+      - fix/daily-report-admin-sacrifice-contract
+    paths:
+      - .github/workflows/tmp-merge-main-daily-report.yml
+
+permissions:
+  contents: write
+
+jobs:
+  merge-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/daily-report-admin-sacrifice-contract
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Merge latest main
+        run: |
+          git fetch origin main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit origin/main
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pre-commit
+      - name: Compile
+        run: python -m compileall -q .
+      - name: Full test suite
+        run: pytest -q
+      - name: Pre-commit
+        run: pre-commit run --all-files
+      - name: Diff check
+        run: git diff --check origin/main...HEAD
+      - name: Remove helper and push
+        run: |
+          rm .github/workflows/tmp-merge-main-daily-report.yml
+          git add -A
+          git commit -m 'chore: remove temporary main integration workflow'
+          git push origin HEAD:fix/daily-report-admin-sacrifice-contract
