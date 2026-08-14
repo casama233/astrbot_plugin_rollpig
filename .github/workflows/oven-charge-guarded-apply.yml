@@ -42,11 +42,26 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
       - name: Diff check
         run: git diff --check
-      - name: Commit verified Phase 3 implementation
+      - name: Persist verified files with GitHub Contents API
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "feat: add oven charge and group refill gameplay"
-          git push origin HEAD:feat/oven-charge-refill
+          set -euo pipefail
+          files=(
+            legacy_main.py
+            roast_reservation_feature.py
+            _conf_schema.json
+            .github/workflows/ci.yml
+            daily_report_core.py
+            daily_report_feature.py
+            tests/test_daily_report.py
+          )
+          for file in "${files[@]}"; do
+            sha=$(gh api "repos/${GITHUB_REPOSITORY}/contents/${file}?ref=feat/oven-charge-refill" --jq .sha)
+            content=$(base64 -w 0 "$file")
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${file}" \
+              -f message="feat: persist verified oven charge integration" \
+              -f content="$content" \
+              -f sha="$sha" \
+              -f branch="feat/oven-charge-refill" >/dev/null
+          done
