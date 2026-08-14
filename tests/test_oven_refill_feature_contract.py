@@ -38,3 +38,10 @@ def test_refill_events_use_shared_gameplay_event_namespace():
         assert name in source
     assert "_record_gameplay_event" in source
     assert "daily_report_state" not in source
+
+
+def test_refill_init_owns_its_bool_parser_and_does_not_depend_on_base_helper():
+    source = Path("oven_refill_feature.py").read_text(encoding="utf-8")
+    assert "def _oven_refill_bool(" in source
+    assert "self._oven_refill_bool(" in source
+    assert "self._config_bool(" not in source
