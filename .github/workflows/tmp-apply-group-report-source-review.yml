@@ -22,6 +22,7 @@ jobs:
       - name: Apply guarded patch
         run: |
           sed -i 's/marker = "## \[Unreleased\]"/marker = "## 未發佈"/' scripts/apply_group_report_source_review_fix.py
+          sed -i 's/pattern.subn(replacement, text, count=1)/pattern.subn(lambda _: replacement, text, count=1)/' scripts/apply_group_report_source_review_fix.py
           python scripts/apply_group_report_source_review_fix.py
       - name: Install dependencies
         run: |
