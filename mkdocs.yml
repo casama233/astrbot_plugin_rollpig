@@ -1,0 +1,109 @@
+site_name: 今日小豬 Wiki
+site_description: 今日小豬 · 增強版的玩家玩法、指令百科、管理員指南與維護文檔
+site_url: https://casama233.github.io/astrbot_plugin_rollpig/
+repo_url: https://github.com/casama233/astrbot_plugin_rollpig
+repo_name: casama233/astrbot_plugin_rollpig
+edit_uri: edit/main/docs/
+copyright: "今日小豬 · 增強版 · 豬圈裡的規則很多，但先抽一隻再說。"
+
+nav:
+  - 🐷 Wiki 首頁: index.md
+  - 🚀 5 分鐘開始養豬: getting-started/index.md
+  - 🎮 玩家玩法:
+      - 玩法總覽: gameplay/index.md
+      - ⭐ EX 成長: gameplay/ex-growth.md
+      - 🔥 Roast Charge: gameplay/roast-charge.md
+      - 📰 豬圈日報: gameplay/daily-report.md
+      - 精確 EX 差分規則: EX-VARIANTS.md
+      - 精確烤箱 Charge 規則: ROAST-CHARGES.md
+      - 預約烤豬: ROAST-RESERVATIONS.md
+      - 日報技術規則: DAILY-REPORT.md
+  - 📖 指令百科: COMMANDS.md
+  - ⚙️ 管理員指南:
+      - 完整配置: CONFIGURATION.md
+      - 資源管理: RESOURCE-MANAGEMENT.md
+      - 運維、備份與遷移: OPERATIONS.md
+      - Marketplace: MARKETPLACE.md
+  - ☁️ 小豬資源:
+      - 資源相容性: RESOURCE-SOURCE-COMPATIBILITY.md
+      - 豬源維護: RESOURCE-SOURCE-MAINTENANCE.md
+  - 🛠 開發者與維護者:
+      - 架構總覽: ARCHITECTURE.md
+      - Collection Identity: COLLECTION-IDENTITY.md
+      - 參與開發: ../CONTRIBUTING.md
+  - 📜 版本歷史: ../CHANGELOG.md
+
+# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在 extra.css / pigsty.js，
+# 方便後續升級主題而不 fork 上游模板。
+theme:
+  name: material
+  language: zh
+  logo: assets/pig-nose.svg
+  favicon: assets/pig-nose.svg
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+    - announce.dismiss
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: 進入夜間豬圈
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: 打開豬圈燈
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+      jieba_dict_user: docs/search-terms.txt
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/pigsty.js
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/casama233/astrbot_plugin_rollpig
+      name: GitHub
+  generator: false
