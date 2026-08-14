@@ -7,6 +7,8 @@ on:
     paths:
       - scripts/apply_oven_charge_phase3.py
       - .github/workflows/oven-charge-guarded-apply.yml
+      - tests/test_command_registration_boundary.py
+      - tests/test_v361_hotfix_contract.py
 
 permissions:
   contents: write
@@ -31,7 +33,7 @@ jobs:
       - name: Apply guarded phase3 patch
         run: python scripts/apply_oven_charge_phase3.py
       - name: Run focused tests
-        run: pytest -q tests/test_oven_charge_service.py tests/test_oven_charge_feature_contract.py tests/test_daily_report.py
+        run: pytest -q tests/test_oven_charge_service.py tests/test_oven_charge_feature_contract.py tests/test_daily_report.py tests/test_command_registration_boundary.py tests/test_v361_hotfix_contract.py
       - name: Compile source
         run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py oven_charge_feature.py rollpig_core.py updater.py storage services
       - name: Run full tests
