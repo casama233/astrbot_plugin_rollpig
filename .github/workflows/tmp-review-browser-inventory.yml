@@ -1,0 +1,32 @@
+name: Temporary review browser inventory
+on:
+  push:
+    branches: [fix/public-source-review-actions-and-browser]
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect review paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path, needles in [
+              (Path('legacy_main.py'), ['page_public_source_reviews','page_public_source_review_image','page_public_source_review_decision','register_web_api']),
+              (Path('pages/pig-manager/index.html'), ['sourceReviewPanel','reviewPublicSource','renderSourceReviews','window.confirm','window.prompt']),
+          ]:
+              lines=path.read_text(encoding='utf-8').splitlines()
+              print(f'=== {path} ===')
+              seen=set()
+              for needle in needles:
+                  for i,line in enumerate(lines):
+                      if needle in line:
+                          a=max(0,i-12); b=min(len(lines),i+45)
+                          key=(a,b)
+                          if key in seen: continue
+                          seen.add(key)
+                          print(f'--- {needle} lines {a+1}-{b} ---')
+                          for n in range(a,b): print(f'{n+1:05d}: {lines[n]}')
+          PY
