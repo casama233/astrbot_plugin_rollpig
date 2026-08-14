@@ -24,12 +24,14 @@ try:
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
+    from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
+    from state_persistence import DebouncedSnapshotWriter
 
 
 class RollPigPlugin(
@@ -42,6 +44,7 @@ class RollPigPlugin(
     """RollPig Plus with growth, roast reservations and rich daily reports."""
 
     HELP_RENDER_CACHE_VERSION = 1
+    DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS = 2.0
 
     def __init__(self, context, config):
         config_view = config if hasattr(config, "get") else {}
@@ -57,6 +60,42 @@ class RollPigPlugin(
         super().__init__(context, config)
         self._help_render_cache_dir = self.plugin_data_dir / "render_cache" / "help"
         self._help_render_cache_dir.mkdir(parents=True, exist_ok=True)
+        self._daily_report_state_writer = DebouncedSnapshotWriter(
+            state_lock=self._data_lock,
+            snapshot_factory=lambda: self.daily_report_state,
+            write_snapshot=lambda snapshot: self.save_json(
+                self.daily_report_state_path, snapshot
+            ),
+            delay_seconds=self.DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS,
+            on_error=lambda exc: logger.warning(
+                f"猪圈日报状态延迟落盘失败，将自动重试：{exc}"
+            ),
+        )
+
+    def _save_daily_report_state_locked(self) -> None:
+        """Coalesce hot report metadata writes after startup initialization."""
+        writer = getattr(self, "_daily_report_state_writer", None)
+        if writer is None:
+            return super()._save_daily_report_state_locked()
+        writer.mark_dirty()
+
+    async def terminate(self):
+        """Drain report work, then force the newest debounced snapshot to disk."""
+        task = getattr(self, "_daily_report_task", None)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        writer = getattr(self, "_daily_report_state_writer", None)
+        if writer is not None:
+            try:
+                await asyncio.to_thread(writer.close_and_flush)
+            except Exception as exc:
+                logger.warning(f"插件卸载时最终保存猪圈日报状态失败：{exc}")
+        await super().terminate()
 
     def _run_with_render_slot(self, renderer, *args, **kwargs):
         """Apply CPU backpressure without occupying the asyncio event loop."""
