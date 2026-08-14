@@ -74,8 +74,10 @@ jobs:
         run: pytest -q tests/test_analytics_bridge_bootstrap.py
       - name: Analytics SPA remount
         run: pytest -q tests/test_analytics_spa_remount.py
-      - name: UI asset contracts
-        run: pytest -q tests/test_ui_asset_delivery.py tests/test_ui_cache_busting.py
+      - name: UI asset delivery
+        run: pytest -q tests/test_ui_asset_delivery.py
+      - name: UI cache busting
+        run: pytest -q tests/test_ui_cache_busting.py
       - name: Run full tests
         run: pytest -q
       - name: Run pre-commit
