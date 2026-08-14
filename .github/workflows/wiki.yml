@@ -6,6 +6,7 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
+      - 'scripts/check_wiki_rendered_markdown.py'
       - '.github/workflows/wiki.yml'
   push:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
+      - 'scripts/check_wiki_rendered_markdown.py'
       - '.github/workflows/wiki.yml'
   workflow_dispatch:
 
@@ -42,6 +44,9 @@ jobs:
 
       - name: Build wiki strictly
         run: mkdocs build --strict --clean
+
+      - name: Verify rendered Markdown in custom Wiki UI
+        run: python scripts/check_wiki_rendered_markdown.py site
 
       - name: Configure Pages
         if: github.event_name != 'pull_request'
