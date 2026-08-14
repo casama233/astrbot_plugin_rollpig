@@ -53,3 +53,17 @@ class RollPigPlugin(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         ]
         return self._load_font(font_paths, self.NAME_FONT_SIZE, "加粗")
+
+    def _init_traditional_font(self):
+        """Use the packaged full CJK face for traditional/AI copy before system fallbacks."""
+        font_paths = [
+            self.font_dir / "荆南麦圆体.otf",
+            self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf",
+            self.font_dir / "SourceHanSansCN-Regular.otf",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+        return self._load_font(font_paths, self.DESC_FONT_SIZE, "繁体兜底")
+
