@@ -86,6 +86,8 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
 
     assert "/今日小猪 @某人" in commands
     assert "/猪圈日报 状态" in commands
+    assert "/烤箱补货" in commands
+    assert "/添煤" in commands
     assert "/猪圈日报 开启／关闭" in commands
     assert "自动日报总开关" in commands
     assert "预约烤猪" in commands

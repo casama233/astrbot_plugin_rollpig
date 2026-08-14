@@ -238,5 +238,41 @@
         "hint": "范围 1000-30000，默认 5000；仅 SQLite 后端生效",
         "type": "int",
         "default": 5000
+    },
+    "enable_oven_refill": {
+        "description": "开启群体烤箱补货",
+        "hint": "允许今日在本群参与过 RollPig 的群友发起 /烤箱补货 并通过 /添煤 协作恢复烤箱能量",
+        "type": "bool",
+        "default": true
+    },
+    "oven_refill_daily_limit": {
+        "description": "每日每群补货成功上限",
+        "hint": "范围 1-5，默认 2；失败或全员已满的作废轮次不计入",
+        "type": "int",
+        "default": 2
+    },
+    "oven_refill_support_ratio_percent": {
+        "description": "补货基础参与比例（百分比）",
+        "hint": "按今日活跃人数计算第一轮需要的支持者，默认 30%",
+        "type": "int",
+        "default": 30
+    },
+    "oven_refill_min_supporters": {
+        "description": "补货最低支持人数",
+        "hint": "范围 2-20，默认 3；2 人小群固定需要 2 人",
+        "type": "int",
+        "default": 3
+    },
+    "oven_refill_max_base_supporters": {
+        "description": "首轮基础支持人数上限",
+        "hint": "范围 3-50，默认 8；后续成功轮次仍会继续增加难度",
+        "type": "int",
+        "default": 8
+    },
+    "oven_refill_extra_supporters_per_success": {
+        "description": "每次成功后额外支持人数",
+        "hint": "同群同日每成功一次，下一轮额外需要的人数；默认 +2",
+        "type": "int",
+        "default": 2
     }
 }

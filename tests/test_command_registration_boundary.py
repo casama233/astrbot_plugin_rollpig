@@ -11,6 +11,8 @@ EXPECTED = {
     "find_pigs",
     "force_roast_group_member",
     "my_pigsty",
+    "oven_refill",
+    "oven_refill_support",
     "pigsty_daily_report",
     "random_pigs",
     "roast_group_member",
