@@ -101,8 +101,22 @@ jobs:
         run: pytest -q
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure
-      - name: Check diff
-        run: git diff --check
+      - name: Normalize whitespace and check diff
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          names = subprocess.check_output(['git', 'diff', '--name-only', '--diff-filter=ACMR'], text=True).splitlines()
+          for name in names:
+              path = Path(name)
+              if path.suffix.lower() not in {'.py', '.js', '.css', '.html', '.md', '.yaml', '.yml'} or not path.is_file():
+                  continue
+              text = path.read_text(encoding='utf-8')
+              lines = text.splitlines()
+              normalized = '\n'.join(line.rstrip() for line in lines) + ('\n' if text.endswith(('\n', '\r')) else '')
+              path.write_text(normalized, encoding='utf-8')
+          PY
+          git diff --check
       - name: Commit formal dashboard audit
         run: |
           rm -f scripts/tmp_dashboard_accuracy_patch.py scripts/tmp_dashboard_motion_patch.py .github/workflows/tmp-dashboard-accuracy-motion.yml
