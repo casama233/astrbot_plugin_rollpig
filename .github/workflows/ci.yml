@@ -40,7 +40,7 @@ jobs:
           python -m pip check
 
       - name: Compile source
-        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py rollpig_core.py updater.py storage services
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services
 
       - name: Run tests
         run: pytest -q

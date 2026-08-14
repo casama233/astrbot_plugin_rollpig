@@ -4,6 +4,10 @@
 
 ### 新功能
 
+- 新增可配置預約烤豬：明確指定尚未抽豬的目標時，第一位主廚支付普通冷卻建立同群當日預約，後續群友可免費添柴；目標本人在同群顯示今日小豬後一次性按原 60/30/10 結算。
+- 預約預設最多 12 人（可配置 2–20），建立時尊重昨日被烤保護；隨機烤與後門不建立預約，添柴不直接提高成功率。
+- 預約狀態在消息投遞前先標記 resolved，避免適配器超時造成重複結算；流程接入 `roast_reservation_created/joined/triggered` 與既有燒烤 outcome Gameplay Event，因此日報可沿用原統計。
+- 新增 [`docs/ROAST-RESERVATIONS.md`](docs/ROAST-RESERVATIONS.md) 說明群／日隔離、冷卻支付與一次性語義。
 - 新增 EX Lv.1–5 稀疏成長差分：同一隻小豬可按玩家既有 `count - 1` EX 等級替換圖片、描述或完整文案，各欄位獨立向下繼承；EX 5 以上沿用最後有效差分。
 - AstrBot Resource Protocol v1 增加可選 `pig_ex_variants.json`／`variant_images`，仍沿用大小、SHA-256、圖片解碼、128 MiB 預算、staging 與原子切換；舊 v1／私人來源不需要修改。
 - 本地小豬 override 仍高於遠端／內置 EX 差分；`/明日小豬` 預測不套用玩家已擁有的 EX 成長，避免把收藏狀態洩漏到未來結果。
