@@ -12,6 +12,11 @@ copyright: "今日小豬 · 增強版 · 豬圈裡的規則很多，但先抽一
 exclude_docs: |
   README.md
 
+# Keep repository-facing docs readable on GitHub while adapting their few
+# intentional links outside docs/ for the GitHub Pages build.
+hooks:
+  - docs/wiki_hooks.py
+
 nav:
   - 🐷 Wiki 首頁: index.md
   - 🚀 5 分鐘開始養豬: getting-started/index.md
@@ -39,7 +44,8 @@ nav:
       - 參與開發: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md
   - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
 
-# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在 extra.css / pigsty.js，n# 方便後續升級主題而不 fork 上游模板。
+# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在 extra.css / pigsty.js，
+# 方便後續升級主題而不 fork 上游模板。
 theme:
   name: material
   language: zh
