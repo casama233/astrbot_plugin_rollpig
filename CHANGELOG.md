@@ -2,6 +2,11 @@
 
 ## 未發佈
 
+### Added
+- Phase 3A 烤箱 Charge：普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗可儲存能量，預設 2 格；沿用 `group_roast_cooldown_hours` 作每格恢復週期，新增 `group_roast_max_charges`（1–5，預設 2）。
+- SQLite/JSON 共用同一 token-bucket policy；舊 `roast_cooldowns.last_used_at` lazy 遷移為 charge state，活動中的舊冷卻視為已消耗 1 格，避免升級重置或雙重懲罰。
+- 預約主廚建立預約消耗 1 格，添柴與日後觸發不重複消耗；後門 bypass 與 60/30/10 outcome policy 保持不變。
+
 ### Fixed
 - 豬圈日報自動推送改為群組顯式 opt-in；既有/新群預設關閉，新增 `/豬圈日報 開啟|關閉|狀態`，並限制群主/群管理員/AstrBot 管理員修改。
 - 修復公共源審核圖片因 AstrBot GET query 取參錯誤只顯示 🐽 fallback。
