@@ -138,3 +138,36 @@ def consume_roast_charge_state(
         "next_refill_seconds": next_refill,
         "consumed": True,
     }
+
+
+def add_roast_charge_state(
+    state: Mapping[str, Any] | None,
+    *,
+    now: float,
+    max_charges: int,
+    recovery_seconds: int,
+) -> dict[str, Any]:
+    """Refresh first, then grant at most one charge without exceeding capacity."""
+    refreshed = refresh_roast_charge_state(
+        state,
+        now=now,
+        max_charges=max_charges,
+        recovery_seconds=recovery_seconds,
+    )
+    before = int(refreshed["charges"])
+    capacity = int(refreshed["max_charges"])
+    after = min(capacity, before + 1)
+    anchor = float(refreshed["refill_anchor"])
+    now_value = float(now)
+    if after >= capacity:
+        anchor = now_value
+        next_refill = 0
+    else:
+        next_refill = int(refreshed.get("next_refill_seconds", 0) or 0)
+    return {
+        "charges": after,
+        "max_charges": capacity,
+        "refill_anchor": anchor,
+        "next_refill_seconds": next_refill,
+        "increased": after > before,
+    }
