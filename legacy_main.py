@@ -3318,9 +3318,7 @@ class RollPigPlugin(Star):
             )
             if remaining:
                 await event.send(
-                    event.plain_result(
-                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再试。"
-                    )
+                    event.plain_result(self._group_roast_unavailable_message(remaining))
                 )
                 return
 
