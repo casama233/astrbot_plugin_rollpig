@@ -14,9 +14,19 @@ from .base import StorageBackend
 from .json_storage import JSONStorage
 
 try:
-    from ..roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from ..roast_charges import (
+        add_roast_charge_state,
+        bootstrap_legacy_cooldown,
+        consume_roast_charge_state,
+    )
+    from ..services.oven_refill_service import OvenRefillService
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from roast_charges import (
+        add_roast_charge_state,
+        bootstrap_legacy_cooldown,
+        consume_roast_charge_state,
+    )
+    from services.oven_refill_service import OvenRefillService
 
 
 class SQLiteStorage(StorageBackend):
@@ -32,7 +42,7 @@ class SQLiteStorage(StorageBackend):
     supports_domain_writes = True
     supports_runtime_snapshot = True
     supports_dashboard_analytics = True
-    schema_version = 5
+    schema_version = 7
 
     def __init__(
         self,
@@ -170,6 +180,31 @@ class SQLiteStorage(StorageBackend):
                     charges INTEGER NOT NULL DEFAULT -1,
                     refill_anchor REAL NOT NULL DEFAULT 0
                 );
+                CREATE TABLE IF NOT EXISTS oven_refill_groups (
+                    draw_date TEXT NOT NULL,
+                    group_id TEXT NOT NULL,
+                    successes INTEGER NOT NULL DEFAULT 0,
+                    round_no INTEGER NOT NULL DEFAULT 0,
+                    active INTEGER NOT NULL DEFAULT 0,
+                    required_supporters INTEGER NOT NULL DEFAULT 0,
+                    active_count INTEGER NOT NULL DEFAULT 0,
+                    started_by TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'idle',
+                    started_at REAL NOT NULL DEFAULT 0,
+                    completed_at REAL NOT NULL DEFAULT 0,
+                    PRIMARY KEY (draw_date, group_id),
+                    CHECK (status IN ('idle', 'active', 'succeeded', 'failed'))
+                );
+                CREATE TABLE IF NOT EXISTS oven_refill_supporters (
+                    draw_date TEXT NOT NULL,
+                    group_id TEXT NOT NULL,
+                    round_no INTEGER NOT NULL,
+                    supporter_id TEXT NOT NULL REFERENCES identities(identity_key),
+                    supported_at REAL NOT NULL DEFAULT 0,
+                    PRIMARY KEY (draw_date, group_id, round_no, supporter_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_oven_refill_supporters_group_date
+                    ON oven_refill_supporters(group_id, draw_date, round_no);
                 CREATE TABLE IF NOT EXISTS daily_roast_counts (
                     draw_date TEXT NOT NULL,
                     group_id TEXT NOT NULL,
@@ -444,6 +479,11 @@ class SQLiteStorage(StorageBackend):
                     connection.execute(
                         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
                         "VALUES (5, unixepoch())"
+                    )
+                if 7 not in migrated:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                        "VALUES (7, unixepoch())"
                     )
                 connection.execute("COMMIT")
             except Exception:
@@ -735,6 +775,8 @@ class SQLiteStorage(StorageBackend):
 
     def _project_roast_state(self, connection: sqlite3.Connection, value: Any) -> None:
         for table in (
+            "oven_refill_supporters",
+            "oven_refill_groups",
             "eaten_penalties",
             "eaten_events",
             "roast_cooldowns",
@@ -791,6 +833,52 @@ class SQLiteStorage(StorageBackend):
                     refill_anchor,
                 ),
             )
+
+        refill_root = (
+            state.get("oven_refills")
+            if isinstance(state.get("oven_refills"), dict)
+            else {}
+        )
+        for draw_date, groups in refill_root.items():
+            if not isinstance(groups, dict):
+                continue
+            for group_id, row in groups.items():
+                if not isinstance(row, dict):
+                    continue
+                round_no = int(row.get("round", 0) or 0)
+                successes = int(row.get("successes", 0) or 0)
+                active = int(bool(row.get("active")))
+                required = int(row.get("required", 0) or 0)
+                active_count = int(row.get("active_count", 0) or 0)
+                started_by = str(row.get("started_by") or "")
+                status = str(row.get("status") or ("active" if active else "idle"))
+                if status not in {"idle", "active", "succeeded", "failed"}:
+                    status = "active" if active else "idle"
+                connection.execute(
+                    "INSERT INTO oven_refill_groups VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        str(draw_date),
+                        str(group_id),
+                        successes,
+                        round_no,
+                        active,
+                        required,
+                        active_count,
+                        started_by,
+                        status,
+                        float(row.get("started_at", 0) or 0),
+                        float(row.get("completed_at", 0) or 0),
+                    ),
+                )
+                for supporter in row.get("supporters", []) if isinstance(row.get("supporters"), list) else []:
+                    supporter_id = str(supporter)
+                    if not supporter_id or round_no <= 0:
+                        continue
+                    self._remember_identity(connection, supporter_id)
+                    connection.execute(
+                        "INSERT OR IGNORE INTO oven_refill_supporters VALUES (?, ?, ?, ?, ?)",
+                        (str(draw_date), str(group_id), round_no, supporter_id, 0),
+                    )
 
         counts = state.get("daily_roast_counts") if isinstance(state.get("daily_roast_counts"), dict) else {}
         for raw_key, count in counts.items():
@@ -1556,6 +1644,37 @@ class SQLiteStorage(StorageBackend):
                 "WHERE charges >= 0 ORDER BY cooldown_key"
             ).fetchall()
         }
+        refill_root: dict[str, dict[str, Any]] = {}
+        for row in connection.execute(
+            "SELECT draw_date, group_id, successes, round_no, active, "
+            "required_supporters, active_count, started_by, status, started_at, completed_at "
+            "FROM oven_refill_groups ORDER BY draw_date, group_id"
+        ).fetchall():
+            draw_date = str(row["draw_date"])
+            group_id = str(row["group_id"])
+            round_no = int(row["round_no"])
+            supporters = [
+                str(item["supporter_id"])
+                for item in connection.execute(
+                    "SELECT supporter_id FROM oven_refill_supporters "
+                    "WHERE draw_date = ? AND group_id = ? AND round_no = ? "
+                    "ORDER BY supported_at, supporter_id",
+                    (draw_date, group_id, round_no),
+                ).fetchall()
+            ]
+            refill_root.setdefault(draw_date, {})[group_id] = {
+                "successes": int(row["successes"]),
+                "round": round_no,
+                "active": bool(row["active"]),
+                "required": int(row["required_supporters"]),
+                "active_count": int(row["active_count"]),
+                "started_by": str(row["started_by"]),
+                "status": str(row["status"]),
+                "started_at": float(row["started_at"]),
+                "completed_at": float(row["completed_at"]),
+                "supporters": supporters,
+            }
+        roast["oven_refills"] = refill_root
         roast["daily_roast_counts"] = {
             self._event_key(
                 str(row["draw_date"]), str(row["group_id"]), str(row["user_id"])
@@ -1791,6 +1910,7 @@ class SQLiteStorage(StorageBackend):
             "version": 1,
             "cooldowns": {},
             "roast_charges": {},
+            "oven_refills": {},
             "daily_backdoors": {},
             "daily_roast_counts": {},
             "eaten_penalties": {},
@@ -1871,6 +1991,325 @@ class SQLiteStorage(StorageBackend):
             ),
         )
         return result
+
+    def _add_roast_charge_tx(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        key = f"{group_id}:{actor_id}"
+        row = connection.execute(
+            "SELECT last_used_at, charges, refill_anchor FROM roast_cooldowns "
+            "WHERE cooldown_key = ?",
+            (key,),
+        ).fetchone()
+        if row and int(row["charges"]) >= 0:
+            state = {
+                "charges": int(row["charges"]),
+                "refill_anchor": float(row["refill_anchor"]),
+            }
+        else:
+            state = bootstrap_legacy_cooldown(
+                float(row["last_used_at"]) if row else 0,
+                now=float(now),
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+        updated = add_roast_charge_state(
+            state,
+            now=float(now),
+            max_charges=max_charges,
+            recovery_seconds=recovery_seconds,
+        )
+        if row is not None or updated.get("increased"):
+            self._remember_identity(connection, actor_id)
+            last_used_at = float(row["last_used_at"]) if row else 0.0
+            connection.execute(
+                """
+                INSERT INTO roast_cooldowns(
+                    cooldown_key, group_id, actor_id, last_used_at, charges, refill_anchor
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(cooldown_key) DO UPDATE SET
+                    group_id = excluded.group_id,
+                    actor_id = excluded.actor_id,
+                    charges = excluded.charges,
+                    refill_anchor = excluded.refill_anchor
+                """,
+                (
+                    key,
+                    group_id,
+                    actor_id,
+                    last_used_at,
+                    int(updated["charges"]),
+                    float(updated["refill_anchor"]),
+                ),
+            )
+        return updated
+
+    def _start_oven_refill_tx(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_count: int,
+        now: float,
+        daily_limit: int,
+        ratio_percent: int,
+        minimum_supporters: int,
+        extra_per_success: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        draw_date = str(draw_date)
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        connection.execute(
+            "DELETE FROM oven_refill_supporters WHERE draw_date < ?", (str(cutoff_date),)
+        )
+        connection.execute(
+            "DELETE FROM oven_refill_groups WHERE draw_date < ?", (str(cutoff_date),)
+        )
+        row = connection.execute(
+            "SELECT * FROM oven_refill_groups WHERE draw_date = ? AND group_id = ?",
+            (draw_date, group_id),
+        ).fetchone()
+        successes = int(row["successes"]) if row else 0
+        if successes >= max(1, int(daily_limit)):
+            return {"state": "limit", "successes": successes}
+        if row and bool(row["active"]):
+            round_no = int(row["round_no"])
+            supporters = [
+                str(item["supporter_id"])
+                for item in connection.execute(
+                    "SELECT supporter_id FROM oven_refill_supporters "
+                    "WHERE draw_date = ? AND group_id = ? AND round_no = ? "
+                    "ORDER BY supported_at, supporter_id",
+                    (draw_date, group_id, round_no),
+                ).fetchall()
+            ]
+            return {
+                "state": "active",
+                "successes": successes,
+                "round": round_no,
+                "required": int(row["required_supporters"]),
+                "supporters": supporters,
+            }
+        required = OvenRefillService.refill_requirement(
+            active_count,
+            successes,
+            ratio_percent=ratio_percent,
+            minimum_supporters=minimum_supporters,
+            extra_per_success=extra_per_success,
+        )
+        round_no = int(row["round_no"]) + 1 if row else 1
+        self._remember_identity(connection, actor_id)
+        connection.execute(
+            """
+            INSERT INTO oven_refill_groups(
+                draw_date, group_id, successes, round_no, active,
+                required_supporters, active_count, started_by, status,
+                started_at, completed_at
+            ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, 'active', ?, 0)
+            ON CONFLICT(draw_date, group_id) DO UPDATE SET
+                successes = excluded.successes,
+                round_no = excluded.round_no,
+                active = 1,
+                required_supporters = excluded.required_supporters,
+                active_count = excluded.active_count,
+                started_by = excluded.started_by,
+                status = 'active',
+                started_at = excluded.started_at,
+                completed_at = 0
+            """,
+            (
+                draw_date,
+                group_id,
+                successes,
+                round_no,
+                int(required),
+                int(active_count),
+                actor_id,
+                float(now),
+            ),
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO oven_refill_supporters VALUES (?, ?, ?, ?, ?)",
+            (draw_date, group_id, round_no, actor_id, float(now)),
+        )
+        return {
+            "state": "started",
+            "successes": successes,
+            "round": round_no,
+            "required": int(required),
+            "supporters": [actor_id],
+        }
+
+    def _support_oven_refill_tx(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_actor_ids: list[str] | tuple[str, ...],
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        draw_date = str(draw_date)
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        connection.execute(
+            "DELETE FROM oven_refill_supporters WHERE draw_date < ?", (str(cutoff_date),)
+        )
+        connection.execute(
+            "DELETE FROM oven_refill_groups WHERE draw_date < ?", (str(cutoff_date),)
+        )
+        row = connection.execute(
+            "SELECT * FROM oven_refill_groups "
+            "WHERE draw_date = ? AND group_id = ? AND active = 1",
+            (draw_date, group_id),
+        ).fetchone()
+        if not row:
+            return {"state": "inactive"}
+        round_no = int(row["round_no"])
+        required = int(row["required_supporters"])
+        self._remember_identity(connection, actor_id)
+        cursor = connection.execute(
+            "INSERT OR IGNORE INTO oven_refill_supporters VALUES (?, ?, ?, ?, ?)",
+            (draw_date, group_id, round_no, actor_id, float(now)),
+        )
+        supporters = [
+            str(item["supporter_id"])
+            for item in connection.execute(
+                "SELECT supporter_id FROM oven_refill_supporters "
+                "WHERE draw_date = ? AND group_id = ? AND round_no = ? "
+                "ORDER BY supported_at, supporter_id",
+                (draw_date, group_id, round_no),
+            ).fetchall()
+        ]
+        if cursor.rowcount == 0:
+            return {
+                "state": "duplicate",
+                "round": round_no,
+                "required": required,
+                "supporters": supporters,
+            }
+        if len(supporters) < required:
+            return {
+                "state": "supported",
+                "round": round_no,
+                "required": required,
+                "supporters": supporters,
+            }
+
+        restored = 0
+        recipients = list(dict.fromkeys(str(item) for item in active_actor_ids if str(item)))
+        for recipient in recipients:
+            updated = self._add_roast_charge_tx(
+                connection,
+                group_id=group_id,
+                actor_id=recipient,
+                now=float(now),
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+            if updated.get("increased"):
+                restored += 1
+        if restored > 0:
+            status = "succeeded"
+            successes = int(row["successes"]) + 1
+        else:
+            status = "failed"
+            successes = int(row["successes"])
+        connection.execute(
+            "UPDATE oven_refill_groups SET successes = ?, active = 0, status = ?, "
+            "completed_at = ? WHERE draw_date = ? AND group_id = ?",
+            (successes, status, float(now), draw_date, group_id),
+        )
+        return {
+            "state": status,
+            "round": round_no,
+            "required": required,
+            "supporters": supporters,
+            "restored_users": restored,
+            "active_users": len(recipients),
+        }
+
+    def start_oven_refill(
+        self,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_count: int,
+        now: float,
+        daily_limit: int,
+        ratio_percent: int,
+        minimum_supporters: int,
+        extra_per_success: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        with self.transaction() as connection:
+            result = self._start_oven_refill_tx(
+                connection,
+                draw_date=draw_date,
+                group_id=group_id,
+                actor_id=actor_id,
+                active_count=active_count,
+                now=now,
+                daily_limit=daily_limit,
+                ratio_percent=ratio_percent,
+                minimum_supporters=minimum_supporters,
+                extra_per_success=extra_per_success,
+                cutoff_date=cutoff_date,
+            )
+            if result.get("state") == "started":
+                roast = self._roast_document_from_sql(connection)
+                self._write_document_tx(connection, "roast_state.json", roast)
+                self._set_write_authority(connection)
+                result["roast_state"] = roast
+            return result
+
+    def support_oven_refill(
+        self,
+        *,
+        draw_date: str,
+        group_id: str,
+        actor_id: str,
+        active_actor_ids: list[str] | tuple[str, ...],
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+        cutoff_date: str,
+    ) -> dict[str, Any]:
+        with self.transaction() as connection:
+            result = self._support_oven_refill_tx(
+                connection,
+                draw_date=draw_date,
+                group_id=group_id,
+                actor_id=actor_id,
+                active_actor_ids=active_actor_ids,
+                now=now,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+                cutoff_date=cutoff_date,
+            )
+            if result.get("state") in {"supported", "succeeded", "failed"}:
+                roast = self._roast_document_from_sql(connection)
+                self._write_document_tx(connection, "roast_state.json", roast)
+                self._set_write_authority(connection)
+                result["roast_state"] = roast
+            return result
 
     def consume_roast_charge(
         self,

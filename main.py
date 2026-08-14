@@ -15,15 +15,18 @@ try:
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
+    from .oven_refill_feature import OvenRefillMixin
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
+    from oven_refill_feature import OvenRefillMixin
 
 
 class RollPigPlugin(
+    OvenRefillMixin,
     RoastReservationMixin,
     DailyReportMixin,
     ExVariantMixin,
@@ -78,6 +81,16 @@ class RollPigPlugin(
     async def roast_today_pig(self, event: AstrMessageEvent):
         """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
         return await super().roast_today_pig(event)
+
+    @filter.command('烤箱补货', alias={'烤箱補貨'}, priority=1000)
+    async def oven_refill(self, event: AstrMessageEvent):
+        """发起本群今日活跃玩家的协作补货。"""
+        return await super().oven_refill(event)
+
+    @filter.command('添煤', priority=1000)
+    async def oven_refill_support(self, event: AstrMessageEvent):
+        """为本群当前补货轮次添加一次唯一支持。"""
+        return await super().oven_refill_support(event)
 
     @filter.command('烤群友', alias={'烤群友'}, priority=1000)
     async def roast_group_member(self, event: AstrMessageEvent, args: str=''):

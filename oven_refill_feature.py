@@ -139,6 +139,7 @@ class OvenRefillMixin:
                 ratio_percent=self.oven_refill_support_ratio_percent,
                 minimum_supporters=self.oven_refill_min_supporters,
                 extra_per_success=self.oven_refill_extra_supporters_per_success,
+                cutoff_date=draw_date,
             )
             round_no = int(row.get("round", 0) or 0) + 1
             row.update(
@@ -357,6 +358,7 @@ class OvenRefillMixin:
                 now=now,
                 max_charges=self.group_roast_max_charges,
                 recovery_seconds=self.group_roast_cooldown_seconds,
+                cutoff_date=draw_date,
             )
         else:
             result = self._json_support_refill(

@@ -38,7 +38,7 @@ def test_v3_empty_auto_install_creates_sqlite(tmp_path):
     assert isinstance(manager.backend, SQLitePrimaryStorage)
     verification = manager.verify()
     assert verification["ok"] is True
-    assert verification["schema_version"] == 6
+    assert verification["schema_version"] == 7
     assert verification["documents"] == 0
     health = manager.backend.health()
     assert health["runtime_authority"] == "normalized-sql"
@@ -235,9 +235,14 @@ def test_v3_refuses_promotion_when_normalized_tables_are_inconsistent(tmp_path):
     assert "inconsistent normalized tables" in manager._last_error
     connection = sqlite3.connect(tmp_path / "rollpig.db")
     try:
-        assert connection.execute(
-            "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
-        ).fetchone()[0] == 5
+        versions = {
+            int(row[0])
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations ORDER BY version"
+            ).fetchall()
+        }
+        assert 7 in versions
+        assert 6 not in versions
         assert connection.execute(
             "SELECT COUNT(*) FROM documents"
         ).fetchone()[0] == 1
