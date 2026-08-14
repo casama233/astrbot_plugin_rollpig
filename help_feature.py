@@ -32,7 +32,7 @@ class HelpFeatureMixin:
     HELP_RENDER_CACHE_KEEP = 8
 
     def _help_feature_state(self) -> HelpFeatureState:
-        cooldown_seconds = int(
+        recovery_seconds = int(
             getattr(self, "group_roast_cooldown_seconds", 8 * 3600) or 0
         )
         return HelpFeatureState(
@@ -59,7 +59,10 @@ class HelpFeatureMixin:
                 getattr(self, "daily_report_random_eat_enabled", False)
             ),
             eat_success_percent=int(getattr(self, "eat_success_percent", 15) or 15),
-            group_roast_cooldown_hours=max(1.0, cooldown_seconds / 3600.0),
+            group_roast_max_charges=int(
+                getattr(self, "group_roast_max_charges", 2) or 2
+            ),
+            group_roast_recovery_hours=max(1.0, recovery_seconds / 3600.0),
             roast_reservation_max_participants=int(
                 getattr(self, "roast_reservation_max_participants", 12) or 12
             ),
@@ -132,11 +135,15 @@ class HelpFeatureMixin:
         with _HELP_CACHE_LOCK:
             if self._valid_help_master(master):
                 return master
-            rendered = render_help_card(
-                self._help_sections(),
-                palette=self._image_palette(),
-                font_bold=self.font_bold,
-            )
+            kwargs = {
+                "palette": self._image_palette(),
+                "font_bold": self.font_bold,
+            }
+            gate = getattr(self, "_run_with_render_slot", None)
+            if callable(gate):
+                rendered = gate(render_help_card, self._help_sections(), **kwargs)
+            else:
+                rendered = render_help_card(self._help_sections(), **kwargs)
             staging = master.with_name(f".{master.name}.{uuid.uuid4().hex}.tmp")
             try:
                 shutil.copyfile(rendered, staging)
