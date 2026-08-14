@@ -17,43 +17,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch live public source with real protocol headers
+      - name: Compare live official source with Felis full source
         run: |
           python - <<'PY'
           import json
           import urllib.request
-          from pathlib import Path
 
-          base = "https://curryudon.top/astrbot-rollpig/v1/"
-          headers = {
+          official_base = "https://curryudon.top/astrbot-rollpig/v1/"
+          official_headers = {
               "User-Agent": "AstrBot-RollPig/3.6.3 (+https://github.com/casama233/astrbot_plugin_rollpig)",
               "X-RollPig-Client": "astrbot_plugin_rollpig_plus",
               "X-RollPig-Protocol": "1",
           }
+          felis_url = "https://raw.githubusercontent.com/Felis2026/rollpig-resources/main/rollpig/pig.json"
 
-          def get_json(name):
-              req = urllib.request.Request(base + name, headers=headers)
+          def load(url, headers=None):
+              req = urllib.request.Request(url, headers=headers or {})
               with urllib.request.urlopen(req, timeout=30) as resp:
-                  print(name, "status", resp.status)
+                  print("GET", url, "status", resp.status)
                   return json.loads(resp.read().decode("utf-8-sig"))
 
-          manifest = get_json("manifest.json")
-          catalog = get_json("pig.json")
-          print("LIVE resource_version=", manifest.get("resource_version"))
-          print("LIVE pig_count manifest/catalog=", manifest.get("pig_count"), len(catalog))
+          official = load(official_base + "pig.json", official_headers)
+          felis = load(felis_url, {"User-Agent": "github-actions-rollpig-diagnostic"})
+          official_by_id = {str(x.get("id")): x for x in official if isinstance(x, dict)}
+          felis_by_id = {str(x.get("id")): x for x in felis if isinstance(x, dict)}
+          only_felis = sorted(set(felis_by_id) - set(official_by_id))
+          only_official = sorted(set(official_by_id) - set(felis_by_id))
 
-          targets = ("猪音未来", "豬音未來", "猪信", "豬信", "猪龙鱼公爵", "豬龍魚公爵")
-          print("TARGET RECORDS:")
-          for item in catalog:
-              name = str(item.get("name") or "")
-              if any(target in name or name in target for target in targets):
-                  print(json.dumps(item, ensure_ascii=False, sort_keys=True))
-
-          bundled = json.loads(Path("resource/pig.json").read_text(encoding="utf-8-sig"))
-          print("BUNDLED pig_count=", len(bundled))
-          print("BUNDLED TARGET RECORDS:")
-          for item in bundled:
-              name = str(item.get("name") or "")
-              if any(target in name or name in target for target in targets):
-                  print(json.dumps(item, ensure_ascii=False, sort_keys=True))
+          print("OFFICIAL COUNT", len(official_by_id))
+          print("FELIS COUNT", len(felis_by_id))
+          print("ONLY FELIS COUNT", len(only_felis))
+          print("ONLY OFFICIAL COUNT", len(only_official))
+          print("ONLY FELIS RECORDS")
+          for pig_id in only_felis:
+              item = felis_by_id[pig_id]
+              print(json.dumps({"id": pig_id, "name": item.get("name"), "description": item.get("description")}, ensure_ascii=False, sort_keys=True))
+          print("ONLY OFFICIAL IDS", only_official)
+          for pig_id in ("miku-pig", "wechat-pig", "duke-pig"):
+              print("TARGET", pig_id, "official=", pig_id in official_by_id, "felis=", pig_id in felis_by_id)
           PY
