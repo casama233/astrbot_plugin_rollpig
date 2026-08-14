@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+
+from astrbot.api import logger
+
 try:
     from .renderers import render_pigsty
+    from .services.delivery import is_uncertain_send_timeout
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from renderers import render_pigsty
+    from services.delivery import is_uncertain_send_timeout
 
 
 class PermanentCollectionMixin:
@@ -68,16 +74,92 @@ class PermanentCollectionMixin:
                 pig["_collection_image_path"] = image_path
         return catalog
 
-    def render_pigsty_image(self, user_id: str, page: int):
-        """Render active pigs plus this user's retained historical collection."""
+    def _pigsty_display_state(self, user_id: str) -> tuple[dict, dict, list[dict]]:
         user = self._get_user_collection(user_id)
         if not isinstance(user, dict):
             user = {}
         unlocked = user.get("pigs", {})
         if not isinstance(unlocked, dict):
             unlocked = {}
+        return user, unlocked, self._collection_display_catalog(unlocked)
 
-        display_catalog = self._collection_display_catalog(unlocked)
+    @staticmethod
+    def _active_unlock_count(catalog: list[dict], unlocked: dict) -> int:
+        active_ids = {
+            str(pig.get("id") or "")
+            for pig in catalog
+            if isinstance(pig, dict) and str(pig.get("id") or "")
+        }
+        return len({str(item) for item in unlocked if str(item)}.intersection(active_ids))
+
+    async def my_pigsty(self, event, args: str = ""):
+        """Render and deliver the permanent Pigsty without conflating send failures."""
+        self._claim_command_event(event)
+        page = 1
+        raw = str(args or "").strip()
+        if raw:
+            try:
+                page = int(raw.split()[0])
+            except ValueError:
+                await event.send(event.plain_result("页码格式不正确，例如：/我的猪圈 2"))
+                return
+
+        user_id = self._event_sender_id(event)
+        user, unlocked, display_catalog = self._pigsty_display_state(user_id)
+        total_pages = self.catalog_service.page_count(display_catalog)
+        if page < 1 or page > total_pages:
+            await event.send(event.plain_result(f"页码范围为 1-{total_pages}。"))
+            return
+
+        output = None
+        try:
+            try:
+                output, _ = await asyncio.to_thread(
+                    self.render_pigsty_image, user_id, page
+                )
+            except Exception as exc:
+                logger.error(f"生成我的猪圈失败：{exc}", exc_info=True)
+                unlocked_count = self._active_unlock_count(self.pig_list, unlocked)
+                await event.send(
+                    event.plain_result(
+                        f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
+                        "图鉴图片生成失败，请查看后台日志。"
+                    )
+                )
+                return
+
+            try:
+                await event.send(event.image_result(str(output.absolute())))
+            except Exception as exc:
+                if is_uncertain_send_timeout(exc):
+                    logger.warning(
+                        "发送我的猪圈图片等待 QQ/NTQQ 回执超时；消息可能已成功投递，"
+                        "为避免重复图片不重试也不发送失败提示：%s",
+                        exc,
+                    )
+                    return
+
+                logger.error(f"发送我的猪圈图片失败：{exc}", exc_info=True)
+                unlocked_count = self._active_unlock_count(self.pig_list, unlocked)
+                try:
+                    await event.send(
+                        event.plain_result(
+                            f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
+                            "图鉴已生成，但图片发送失败，请稍后重试。"
+                        )
+                    )
+                except Exception as fallback_exc:
+                    logger.error(
+                        f"发送我的猪圈失败提示也失败：{fallback_exc}",
+                        exc_info=True,
+                    )
+        finally:
+            if output:
+                output.unlink(missing_ok=True)
+
+    def render_pigsty_image(self, user_id: str, page: int):
+        """Render active pigs plus this user's retained historical collection."""
+        user, unlocked, display_catalog = self._pigsty_display_state(user_id)
         favorite_id = ""
         favorite_count = 0
         for item_id, record in unlocked.items():
