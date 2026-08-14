@@ -34,6 +34,19 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         prune_state,
     )
 
+try:
+    from .gameplay_events import (
+        append_gameplay_event,
+        build_gameplay_event,
+        read_gameplay_events,
+    )
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from gameplay_events import (
+        append_gameplay_event,
+        build_gameplay_event,
+        read_gameplay_events,
+    )
+
 
 class DailyReportMixin:
     """Daily Pigsty report feature layered over the historical RollPig plugin.
@@ -267,6 +280,50 @@ class DailyReportMixin:
             )
             self._save_daily_report_state_locked()
 
+    def _record_gameplay_event(
+        self,
+        group_id: str,
+        kind: str,
+        *,
+        actor_id: str = "",
+        target_id: str = "",
+        victim_id: str = "",
+        pig_id: str = "",
+        metadata: dict[str, Any] | None = None,
+        draw_date: str | None = None,
+        event_id: str = "",
+    ) -> bool:
+        """Write one shared gameplay event without changing core domain state."""
+        if not group_id:
+            return False
+        date_key = draw_date or self._today().isoformat()
+        payload = build_gameplay_event(
+            kind,
+            actor_id=actor_id,
+            target_id=target_id,
+            victim_id=victim_id,
+            pig_id=pig_id,
+            metadata=metadata,
+            event_id=event_id,
+            at=int(time.time()),
+        )
+        with self._data_lock:
+            events = self.daily_report_state.setdefault("events", {})
+            if not isinstance(events, dict):
+                events = {}
+                self.daily_report_state["events"] = events
+            if not append_gameplay_event(
+                events, date_key, str(group_id), payload, max_events=2000
+            ):
+                return False
+            prune_state(
+                self.daily_report_state,
+                self._today(),
+                self.DAILY_REPORT_STATE_KEEP_DAYS,
+            )
+            self._save_daily_report_state_locked()
+        return True
+
     def _record_daily_report_event(
         self,
         group_id: str,
@@ -278,48 +335,23 @@ class DailyReportMixin:
         draw_date: str | None = None,
         event_id: str = "",
     ) -> None:
+        """Compatibility wrapper preserving PR #51 report-enable semantics."""
         if not self.enable_daily_report or not group_id:
             return
-        date_key = draw_date or self._today().isoformat()
-        payload = {
-            "id": event_id or uuid.uuid4().hex,
-            "kind": str(kind),
-            "actor_id": str(actor_id or ""),
-            "target_id": str(target_id or ""),
-            "victim_id": str(victim_id or ""),
-            "at": int(time.time()),
-        }
-        with self._data_lock:
-            by_date = self.daily_report_state.setdefault("events", {}).setdefault(
-                date_key, {}
-            )
-            rows = by_date.setdefault(str(group_id), [])
-            if not isinstance(rows, list):
-                rows = []
-                by_date[str(group_id)] = rows
-            if payload["id"] and any(
-                isinstance(item, dict) and str(item.get("id") or "") == payload["id"]
-                for item in rows
-            ):
-                return
-            rows.append(payload)
-            if len(rows) > 2000:
-                del rows[:-2000]
-            prune_state(
-                self.daily_report_state,
-                self._today(),
-                self.DAILY_REPORT_STATE_KEEP_DAYS,
-            )
-            self._save_daily_report_state_locked()
+        self._record_gameplay_event(
+            group_id,
+            kind,
+            actor_id=actor_id,
+            target_id=target_id,
+            victim_id=victim_id,
+            draw_date=draw_date,
+            event_id=event_id,
+        )
 
     def _report_events(self, group_id: str, draw_date: str) -> list[dict[str, Any]]:
         with self._data_lock:
-            rows = (
-                self.daily_report_state.get("events", {})
-                .get(str(draw_date), {})
-                .get(str(group_id), [])
-            )
-            return [dict(item) for item in rows if isinstance(item, dict)]
+            events = self.daily_report_state.get("events", {})
+            return read_gameplay_events(events, draw_date, group_id)
 
     def _profile_for_report(self, group_id: str, user_id: str) -> dict[str, Any]:
         with self._data_lock:

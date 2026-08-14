@@ -4,6 +4,21 @@ import datetime
 from collections import Counter
 from typing import Any
 
+try:
+    from .gameplay_events import (
+        EVENT_ROAST_BACKLASH,
+        EVENT_ROAST_ESCAPE,
+        EVENT_ROAST_SUCCESS,
+        prune_gameplay_events,
+    )
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from gameplay_events import (
+        EVENT_ROAST_BACKLASH,
+        EVENT_ROAST_ESCAPE,
+        EVENT_ROAST_SUCCESS,
+        prune_gameplay_events,
+    )
+
 
 def parse_report_time(value: Any, default: str = "23:50") -> tuple[int, int]:
     """Parse HH:MM safely; invalid values fall back to the provided default."""
@@ -92,17 +107,17 @@ def aggregate_daily_report(
         actor = str(raw.get("actor_id") or "")
         target = str(raw.get("target_id") or "")
         victim = str(raw.get("victim_id") or "")
-        if kind == "roast_success":
+        if kind == EVENT_ROAST_SUCCESS:
             if actor:
                 roast_maniac[actor] += 1
             if victim:
                 miserable[victim] += 1
                 event_roasts += 1
-        elif kind == "roast_escape":
+        elif kind == EVENT_ROAST_ESCAPE:
             escapes += 1
             if target:
                 escape_master[target] += 1
-        elif kind == "roast_backlash":
+        elif kind == EVENT_ROAST_BACKLASH:
             backlashes += 1
             if target:
                 backlash_king[target] += 1
@@ -139,15 +154,21 @@ def aggregate_daily_report(
 def prune_state(state: dict[str, Any], today: datetime.date, keep_days: int = 14) -> bool:
     """Prune dated report events/jobs while keeping group routing metadata."""
     changed = False
+    events = state.get("events")
+    if not isinstance(events, dict):
+        events = {}
+        state["events"] = events
+        changed = True
+    changed = prune_gameplay_events(events, today, keep_days) or changed
+
+    jobs = state.get("jobs")
+    if not isinstance(jobs, dict):
+        jobs = {}
+        state["jobs"] = jobs
+        changed = True
     cutoff = (today - datetime.timedelta(days=max(2, int(keep_days)))).isoformat()
-    for key in ("events", "jobs"):
-        bucket = state.get(key)
-        if not isinstance(bucket, dict):
-            state[key] = {}
+    for date_key in list(jobs):
+        if str(date_key) < cutoff:
+            jobs.pop(date_key, None)
             changed = True
-            continue
-        for date_key in list(bucket):
-            if str(date_key) < cutoff:
-                bucket.pop(date_key, None)
-                changed = True
     return changed
