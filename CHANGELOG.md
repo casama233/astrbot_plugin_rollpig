@@ -6,6 +6,11 @@
 - 豬圈日報群組自動推送的開啟／關閉權限收緊為僅 AstrBot 管理員；原生群主／群管理員不再具備修改權限。
 - 固化祭品契約：`daily_report_random_eat_enabled` 預設關閉，且只允許定時自動日報流程觸發；手動 `/豬圈日報` 永不改變任何人的祭品狀態。
 
+### Added
+- Phase 3A 烤箱 Charge：普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗可儲存能量，預設 2 格；沿用 `group_roast_cooldown_hours` 作每格恢復週期，新增 `group_roast_max_charges`（1–5，預設 2）。
+- SQLite/JSON 共用同一 token-bucket policy；舊 `roast_cooldowns.last_used_at` lazy 遷移為 charge state，活動中的舊冷卻視為已消耗 1 格，避免升級重置或雙重懲罰。
+- 預約主廚建立預約消耗 1 格，添柴與日後觸發不重複消耗；後門 bypass 與 60/30/10 outcome policy 保持不變。
+
 - 暫無。
 
 ## v3.6.5 (2026-08-15)
