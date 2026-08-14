@@ -33,7 +33,8 @@ class HelpFeatureState:
     daily_report_auto_send: bool = True
     daily_report_random_eat_enabled: bool = False
     eat_success_percent: int = 15
-    group_roast_cooldown_hours: float = 8.0
+    group_roast_max_charges: int = 2
+    group_roast_recovery_hours: float = 8.0
     roast_reservation_max_participants: int = 12
 
 
@@ -73,8 +74,9 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
-        cooldown = max(1, round(float(state.group_roast_cooldown_hours)))
-        detail = f"群内指定目标；普通烧烤约 {cooldown}h 冷却"
+        capacity = max(1, int(state.group_roast_max_charges))
+        recovery = max(1, round(float(state.group_roast_recovery_hours)))
+        detail = f"群内指定目标；每人每群 {capacity} 格能量，每 {recovery}h 恢复 1 格"
         if state.enable_roast_reservation:
             detail += "；目标未抽猪时自动建立预约"
         group_entries.extend(
@@ -104,7 +106,7 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
                 HelpEntry("/猪圈日报 状态", "查看本群自动推送状态、计划时间与全局总开关"),
                 HelpEntry(
                     "/猪圈日报 开启／关闭",
-                    "群主、群管理员或 AstrBot 管理员设置本群自动推送",
+                    "仅 AstrBot 管理员可设置本群自动推送",
                 ),
             ]
         )
@@ -125,6 +127,14 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
     if state.enable_daily_duplicate_pity:
         mechanics.append(
             HelpEntry("跨日疲劳保底", "连续多天重复时再叠加额外的新猪机会", kind="feature")
+        )
+    if group_roast_enabled:
+        mechanics.append(
+            HelpEntry(
+                "烤箱能量",
+                f"默认最多 {max(1, int(state.group_roast_max_charges))} 格，按群独立自然恢复",
+                kind="feature",
+            )
         )
     if group_roast_enabled and state.enable_roast_reservation:
         mechanics.append(
