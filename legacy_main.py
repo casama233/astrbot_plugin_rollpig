@@ -45,7 +45,7 @@ try:
     )
     from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
-    from .services import DrawService, RoastService
+    from .services import CatalogService, DrawService, ResourceReadService, RoastService
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
@@ -57,7 +57,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     )
     from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
-    from services import DrawService, RoastService
+    from services import CatalogService, DrawService, ResourceReadService, RoastService
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
@@ -347,6 +347,10 @@ class RollPigPlugin(Star):
             daily_duplicate_pity_start_day=self.daily_duplicate_pity_start_day,
             daily_duplicate_pity_step_percent=self.daily_duplicate_pity_step_percent,
             daily_duplicate_pity_max_percent=self.daily_duplicate_pity_max_percent,
+        )
+        self.catalog_service = CatalogService(page_size=self.CATALOG_PAGE_SIZE)
+        self.resource_read_service = ResourceReadService(
+            image_extensions=tuple(self.IMAGE_EXTENSIONS)
         )
         self.roast_service = RoastService()
         self._storage_admin_lock = asyncio.Lock()
@@ -1113,19 +1117,9 @@ class RollPigPlugin(Star):
             for item in raw_tombstones
             if re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", str(item))
         }
-        override_map = {item["id"]: item for item in overrides}
-        merged: list[dict] = []
-        used: set[str] = set()
-        for item in base:
-            pig_id = item["id"]
-            if pig_id in tombstones:
-                continue
-            merged.append(dict(override_map.get(pig_id, item)))
-            used.add(pig_id)
-        for item in overrides:
-            if item["id"] not in used and item["id"] not in tombstones:
-                merged.append(dict(item))
-        self.pig_list = merged
+        self.pig_list = self.catalog_service.merge_layers(
+            base, overrides, tombstones
+        )
         self.save_json(self.catalog_path, merged)
         self._thumbnail_cache.clear()
 
@@ -2133,10 +2127,8 @@ class RollPigPlugin(Star):
         self._thumbnail_cache.clear()
 
     def _find_catalog_pig(self, pig_id: str) -> dict | None:
-        return next(
-            (pig for pig in self.pig_list if str(pig.get("id")) == pig_id),
-            None,
-        )
+        pig = self.catalog_service.find(self.pig_list, pig_id)
+        return pig if isinstance(pig, dict) else None
 
     def _choose_daily_pig(self, user_id: str) -> dict:
         """Delegate pure pity/selection policy to DrawService."""
@@ -3383,25 +3375,19 @@ class RollPigPlugin(Star):
     def find_image_file(
         self, pig_id: str, ex_level: int | None = None
     ) -> Path | None:
-        """Resolve local override, optional EX art, cloud base, then bundled base."""
-        for ext in self.IMAGE_EXTENSIONS:
-            local = self.custom_image_dir / f"{pig_id}.{ext}"
-            if local.exists():
-                logger.debug(f"找到的小猪图片文件：{local.absolute()}")
-                return local
-        if ex_level:
-            resolver = getattr(self, "_ex_variant_image_path", None)
-            if callable(resolver):
-                variant = resolver(str(pig_id), max(0, int(ex_level)))
-                if variant and variant.exists():
-                    logger.debug(f"找到 EX 差分图片：{variant.absolute()}")
-                    return variant
-        for directory in (self.resource_active_dir / "images", self.image_dir):
-            for ext in self.IMAGE_EXTENSIONS:
-                file = directory / f"{pig_id}.{ext}"
-                if file.exists():
-                    logger.debug(f"找到的小猪图片文件：{file.absolute()}")
-                    return file
+        """Resolve the effective image through the resource read boundary."""
+        resolver = getattr(self, "_ex_variant_image_path", None)
+        path = self.resource_read_service.find_image(
+            pig_id,
+            custom_image_dir=self.custom_image_dir,
+            cloud_image_dir=self.resource_active_dir / "images",
+            bundled_image_dir=self.image_dir,
+            ex_level=ex_level,
+            variant_resolver=resolver if callable(resolver) else None,
+        )
+        if path:
+            logger.debug(f"找到的小猪图片文件：{path.absolute()}")
+            return path
         logger.warning(f"未找到小猪ID {pig_id} 对应的图片文件")
         return None
 
@@ -3677,13 +3663,12 @@ class RollPigPlugin(Star):
 
     def _ordered_pigsty_pigs(self, unlocked: dict) -> list[dict]:
         """按解锁状态分区，且不改变每个分区内的管理员图鉴顺序。"""
-        unlocked_ids = set(unlocked) if isinstance(unlocked, dict) else set()
         return [
-            pig for pig in self.pig_list if str(pig.get("id") or "") in unlocked_ids
-        ] + [
             pig
-            for pig in self.pig_list
-            if str(pig.get("id") or "") not in unlocked_ids
+            for pig in self.catalog_service.ordered_for_collection(
+                self.pig_list, unlocked
+            )
+            if isinstance(pig, dict)
         ]
 
     def render_catalog_grid(
@@ -4152,7 +4137,7 @@ class RollPigPlugin(Star):
                     event.plain_result("页码格式不正确，例如：/我的猪圈 2")
                 )
                 return
-        total_pages = max(1, math.ceil(len(self.pig_list) / self.CATALOG_PAGE_SIZE))
+        total_pages = self.catalog_service.page_count(self.pig_list)
         if page < 1 or page > total_pages:
             await event.send(
                 event.plain_result(f"页码范围为 1-{total_pages}。")
@@ -4246,7 +4231,7 @@ class RollPigPlugin(Star):
         if not 1 <= amount <= 9:
             await event.send(event.plain_result("随机数量范围为 1-9，例如：/随机小猪 5"))
             return
-        pigs = random.sample(self.pig_list, min(amount, len(self.pig_list)))
+        pigs = self.catalog_service.sample(self.pig_list, amount)
         output = None
         try:
             output = await asyncio.to_thread(
@@ -4267,15 +4252,7 @@ class RollPigPlugin(Star):
         if not query:
             await event.send(event.plain_result("请输入关键词，例如：/找猪 玩偶"))
             return
-        matches = [
-            pig
-            for pig in self.pig_list
-            if query
-            in " ".join(
-                str(pig.get(key, ""))
-                for key in ("id", "name", "description", "analysis")
-            ).lower()
-        ]
+        matches = self.catalog_service.search(self.pig_list, query)
         if not matches:
             await event.send(event.plain_result(f"没有找到与「{keyword}」相关的小猪。"))
             return
