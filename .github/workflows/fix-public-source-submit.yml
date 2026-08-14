@@ -1,0 +1,72 @@
+name: Apply public source submit fix
+
+on:
+  push:
+    branches:
+      - fix/public-source-submit-confirmation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/public-source-submit-confirmation
+
+      - name: Patch sandbox-safe public source confirmation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('pages/pig-manager/index.html')
+          page = page_path.read_text(encoding='utf-8')
+
+          old_button = '<button class="btn ghost" data-submit="${i}">投稿公共源</button>'
+          new_button = '<button class="btn ghost" type="button" data-submit="${i}">投稿公共源</button>'
+          if old_button not in page:
+              raise SystemExit('public source submit button marker not found')
+          page = page.replace(old_button, new_button, 1)
+
+          old_binding = "document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)]));"
+          new_binding = "document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)],b));"
+          if old_binding not in page:
+              raise SystemExit('public source submit binding marker not found')
+          page = page.replace(old_binding, new_binding, 1)
+
+          old_function = r"""async function submitPublicSource(p){if(!window.confirm(`确定把「${p.name}」公开提交到我们维护的 AstrBot 公共豬源审核吗？\n\n将发送 ID、名称、描述、完整文案与图片；不会发送群友或聊天资料。批准后会进入所有 AstrBot 用户可同步的公共源。`))return;busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||'已提交到 AstrBot 公共豬源审核队列');await loadSourceReviews()}catch(e){toast(e.message)}finally{busy(false)}}"""
+          new_function = r"""function resetPublicSubmitButton(button,pigId){if(!button)return;clearTimeout(button._rollpigSubmitConfirmTimer);if(button.dataset.submitConfirm===pigId)delete button.dataset.submitConfirm;button.textContent='投稿公共源';button.classList.add('ghost');button.removeAttribute('aria-label')}
+          async function submitPublicSource(p,button){if(!p?.id){toast('投稿失败：无法识别这只本地小猪');return}if(!button||button.dataset.submitConfirm!==p.id){if(button){button.dataset.submitConfirm=p.id;button.textContent='再次点击确认';button.classList.remove('ghost');button.setAttribute('aria-label',`再次点击确认投稿 ${p.name}`);clearTimeout(button._rollpigSubmitConfirmTimer);button._rollpigSubmitConfirmTimer=setTimeout(()=>resetPublicSubmitButton(button,p.id),7000)}toast(`再次点击确认投稿「${p.name}」；将发送 ID、名称、描述、完整文案与图片，不会发送群友或聊天资料`);return}resetPublicSubmitButton(button,p.id);busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||'已提交到 AstrBot 公共豬源审核队列');try{await loadSourceReviews()}catch(reviewError){console.warn('[rollpig] public source review refresh failed after successful submission',reviewError)}}catch(e){toast(`投稿失败：${e.message}`)}finally{busy(false)}}"""
+          if old_function not in page:
+              raise SystemExit('public source submit function marker not found')
+          page = page.replace(old_function, new_function, 1)
+          page_path.write_text(page, encoding='utf-8')
+
+          test_path = Path('tests/test_public_source_ui_confirmation.py')
+          test_path.write_text('''from pathlib import Path\n\n\ndef test_public_source_submit_is_sandbox_safe_and_requires_explicit_second_click():\n    page = (Path(__file__).resolve().parents[1] / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")\n    start = page.index("async function submitPublicSource")\n    end = page.index("async function paintReviewCanvas", start)\n    submit_code = page[start:end]\n\n    assert "window.confirm" not in submit_code\n    assert "dataset.submitConfirm" in submit_code\n    assert "再次点击确认" in submit_code\n    assert "pigs/submit-public-source" in submit_code\n    assert "confirm:true" in submit_code\n    assert "submitPublicSource(localOverrides[Number(b.dataset.submit)],b)" in page\n    assert "type=\\\"button\\\" data-submit" in page\n''', encoding='utf-8')
+
+          verify = page[page.index('async function submitPublicSource'):page.index('async function paintReviewCanvas')]
+          assert 'window.confirm' not in verify
+          assert '再次点击确认' in verify
+          assert "submitPublicSource(localOverrides[Number(b.dataset.submit)],b)" in page
+          PY
+
+      - name: Verify patch
+        run: |
+          python -m compileall -q tests/test_public_source_ui_confirmation.py
+          git diff --check
+
+      - name: Remove one-time workflow and commit fix
+        shell: bash
+        run: |
+          git rm .github/workflows/fix-public-source-submit.yml
+          git add pages/pig-manager/index.html tests/test_public_source_ui_confirmation.py
+          git diff --cached --check
+          git config user.name "rollpig-fix-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix: make public source submit confirmation sandbox-safe"
+          git push origin HEAD:fix/public-source-submit-confirmation
