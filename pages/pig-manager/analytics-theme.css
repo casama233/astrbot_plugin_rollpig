@@ -887,3 +887,202 @@
   .rising-table__head,
   .rising-table__row { grid-template-columns: minmax(140px, 1fr) 52px 54px; }
 }
+
+
+/* v3.2.0 spectral telemetry — visual only; values remain server facts. */
+.analytics-suite {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 10% -12%, color-mix(in srgb, var(--pink) 15%, transparent), transparent 34rem),
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--analytics-cyan) 12%, transparent), transparent 30rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 97%, transparent), color-mix(in srgb, var(--surface-strong) 96%, var(--pink-soft)));
+  box-shadow:
+    0 24px 70px color-mix(in srgb, var(--pink) 7%, transparent),
+    var(--shadow-soft);
+}
+
+.analytics-suite::before {
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--analytics-grid) 58%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--analytics-grid) 58%, transparent) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 72%);
+  opacity: .34;
+  z-index: -2;
+}
+
+.analytics-suite::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 420px;
+  height: 420px;
+  right: -230px;
+  top: -230px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--analytics-purple) 28%, transparent);
+  box-shadow:
+    0 0 0 46px color-mix(in srgb, var(--analytics-purple) 3%, transparent),
+    0 0 90px color-mix(in srgb, var(--analytics-cyan) 10%, transparent);
+  animation: analyticsOrbit 18s linear infinite;
+}
+
+.analytics-live i {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent),
+    0 0 16px color-mix(in srgb, var(--green) 42%, transparent);
+  animation: analyticsBeacon 2.4s ease-in-out infinite;
+}
+
+.analytics-kpi,
+.analytics-card {
+  --spot-x: 50%;
+  --spot-y: 50%;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  position: relative;
+  isolation: isolate;
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition:
+    transform .22s var(--ease),
+    border-color .22s var(--ease),
+    box-shadow .22s var(--ease);
+}
+
+.analytics-kpi::before,
+.analytics-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    240px circle at var(--spot-x) var(--spot-y),
+    color-mix(in srgb, var(--analytics-cyan) 13%, transparent),
+    color-mix(in srgb, var(--pink) 5%, transparent) 34%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity .2s var(--ease);
+}
+
+.analytics-kpi:hover::before,
+.analytics-card:hover::before { opacity: 1; }
+
+.analytics-kpi:hover,
+.analytics-card:hover {
+  border-color: color-mix(in srgb, var(--analytics-cyan) 30%, var(--line));
+  box-shadow:
+    0 15px 34px rgba(18, 24, 40, .08),
+    0 0 0 1px color-mix(in srgb, var(--analytics-purple) 8%, transparent);
+}
+
+.analytics-kpi {
+  animation: analyticsCardReveal .55s both var(--ease);
+}
+.analytics-kpi:nth-child(2) { animation-delay: 45ms; }
+.analytics-kpi:nth-child(3) { animation-delay: 90ms; }
+.analytics-kpi:nth-child(4) { animation-delay: 135ms; }
+
+.analytics-card { animation: analyticsCardReveal .62s both var(--ease); }
+.analytics-card:nth-child(2) { animation-delay: 55ms; }
+.analytics-card:nth-child(3) { animation-delay: 95ms; }
+.analytics-card:nth-child(4) { animation-delay: 135ms; }
+.analytics-card:nth-child(5) { animation-delay: 175ms; }
+.analytics-card:nth-child(6) { animation-delay: 215ms; }
+.analytics-card:nth-child(7) { animation-delay: 255ms; }
+
+.analytics-kpi__row strong,
+.retention-ring strong,
+.operations-grid strong {
+  text-shadow: 0 0 24px color-mix(in srgb, var(--pink) 13%, transparent);
+}
+
+.activity-cell i {
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--pink) calc(var(--intensity) * 22%), transparent);
+  animation: analyticsHeatReveal .4s both var(--ease);
+}
+.activity-cell:nth-child(4n + 2) i { animation-delay: 35ms; }
+.activity-cell:nth-child(4n + 3) i { animation-delay: 70ms; }
+.activity-cell:nth-child(4n + 4) i { animation-delay: 105ms; }
+
+.retention-ring {
+  position: relative;
+  filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--pink) 15%, transparent));
+}
+.retention-ring::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--analytics-cyan) 24%, transparent);
+  border-top-color: color-mix(in srgb, var(--analytics-cyan) 68%, transparent);
+  animation: analyticsSpin 6s linear infinite;
+}
+
+.compare-bars i:first-child,
+.platform-row em,
+.ai-health em {
+  position: relative;
+  overflow: hidden;
+}
+.compare-bars i:first-child::after,
+.platform-row em::after,
+.ai-health em::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-130%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.48), transparent);
+  animation: analyticsSweep 3.2s ease-in-out infinite;
+}
+
+.rising-table__row {
+  transition: transform .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
+}
+.rising-table__row:hover {
+  transform: translateX(4px);
+  background: color-mix(in srgb, var(--analytics-cyan) 5%, var(--surface-strong));
+}
+
+.ai-health small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@keyframes analyticsCardReveal {
+  from { opacity: 0; transform: perspective(900px) translateY(14px) scale(.985); filter: blur(4px); }
+  to { opacity: 1; transform: perspective(900px) translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes analyticsHeatReveal { from { opacity: .15; transform: scale(.72); } to { opacity: 1; transform: scale(1); } }
+@keyframes analyticsBeacon { 50% { opacity: .58; transform: scale(.78); } }
+@keyframes analyticsOrbit { to { transform: rotate(360deg); } }
+@keyframes analyticsSpin { to { transform: rotate(360deg); } }
+@keyframes analyticsSweep { 55%, 100% { transform: translateX(150%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .analytics-suite::after,
+  .analytics-live i,
+  .analytics-kpi,
+  .analytics-card,
+  .activity-cell i,
+  .retention-ring::after,
+  .compare-bars i:first-child::after,
+  .platform-row em::after,
+  .ai-health em::after {
+    animation: none !important;
+  }
+  .analytics-kpi,
+  .analytics-card,
+  .rising-table__row,
+  .activity-cell i {
+    transform: none !important;
+    transition-duration: .01ms !important;
+  }
+}
