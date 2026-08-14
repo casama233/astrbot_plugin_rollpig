@@ -6,7 +6,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <div class="pig-hero" markdown>
 <div>
 
-<span class="pig-kicker">🐷 ASTRBOT · 今日小豬增強版 · v3.7.0</span>
+<span class="pig-kicker">🐷 ASTRBOT · 今日小豬增強版 · STABLE</span>
 
 # 每天抽一隻豬。<br><span class="pig-gradient-text">然後事情逐漸失控。</span>
 
@@ -109,7 +109,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <span class="pig-card__icon">🎨</span>
 
 ### 我也想做一隻豬
-先在面板本地新增、選圖、寫文案、測到滿意；想公開，再送人工審核。普通創作者不用先手刻 manifest。
+普通群友不用部署插件：群裡直接 @ 管理員，把圖片、名稱和文案交給他；想自己長期維護，再進管理面板與 manifest 世界。
 
 [進創作者後廚 →](creators/index.md)
 </div>
@@ -164,7 +164,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <strong>預設 2 / 2 格</strong>
 </div>
 
-普通 `/烤群友` 或建立一張新的預約會消耗 1 格；能量會自然逐格恢復。沒火了？v3.7.0 起還能發起 `/烤箱補貨`，叫今天在群裡抽過豬的人一起 `/添煤`。
+普通 `/烤群友` 或建立一張新的預約會消耗 1 格；能量會自然逐格恢復。沒火了？還能發起 `/烤箱補貨`，叫今天在群裡抽過豬的人一起 `/添煤`。
 
 **這不是冷卻條。這是群聊社交壓力條。**
 </div>
