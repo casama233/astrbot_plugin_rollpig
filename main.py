@@ -163,6 +163,30 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             pity_step = 15
         self.pity_step_percent = min(50, max(0, pity_step))
+        self.enable_daily_duplicate_pity: bool = self.config.get(
+            "enable_daily_duplicate_pity", True
+        )
+        try:
+            daily_pity_start_day = int(
+                self.config.get("daily_duplicate_pity_start_day", 2)
+            )
+        except (TypeError, ValueError):
+            daily_pity_start_day = 2
+        self.daily_duplicate_pity_start_day = min(7, max(2, daily_pity_start_day))
+        try:
+            daily_pity_step = int(
+                self.config.get("daily_duplicate_pity_step_percent", 5)
+            )
+        except (TypeError, ValueError):
+            daily_pity_step = 5
+        self.daily_duplicate_pity_step_percent = min(25, max(0, daily_pity_step))
+        try:
+            daily_pity_max = int(
+                self.config.get("daily_duplicate_pity_max_percent", 15)
+            )
+        except (TypeError, ValueError):
+            daily_pity_max = 15
+        self.daily_duplicate_pity_max_percent = min(50, max(0, daily_pity_max))
         self.enable_roast: bool = self.config.get("enable_roast", True)
         self.enable_group_roast: bool = self.config.get("enable_group_roast", True)
         self.enable_group_eat: bool = self.config.get("enable_group_eat", True)
@@ -310,6 +334,10 @@ class RollPigPlugin(Star):
         self.draw_service = DrawService(
             enable_new_pig_pity=self.enable_new_pig_pity,
             pity_step_percent=self.pity_step_percent,
+            enable_daily_duplicate_pity=self.enable_daily_duplicate_pity,
+            daily_duplicate_pity_start_day=self.daily_duplicate_pity_start_day,
+            daily_duplicate_pity_step_percent=self.daily_duplicate_pity_step_percent,
+            daily_duplicate_pity_max_percent=self.daily_duplicate_pity_max_percent,
         )
         self.roast_service = RoastService()
         self._storage_admin_lock = asyncio.Lock()
