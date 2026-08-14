@@ -9,8 +9,11 @@
 | [`../README.md`](../README.md) | 專案總覽、安裝、快速開始與主要能力 |
 | [`COMMANDS.md`](COMMANDS.md) | 完整聊天指令、別名、上下文限制與玩法規則 |
 | [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 全配置說明、預設值與建議 |
+| [`EX-VARIANTS.md`](EX-VARIANTS.md) | EX Lv.1–5 稀疏差分、圖片／描述／文案繼承與 v1 資源擴展 |
+| [`DAILY-REPORT.md`](DAILY-REPORT.md) | 豬圈日報統計、稱號、自動推送、補發與可選祭品 |
 | [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、自建公共源投稿審核與同步排錯 |
 | [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、協議閘門、部署與回退 |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Gameplay Event v1、薄入口與漸進式模組拆分邊界 |
 | [`OPERATIONS.md`](OPERATIONS.md) | 身份遷移、SQLite、備份、同步、安全更新與故障排查 |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 開發環境、測試、提交與文檔維護規範 |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | 版本變更記錄 |
@@ -32,8 +35,10 @@
 1. `README.md` 是否仍準確描述當前版本。
 2. `docs/COMMANDS.md` 是否與 `@filter.command(...)` 和實際限制一致。
 3. `docs/CONFIGURATION.md` 是否與 `_conf_schema.json` 一致。
-4. `docs/RESOURCE-MANAGEMENT.md` 是否與圖鑑分層、manifest 及公共源投稿審核流程一致。
-5. `docs/OPERATIONS.md` 是否與 `storage/`、`identity_migration.py`、`updater.py` 的行為一致。
-6. `CHANGELOG.md` 是否記錄對使用者有感的變更。
+4. `docs/EX-VARIANTS.md` 是否與 EX 差分格式、繼承與資源同步語義一致。
+5. `docs/DAILY-REPORT.md` 是否與日報事件、排程與群聊副作用一致。
+6. `docs/RESOURCE-MANAGEMENT.md` 是否與圖鑑分層、manifest 及公共源投稿審核流程一致。
+7. `docs/OPERATIONS.md` 是否與 `storage/`、`identity_migration.py`、`updater.py` 的行為一致。
+8. `CHANGELOG.md` 是否記錄對使用者有感的變更。
 
 版本化性能／審查檔案可以保留作歷史證據，但不要讓它們取代當前文檔。
