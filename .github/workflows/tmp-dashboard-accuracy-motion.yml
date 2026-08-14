@@ -26,6 +26,7 @@ jobs:
       - name: Correct generated UI contracts
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
           path = Path('tests/test_dashboard_accuracy_contract.py')
           text = path.read_text(encoding='utf-8')
@@ -35,16 +36,30 @@ jobs:
           )
           path.write_text(text, encoding='utf-8')
 
-          spa = Path('tests/test_analytics_spa_remount.py')
-          spa.write_text(
-              spa.read_text(encoding='utf-8').replace('3.1.2', '3.2.0'),
-              encoding='utf-8',
+          for name in ('test_analytics_spa_remount.py', 'test_ui_asset_delivery.py'):
+              test_path = Path('tests') / name
+              test_path.write_text(
+                  test_path.read_text(encoding='utf-8').replace('3.1.2', '3.2.0'),
+                  encoding='utf-8',
+              )
+
+          page_path = Path('pages/pig-manager/index.html')
+          bootstrap_path = Path('pages/pig-manager/ui-bootstrap.js')
+          page = page_path.read_text(encoding='utf-8')
+          bootstrap = bootstrap_path.read_text(encoding='utf-8')
+          replacement = f'<script data-rollpig-bootstrap="3.2.0">{bootstrap}</script>'
+          page, count = re.subn(
+              r'<script data-rollpig-bootstrap="[^"]+">.*?</script>',
+              lambda _: replacement,
+              page,
+              count=1,
+              flags=re.S,
           )
-          asset = Path('tests/test_ui_asset_delivery.py')
-          asset.write_text(
-              asset.read_text(encoding='utf-8').replace('3.1.2', '3.2.0'),
-              encoding='utf-8',
-          )
+          if count != 1:
+              raise SystemExit('inline bootstrap marker not found')
+          page_path.write_text(page, encoding='utf-8')
+          check = re.search(r'<script data-rollpig-bootstrap="3.2.0">(.*?)</script>', page, re.S)
+          assert check and check.group(1).strip() == bootstrap.strip()
           PY
       - name: Check JavaScript syntax
         run: |
