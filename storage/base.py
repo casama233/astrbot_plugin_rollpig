@@ -57,6 +57,9 @@ class StorageBackend(ABC):
     def consume_roast_cooldown(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
+    def consume_roast_charge(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
     def increment_roast_count(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
