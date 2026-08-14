@@ -1,56 +1,58 @@
-name: TEMP catalog read boundary inventory
+name: TEMP catalog read boundary refactor
 
 on:
   push:
     branches:
       - refactor/catalog-read-boundary
 
+permissions:
+  contents: write
+
 jobs:
-  inventory:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - name: Check out branch
+        uses: actions/checkout@v6
+        with:
+          ref: refactor/catalog-read-boundary
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Inventory legacy catalog/read methods
-        run: |
-          python - <<'PY'
-          import ast
-          from pathlib import Path
 
-          path = Path('legacy_main.py')
-          src = path.read_text(encoding='utf-8')
-          tree = ast.parse(src)
-          needles = {
-              'catalog', 'collection', 'pigsty', 'pigs_info', 'image_dir',
-              'custom_image', 'resource_active', 'cloud', 'tombstone',
-              'local_override', 'rendered_pig', 'find_pigs', 'random_pigs',
-          }
-          for node in tree.body:
-              if not isinstance(node, ast.ClassDef) or node.name != 'RollPigPlugin':
-                  continue
-              for fn in node.body:
-                  if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                      continue
-                  seg = ast.get_source_segment(src, fn) or ''
-                  hits = sorted(n for n in needles if n in fn.name.lower() or n in seg)
-                  if not hits:
-                      continue
-                  attrs = sorted({
-                      x.attr for x in ast.walk(fn)
-                      if isinstance(x, ast.Attribute)
-                      and isinstance(x.value, ast.Name)
-                      and x.value.id == 'self'
-                  })
-                  calls = sorted({
-                      x.func.attr for x in ast.walk(fn)
-                      if isinstance(x, ast.Call)
-                      and isinstance(x.func, ast.Attribute)
-                      and isinstance(x.func.value, ast.Name)
-                      and x.func.value.id == 'self'
-                  })
-                  print(f'## {fn.name} L{fn.lineno}-L{getattr(fn, "end_lineno", fn.lineno)} hits={hits}')
-                  print('  self attrs:', ', '.join(attrs))
-                  print('  self calls:', ', '.join(calls))
-          PY
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+
+      - name: Apply catalog read boundary
+        run: python scripts/_apply_catalog_read_boundary.py
+
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py services tests
+
+      - name: Run full tests
+        run: pytest -q
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files
+
+      - name: Review generated diff
+        run: |
+          git status --short
+          git diff --check
+          git diff --stat
+
+      - name: Commit verified refactor
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/_tmp-catalog-inventory.yml scripts/_apply_catalog_read_boundary.py
+          git add legacy_main.py services tests
+          git diff --cached --check
+          git commit -m 'refactor: extract catalog and resource read services'
+          git push origin HEAD:refactor/catalog-read-boundary
