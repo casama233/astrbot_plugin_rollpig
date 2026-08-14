@@ -1,0 +1,63 @@
+/* Brand every decorative pig icon with the plugin's canonical logo.png. */
+.pig-brand-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  margin: 0 .14em 0 .02em;
+  object-fit: contain;
+  vertical-align: -.2em;
+  border-radius: 22%;
+  filter: drop-shadow(0 2px 7px rgba(239, 93, 130, .28));
+}
+
+.pig-mascot > .pig-brand-icon {
+  width: 72%;
+  height: 72%;
+  margin: 0;
+  border-radius: 30%;
+  vertical-align: baseline;
+  filter:
+    drop-shadow(0 18px 28px rgba(0, 0, 0, .22))
+    drop-shadow(0 0 30px rgba(239, 93, 130, .30));
+  transition: transform .22s ease, filter .22s ease;
+}
+
+.pig-mascot:hover > .pig-brand-icon {
+  transform: scale(1.055) rotate(-2deg);
+  filter:
+    drop-shadow(0 20px 32px rgba(0, 0, 0, .25))
+    drop-shadow(0 0 42px rgba(239, 93, 130, .42));
+}
+
+.pig-kicker > .pig-brand-icon {
+  width: 1.3em;
+  height: 1.3em;
+  margin-right: .18rem;
+}
+
+.md-nav__link .pig-brand-icon,
+.md-tabs__link .pig-brand-icon {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.pig-spark .pig-brand-icon {
+  width: 1.4em;
+  height: 1.4em;
+  margin: 0;
+  border-radius: 28%;
+  filter: drop-shadow(0 3px 10px rgba(239, 93, 130, .45));
+}
+
+@media (max-width: 760px) {
+  .pig-mascot > .pig-brand-icon {
+    width: 68%;
+    height: 68%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pig-mascot > .pig-brand-icon {
+    transition: none;
+  }
+}
