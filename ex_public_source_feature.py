@@ -18,6 +18,11 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 class ExPublicSourceMixin:
     """Bridge local EX authoring to the public-source review envelope v2."""
 
+    # The review service accepts a 16 MiB JSON request. Base64 expands binary
+    # content by roughly 4/3, so keep the combined normalized image bytes below
+    # 11 MiB to leave room for JSON/copy metadata and encoding overhead.
+    PUBLIC_SOURCE_EX_RAW_TOTAL_MAX_SIZE = 11 * 1024 * 1024
+
     def __init__(self, context, config):
         super().__init__(context, config)
         context.register_web_api(
@@ -46,6 +51,7 @@ class ExPublicSourceMixin:
         image_root = getattr(self, "local_ex_variant_image_dir", None)
         variant_images: list[dict] = []
         referenced = []
+        total_raw_size = len(raw)
         for level, item in sorted(levels.items()):
             image = str(item.get("image") or "")
             if not image:
@@ -63,6 +69,11 @@ class ExPublicSourceMixin:
             data = path.read_bytes()
             if not data or len(data) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
                 raise ValueError(f"EX Lv.{level} 图片为空或超过 10MB")
+            total_raw_size += len(data)
+            if total_raw_size > self.PUBLIC_SOURCE_EX_RAW_TOTAL_MAX_SIZE:
+                raise ValueError(
+                    "基础图片与 EX 图片合计过大；请压缩图片后再投稿（总上限约 11 MiB）"
+                )
             referenced.append(image)
             variant_images.append(
                 {
