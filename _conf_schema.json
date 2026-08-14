@@ -53,6 +53,18 @@
         "type": "bool",
         "default": true
     },
+    "enable_roast_reservation": {
+        "description": "开启预约烤猪",
+        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗正常冷却，后续群友可免费添柴，目标在本群抽猪后自动按 60/30/10 结算",
+        "type": "bool",
+        "default": true
+    },
+    "roast_reservation_max_participants": {
+        "description": "预约烤猪最多参与人数",
+        "hint": "包含第一位主厨；范围 2-20，默认 12。达到上限后不能继续添柴",
+        "type": "int",
+        "default": 12
+    },
     "enable_group_eat": {
         "description": "开启吃群友玩法",
         "hint": "允许 /吃群友 @某人 与 /随机吃群友；成功者或失败者会变为当天的「吃掉了」状态",
@@ -73,13 +85,13 @@
     },
     "group_roast_cooldown_hours": {
         "description": "烤群友冷却时间（小时）",
-        "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；后门口令会绕过此限制",
+        "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；创建预约也会消耗一次，后续添柴不消耗；后门口令会绕过此限制",
         "type": "float",
         "default": 8
     },
     "enable_roast_protection": {
         "description": "开启被烤保护机制",
-        "hint": "群友昨天在同一群被成功烤到次数达到阈值后，今天普通烤群友会被拦截；后门强制模式仍可突破保护",
+        "hint": "群友昨天在同一群被成功烤到次数达到阈值后，今天普通烤群友会被拦截；预约创建同样尊重保护，后门强制模式仍可突破",
         "type": "bool",
         "default": true
     },
