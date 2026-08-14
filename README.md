@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
-![Current Version](https://img.shields.io/badge/current-3.5.0-ef5d82)
+![Current Version](https://img.shields.io/badge/current-3.6.0-ef5d82)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
@@ -22,19 +22,16 @@
 > [!NOTE]
 > 這不是一個只會回覆隨機圖片的簡單插件。每位使用者都有穩定的每日結果、可持續累積的永久圖鑑、跨日記錄與群聊玩法；管理員則擁有獨立的數據、資源及存儲工作台。
 
-## 3.5.0 版本亮點
+## 3.6.0 版本亮點
 
 | 能力 | 帶來的改進 |
 | --- | --- |
-| 🐽 自建公共豬源 | 本地小豬可把完整資料與圖片提交到我們自己的 AstrBot 審核隊列，不再借用 PigHub 投稿流程 |
-| ✅ 面板人工審核 | 維護者可在管理面板預覽待審核內容、批准或拒絕；批准後自動產生新資源版本 |
-| ☁️ AstrBot 專用豬源 | 由本專案維護 v1 manifest、完整資源與 HTTPS 端點，替換失效的 nonebot 來源 |
-| 🔐 客戶端協議閘門 | 只接受 AstrBot RollPig 的 Client、Protocol 與版本化 User-Agent，其他普通請求回傳 403 |
-| 🧪 可重建、可回退 | 批准投稿時強制校驗圖鑑與圖片；伺服器保留不可變版本、目錄備份並原子切換 |
-| 🧩 本地資源分層 | 一眼分辨「本地新增」與「覆蓋基礎源」，不再猜測哪一筆資料會生效 |
-| 🚫 屏蔽管理 | 刪除小豬會進入可查看的屏蔽清單，管理員可安全取消屏蔽 |
-| 🖼️ 原圖重修 | 編輯時可下載目前生效的原圖，重修後再上傳替換 |
-| 🔒 審核憑證隔離 | 投稿公開可用；審核 Token 只存在維護者後端，不進配置、不下發瀏覽器 |
+| 📊 完整豬圈日報 | 可配置每日自動推送統計海報，支援真實並列稱號、頭像、跨午夜鎖定、重啟補發與可選今日祭品 |
+| 🧬 EX Lv. 成長差分 | EX Lv.1–5 可按既有收藏次數替換立繪、描述或完整文案，欄位可獨立向下繼承 |
+| 🔥 預約烤豬 | 明確指定尚未抽豬的群友可建立同群當日埋伏，其他群友免費添柴，目標出現後一次性按原 60/30/10 結算 |
+| 🧱 Gameplay Event v1 | 日報、EX 成長與預約玩法共用可去重事件層，避免新玩法各自建立孤立歷史 |
+| 🛠️ 投稿按鈕修復 | 修復管理面板「投稿公共源」在 sandbox 環境下點擊無反應，改為頁面內二次確認與明確成功／失敗反饋 |
+| 🔤 CJK 發行修復 | Release 與 Marketplace 包重新包含首選中文字體，Linux 標題不再因回退 DejaVu 而顯示方框 |
 
 完整變更請閱讀 [CHANGELOG](CHANGELOG.md)；EX 成長格式見 [EX 差分手冊](docs/EX-VARIANTS.md)，資源使用方式見 [資源管理手冊](docs/RESOURCE-MANAGEMENT.md)，發佈與回退流程見 [豬源維護手冊](docs/RESOURCE-SOURCE-MAINTENANCE.md)。
 
@@ -212,8 +209,8 @@ manifest 格式、安全限制與故障排查請看 [資源管理手冊](docs/RE
 
 ## 升級策略
 
-- **v3.2.0+ → v3.5.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
-- **v3.1.4 或更早增強版 → v3.5.0**：先完成獨立身份遷移，再確認新資料正常。
+- **v3.2.0+ → v3.6.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
+- **v3.1.4 或更早增強版 → v3.6.0**：先完成獨立身份遷移，再確認新資料正常。
 - **原版與增強版同時存在**：系統只提示衝突，不會擅自停用或刪除另一個插件。
 - **舊 nonebot 源配置**：精確匹配失效舊地址時會遷移到 AstrBot v1 專用源；其他自訂私人 URL 保持不變。
 
