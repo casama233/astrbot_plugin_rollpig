@@ -12,18 +12,21 @@ from astrbot.api.event import AstrMessageEvent, filter
 try:
     from .daily_report_feature import DailyReportMixin
     from .ex_variant_feature import ExVariantMixin
+    from .help_feature import HelpFeatureMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
+    from help_feature import HelpFeatureMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
 
 
 class RollPigPlugin(
+    HelpFeatureMixin,
     RoastReservationMixin,
     DailyReportMixin,
     ExVariantMixin,
