@@ -43,6 +43,7 @@ try:
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
     from .services import DrawService, RoastService
     from .storage import StorageManager, StorageMigrationError
@@ -54,6 +55,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
     from services import DrawService, RoastService
     from storage import StorageManager, StorageMigrationError
@@ -94,6 +96,7 @@ class RollPigPlugin(Star):
     RESOURCE_MANIFEST_MAX_SIZE = 1024 * 1024
     RESOURCE_PACKAGE_MAX_SIZE = 128 * 1024 * 1024
     RESOURCE_MAX_IMAGES = 500
+    RESOURCE_MAX_VARIANT_IMAGES = 1000
     PIGHUB_API_URLS = (
         "https://pighub.top/api/images?sort=2&limit=200",
         "https://pighub.top/api/images?sort=2",
@@ -1388,6 +1391,12 @@ class RollPigPlugin(Star):
                         not force
                         and version == self._cloud_state().get("resource_version")
                         and self._load_cloud_pigs()
+                        and (
+                            not isinstance(manifest.get("ex_variants"), dict)
+                            or (
+                                self.resource_active_dir / "pig_ex_variants.json"
+                            ).is_file()
+                        )
                     ):
                         self.save_json(
                             self.resource_state_path,
@@ -1400,17 +1409,34 @@ class RollPigPlugin(Star):
                         return {"updated": False, "version": version}
                     pig_meta = manifest.get("pig_json")
                     image_metas = manifest.get("images")
+                    ex_meta = manifest.get("ex_variants")
+                    variant_image_metas = manifest.get("variant_images", [])
                     if not isinstance(pig_meta, dict):
                         raise ValueError("manifest 缺少 pig_json")
                     if not isinstance(image_metas, list):
                         raise ValueError("manifest 缺少 images")
                     if len(image_metas) > self.RESOURCE_MAX_IMAGES:
                         raise ValueError("云资源图片数量超过 500")
+                    if ex_meta is not None and not isinstance(ex_meta, dict):
+                        raise ValueError("manifest ex_variants 必须是对象")
+                    if not isinstance(variant_image_metas, list):
+                        raise ValueError("manifest variant_images 必须是数组")
+                    if ex_meta is None and variant_image_metas:
+                        raise ValueError("manifest 缺少 ex_variants，却声明了差分图片")
+                    if len(variant_image_metas) > self.RESOURCE_MAX_VARIANT_IMAGES:
+                        raise ValueError("EX 差分图片数量超过 1000")
                     declared_total = int(pig_meta.get("size") or 0) + sum(
                         int(meta.get("size") or 0)
                         for meta in image_metas
                         if isinstance(meta, dict)
                     )
+                    if isinstance(ex_meta, dict):
+                        declared_total += int(ex_meta.get("size") or 0)
+                        declared_total += sum(
+                            int(meta.get("size") or 0)
+                            for meta in variant_image_metas
+                            if isinstance(meta, dict)
+                        )
                     if declared_total > self.RESOURCE_PACKAGE_MAX_SIZE:
                         raise ValueError("云资源包声明大小超过 128 MiB")
                     pig_raw = await self._download_manifest_item(
@@ -1422,15 +1448,34 @@ class RollPigPlugin(Star):
                     pigs = self._validate_pig_records(
                         json.loads(pig_raw.decode("utf-8-sig"))
                     )
+                    pig_ids = {item["id"] for item in pigs}
+                    ex_raw = b""
+                    normalized_ex: dict[str, dict[int, dict[str, str]]] = {}
+                    if isinstance(ex_meta, dict):
+                        ex_raw = await self._download_manifest_item(
+                            client,
+                            self.resource_manifest_url,
+                            ex_meta,
+                            min(self.resource_max_file_size, 2 * 1024 * 1024),
+                        )
+                        normalized_ex = validate_ex_variants(
+                            json.loads(ex_raw.decode("utf-8-sig")),
+                            pig_ids,
+                            image_extensions=set(self.IMAGE_EXTENSIONS),
+                        )
                     staging_images = staging / "images"
                     staging_images.mkdir(parents=True, exist_ok=True)
                     (staging / "pig.json").write_bytes(pig_raw)
+                    staging_variants = staging / "ex_variants"
+                    if isinstance(ex_meta, dict):
+                        staging_variants.mkdir(parents=True, exist_ok=True)
+                        (staging / "pig_ex_variants.json").write_bytes(ex_raw)
                     # 公共包接近两百张图；较低并发对慢速反代和家庭网络更稳定。
                     semaphore = asyncio.Semaphore(4)
                     budget_lock = asyncio.Lock()
-                    package_total = len(pig_raw)
+                    package_total = len(pig_raw) + len(ex_raw)
 
-                    async def fetch_image(meta):
+                    async def fetch_base_image(meta):
                         nonlocal package_total
                         if not isinstance(meta, dict):
                             raise ValueError("manifest 图片条目无效")
@@ -1458,16 +1503,51 @@ class RollPigPlugin(Star):
                                 raise ValueError("云资源包总大小超过 128 MiB")
                         return filename, data
 
-                    async def fetch_and_store(meta):
-                        filename, data = await fetch_image(meta)
+                    async def fetch_variant_image(meta):
+                        nonlocal package_total
+                        if not isinstance(meta, dict):
+                            raise ValueError("manifest EX 差分图片条目无效")
+                        filename = str(meta.get("filename") or "")
+                        if (
+                            Path(filename).name != filename
+                            or Path(filename).suffix.lower().lstrip(".")
+                            not in self.IMAGE_EXTENSIONS
+                            or not re.fullmatch(
+                                r"[A-Za-z0-9][A-Za-z0-9_.-]{0,159}", filename
+                            )
+                        ):
+                            raise ValueError(f"EX 差分图片文件名无效：{filename}")
+                        async with semaphore:
+                            data = await self._download_manifest_item(
+                                client,
+                                self.resource_manifest_url,
+                                meta,
+                                self.resource_max_file_size,
+                            )
+                        async with budget_lock:
+                            package_total += len(data)
+                            if package_total > self.RESOURCE_PACKAGE_MAX_SIZE:
+                                raise ValueError("云资源包总大小超过 128 MiB")
+                        return filename, data
+
+                    async def fetch_and_store_base(meta):
+                        filename, data = await fetch_base_image(meta)
                         self._validate_image_dimensions(data, filename)
                         await asyncio.to_thread(
                             (staging_images / filename).write_bytes, data
                         )
                         return filename
 
+                    async def fetch_and_store_variant(meta):
+                        filename, data = await fetch_variant_image(meta)
+                        self._validate_image_dimensions(data, filename)
+                        await asyncio.to_thread(
+                            (staging_variants / filename).write_bytes, data
+                        )
+                        return filename
+
                     tasks = [
-                        asyncio.create_task(fetch_and_store(meta))
+                        asyncio.create_task(fetch_and_store_base(meta))
                         for meta in image_metas
                     ]
                     filenames: list[str] = []
@@ -1481,13 +1561,53 @@ class RollPigPlugin(Star):
                         raise
                     if len(filenames) != len(set(filenames)):
                         raise ValueError("云资源 manifest 存在重复图片文件名")
-                    pig_ids = {item["id"] for item in pigs}
                     image_ids = {Path(name).stem for name in filenames}
                     missing = pig_ids.difference(image_ids)
                     if missing:
                         raise ValueError(
                             f"云资源缺少图片：{', '.join(sorted(missing)[:10])}"
                         )
+
+                    variant_tasks = [
+                        asyncio.create_task(fetch_and_store_variant(meta))
+                        for meta in variant_image_metas
+                    ]
+                    variant_filenames: list[str] = []
+                    try:
+                        for task in asyncio.as_completed(variant_tasks):
+                            variant_filenames.append(await task)
+                    except Exception:
+                        for task in variant_tasks:
+                            task.cancel()
+                        await asyncio.gather(*variant_tasks, return_exceptions=True)
+                        raise
+                    if len(variant_filenames) != len(set(variant_filenames)):
+                        raise ValueError("云资源 manifest 存在重复 EX 差分图片文件名")
+                    if isinstance(ex_meta, dict):
+                        declared_variant_images = {
+                            str(item.get("image") or "")
+                            for levels in normalized_ex.values()
+                            for item in levels.values()
+                            if str(item.get("image") or "")
+                        }
+                        fetched_variant_images = set(variant_filenames)
+                        missing_variant = declared_variant_images.difference(
+                            fetched_variant_images
+                        )
+                        extra_variant = fetched_variant_images.difference(
+                            declared_variant_images
+                        )
+                        if missing_variant:
+                            raise ValueError(
+                                "云资源缺少 EX 差分图片："
+                                + ", ".join(sorted(missing_variant)[:10])
+                            )
+                        if extra_variant:
+                            raise ValueError(
+                                "云资源存在未引用 EX 差分图片："
+                                + ", ".join(sorted(extra_variant)[:10])
+                            )
+
 
                 if previous.exists():
                     shutil.rmtree(previous)
@@ -3251,18 +3371,23 @@ class RollPigPlugin(Star):
             " 🍴 吃群友失败，反而把自己吃掉了；明天抽猪可能失败。",
         )
 
-    def find_image_file(self, pig_id: str) -> Path | None:
-        """
-        查找对应ID的图片文件\n
-        :param pig_id: 小猪ID
-        :return: 图片文件路径，未找到返回None
-        """
-        # 本地管理员图片永远优先，其次云端基底，最后才是插件内置兜底。
-        for directory in (
-            self.custom_image_dir,
-            self.resource_active_dir / "images",
-            self.image_dir,
-        ):
+    def find_image_file(
+        self, pig_id: str, ex_level: int | None = None
+    ) -> Path | None:
+        """Resolve local override, optional EX art, cloud base, then bundled base."""
+        for ext in self.IMAGE_EXTENSIONS:
+            local = self.custom_image_dir / f"{pig_id}.{ext}"
+            if local.exists():
+                logger.debug(f"找到的小猪图片文件：{local.absolute()}")
+                return local
+        if ex_level:
+            resolver = getattr(self, "_ex_variant_image_path", None)
+            if callable(resolver):
+                variant = resolver(str(pig_id), max(0, int(ex_level)))
+                if variant and variant.exists():
+                    logger.debug(f"找到 EX 差分图片：{variant.absolute()}")
+                    return variant
+        for directory in (self.resource_active_dir / "images", self.image_dir):
             for ext in self.IMAGE_EXTENSIONS:
                 file = directory / f"{pig_id}.{ext}"
                 if file.exists():
@@ -3293,7 +3418,9 @@ class RollPigPlugin(Star):
         # 2.1 头像尺寸【核心修改：放大到280x280】
         avatar_w, avatar_h = self.AVATAR_SIZE, self.AVATAR_SIZE
         avatar = None
-        avatar_path = self.find_image_file(pig_id)
+        avatar_path = self.find_image_file(
+            pig_id, ex_level=int(pig_data.get("_ex_level", 0) or 0)
+        )
         if avatar_path:
             try:
                 with PILImage.open(avatar_path) as source:
@@ -3484,7 +3611,14 @@ class RollPigPlugin(Star):
             is_unlocked = pig_id in unlocked
             bg = palette["surface"] if is_unlocked else palette["locked"]
             draw.rounded_rectangle((x, y, x + card_w, y + card_h), 24, fill=bg)
-            image_path = self.find_image_file(pig_id)
+            image_path = self.find_image_file(
+                pig_id,
+                ex_level=(
+                    max(0, int(unlocked[pig_id].get("count", 1)) - 1)
+                    if is_unlocked
+                    else 0
+                ),
+            )
             if image_path:
                 try:
                     thumb = self._fit_card_image(image_path, (130, 130))
@@ -3568,7 +3702,10 @@ class RollPigPlugin(Star):
             row, col = divmod(index, 3)
             x, y = 30 + col * 290, 155 + row * 245
             draw.rounded_rectangle((x, y, x + 260, y + 218), 22, fill=palette["surface"])
-            path = self.find_image_file(str(pig.get("id") or ""))
+            path = self.find_image_file(
+                str(pig.get("id") or ""),
+                ex_level=int(pig.get("_ex_level", 0) or 0),
+            )
             if path:
                 try:
                     thumb = self._fit_card_image(path, (140, 140))
@@ -3620,7 +3757,10 @@ class RollPigPlugin(Star):
             draw.text((58, y + 62), f"{day.month}/{day.day}", font=small_font, fill=palette["muted"])
             if pig:
                 collected += 1
-                path = self.find_image_file(str(pig.get("id") or ""))
+                path = self.find_image_file(
+                str(pig.get("id") or ""),
+                ex_level=int(pig.get("_ex_level", 0) or 0),
+            )
                 if path:
                     try:
                         thumb = self._fit_card_image(path, (82, 82))
@@ -4405,7 +4545,9 @@ class RollPigPlugin(Star):
         )
         msg_chain = []
 
-        avatar_path = self.find_image_file(pig_id)
+        avatar_path = self.find_image_file(
+            pig_id, ex_level=int(pig_data.get("_ex_level", 0) or 0)
+        )
         if avatar_path and avatar_path.exists():
             try:
                 msg_chain.append(Comp.Image.fromFileSystem(str(avatar_path.absolute())))

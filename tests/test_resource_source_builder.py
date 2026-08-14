@@ -37,6 +37,32 @@ def _fixture(root: Path, *, with_image: bool = True) -> Path:
     return source
 
 
+def _add_ex_variants(source: Path, *, include_image: bool = True) -> None:
+    (source / "pig_ex_variants.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pigs": {
+                    "test-pig": {
+                        "2": {
+                            "description": "EX2 描述",
+                            "image": "test-pig-ex2.png",
+                        },
+                        "4": {"analysis": "EX4 文案"},
+                    }
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    if include_image:
+        (source / "ex_variants").mkdir()
+        Image.new("RGBA", (8, 8), (80, 160, 255, 255)).save(
+            source / "ex_variants" / "test-pig-ex2.png"
+        )
+
+
 def test_resource_source_builder_emits_v1_manifest_and_matching_hashes(tmp_path):
     source = _fixture(tmp_path)
     output = tmp_path / "release"
@@ -64,6 +90,7 @@ def test_resource_source_builder_emits_v1_manifest_and_matching_hashes(tmp_path)
     assert manifest["client"] == "astrbot_plugin_rollpig_plus"
     assert manifest["resource_version"] == "2026.08.14.1"
     assert manifest["pig_count"] == 1
+    assert "ex_variants" not in manifest
     for entry in [manifest["pig_json"], *manifest["images"]]:
         path = output / entry["path"]
         assert path.stat().st_size == entry["size"]
@@ -71,6 +98,66 @@ def test_resource_source_builder_emits_v1_manifest_and_matching_hashes(tmp_path)
     health = json.loads((output / "health.json").read_text(encoding="utf-8"))
     assert health["status"] == "ok"
     assert health["protocol_version"] == 1
+    assert health["ex_variant_pig_count"] == 0
+
+
+def test_resource_source_builder_packages_optional_ex_variants(tmp_path):
+    source = _fixture(tmp_path)
+    _add_ex_variants(source)
+    output = tmp_path / "release"
+    subprocess.run(
+        [
+            sys.executable,
+            str(BUILDER),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--version",
+            "2026.08.14.ex1",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["ex_variants"]["path"] == "pig_ex_variants.json"
+    assert [item["filename"] for item in manifest["variant_images"]] == [
+        "test-pig-ex2.png"
+    ]
+    entries = [manifest["ex_variants"], *manifest["variant_images"]]
+    for entry in entries:
+        path = output / entry["path"]
+        assert path.stat().st_size == entry["size"]
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
+    variants = json.loads(
+        (output / "pig_ex_variants.json").read_text(encoding="utf-8")
+    )
+    assert variants["pigs"]["test-pig"]["2"]["description"] == "EX2 描述"
+    health = json.loads((output / "health.json").read_text(encoding="utf-8"))
+    assert health["ex_variant_pig_count"] == 1
+    assert health["ex_variant_image_count"] == 1
+
+
+def test_resource_source_builder_rejects_missing_ex_variant_image(tmp_path):
+    source = _fixture(tmp_path)
+    _add_ex_variants(source, include_image=False)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(BUILDER),
+            "--source",
+            str(source),
+            "--output",
+            str(tmp_path / "release"),
+            "--version",
+            "broken-ex",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "缺少 resource/ex_variants" in result.stderr
 
 
 def test_resource_source_builder_rejects_catalog_without_matching_image(tmp_path):
