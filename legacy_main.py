@@ -148,7 +148,7 @@ class RollPigPlugin(Star):
         "AstrBot-RollPig/3.6.5 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
-    UI_ASSET_VERSION = "3.1.2"
+    UI_ASSET_VERSION = "3.2.0"
     UI_ASSET_MAX_FILE_BYTES = 512 * 1024
     UI_ASSET_MAX_TOTAL_BYTES = 768 * 1024
     UI_ASSET_FILES = (
@@ -4381,12 +4381,82 @@ class RollPigPlugin(Star):
         parsed = urlsplit(source)
         return parsed.scheme in {"http", "https"} and parsed.netloc.lower() == host
 
+    def _dashboard_canonical_user_id(self, user_id: str) -> str:
+        raw = str(user_id or "")
+        claims_root = self.history.get("identity_claims", {}) if isinstance(self.history, dict) else {}
+        claims = claims_root.get("users", {}) if isinstance(claims_root, dict) else {}
+        return str(claims.get(raw) or raw) if isinstance(claims, dict) else raw
+
+    def _dashboard_logical_users(self) -> dict[str, dict]:
+        users = self.history.get("users", {}) if isinstance(self.history, dict) else {}
+        users = users if isinstance(users, dict) else {}
+        buckets: dict[str, list[tuple[str, dict]]] = {}
+        for raw_id, raw_user in users.items():
+            if not isinstance(raw_user, dict):
+                continue
+            user_id = str(raw_id or "")
+            canonical = self._dashboard_canonical_user_id(user_id)
+            buckets.setdefault(canonical, []).append((user_id, raw_user))
+
+        logical: dict[str, dict] = {}
+        for canonical, fragments in buckets.items():
+            fragments.sort(key=lambda item: (0 if item[0] == canonical else 1, item[0]))
+            logical[canonical] = self.collection_service.merge_ownership(
+                [item[1] for item in fragments]
+            )
+        return logical
+
+    def _dashboard_json_day_facts(
+        self, day_key: str, item: dict, logical_users: dict[str, dict] | None = None
+    ) -> dict:
+        item = item if isinstance(item, dict) else {}
+        logical_users = logical_users if logical_users is not None else self._dashboard_logical_users()
+        records = item.get("records", {})
+        records = records if isinstance(records, dict) else {}
+        originals = item.get("eaten_originals", {})
+        originals = originals if isinstance(originals, dict) else {}
+        canonical_records: dict[str, str] = {}
+        canonical_priority: dict[str, int] = {}
+        for raw_user, raw_pig in records.items():
+            raw_user = str(raw_user or "")
+            canonical = self._dashboard_canonical_user_id(raw_user)
+            priority = 0 if raw_user == canonical else 1
+            if canonical in canonical_records and canonical_priority[canonical] <= priority:
+                continue
+            pig_id = str(originals.get(raw_user) or raw_pig or "")
+            canonical_records[canonical] = pig_id
+            canonical_priority[canonical] = priority
+
+        active = {
+            self._dashboard_canonical_user_id(str(value))
+            for value in item.get("users", [])
+            if str(value)
+        }
+        active.update(canonical_records)
+        new_unlocks = 0
+        for canonical, pig_id in canonical_records.items():
+            user = logical_users.get(canonical, {})
+            pigs = user.get("pigs", {}) if isinstance(user, dict) else {}
+            record = pigs.get(pig_id, {}) if isinstance(pigs, dict) else {}
+            if isinstance(record, dict) and str(record.get("first_unlocked") or "") == day_key:
+                new_unlocks += 1
+        if not canonical_records:
+            new_unlocks = int(item.get("new_unlocks", 0) or 0)
+        return {
+            "users": active,
+            "draws": len(canonical_records) if canonical_records else len(active),
+            "new_unlocks": new_unlocks,
+            "records": canonical_records,
+        }
+
     def _catalog_aggregates(self) -> tuple[Counter, Counter]:
         draws: Counter = Counter()
         collectors: Counter = Counter()
-        for user in self.history.get("users", {}).values():
+        for user in self._dashboard_logical_users().values():
             for pig_id, record in user.get("pigs", {}).items():
-                draws[pig_id] += int(record.get("count", 0))
+                if not isinstance(record, dict):
+                    continue
+                draws[pig_id] += int(record.get("count", 0) or 0)
                 collectors[pig_id] += 1
         return draws, collectors
 
@@ -4683,7 +4753,11 @@ class RollPigPlugin(Star):
         with self._data_lock:
             today = self._today()
             users = self.history.get("users", {})
-            catalog_ids = {str(pig.get("id")) for pig in self.pig_list}
+            catalog_ids = {
+                str(pig.get("id") or "")
+                for pig in self.pig_list
+                if str(pig.get("id") or "")
+            }
             if getattr(self.storage, "supports_dashboard_analytics", False):
                 start_date = (today - datetime.timedelta(days=13)).isoformat()
                 end_date = today.isoformat()
@@ -4743,12 +4817,23 @@ class RollPigPlugin(Star):
                     "trend": trend,
                     "top_pigs": top_pigs,
                     "analytics": stored.get("observability", {}),
+                    "meta": {
+                        "source": "normalized-sql",
+                        "identity_scope": "claim-aware-logical-users",
+                        "trend_days": 14,
+                        "catalog_scope": "active",
+                        "as_of": today.isoformat(),
+                    },
                 }
-            total_users = len(users)
-            total_draws = sum(int(u.get("total_draws", 0)) for u in users.values())
+            logical_users = self._dashboard_logical_users()
+            total_users = len(logical_users)
+            total_draws = sum(
+                int(user.get("total_draws", 0) or 0)
+                for user in logical_users.values()
+            )
             unlocked_counts = [
-                len(set(u.get("pigs", {})).intersection(catalog_ids))
-                for u in users.values()
+                len(set(user.get("pigs", {})).intersection(catalog_ids))
+                for user in logical_users.values()
             ]
             average_unlocked = (
                 sum(unlocked_counts) / total_users if total_users else 0
@@ -4760,13 +4845,16 @@ class RollPigPlugin(Star):
             trend = []
             for offset in range(13, -1, -1):
                 day = today - datetime.timedelta(days=offset)
-                item = daily.get(day.isoformat(), {})
+                day_key = day.isoformat()
+                facts = self._dashboard_json_day_facts(
+                    day_key, daily.get(day_key, {}), logical_users
+                )
                 trend.append(
                     {
                         "date": f"{day.month}/{day.day}",
-                        "users": len(item.get("users", [])),
-                        "draws": int(item.get("draws", 0)),
-                        "new_unlocks": int(item.get("new_unlocks", 0)),
+                        "users": len(facts["users"]),
+                        "draws": int(facts["draws"]),
+                        "new_unlocks": int(facts["new_unlocks"]),
                     }
                 )
             draws, collectors = self._catalog_aggregates()
@@ -4784,18 +4872,32 @@ class RollPigPlugin(Star):
                 for pig_id, count in draws.most_common(10)
                 if pig_id in names
             ]
-            today_item = daily.get(today.isoformat(), {})
+            today_key = today.isoformat()
+            today_facts = self._dashboard_json_day_facts(
+                today_key, daily.get(today_key, {}), logical_users
+            )
             return {
                 "metrics": {
                     "total_users": total_users,
                     "total_draws": total_draws,
                     "catalog_count": len(catalog_ids),
-                    "today_users": len(today_item.get("users", [])),
+                    "today_users": len(today_facts["users"]),
                     "average_unlocked": round(average_unlocked, 2),
                     "average_unlock_rate": round(average_rate, 2),
                 },
                 "trend": trend,
                 "top_pigs": top_pigs,
+                "analytics": {
+                    "analytics_source": "json-compatibility",
+                    "identity_scope": "claim-aware-logical-users",
+                },
+                "meta": {
+                    "source": "json-compatibility",
+                    "identity_scope": "claim-aware-logical-users",
+                    "trend_days": 14,
+                    "catalog_scope": "active",
+                    "as_of": today.isoformat(),
+                },
             }
 
 
@@ -4871,15 +4973,17 @@ class RollPigPlugin(Star):
                 return stored
 
             history = self.history if isinstance(self.history, dict) else {}
-            users = history.get("users", {})
-            users = users if isinstance(users, dict) else {}
+            users = self._dashboard_logical_users()
             daily = history.get("daily", {})
             daily = daily if isinstance(daily, dict) else {}
 
             def day_users(day: datetime.date) -> set[str]:
-                item = daily.get(day.isoformat(), {})
-                values = item.get("users", []) if isinstance(item, dict) else []
-                return {str(value) for value in values if str(value)}
+                key = day.isoformat()
+                return set(
+                    self._dashboard_json_day_facts(key, daily.get(key, {}), users)[
+                        "users"
+                    ]
+                )
 
             def period_summary(start: datetime.date, end: datetime.date) -> tuple[dict, set[str]]:
                 active: set[str] = set()
@@ -4887,11 +4991,13 @@ class RollPigPlugin(Star):
                 unlocks = 0
                 cursor = start
                 while cursor <= end:
-                    item = daily.get(cursor.isoformat(), {})
-                    if isinstance(item, dict):
-                        active.update(str(value) for value in item.get("users", []) if str(value))
-                        draws += int(item.get("draws", 0) or 0)
-                        unlocks += int(item.get("new_unlocks", 0) or 0)
+                    key = cursor.isoformat()
+                    facts = self._dashboard_json_day_facts(
+                        key, daily.get(key, {}), users
+                    )
+                    active.update(facts["users"])
+                    draws += int(facts["draws"])
+                    unlocks += int(facts["new_unlocks"])
                     cursor += datetime.timedelta(days=1)
                 days = max(1, (end - start).days + 1)
                 return (
@@ -4941,14 +5047,13 @@ class RollPigPlugin(Star):
             cursor = activity_start
             while cursor <= today:
                 key = cursor.isoformat()
-                item = daily.get(key, {})
-                item = item if isinstance(item, dict) else {}
+                facts = self._dashboard_json_day_facts(key, daily.get(key, {}), users)
                 activity.append(
                     {
                         "date": key,
-                        "users": len({str(value) for value in item.get("users", []) if str(value)}),
-                        "draws": int(item.get("draws", 0) or 0),
-                        "new_unlocks": int(item.get("new_unlocks", 0) or 0),
+                        "users": len(facts["users"]),
+                        "draws": int(facts["draws"]),
+                        "new_unlocks": int(facts["new_unlocks"]),
                         "roasts": int(roast_by_date.get(key, 0)),
                         "eats": int(eat_by_date.get(key, 0)),
                     }
@@ -4989,7 +5094,7 @@ class RollPigPlugin(Star):
                 distribution[label] += 1
             total_catalog_draws = sum(draw_counts.values())
             top5_draws = sum(value for _, value in draw_counts.most_common(5))
-            long_tail_limit = max(1, int(len(users) * 0.01 + 0.999999))
+            long_tail_limit = max(1, int(len(unlocked_counts) * 0.01 + 0.999999))
 
             period_pigs: dict[str, Counter[str]] = {
                 "current": Counter(),
@@ -4997,13 +5102,10 @@ class RollPigPlugin(Star):
             }
             cursor = previous_start
             while cursor <= today:
-                item = daily.get(cursor.isoformat(), {})
-                records = item.get("records", {}) if isinstance(item, dict) else {}
-                originals = item.get("eaten_originals", {}) if isinstance(item, dict) else {}
+                key = cursor.isoformat()
+                facts = self._dashboard_json_day_facts(key, daily.get(key, {}), users)
                 bucket = "current" if cursor >= current_start else "previous"
-                for user_id, pig_id in records.items() if isinstance(records, dict) else ():
-                    pig_id = str(pig_id or "")
-                    effective = str(originals.get(user_id) or pig_id) if isinstance(originals, dict) else pig_id
+                for effective in facts["records"].values():
                     if effective in catalog:
                         period_pigs[bucket][effective] += 1
                 cursor += datetime.timedelta(days=1)
