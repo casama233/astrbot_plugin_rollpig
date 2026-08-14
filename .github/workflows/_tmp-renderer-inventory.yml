@@ -1,0 +1,66 @@
+name: TEMP renderer boundary inventory
+
+on:
+  push:
+    branches:
+      - refactor/renderer-boundary
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Inventory renderer dependencies
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          src = Path('legacy_main.py').read_text(encoding='utf-8')
+          tree = ast.parse(src)
+          cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'RollPigPlugin')
+          methods = {n.name: n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+          targets = [
+              'render_pig_image', 'render_pigsty_image', 'render_catalog_grid',
+              'render_weekly_summary', '_fit_card_image', '_get_text_size',
+              '_image_palette', '_wrap_text',
+          ]
+          for name in targets:
+              fn = methods.get(name)
+              if not fn:
+                  print(f'## {name}: MISSING')
+                  continue
+              attrs = sorted({
+                  x.attr for x in ast.walk(fn)
+                  if isinstance(x, ast.Attribute)
+                  and isinstance(x.value, ast.Name)
+                  and x.value.id == 'self'
+              })
+              calls = sorted({
+                  x.func.attr for x in ast.walk(fn)
+                  if isinstance(x, ast.Call)
+                  and isinstance(x.func, ast.Attribute)
+                  and isinstance(x.func.value, ast.Name)
+                  and x.func.value.id == 'self'
+              })
+              print(f'## {name} L{fn.lineno}-L{getattr(fn, "end_lineno", fn.lineno)}')
+              print('self attrs:', ', '.join(attrs))
+              print('self calls:', ', '.join(calls))
+              print('global names:', ', '.join(sorted({x.id for x in ast.walk(fn) if isinstance(x, ast.Name)})))
+          print('\n## direct callers of target renderers')
+          target_set = set(targets[:4])
+          for name, fn in methods.items():
+              calls = {
+                  x.func.attr for x in ast.walk(fn)
+                  if isinstance(x, ast.Call)
+                  and isinstance(x.func, ast.Attribute)
+                  and isinstance(x.func.value, ast.Name)
+                  and x.func.value.id == 'self'
+              }
+              hit = sorted(calls & target_set)
+              if hit:
+                  print(name, '->', ', '.join(hit))
+          PY
