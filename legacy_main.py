@@ -526,6 +526,18 @@ class RollPigPlugin(Star):
             "提交本地小猪到 AstrBot 公共豬源审核",
         )
         context.register_web_api(
+            f"/{self.PLUGIN_NAME}/source/catalog",
+            self.page_public_source_catalog,
+            ["GET"],
+            "浏览 AstrBot 官方公共豬源",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/source/catalog/image",
+            self.page_public_source_catalog_image,
+            ["GET"],
+            "预览 AstrBot 官方公共豬源图片",
+        )
+        context.register_web_api(
             f"/{self.PLUGIN_NAME}/source/reviews",
             self.page_public_source_reviews,
             ["GET"],
@@ -5405,6 +5417,187 @@ class RollPigPlugin(Star):
         except Exception as exc:
             logger.error(f"提交小猪到公共豬源失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "公共豬源投稿失败"})
+
+    async def _official_public_source_snapshot(self, *, force: bool = False) -> dict:
+        """Load a short-lived, validated snapshot of the official public source."""
+        now = time.monotonic()
+        cached = getattr(self, "_official_public_source_cache", None)
+        if (
+            not force
+            and isinstance(cached, dict)
+            and now - float(cached.get("loaded_at", 0.0) or 0.0) < 30.0
+        ):
+            return cached
+
+        manifest_url = self.OFFICIAL_RESOURCE_MANIFEST_URL
+        self._validate_remote_url(manifest_url, "AstrBot 官方公共豬源")
+        async with self._new_http_client(
+            follow_redirects=True,
+            extra_headers=self._resource_request_headers(),
+        ) as client:
+            manifest_raw = await self._download_limited(
+                client,
+                manifest_url,
+                self.RESOURCE_MANIFEST_MAX_SIZE,
+            )
+            manifest = json.loads(manifest_raw.decode("utf-8-sig"))
+            if not isinstance(manifest, dict):
+                raise ValueError("公共豬源 manifest 必须是 JSON 对象")
+            if manifest.get("schema_version") not in (1, "1"):
+                raise ValueError("公共豬源 manifest 协议版本不受支持")
+            if str(manifest.get("client") or "").strip() != self.RESOURCE_CLIENT_ID:
+                raise ValueError("公共豬源客户端标识不匹配")
+            pig_meta = manifest.get("pig_json")
+            if not isinstance(pig_meta, dict):
+                raise ValueError("公共豬源 manifest 缺少 pig_json")
+            catalog_raw = await self._download_manifest_item(
+                client,
+                manifest_url,
+                pig_meta,
+                self.PUBLIC_SOURCE_RESPONSE_MAX_SIZE,
+            )
+
+        records_raw = json.loads(catalog_raw.decode("utf-8-sig"))
+        if not isinstance(records_raw, list):
+            raise ValueError("公共豬源 pig.json 必须是数组")
+        records: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for raw in records_raw:
+            if not isinstance(raw, dict):
+                continue
+            pig_id = str(raw.get("id") or "").strip()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id) or pig_id in seen:
+                continue
+            seen.add(pig_id)
+            records.append(
+                {
+                    "id": pig_id,
+                    "name": str(raw.get("name") or pig_id),
+                    "description": str(raw.get("description") or ""),
+                    "analysis": str(raw.get("analysis") or ""),
+                }
+            )
+
+        image_by_id: dict[str, dict] = {}
+        images = manifest.get("images")
+        if isinstance(images, list):
+            for raw in images:
+                if not isinstance(raw, dict):
+                    continue
+                filename = str(raw.get("filename") or "").strip()
+                path = str(raw.get("path") or "").strip()
+                candidate = filename or Path(path).name
+                pig_id = Path(candidate).stem
+                if pig_id in seen and pig_id not in image_by_id:
+                    image_by_id[pig_id] = dict(raw)
+
+        snapshot = {
+            "loaded_at": now,
+            "resource_version": str(manifest.get("resource_version") or "").strip(),
+            "records": records,
+            "image_by_id": image_by_id,
+        }
+        self._official_public_source_cache = snapshot
+        return snapshot
+
+    async def page_public_source_catalog(self):
+        """Browse only the official public cloud catalog; never mix local overrides."""
+        try:
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            query = str(request.query.get("search") or "").strip().lower()[:120]
+            try:
+                page = max(1, int(request.query.get("page", 1)))
+            except (TypeError, ValueError):
+                page = 1
+            force = str(request.query.get("refresh") or "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            snapshot = await self._official_public_source_snapshot(force=force)
+            records = list(snapshot.get("records") or [])
+            if query:
+                records = [
+                    item
+                    for item in records
+                    if query
+                    in "\n".join(
+                        str(item.get(key) or "").lower()
+                        for key in ("id", "name", "description", "analysis")
+                    )
+                ]
+            page_size = 24
+            total = len(records)
+            pages = max(1, math.ceil(total / page_size))
+            page = min(page, pages)
+            start = (page - 1) * page_size
+            image_by_id = snapshot.get("image_by_id") or {}
+            items = []
+            for item in records[start : start + page_size]:
+                public_item = dict(item)
+                public_item["image_available"] = item.get("id") in image_by_id
+                items.append(public_item)
+            return self._jsonify(
+                {
+                    "status": "ok",
+                    "data": {
+                        "items": items,
+                        "page": page,
+                        "pages": pages,
+                        "total": total,
+                        "resource_version": snapshot.get("resource_version") or "",
+                    },
+                }
+            )
+        except (ValueError, json.JSONDecodeError, UnicodeError) as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except (httpx.TimeoutException, httpx.TransportError):
+            return self._jsonify(
+                {"status": "error", "message": "公共豬源暂时无法连接"}
+            )
+
+    async def page_public_source_catalog_image(self):
+        """Proxy one official catalog image so the sandbox never needs cross-origin access."""
+        try:
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            pig_id = str(request.query.get("id") or "").strip()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
+                raise ValueError("公共豬源小猪 ID 无效")
+            snapshot = await self._official_public_source_snapshot()
+            meta = (snapshot.get("image_by_id") or {}).get(pig_id)
+            if not isinstance(meta, dict):
+                raise ValueError("公共豬源没有这只小猪的图片")
+            async with self._new_http_client(
+                follow_redirects=True,
+                extra_headers=self._resource_request_headers(),
+            ) as client:
+                raw = await self._download_manifest_item(
+                    client,
+                    self.OFFICIAL_RESOURCE_MANIFEST_URL,
+                    meta,
+                    self.resource_max_file_size,
+                )
+            filename = str(meta.get("filename") or Path(str(meta.get("path") or "")).name)
+            ext = Path(filename).suffix.lower().lstrip(".")
+            mime = self.IMAGE_MIME_TYPES.get(ext, "application/octet-stream")
+            return self._jsonify(
+                {
+                    "status": "ok",
+                    "data": {
+                        "base64": base64.b64encode(raw).decode("ascii"),
+                        "mime_type": mime,
+                    },
+                }
+            )
+        except (ValueError, json.JSONDecodeError, UnicodeError) as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except (httpx.TimeoutException, httpx.TransportError):
+            return self._jsonify(
+                {"status": "error", "message": "公共豬源图片暂时无法连接"}
+            )
 
     async def page_public_source_reviews(self):
         """Only the maintainer instance may list the server-side review queue."""
