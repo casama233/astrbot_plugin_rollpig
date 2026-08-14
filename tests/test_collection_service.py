@@ -1,4 +1,5 @@
 from services.collection_service import CollectionService
+from services.draw_service import DrawService
 
 
 def test_claimed_read_candidates_only_include_owned_fragments():
@@ -75,6 +76,27 @@ def test_merge_ownership_preserves_authoritative_gameplay_state():
         "count": 2,
     }
     assert merged["pigs"]["blue-pig"]["count"] == 4
+
+
+def test_stale_fragment_cannot_raise_current_pity():
+    current = {
+        "duplicate_streak": 0,
+        "pigs": {"pink-pig": {"count": 1}},
+    }
+    stale = {
+        "duplicate_streak": 8,
+        "pigs": {"pink-pig": {"count": 1}},
+    }
+
+    merged = CollectionService.merge_ownership((current, stale))
+    service = DrawService(
+        enable_new_pig_pity=True,
+        pity_step_percent=15,
+        enable_daily_duplicate_pity=False,
+    )
+
+    assert merged["duplicate_streak"] == 0
+    assert service.pity_chance(merged) == 0.0
 
 
 def test_merge_ownership_uses_max_count_instead_of_sum_for_overlap():
