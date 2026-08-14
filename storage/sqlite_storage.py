@@ -14,9 +14,9 @@ from .base import StorageBackend
 from .json_storage import JSONStorage
 
 try:
-    from ..roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from ..roast_charges import add_roast_charge_state, bootstrap_legacy_cooldown, consume_roast_charge_state
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from roast_charges import add_roast_charge_state, bootstrap_legacy_cooldown, consume_roast_charge_state
 
 
 class SQLiteStorage(StorageBackend):
@@ -1872,6 +1872,63 @@ class SQLiteStorage(StorageBackend):
         )
         return result
 
+    def _grant_roast_charge_tx(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        charge_key = f"{group_id}:{actor_id}"
+        now_value = float(now)
+        row = connection.execute(
+            "SELECT last_used_at, charges, refill_anchor FROM roast_cooldowns "
+            "WHERE cooldown_key = ?",
+            (charge_key,),
+        ).fetchone()
+        if row and int(row["charges"]) >= 0:
+            state = {
+                "charges": int(row["charges"]),
+                "refill_anchor": float(row["refill_anchor"]),
+            }
+        else:
+            state = bootstrap_legacy_cooldown(
+                float(row["last_used_at"]) if row else 0,
+                now=now_value,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+        result = add_roast_charge_state(
+            state,
+            now=now_value,
+            max_charges=max_charges,
+            recovery_seconds=recovery_seconds,
+        )
+        self._remember_identity(connection, actor_id)
+        last_used_at = float(row["last_used_at"]) if row else 0.0
+        connection.execute(
+            """
+            INSERT INTO roast_cooldowns(
+                cooldown_key, group_id, actor_id, last_used_at, charges, refill_anchor
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cooldown_key) DO UPDATE SET
+                group_id = excluded.group_id,
+                actor_id = excluded.actor_id,
+                charges = excluded.charges,
+                refill_anchor = excluded.refill_anchor
+            """,
+            (
+                charge_key, group_id, actor_id, last_used_at,
+                int(result["charges"]), float(result["refill_anchor"]),
+            ),
+        )
+        return result
+
     def consume_roast_charge(
         self,
         *,
@@ -1896,6 +1953,28 @@ class SQLiteStorage(StorageBackend):
                 self._write_document_tx(connection, "roast_state.json", roast)
                 self._set_write_authority(connection)
                 result["roast_state"] = roast
+            return result
+
+    def grant_roast_charge(
+        self,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        """Grant at most one user × group charge through normalized SQL."""
+        with self.transaction() as connection:
+            result = self._grant_roast_charge_tx(
+                connection,
+                group_id=group_id, actor_id=actor_id, now=now,
+                max_charges=max_charges, recovery_seconds=recovery_seconds,
+            )
+            roast = self._roast_document_from_sql(connection)
+            self._write_document_tx(connection, "roast_state.json", roast)
+            self._set_write_authority(connection)
+            result["roast_state"] = roast
             return result
 
     def consume_roast_cooldown(
