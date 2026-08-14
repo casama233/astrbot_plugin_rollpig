@@ -35,25 +35,24 @@ jobs:
           for i, source in enumerate(scripts):
               if not source.strip():
                   continue
-              path = Path(f'/tmp/rollpig-inline-{i}.js')
-              path.write_text(source, encoding='utf-8')
+              Path(f'/tmp/rollpig-inline-{i}.js').write_text(source, encoding='utf-8')
           print(f'inline scripts extracted: {len(scripts)}')
           PY
           for f in /tmp/rollpig-inline-*.js; do node --check "$f"; done
       - name: Compile Python source
         run: python -m compileall -q main.py legacy_main.py storage services source_service renderers
-      - name: Run focused dashboard regressions
-        run: |
-          pytest -q \
-            tests/test_dashboard_accuracy_contract.py \
-            tests/test_dashboard_sql_analytics.py \
-            tests/test_dashboard_insights.py \
-            tests/test_new_unlock_trend.py \
-            tests/test_analytics_readability.py \
-            tests/test_analytics_bridge_bootstrap.py \
-            tests/test_analytics_spa_remount.py \
-            tests/test_ui_asset_delivery.py \
-            tests/test_ui_cache_busting.py
+      - name: Accuracy contracts
+        run: pytest -q tests/test_dashboard_accuracy_contract.py
+      - name: SQL overview analytics
+        run: pytest -q tests/test_dashboard_sql_analytics.py
+      - name: Deep analytics
+        run: pytest -q tests/test_dashboard_insights.py
+      - name: New unlock projection
+        run: pytest -q tests/test_new_unlock_trend.py
+      - name: Analytics UI contracts
+        run: pytest -q tests/test_analytics_readability.py tests/test_analytics_bridge_bootstrap.py tests/test_analytics_spa_remount.py
+      - name: UI asset contracts
+        run: pytest -q tests/test_ui_asset_delivery.py tests/test_ui_cache_busting.py
       - name: Run full tests
         run: pytest -q
       - name: Run pre-commit
