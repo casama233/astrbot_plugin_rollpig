@@ -1,5 +1,6 @@
 name: Apply EX variant integration
 
+# Temporary branch-only integration harness; removed from the clean feature commit.
 on:
   push:
     branches:
