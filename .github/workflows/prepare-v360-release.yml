@@ -25,13 +25,21 @@ jobs:
         run: python .github/scripts/prepare_v360_release.py
       - name: Check release-version leftovers
         run: |
-          echo "Remaining v3.5.0 references outside historical release/changelog:"
+          echo "Remaining v3.5.0 references outside intentional history/compatibility fixtures:"
           set +e
-          git grep -n '3\.5\.0' -- ':!CHANGELOG.md' ':!.github/release-v3.5.0.md'
+          git grep -n '3\.5\.0' -- \
+            ':!CHANGELOG.md' \
+            ':!.github/release-v3.5.0.md' \
+            ':!.github/release-v3.6.0.md' \
+            ':!.github/scripts/prepare_v360_release.py' \
+            ':!.github/workflows/prepare-v360-release.yml' \
+            ':!docs/RESOURCE-SOURCE-MAINTENANCE.md' \
+            ':!main.py' \
+            ':!tests/test_public_source_review.py'
           rc=$?
           set -e
           if [ "$rc" -eq 0 ]; then
-            echo "::error::Found stale v3.5.0 references outside historical files"
+            echo "::error::Found stale current-version v3.5.0 references"
             exit 1
           fi
       - name: Validate release contract
@@ -48,11 +56,17 @@ jobs:
           assert 'current-3.6.0-ef5d82' in Path('README.md').read_text(encoding='utf-8')
           assert Path('.github/release-v3.6.0.md').is_file()
           assert '## v3.6.0 (2026-08-14)' in Path('CHANGELOG.md').read_text(encoding='utf-8')
+          assert 'AstrBot-RollPig/3.6.0' in Path('legacy_main.py').read_text(encoding='utf-8')
+          assert 'AstrBot-RollPig-Safe-Updater/3.6.0' in Path('updater.py').read_text(encoding='utf-8')
           PY
       - name: Commit release preparation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add metadata.yaml legacy_main.py updater.py tests/test_v312_release_contract.py README.md CHANGELOG.md docs/COMMANDS.md docs/CONFIGURATION.md .github/release-v3.6.0.md
+          git add \
+            metadata.yaml legacy_main.py updater.py README.md CHANGELOG.md \
+            docs/COMMANDS.md docs/CONFIGURATION.md docs/OPERATIONS.md docs/RESOURCE-MANAGEMENT.md \
+            tests/test_v312_release_contract.py tests/test_identity_migration_plus.py tests/test_source_regressions.py \
+            .github/workflows/astrbot-market-smoke.yml .github/release-v3.6.0.md
           git commit -m "chore: prepare v3.6.0 release"
           git push origin HEAD:release/v3.6.0
