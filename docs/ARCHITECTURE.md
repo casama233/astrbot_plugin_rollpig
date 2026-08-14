@@ -2,6 +2,13 @@
 
 本文記錄 v3.5.x 之後的漸進式拆分方向。目標不是一次重寫 `legacy_main.py`，而是在不改變既有 SQLite／JSON 權威資料與玩法語義的前提下，讓新功能有穩定的接入點。
 
+
+## AstrBot handler 所有權契約
+
+v3.6.0 起核心實作可繼續拆在 `legacy_main.py` 或 feature mixin，但 AstrBot 的 handler metadata 會在 decorator 執行時使用函數的 `__module__`。真正的 Star 入口仍是 `main.py`，因此 `main.py` 必須在匯入 feature 後把本插件 handler 的 `handler_module_path` 重新綁定到入口模組；否則 WakingCheck 可以看見指令，`StarRequestSubStage` 卻可能因 `star_map` 找不到 helper module 而跳過 handler。
+
+所有 RollPig command 同時使用高於普通消息 handler 的明確優先級，並在自身 handler 入口停止事件傳播。`.github/workflows/astrbot-market-smoke.yml` 會用目前 AstrBot master 實際匯入插件並驗證 handler owner、priority 與 `roll_pig` 存在性；任何後續架構拆分都不得移除這項契約。
+
 ## Gameplay Event v1
 
 `gameplay_events.py` 定義跨功能共用的事件 JSON 形狀、事件名稱、去重寫入、讀取與自然日裁剪。PR #51 已建立的 `daily_report_state.json -> events` 暫時繼續作為持久化容器，因此既有資料**不需要遷移**。
