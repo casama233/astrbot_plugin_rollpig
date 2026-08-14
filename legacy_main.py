@@ -831,11 +831,14 @@ class RollPigPlugin(Star):
             header = str(request_obj.headers.get("X-RollPig-CSRF", "") or "")
             if header:
                 return header
-            return (
-                str(payload.get("__rollpig_csrf", "") or "")
-                if isinstance(payload, dict)
-                else ""
-            )
+            if isinstance(payload, dict):
+                token = str(payload.get("__rollpig_csrf", "") or "")
+                if token:
+                    return token
+            query = getattr(request_obj, "query", None)
+            if query is not None:
+                return str(query.get("__rollpig_csrf", "") or "")
+            return ""
         except Exception:
             return ""
 
@@ -5333,6 +5336,8 @@ class RollPigPlugin(Star):
     async def page_public_source_reviews(self):
         """Only the maintainer instance may list the server-side review queue."""
         try:
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if not self._public_source_admin_token():
                 return self._jsonify(
                     {"status": "ok", "data": {"enabled": False, "items": []}}
@@ -5356,7 +5361,9 @@ class RollPigPlugin(Star):
     async def page_public_source_review_image(self):
         """Proxy one review image without exposing the maintainer token."""
         try:
-            submission_id = str(request.args.get("id") or "").strip()
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            submission_id = str(request.query.get("id") or "").strip()
             data = await self._public_source_review_image_payload(submission_id)
             return self._jsonify({"status": "ok", "data": data})
         except ValueError as exc:
