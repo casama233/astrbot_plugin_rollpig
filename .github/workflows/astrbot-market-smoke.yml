@@ -51,6 +51,16 @@ jobs:
           ]
           assert handlers, "RollPig registered no handlers during main import"
 
+          wrong_definer = [
+              f"{handler.handler_name}:{getattr(handler.handler, '__module__', '')}"
+              for handler in handlers
+              if str(getattr(handler.handler, "__module__", "")) != entry
+          ]
+          assert not wrong_definer, (
+              "RollPig handlers are still defined by helper modules: "
+              f"{wrong_definer}"
+          )
+
           wrong_owner = [
               f"{handler.handler_name}:{handler.handler_module_path}"
               for handler in handlers
@@ -81,9 +91,11 @@ jobs:
           )
           assert roll_pig is not None, "roll_pig command handler is missing"
           assert roll_pig.handler_module_path == entry
+          assert roll_pig.handler.__module__ == entry
           print(
               f"verified {len(handlers)} RollPig handlers / {len(commands)} commands; "
-              f"roll_pig owner={roll_pig.handler_module_path}, "
+              f"roll_pig definer={roll_pig.handler.__module__}, "
+              f"owner={roll_pig.handler_module_path}, "
               f"priority={roll_pig.extras_configs.get('priority')}"
           )
           PY
