@@ -91,3 +91,27 @@ def test_resource_source_builder_rejects_catalog_without_matching_image(tmp_path
     )
     assert result.returncode != 0
     assert "缺少圖片" in result.stderr
+
+
+def test_resource_source_builder_default_timestamp_is_python310_compatible(tmp_path):
+    source = _fixture(tmp_path)
+    output = tmp_path / "release"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(BUILDER),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--version",
+            "2026.08.14.2",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert result.returncode == 0
+    assert manifest["generated_at"].endswith("+00:00")
+    assert "dt.UTC" not in BUILDER.read_text(encoding="utf-8")

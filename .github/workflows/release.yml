@@ -85,6 +85,7 @@ jobs:
             --exclude 'tests/' \
             --exclude 'scripts/' \
             --exclude 'deploy/' \
+            --exclude 'source_service/' \
             --exclude 'node_modules/' \
             --exclude 'package.json' \
             --exclude 'package-lock.json' \

@@ -101,10 +101,9 @@ class RollPigPlugin(Star):
     )
     PIGHUB_ORIGIN = "https://pighub.top/"
     PIGHUB_IMAGE_BASE_URL = "https://pighub.top/data/"
-    PIGHUB_UPLOAD_API = "https://img.scdn.io/api/v1.php"
-    PIGHUB_PENDING_API = "https://pighub.top/api/images/pending/add"
-    PIGHUB_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024
-    PIGHUB_RESPONSE_MAX_SIZE = 256 * 1024
+    PUBLIC_SOURCE_API_URL = "https://curryudon.top/astrbot-rollpig/api/v1"
+    PUBLIC_SOURCE_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024
+    PUBLIC_SOURCE_RESPONSE_MAX_SIZE = 2 * 1024 * 1024
     PIGHUB_THUMBNAIL_SIZE = 160
     PIGHUB_THUMBNAIL_TTL = 7 * 24 * 3600
     PIGHUB_THUMBNAIL_MEMORY_LIMIT = 72
@@ -117,7 +116,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.4.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.5.0 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -320,6 +319,11 @@ class RollPigPlugin(Star):
         self.roast_state_path = self.plugin_data_dir / "roast_state.json"
         self.ai_roast_copies_path = self.plugin_data_dir / "ai_roast_copies.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
+        # This file is provisioned only on the source maintainer's AstrBot.
+        # It is never exposed through configuration or returned to the browser.
+        self.public_source_admin_token_path = (
+            self.plugin_data_dir / "public_source_admin.token"
+        )
         self._data_lock = threading.RLock()
         self.storage_manager = StorageManager(
             self.plugin_data_dir,
@@ -350,7 +354,7 @@ class RollPigPlugin(Star):
         self._pighub_thumbnail_failures: dict[str, float] = {}
         self._resource_sync_lock = asyncio.Lock()
         self._pighub_lock = asyncio.Lock()
-        self._pighub_submit_lock = asyncio.Lock()
+        self._public_source_submit_lock = asyncio.Lock()
         self._daily_draw_lock = asyncio.Lock()
         self._ai_roast_copy_locks: dict[str, asyncio.Lock] = {}
         self._csrf_token = secrets.token_urlsafe(32)
@@ -475,10 +479,28 @@ class RollPigPlugin(Star):
             "取消屏蔽小猪",
         )
         context.register_web_api(
-            f"/{self.PLUGIN_NAME}/pigs/submit-pighub",
-            self.page_pig_submit_pighub,
+            f"/{self.PLUGIN_NAME}/pigs/submit-public-source",
+            self.page_pig_submit_public_source,
             ["POST"],
-            "提交本地小猪到 PigHub 审核",
+            "提交本地小猪到 AstrBot 公共豬源审核",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/source/reviews",
+            self.page_public_source_reviews,
+            ["GET"],
+            "查看 AstrBot 公共豬源待审核投稿",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/source/reviews/image",
+            self.page_public_source_review_image,
+            ["GET"],
+            "查看 AstrBot 公共豬源投稿图片",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/source/reviews/decision",
+            self.page_public_source_review_decision,
+            ["POST"],
+            "审核 AstrBot 公共豬源投稿",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/resources/status",
@@ -1656,10 +1678,8 @@ class RollPigPlugin(Star):
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def _pighub_submission_payload(
-        self, pig_id: str
-    ) -> tuple[dict, bytes, str, str, str]:
-        """Resolve one local override to the upload fields accepted by PigHub."""
+    def _public_source_submission_payload(self, pig_id: str) -> tuple[dict, bytes]:
+        """Resolve one local override to the complete public-source payload."""
         with self._data_lock:
             overrides = self._validate_pig_records(
                 self._runtime_document(
@@ -1677,115 +1697,117 @@ class RollPigPlugin(Star):
             raw = path.read_bytes()
         if not raw:
             raise ValueError("小猪图片为空")
-        if len(raw) > self.PIGHUB_SUBMISSION_MAX_SIZE:
-            raise ValueError("PigHub 投稿图片不能超过 10MB")
-        extension = path.suffix.lower().lstrip(".")
-        if extension not in {"png", "jpg", "jpeg", "gif"}:
-            with PILImage.open(io.BytesIO(raw)) as source:
-                output = io.BytesIO()
-                ImageOps.exif_transpose(source).convert("RGBA").save(
-                    output, "PNG", optimize=True
-                )
-                raw = output.getvalue()
-            extension = "png"
-        if len(raw) > self.PIGHUB_SUBMISSION_MAX_SIZE:
-            raise ValueError("转换后的 PigHub 投稿图片超过 10MB")
-        mime = self.IMAGE_MIME_TYPES[extension]
-        upload_filename = f"{pig_id}.{extension}"
-        review_name = re.sub(
-            r"[/\\\x00-\x1f]", "-", str(record.get("name") or pig_id)
-        ).strip(" .") or pig_id
-        review_filename = f"{review_name}.{extension}"
-        return record, raw, upload_filename, review_filename, mime
+        if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
+            raise ValueError("公共豬源投稿图片不能超过 10MB")
+        with PILImage.open(io.BytesIO(raw)) as source:
+            method = getattr(PILImage, "Resampling", PILImage).LANCZOS
+            normalized = ImageOps.fit(
+                ImageOps.exif_transpose(source).convert("RGBA"), (512, 512), method
+            )
+            output = io.BytesIO()
+            normalized.save(output, "PNG", optimize=True)
+            raw = output.getvalue()
+        if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
+            raise ValueError("转换后的公共豬源投稿图片超过 10MB")
+        return record, raw
 
-    async def _submit_local_pig_to_pighub(self, pig_id: str) -> dict:
-        """Use PigHub's documented web upload flow and return its review result."""
-        record, raw, upload_filename, review_filename, mime = await asyncio.to_thread(
-            self._pighub_submission_payload, pig_id
+    def _public_source_admin_token(self) -> str:
+        try:
+            if self.public_source_admin_token_path.stat().st_size > 512:
+                return ""
+            token = self.public_source_admin_token_path.read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError:
+            return ""
+        return token if re.fullmatch(r"[A-Za-z0-9_-]{32,256}", token) else ""
+
+    def _public_source_headers(self, *, admin: bool = False) -> dict[str, str]:
+        headers = {
+            **self._resource_request_headers(),
+            "X-RollPig-Version": "3.5.0",
+        }
+        if admin:
+            token = self._public_source_admin_token()
+            if not token:
+                raise ValueError("这台 AstrBot 未配置公共豬源审核权限")
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
+
+    async def _public_source_request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        payload: dict | None = None,
+        admin: bool = False,
+    ) -> dict:
+        if not re.fullmatch(r"/[A-Za-z0-9_/?=&.-]+", path):
+            raise ValueError("公共豬源请求路径无效")
+        url = self.PUBLIC_SOURCE_API_URL + path
+        async with self._new_http_client(
+            follow_redirects=False,
+            request_timeout=30,
+            extra_headers=self._public_source_headers(admin=admin),
+        ) as client:
+            async with client.stream(method, url, json=payload) as response:
+                raw = await self._read_response_limited(
+                    response, self.PUBLIC_SOURCE_RESPONSE_MAX_SIZE
+                )
+                try:
+                    body = json.loads(raw.decode("utf-8-sig"))
+                except Exception as exc:
+                    raise ValueError("公共豬源返回了无效数据") from exc
+                if response.status_code < 200 or response.status_code >= 300:
+                    message = (
+                        str(body.get("message") or "公共豬源请求失败")
+                        if isinstance(body, dict)
+                        else "公共豬源请求失败"
+                    )
+                    raise ValueError(message[:200])
+                if not isinstance(body, dict) or body.get("status") != "ok":
+                    raise ValueError("公共豬源返回了无效状态")
+                data = body.get("data")
+                return data if isinstance(data, dict) else {"items": data or []}
+
+    async def _submit_local_pig_to_public_source(self, pig_id: str) -> dict:
+        record, raw = await asyncio.to_thread(
+            self._public_source_submission_payload, pig_id
         )
-        async with self._pighub_submit_lock:
-            async with self._new_http_client(
-                follow_redirects=False, request_timeout=30
-            ) as client:
-                async with client.stream(
-                    "POST",
-                    self.PIGHUB_UPLOAD_API,
-                    files={"image": (upload_filename, raw, mime)},
-                    data={"name": str(record.get("name") or pig_id)},
-                    headers={
-                        "Origin": self.PIGHUB_ORIGIN.rstrip("/"),
-                        "Referer": self.PIGHUB_ORIGIN + "upload",
-                    },
-                ) as response:
-                    response.raise_for_status()
-                    upload_raw = await self._read_response_limited(
-                        response, self.PIGHUB_RESPONSE_MAX_SIZE
-                    )
-                try:
-                    upload = json.loads(upload_raw.decode("utf-8-sig"))
-                except Exception as exc:
-                    raise ValueError("PigHub 图片托管服务返回了无效数据") from exc
-                upload_data = upload.get("data") if isinstance(upload, dict) else None
-                image_url = str(
-                    (upload.get("url") if isinstance(upload, dict) else "")
-                    or (upload_data.get("url") if isinstance(upload_data, dict) else "")
-                    or ""
-                ).strip()
-                if (
-                    not isinstance(upload, dict)
-                    or not upload.get("success")
-                    or not image_url
-                ):
-                    message = (
-                        str(upload.get("message") or "图片托管失败")
-                        if isinstance(upload, dict)
-                        else "图片托管失败"
-                    )
-                    raise ValueError(f"PigHub 投稿失败：{message[:160]}")
-                parsed = urlsplit(image_url)
-                if (
-                    parsed.scheme != "https"
-                    or not parsed.hostname
-                    or parsed.username
-                    or parsed.password
-                    or len(image_url) > 2048
-                ):
-                    raise ValueError("PigHub 图片托管服务返回了不安全的图片地址")
-                async with client.stream(
-                    "POST",
-                    self.PIGHUB_PENDING_API,
-                    data={"url": image_url, "filename": review_filename},
-                    headers={
-                        "Origin": self.PIGHUB_ORIGIN.rstrip("/"),
-                        "Referer": self.PIGHUB_ORIGIN + "upload",
-                    },
-                ) as response:
-                    response.raise_for_status()
-                    pending_raw = await self._read_response_limited(
-                        response, self.PIGHUB_RESPONSE_MAX_SIZE
-                    )
-                try:
-                    pending = json.loads(pending_raw.decode("utf-8-sig"))
-                except Exception as exc:
-                    raise ValueError("PigHub 审核接口返回了无效数据") from exc
-                if not isinstance(pending, dict) or str(pending.get("code")) != "0":
-                    message = (
-                        str(
-                            pending.get("message")
-                            or pending.get("msg")
-                            or "加入审核队列失败"
-                        )
-                        if isinstance(pending, dict)
-                        else "加入审核队列失败"
-                    )
-                    raise ValueError(f"PigHub 投稿失败：{message[:160]}")
-                return {
-                    "id": pig_id,
-                    "name": str(record.get("name") or pig_id),
-                    "image_url": image_url,
-                    "review_url": self.PIGHUB_ORIGIN + "upload",
-                    "message": "已提交到 PigHub 审核队列",
-                }
+        payload = {
+            "record": {
+                key: str(record.get(key) or "")
+                for key in ("id", "name", "description", "analysis")
+            },
+            "image": base64.b64encode(raw).decode("ascii"),
+        }
+        async with self._public_source_submit_lock:
+            return await self._public_source_request_json(
+                "POST", "/submissions", payload=payload
+            )
+
+    async def _public_source_review_image_payload(self, submission_id: str) -> dict:
+        if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
+            raise ValueError("投稿 ID 无效")
+        url = (
+            self.PUBLIC_SOURCE_API_URL
+            + f"/admin/submissions/{submission_id}/image"
+        )
+        async with self._new_http_client(
+            follow_redirects=False,
+            request_timeout=30,
+            extra_headers=self._public_source_headers(admin=True),
+        ) as client:
+            async with client.stream("GET", url) as response:
+                raw = await self._read_response_limited(
+                    response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
+                )
+                if response.status_code < 200 or response.status_code >= 300:
+                    raise ValueError("公共豬源投稿图片读取失败")
+        return {
+            "mime_type": "image/png",
+            "base64": base64.b64encode(raw).decode("ascii"),
+        }
 
     def _pighub_thumbnail_path(self, image_url: str) -> Path:
         """将可信 URL 映射为固定文件名，避免把远端路径写入本地文件系统。"""
@@ -5423,8 +5445,8 @@ class RollPigPlugin(Star):
             logger.error(f"今日小猪管理页取消屏蔽失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "取消屏蔽失败"})
 
-    async def page_pig_submit_pighub(self):
-        """管理面板：经明确确认后提交本地图片到 PigHub 人工审核。"""
+    async def page_pig_submit_public_source(self):
+        """管理面板：明确确认后提交完整本地小猪到自建公共源审核。"""
         try:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
@@ -5432,35 +5454,95 @@ class RollPigPlugin(Star):
                     {"status": "error", "message": "请求来源或令牌无效"}
                 )
             if not isinstance(payload, dict) or payload.get("confirm") is not True:
-                raise ValueError("提交前必须明确确认会把图片公开发送到 PigHub")
+                raise ValueError("提交前必须明确确认会公开发送完整小猪资料与图片")
             pig_id = str(payload.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
-            result = await self._submit_local_pig_to_pighub(pig_id)
-            logger.info(f"管理页已提交小猪到 PigHub 审核：{pig_id}")
+            result = await self._submit_local_pig_to_public_source(pig_id)
+            logger.info(f"管理页已提交小猪到 AstrBot 公共豬源审核：{pig_id}")
             return self._jsonify(
                 {"status": "ok", "message": result["message"], "data": result}
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
-        except httpx.HTTPStatusError as exc:
-            logger.warning(
-                f"PigHub 投稿接口返回 HTTP {exc.response.status_code}"
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            logger.warning(f"AstrBot 公共豬源投稿网络失败：{exc}")
+            return self._jsonify(
+                {"status": "error", "message": "公共豬源网络连接失败，请稍后再试"}
+            )
+        except Exception as exc:
+            logger.error(f"提交小猪到公共豬源失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "公共豬源投稿失败"})
+
+    async def page_public_source_reviews(self):
+        """Only the maintainer instance may list the server-side review queue."""
+        try:
+            if not self._public_source_admin_token():
+                return self._jsonify(
+                    {"status": "ok", "data": {"enabled": False, "items": []}}
+                )
+            data = await self._public_source_request_json(
+                "GET", "/admin/submissions?status=pending", admin=True
             )
             return self._jsonify(
                 {
-                    "status": "error",
-                    "message": f"PigHub 投稿服务返回 HTTP {exc.response.status_code}",
+                    "status": "ok",
+                    "data": {"enabled": True, "items": data.get("items", [])},
                 }
             )
-        except (httpx.TimeoutException, httpx.TransportError) as exc:
-            logger.warning(f"PigHub 投稿网络失败：{exc}")
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "PigHub 投稿网络连接失败，请稍后再试"}
+                {"status": "error", "message": "公共豬源审核服务暂时无法连接"}
             )
-        except Exception as exc:
-            logger.error(f"提交小猪到 PigHub 失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "PigHub 投稿失败"})
+
+    async def page_public_source_review_image(self):
+        """Proxy one review image without exposing the maintainer token."""
+        try:
+            submission_id = str(request.args.get("id") or "").strip()
+            data = await self._public_source_review_image_payload(submission_id)
+            return self._jsonify({"status": "ok", "data": data})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except (httpx.TimeoutException, httpx.TransportError):
+            return self._jsonify(
+                {"status": "error", "message": "公共豬源投稿图片暂时无法读取"}
+            )
+
+    async def page_public_source_review_decision(self):
+        """Approve or reject a review through the fixed service endpoint."""
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify(
+                    {"status": "error", "message": "请求来源或令牌无效"}
+                )
+            if not isinstance(payload, dict) or payload.get("confirm") is not True:
+                raise ValueError("审核前必须明确确认")
+            submission_id = str(payload.get("id") or "").strip()
+            decision = str(payload.get("decision") or "").strip()
+            note = str(payload.get("note") or "").strip()[:300]
+            if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
+                raise ValueError("投稿 ID 无效")
+            if decision not in {"approve", "reject"}:
+                raise ValueError("审核决定无效")
+            data = await self._public_source_request_json(
+                "POST",
+                f"/admin/submissions/{submission_id}/review",
+                payload={"decision": decision, "note": note},
+                admin=True,
+            )
+            logger.info(f"公共豬源投稿已{decision}：{submission_id}")
+            return self._jsonify(
+                {"status": "ok", "message": data.get("message", "审核完成"), "data": data}
+            )
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except (httpx.TimeoutException, httpx.TransportError):
+            return self._jsonify(
+                {"status": "error", "message": "公共豬源审核服务暂时无法连接"}
+            )
 
     async def page_update_status(self):
         """管理面板：返回本地版本、存储后端与最近更新状态。"""
