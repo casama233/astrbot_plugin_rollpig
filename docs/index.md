@@ -84,6 +84,46 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 </div>
 
+## 第二輪：把最常吵起來的問題做成可以直接查的頁 {.pig-section-title}
+
+<div class="pig-card-grid">
+<div class="pig-card" markdown>
+<span class="pig-card__icon">🎯</span>
+
+### 保底到底是不是玄學？
+不是。現在有一頁把「先正常抽 → 候選重複 → 條件式重抽」拆給你看，還能自己拖滑桿算預設保底。
+
+[打開保底實驗室 →](gameplay/collection-pity.md)
+</div>
+
+<div class="pig-card" markdown>
+<span class="pig-card__icon">💥</span>
+
+### 10% 反噬到底算誰被烤？
+看真正 victim。逃脫不算，反噬時如果主廚可料理，主廚自己會吃下一次被烤記錄。
+
+[把 60/30/10 講清楚 →](gameplay/roast-outcomes.md)
+</div>
+
+<div class="pig-card" markdown>
+<span class="pig-card__icon">🎨</span>
+
+### 我也想做一隻豬
+先在面板本地新增、選圖、寫文案、測到滿意；想公開，再送人工審核。普通創作者不用先手刻 manifest。
+
+[進創作者後廚 →](creators/index.md)
+</div>
+
+<div class="pig-card" markdown>
+<span class="pig-card__icon">🧯</span>
+
+### 為什麼今天不讓我養豬？
+抽不到、烤不了、補不了、日報不發、資源 403、SQLite 看起來不對——先按症狀查，別先炸資料庫。
+
+[開始排障 →](troubleshooting/index.md)
+</div>
+</div>
+
 ## OLD → NEW：這插件到底長歪成什麼樣了？ {.pig-section-title}
 
 <div class="pig-versus">
