@@ -65,22 +65,17 @@ replace_once(
     "daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py oven_charge_feature.py rollpig_core.py updater.py storage services",
 )
 
-# Daily report consumes refill events without owning refill state.
-replace_once(
-    "daily_report_core.py",
-    '''        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n''',
-    '''        EVENT_OVEN_REFILL_SUCCEEDED,\n        EVENT_OVEN_REFILL_SUPPORTED,\n        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n''',
-)
-# Same import exists in direct-load fallback.
-text = Path("daily_report_core.py").read_text(encoding="utf-8")
-old_fallback = '''        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n'''
-if text.count(old_fallback) != 1:
-    raise SystemExit("daily_report_core fallback import marker missing")
-text = text.replace(
-    old_fallback,
-    '''        EVENT_OVEN_REFILL_SUCCEEDED,\n        EVENT_OVEN_REFILL_SUPPORTED,\n        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n''',
-)
-Path("daily_report_core.py").write_text(text, encoding="utf-8")
+# Daily report consumes refill events without owning refill state. The same
+# import block intentionally exists in package and direct-load fallbacks.
+report_path = Path("daily_report_core.py")
+report = report_path.read_text(encoding="utf-8")
+old_import = '''        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n'''
+new_import = '''        EVENT_OVEN_REFILL_SUCCEEDED,\n        EVENT_OVEN_REFILL_SUPPORTED,\n        EVENT_ROAST_BACKLASH,\n        EVENT_ROAST_ESCAPE,\n        EVENT_ROAST_SUCCESS,\n        prune_gameplay_events,\n'''
+if report.count(old_import) != 2:
+    raise SystemExit(
+        f"daily_report_core.py: expected two import markers, found {report.count(old_import)}"
+    )
+report_path.write_text(report.replace(old_import, new_import), encoding="utf-8")
 
 replace_once(
     "daily_report_core.py",
