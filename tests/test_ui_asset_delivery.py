@@ -31,7 +31,7 @@ def test_ui_asset_endpoint_is_read_only_and_only_serves_analytics():
 
 
 def test_inline_bootstrap_matches_source_and_is_click_only():
-    match = re.search(r'<script data-rollpig-bootstrap="3.1.2">(.*?)</script>', PAGE, re.S)
+    match = re.search(r'<script data-rollpig-bootstrap="3.2.0">(.*?)</script>', PAGE, re.S)
     assert match and match.group(1).strip() == BOOTSTRAP.strip()
     assert "analyticsLoadBtn" in BOOTSTRAP
     assert "button.addEventListener('click', load" in BOOTSTRAP

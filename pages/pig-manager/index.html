@@ -74,7 +74,179 @@
 
     .review-dup{margin-top:10px;padding:9px 10px;border:1px solid color-mix(in srgb,var(--orange) 32%,var(--line));border-radius:10px;background:color-mix(in srgb,var(--orange) 8%,transparent);font-size:10px;color:var(--muted)}
     .review-dup b{color:var(--orange)}.review-dup-item{margin-top:4px}
-  </style>
+
+
+/* v3.2.0 immersive overview — motion never carries exclusive meaning. */
+#view-overview .hero,
+#view-overview .metric,
+#view-overview .panel {
+  --mx: 50%;
+  --my: 50%;
+  --rx: 0deg;
+  --ry: 0deg;
+  isolation: isolate;
+}
+
+#view-overview .hero {
+  background:
+    radial-gradient(520px circle at var(--mx) var(--my), color-mix(in srgb, var(--pink) 12%, transparent), transparent 62%),
+    radial-gradient(circle at 88% -18%, color-mix(in srgb, var(--violet) 18%, transparent), transparent 26rem),
+    linear-gradient(112deg, color-mix(in srgb, var(--surface-strong) 96%, transparent), color-mix(in srgb, var(--pink-soft) 52%, var(--surface-strong)));
+  box-shadow:
+    0 28px 70px color-mix(in srgb, var(--pink) 7%, transparent),
+    var(--shadow-soft);
+}
+
+#view-overview .hero-copy::after {
+  content: "";
+  display: block;
+  width: min(340px, 48vw);
+  height: 1px;
+  margin-top: 19px;
+  background: linear-gradient(90deg, var(--pink), var(--violet), transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--pink) 34%, transparent);
+  transform-origin: left;
+  animation: overviewDataBeam 3.8s ease-in-out infinite;
+}
+
+.overview-scope {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 26px;
+  margin-top: 11px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--green) 24%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 5%, var(--surface-strong));
+  color: var(--muted);
+  font: 600 9.5px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: normal;
+}
+.overview-scope::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--green) 62%, transparent);
+  animation: overviewBeacon 2.2s ease-in-out infinite;
+}
+
+#view-overview .metric {
+  transform: perspective(760px) rotateX(var(--rx)) rotateY(var(--ry));
+  transform-style: preserve-3d;
+  background:
+    radial-gradient(180px circle at var(--mx) var(--my), color-mix(in srgb, var(--tone, var(--pink)) 10%, transparent), transparent 72%),
+    var(--surface);
+  overflow: hidden;
+  transition: transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+#view-overview .metric::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(from 180deg at 50% 50%, transparent 0 34%, color-mix(in srgb, var(--tone, var(--pink)) 30%, transparent) 44%, transparent 54% 100%);
+  opacity: 0;
+  animation: overviewSpectral 7s linear infinite;
+  transition: opacity .22s var(--ease);
+}
+#view-overview .metric:hover::before { opacity: .6; }
+#view-overview .metric:hover {
+  box-shadow:
+    0 18px 34px rgba(20, 28, 44, .10),
+    0 0 26px color-mix(in srgb, var(--tone, var(--pink)) 9%, transparent);
+}
+#view-overview .metric .value { transform: translateZ(22px); }
+#view-overview .metric .metric-top { transform: translateZ(12px); }
+
+.metric-snapshot-viz {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.metric-snapshot-viz > span {
+  color: var(--muted);
+  font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+.metric-signal {
+  position: relative;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  width: 54px;
+  height: 24px;
+}
+.metric-signal i {
+  width: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone, var(--pink)) 48%, var(--line));
+  box-shadow: 0 0 9px color-mix(in srgb, var(--tone, var(--pink)) 20%, transparent);
+}
+.metric-signal i:nth-child(1) { height: 38%; }
+.metric-signal i:nth-child(2) { height: 72%; }
+.metric-signal i:nth-child(3) { height: 52%; }
+.metric-signal em {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 30px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--tone, var(--pink)) var(--progress, 42%), var(--line) 0);
+}
+
+.chart-draw-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: overviewBarRise .65s var(--spring) both;
+  animation-delay: var(--delay, 0ms);
+}
+#trendChart svg { filter: drop-shadow(0 10px 20px color-mix(in srgb, var(--pink) 5%, transparent)); }
+.chart-path { filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 30%, transparent)); }
+.chart-point { filter: drop-shadow(0 0 7px currentColor); }
+
+#view-overview .ring::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--violet) 22%, transparent);
+  border-top-color: color-mix(in srgb, var(--pink) 72%, transparent);
+  animation: overviewRingOrbit 7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes overviewDataBeam { 0%,100% { transform: scaleX(.28); opacity: .38; } 50% { transform: scaleX(1); opacity: 1; } }
+@keyframes overviewBeacon { 50% { opacity: .48; transform: scale(.72); } }
+@keyframes overviewSpectral { to { transform: rotate(360deg); } }
+@keyframes overviewBarRise { from { transform: scaleY(.05); opacity: .15; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes overviewRingOrbit { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #view-overview .hero-copy::after,
+  .overview-scope::before,
+  #view-overview .metric::before,
+  .chart-draw-bar,
+  #view-overview .ring::after {
+    animation: none !important;
+  }
+  #view-overview .metric,
+  #view-overview .metric:hover,
+  #view-overview .panel,
+  #view-overview .hero {
+    transform: none !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+</style>
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><i class="orb one"></i><i class="orb two"></i><i class="orb three"></i></div><div class="noise" aria-hidden="true"></div>
@@ -87,8 +259,8 @@
 
   <section class="view" id="view-overview">
     <section class="hero">
-      <div class="hero-copy"><div class="eyebrow">Pig Intelligence · Live</div><h1>看见猪圈的每一次<span>生长与解锁</span></h1><p class="sub">把抽取、活跃与收藏变成会呼吸的数据。所有趋势均来自本地统计，不上传群友资料。</p></div>
-      <div class="hero-side"><div class="hero-side-label">今日参与</div><div class="hero-side-value"><span id="heroToday">—</span> 人</div><div class="hero-side-line"></div><div class="panel-desc" id="heroInsight">正在整理今日猪圈动态…</div></div>
+      <div class="hero-copy"><div class="eyebrow">Pig Intelligence · Local Snapshot</div><h1>看见猪圈的每一次<span>生长与解锁</span></h1><p class="sub">把抽取、活跃与收藏变成会呼吸的数据。每次刷新都按本地事实重算，不上传群友资料。</p></div>
+      <div class="hero-side"><div class="hero-side-label">今日参与</div><div class="hero-side-value"><span id="heroToday">—</span> 人</div><div class="hero-side-line"></div><div class="panel-desc" id="heroInsight">正在整理今日猪圈动态…</div><div class="overview-scope" id="overviewScope">正在确认统计口径…</div></div>
     </section>
 
     <section class="metrics" aria-label="核心指标">
@@ -101,7 +273,7 @@
     </section>
 
     <section class="dashboard-grid">
-      <article class="panel"><div class="panel-head"><div><div class="eyebrow">14 Days Flow</div><h2>近 14 日猪圈脉搏</h2><div class="panel-desc">移动到折线可查看每日使用人数、抽取与新解锁</div></div><div class="legend"><span><i class="dot" style="background:var(--pink)"></i>使用人数</span><span><i class="dot" style="background:var(--violet)"></i>新解锁</span></div></div><div class="chart" id="trendChart"><div class="empty">正在生成趋势…</div></div></article>
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">14 Days Flow</div><h2>近 14 日猪圈脉搏</h2><div class="panel-desc">移动到折线可查看每日使用人数、抽取与新解锁</div></div><div class="legend"><span><i class="dot" style="background:var(--pink)"></i>使用人数</span><span><i class="dot" style="background:var(--blue)"></i>抽取次数</span><span><i class="dot" style="background:var(--violet)"></i>新解锁</span></div></div><div class="chart" id="trendChart"><div class="empty">正在生成趋势…</div></div></article>
       <div class="insight-stack">
         <article class="panel ring-panel"><div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ringGradient"><stop stop-color="var(--pink)"/><stop offset="1" stop-color="var(--violet)"/></linearGradient></defs><circle class="ring-track" cx="60" cy="60" r="54"/><circle class="ring-progress" id="rateRing" cx="60" cy="60" r="54"/></svg><div class="ring-copy"><div class="ring-value" id="ringValue">—</div><div class="ring-label">平均收藏率</div></div></div><div class="insight-list"><div class="insight-item"><div class="insight-value" id="insightAverage">—</div><div class="insight-text">平均每位群友已解锁</div></div><div class="insight-item"><div class="insight-value" id="insightCatalog">—</div><div class="insight-text">图鉴可探索空间</div></div></div></article>
         <article class="panel"><div class="panel-head"><div><div class="eyebrow">Popularity</div><h2>热门小猪</h2><div class="panel-desc">按累计抽中次数动态排序</div></div></div><div class="bar-list" id="barChart"><div class="empty">正在生成排行…</div></div></article>
@@ -184,11 +356,10 @@
 <div class="toast" id="toast"></div><div class="loading" id="loading"><div class="spinner"></div></div>
 
 <script src="/api/plugin/page/bridge-sdk.js"></script>
-<script data-rollpig-bootstrap="3.1.2">
-(() => {
+<script data-rollpig-bootstrap="3.2.0">(() => {
   'use strict';
 
-  const VERSION = '3.1.2';
+  const VERSION = '3.2.0';
   const STATE_KEY = '__rollpigUiBootstrapState';
   const ALLOWED = new Map([
     ['analytics-theme', 'style'],
@@ -454,11 +625,24 @@ function points(values,w=180,h=38,pad=2){const max=Math.max(1,...values),min=Mat
 function renderSpark(id,values,index){const root=$(id),pts=points(values.length?values:[0]),line=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),area=`${line} L 178 38 L 2 38 Z`,gradient=`spark-${index}`;root.innerHTML=`<svg viewBox="0 0 180 38" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${gradient}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--tone)" stop-opacity=".28"/><stop offset="1" stop-color="var(--tone)" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#${gradient})"/><path class="spark-path" d="${line}"/></svg>`;animateSvgPaths(root)}
 function linePath(values,w,h,pad,max){const span=Math.max(1,values.length-1);return values.map((v,i)=>`${i?'L':'M'} ${(pad+i*(w-pad*2)/span).toFixed(1)} ${(h-pad-v/max*(h-pad*2)).toFixed(1)}`).join(' ')}
 function animateSvgPaths(root){if(reduceMotion)return;root.querySelectorAll('.chart-path,.spark-path').forEach(path=>{const length=path.getTotalLength();path.style.strokeDasharray=length;path.style.strokeDashoffset=length;requestAnimationFrame(()=>{path.style.transition=`stroke-dashoffset 1.25s var(--ease)`;path.style.strokeDashoffset='0'})})}
-function renderTrend(data){const root=$('trendChart'),w=840,h=300,padX=42,padY=34,max=Math.max(1,...data.flatMap(x=>[Number(x.users)||0,Number(x.new_unlocks)||0]));if(!data.length){root.innerHTML='<div class="empty">暂无历史趋势数据</div>';return}const users=data.map(x=>Number(x.users)||0),unlocks=data.map(x=>Number(x.new_unlocks)||0),userLine=linePath(users,w,h,padX,max),unlockLine=linePath(unlocks,w,h,padX,max),base=h-padY,userArea=`${userLine} L ${w-padX} ${base} L ${padX} ${base} Z`;let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="近十四日趋势互动折线图"><defs><linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--pink)" stop-opacity=".45"/><stop offset="1" stop-color="var(--pink)" stop-opacity="0"/></linearGradient></defs>`;for(let i=0;i<5;i++){const y=padY+i*(h-padY*2)/4;svg+=`<line class="gridline" x1="${padX}" y1="${y}" x2="${w-padX}" y2="${y}"/><text class="chart-label" x="5" y="${y+4}">${Math.round(max*(1-i/4))}</text>`}svg+=`<path class="chart-area" d="${userArea}" fill="url(#trendArea)"/><path class="chart-path" d="${userLine}" stroke="var(--pink)" stroke-width="4"/><path class="chart-path" d="${unlockLine}" stroke="var(--violet)" stroke-width="3"/>`;data.forEach((x,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1);svg+=`<text class="chart-label" text-anchor="middle" x="${px}" y="${h-7}">${esc(x.date)}</text>`});root.innerHTML=svg+'</svg><div class="chart-tooltip" id="trendTip"></div>';animateSvgPaths(root);bindTrendPointer(root,data,{w,h,padX,padY,max})}
+function renderTrend(data){
+  const root=$('trendChart'),w=840,h=300,padX=42,padY=34;
+  if(!data.length){root.innerHTML='<div class="empty">暂无历史趋势数据</div>';return}
+  const users=data.map(x=>Number(x.users)||0),draws=data.map(x=>Number(x.draws)||0),unlocks=data.map(x=>Number(x.new_unlocks)||0);
+  const max=Math.max(1,...users,...draws,...unlocks),userLine=linePath(users,w,h,padX,max),unlockLine=linePath(unlocks,w,h,padX,max),base=h-padY,userArea=`${userLine} L ${w-padX} ${base} L ${padX} ${base} Z`,step=(w-padX*2)/Math.max(1,data.length-1),barWidth=Math.max(8,Math.min(24,step*.34));
+  let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="近十四日使用人数、抽取次数与新解锁趋势"><defs><linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--pink)" stop-opacity=".38"/><stop offset="1" stop-color="var(--pink)" stop-opacity="0"/></linearGradient><linearGradient id="drawBars" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--blue)" stop-opacity=".42"/><stop offset="1" stop-color="var(--blue)" stop-opacity=".08"/></linearGradient></defs>`;
+  for(let i=0;i<5;i++){const y=padY+i*(h-padY*2)/4;svg+=`<line class="gridline" x1="${padX}" y1="${y}" x2="${w-padX}" y2="${y}"/><text class="chart-label" x="5" y="${y+4}">${Math.round(max*(1-i/4))}</text>`}
+  data.forEach((entry,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1),value=draws[i],barHeight=value/max*(h-padY*2);svg+=`<rect class="chart-draw-bar" x="${px-barWidth/2}" y="${base-barHeight}" width="${barWidth}" height="${barHeight}" rx="${Math.min(6,barWidth/2)}" fill="url(#drawBars)" style="--delay:${i*28}ms"/>`});
+  svg+=`<path class="chart-area" d="${userArea}" fill="url(#trendArea)"/><path class="chart-path" d="${userLine}" stroke="var(--pink)" stroke-width="4"/><path class="chart-path" d="${unlockLine}" stroke="var(--violet)" stroke-width="3"/>`;
+  data.forEach((x,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1);svg+=`<text class="chart-label" text-anchor="middle" x="${px}" y="${h-7}">${esc(x.date)}</text>`});
+  root.innerHTML=svg+'</svg><div class="chart-tooltip" id="trendTip"></div>';animateSvgPaths(root);bindTrendPointer(root,data,{w,h,padX,padY,max})
+}
 function bindTrendPointer(root,data,dims){const svg=root.querySelector('svg'),tip=$('trendTip'),{w,h,padX,padY,max}=dims;let guide=null,points=[];const clear=()=>{guide?.remove();points.forEach(p=>p.remove());guide=null;points=[];tip.classList.remove('show')};svg.onpointerleave=clear;svg.onpointermove=e=>{const rect=svg.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width*w,index=Math.max(0,Math.min(data.length-1,Math.round((x-padX)/(w-padX*2)*Math.max(1,data.length-1)))),px=padX+index*(w-padX*2)/Math.max(1,data.length-1),entry=data[index];clear();guide=document.createElementNS('http://www.w3.org/2000/svg','line');guide.setAttribute('class','chart-guide');guide.setAttribute('x1',px);guide.setAttribute('x2',px);guide.setAttribute('y1',padY);guide.setAttribute('y2',h-padY);svg.appendChild(guide);[[Number(entry.users)||0,'var(--pink)'],[Number(entry.new_unlocks)||0,'var(--violet)']].forEach(([value,color])=>{const p=document.createElementNS('http://www.w3.org/2000/svg','circle');p.setAttribute('class','chart-point');p.setAttribute('cx',px);p.setAttribute('cy',h-padY-value/max*(h-padY*2));p.setAttribute('r','6');p.setAttribute('fill',color);svg.appendChild(p);points.push(p)});tip.innerHTML=`<div class="tooltip-date">${esc(entry.date)}</div><div class="tooltip-row"><span>使用人数</span><b>${entry.users}</b></div><div class="tooltip-row"><span>抽取次数</span><b>${entry.draws}</b></div><div class="tooltip-row"><span>新解锁</span><b>${entry.new_unlocks}</b></div>`;tip.style.left=`${px/w*100}%`;tip.style.top=`${Math.max(80,Math.min(h-20,e.clientY-rect.top))}px`;tip.classList.add('show')}}
 function renderBars(data){const root=$('barChart');if(!data.length){root.innerHTML='<div class="empty">暂无历史抽取数据</div>';return}const shown=data.slice(0,7),max=Math.max(1,...shown.map(x=>Number(x.draws)||0));root.innerHTML=shown.map((x,i)=>`<div class="bar-row" title="${esc(x.name)} · ${x.draws} 次"><div class="bar-name">${i+1}. ${esc(x.name)}</div><div class="bar-track"><div class="bar-fill" style="--delay:${i*75}ms" data-width="${Math.max(4,(Number(x.draws)||0)/max*100)}"></div></div><div class="bar-value">${x.draws}</div></div>`).join('');requestAnimationFrame(()=>root.querySelectorAll('.bar-fill').forEach(bar=>bar.style.width=`${bar.dataset.width}%`))}
-function renderMetricVisuals(data){const trend=data.trend||[],users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),unlocks=trend.map(x=>Number(x.new_unlocks)||0),catalog=Math.max(1,Number(data.metrics.catalog_count)||1);renderSpark('vUsers',users,1);renderSpark('vDraws',draws,2);renderSpark('vToday',users,3);renderSpark('vPigs',unlocks.map((_,i)=>Math.max(0,catalog-unlocks.slice(i+1).reduce((a,b)=>a+b,0))),4);renderSpark('vAverage',unlocks.map((v,i)=>v+(users[i]||0)),5);renderSpark('vRate',unlocks.map(v=>v/catalog*100),6)}
-async function loadOverview(){const d=await get('overview'),m=d.metrics;overviewData=d;csrfToken=String(d.csrf_token||csrfToken);animateNumber($('mUsers'),m.total_users);animateNumber($('mDraws'),m.total_draws);animateNumber($('mToday'),m.today_users);animateNumber($('mPigs'),m.catalog_count);animateNumber($('mAverage'),m.average_unlocked);animateNumber($('mRate'),m.average_unlock_rate,'%');animateNumber($('heroToday'),m.today_users);$('catalogHeroCount').textContent=Number(m.catalog_count||0).toLocaleString();$('heroInsight').textContent=m.today_users?`今天已有 ${m.today_users} 位群友踏进猪圈。数据正在实时生长。`:'今天的猪圈还很安静，等待第一位群友抽取。';$('insightAverage').textContent=`${m.average_unlocked} 只`;$('insightCatalog').textContent=`还有 ${Math.max(0,Number(m.catalog_count)-Number(m.average_unlocked))} 只等待发现`;const rate=Math.max(0,Math.min(100,Number(m.average_unlock_rate)||0));$('ringValue').textContent=`${rate}%`;requestAnimationFrame(()=>$('rateRing').style.strokeDashoffset=339.3*(1-rate/100));renderMetricVisuals(d);renderTrend(d.trend||[]);renderBars(d.top_pigs||[])}
+function renderMetricSignal(id,label,progress=null){const root=$(id);if(!root)return;root.classList.add('metric-snapshot-viz');const hasProgress=Number.isFinite(progress),safe=hasProgress?Math.max(0,Math.min(100,Number(progress))):0;root.innerHTML=`<div class="metric-signal" aria-hidden="true"><i></i><i></i><i></i><em ${hasProgress?`style="--progress:${safe}%"`:''}></em></div><span>${esc(label)}</span>`}
+function renderMetricVisuals(data){const trend=data.trend||[],users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),metrics=data.metrics||{},totalDraws=Math.max(0,Number(metrics.total_draws)||0),windowDraws=draws.reduce((a,b)=>a+b,0);let running=Math.max(0,totalDraws-windowDraws);const cumulative=draws.map(value=>running+=value),rate=Math.max(0,Math.min(100,Number(metrics.average_unlock_rate)||0));renderMetricSignal('vUsers','逻辑用户快照');renderSpark('vDraws',cumulative,2);renderSpark('vToday',users,3);renderMetricSignal('vPigs','当前可抽取');renderMetricSignal('vAverage','当前覆盖',rate);renderMetricSignal('vRate','当前比例',rate)}
+function installImmersiveMotion(){if(reduceMotion||!window.matchMedia?.('(pointer:fine)')?.matches)return;document.querySelectorAll('#view-overview .hero,#view-overview .metric,#view-overview .panel').forEach(card=>{if(card.dataset.motionBound==='1')return;card.dataset.motionBound='1';let frame=0;card.addEventListener('pointermove',event=>{if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{const rect=card.getBoundingClientRect(),x=Math.max(0,Math.min(rect.width,event.clientX-rect.left)),y=Math.max(0,Math.min(rect.height,event.clientY-rect.top));card.style.setProperty('--mx',`${x}px`);card.style.setProperty('--my',`${y}px`);if(card.classList.contains('metric')){card.style.setProperty('--rx',`${(((y/Math.max(1,rect.height))-.5)*-3).toFixed(2)}deg`);card.style.setProperty('--ry',`${(((x/Math.max(1,rect.width))-.5)*3).toFixed(2)}deg`)}})} ,{passive:true});card.addEventListener('pointerleave',()=>{card.style.setProperty('--rx','0deg');card.style.setProperty('--ry','0deg')},{passive:true})})}
+async function loadOverview(){const d=await get('overview'),m=d.metrics;overviewData=d;csrfToken=String(d.csrf_token||csrfToken);animateNumber($('mUsers'),m.total_users);animateNumber($('mDraws'),m.total_draws);animateNumber($('mToday'),m.today_users);animateNumber($('mPigs'),m.catalog_count);animateNumber($('mAverage'),m.average_unlocked);animateNumber($('mRate'),m.average_unlock_rate,'%');animateNumber($('heroToday'),m.today_users);$('catalogHeroCount').textContent=Number(m.catalog_count||0).toLocaleString();$('heroInsight').textContent=m.today_users?`今天已有 ${m.today_users} 位群友踏进猪圈。本地事实快照已更新。`:'今天的猪圈还很安静；本地事实快照已更新。';const meta=d.meta||{},source=meta.source==='normalized-sql'?'SQL 规范化事实':'JSON 兼容事实';$('overviewScope').textContent=`${source} · Claim-aware 身份 · ${Number(meta.trend_days||14)} 日窗口 · ${meta.as_of||'当前'}`;$('insightAverage').textContent=`${m.average_unlocked} 只`;$('insightCatalog').textContent=`还有 ${Math.max(0,Number(m.catalog_count)-Number(m.average_unlocked))} 只等待发现`;const rate=Math.max(0,Math.min(100,Number(m.average_unlock_rate)||0));$('ringValue').textContent=`${rate}%`;requestAnimationFrame(()=>$('rateRing').style.strokeDashoffset=339.3*(1-rate/100));renderMetricVisuals(d);renderTrend(d.trend||[]);renderBars(d.top_pigs||[]);installImmersiveMotion()}
 function renderPigs(){if(!items.length){$('pigGrid').innerHTML='<div class="empty">没有找到符合条件的小猪</div>';return}$('pigGrid').innerHTML=items.map((p,i)=>{const hasPixels=Boolean(p.thumbnail?.png);return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-pig-canvas="${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span>${p.draws} 次抽中</span><span>${p.collectors} 人解锁</span></div><div class="pig-actions"><button class="btn ghost" data-edit="${i}">编辑</button><button class="btn ghost" data-delete="${i}">删除</button></div></article>`}).join('');document.querySelectorAll('[data-pig-canvas]').forEach(canvas=>{paintRgbaCanvas(canvas,items[+canvas.dataset.pigCanvas].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(items[+b.dataset.edit]));document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>removePig(items[+b.dataset.delete]))}
 async function loadPigs(){const d=await get('pigs',{page,search});items=d.items||[];page=d.page;pages=d.pages;$('catalogMeta').textContent=`找到 ${d.total} 只 · 第 ${page}/${pages} 页`;$('catalogHeroCount').textContent=Number(d.total||0).toLocaleString();$('pageText').textContent=`${page} / ${pages}`;$('prevBtn').disabled=page<=1;$('nextBtn').disabled=page>=pages;renderPigs()}
 function layerCard(p,i,kind){const hasPixels=Boolean(p.thumbnail?.png),blocked=kind==='blocked',tag=blocked?'已屏蔽':p.layer_kind==='override'?'覆盖基础源':'本地新增',detail=blocked?(p.base_exists?'基础源仍有同 ID，取消后立即恢复':'基础源暂无同 ID，取消后可重新新增'):(p.custom_image?'使用本地图片':'沿用基础图片');return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-layer-canvas="${kind}-${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span class="layer-tag ${blocked?'blocked':''}">${esc(tag)}</span><span>${esc(detail)}</span></div><div class="pig-actions">${blocked?`<button class="btn ghost" data-unblock="${i}">取消屏蔽</button>`:`<button class="btn ghost" data-layer-edit="${i}">编辑</button><button class="btn ghost" type="button" data-submit="${i}">投稿公共源</button>`}</div></article>`}

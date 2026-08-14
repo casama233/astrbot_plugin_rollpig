@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "3.1.2"
+VERSION = "3.2.0"
 
 
 def test_management_ui_version_is_consistent_without_source_cache():
