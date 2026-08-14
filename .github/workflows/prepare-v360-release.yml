@@ -67,6 +67,6 @@ jobs:
             metadata.yaml legacy_main.py updater.py README.md CHANGELOG.md \
             docs/COMMANDS.md docs/CONFIGURATION.md docs/OPERATIONS.md docs/RESOURCE-MANAGEMENT.md \
             tests/test_v312_release_contract.py tests/test_identity_migration_plus.py tests/test_source_regressions.py \
-            .github/workflows/astrbot-market-smoke.yml .github/release-v3.6.0.md
+            .github/release-v3.6.0.md
           git commit -m "chore: prepare v3.6.0 release"
           git push origin HEAD:release/v3.6.0
