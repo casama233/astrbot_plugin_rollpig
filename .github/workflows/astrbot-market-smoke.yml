@@ -31,6 +31,63 @@ jobs:
       - name: Install AstrBot dependencies
         run: python -m pip install -r .cache/AstrBot/requirements.txt
 
+      - name: Verify command dispatch ownership on current AstrBot
+        run: |
+          mkdir -p .cache/runtime/data/plugins
+          ln -s "$GITHUB_WORKSPACE" .cache/runtime/data/plugins/astrbot_plugin_rollpig_plus
+          PYTHONPATH="$GITHUB_WORKSPACE/.cache/AstrBot:$GITHUB_WORKSPACE/.cache/runtime" python - <<'PY'
+          import importlib
+
+          from astrbot.core.star.star_handler import star_handlers_registry
+
+          prefix = "data.plugins.astrbot_plugin_rollpig_plus"
+          entry = f"{prefix}.main"
+          importlib.import_module(entry)
+
+          handlers = [
+              handler
+              for handler in star_handlers_registry
+              if str(getattr(getattr(handler, "handler", None), "__module__", "")).startswith(prefix)
+          ]
+          assert handlers, "RollPig registered no handlers during main import"
+
+          wrong_owner = [
+              f"{handler.handler_name}:{handler.handler_module_path}"
+              for handler in handlers
+              if handler.handler_module_path != entry
+          ]
+          assert not wrong_owner, f"RollPig handlers are not owned by main: {wrong_owner}"
+
+          commands = []
+          for handler in handlers:
+              filters = getattr(handler, "event_filters", ()) or ()
+              if any(
+                  item.__class__.__name__ in {"CommandFilter", "CommandGroupFilter"}
+                  for item in filters
+              ):
+                  commands.append(handler)
+          assert commands, "RollPig registered no command handlers"
+
+          low_priority = [
+              f"{handler.handler_name}:{(handler.extras_configs or {}).get('priority', 0)}"
+              for handler in commands
+              if int((handler.extras_configs or {}).get("priority", 0) or 0) < 1000
+          ]
+          assert not low_priority, f"RollPig commands are not prioritized: {low_priority}"
+
+          roll_pig = next(
+              (handler for handler in commands if handler.handler_name == "roll_pig"),
+              None,
+          )
+          assert roll_pig is not None, "roll_pig command handler is missing"
+          assert roll_pig.handler_module_path == entry
+          print(
+              f"verified {len(handlers)} RollPig handlers / {len(commands)} commands; "
+              f"roll_pig owner={roll_pig.handler_module_path}, "
+              f"priority={roll_pig.extras_configs.get('priority')}"
+          )
+          PY
+
       - name: Build isolated market record
         run: |
           cat > .cache/rollpig-market-smoke.json <<'JSON'
