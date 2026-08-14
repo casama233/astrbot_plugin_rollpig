@@ -7,6 +7,15 @@ delegate to the inherited implementation and keep AstrBot handler ownership,
 priority and unload semantics bound to the real Star entry point.
 """
 
+import asyncio
+import hashlib
+import json
+import os
+import shutil
+import threading
+import uuid
+
+from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 
 try:
@@ -32,11 +41,118 @@ class RollPigPlugin(
 ):
     """RollPig Plus with growth, roast reservations and rich daily reports."""
 
+    HELP_RENDER_CACHE_VERSION = 1
+
+    def __init__(self, context, config):
+        config_view = config if hasattr(config, "get") else {}
+        try:
+            render_concurrency = int(config_view.get("image_render_concurrency", 2))
+        except (TypeError, ValueError):
+            render_concurrency = 2
+        self.image_render_concurrency = min(8, max(1, render_concurrency))
+        self._image_render_slots = threading.BoundedSemaphore(
+            self.image_render_concurrency
+        )
+        self._help_render_cache_lock = threading.Lock()
+        super().__init__(context, config)
+        self._help_render_cache_dir = self.plugin_data_dir / "render_cache" / "help"
+        self._help_render_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _run_with_render_slot(self, renderer, *args, **kwargs):
+        """Apply CPU backpressure without occupying the asyncio event loop."""
+        with self._image_render_slots:
+            return renderer(*args, **kwargs)
+
+    def _help_render_cache_path(self):
+        palette = self._image_palette()
+        identity = {
+            "version": self.HELP_RENDER_CACHE_VERSION,
+            "night": bool(palette.get("night")),
+            "at_view_pig": bool(getattr(self, "at_view_pig", False)),
+            "enable_roast": bool(getattr(self, "enable_roast", True)),
+            "enable_group_roast": bool(getattr(self, "enable_group_roast", True)),
+            "enable_group_eat": bool(getattr(self, "enable_group_eat", True)),
+            "enable_daily_report": bool(getattr(self, "enable_daily_report", True)),
+            "enable_roast_reservation": bool(
+                getattr(self, "enable_roast_reservation", True)
+            ),
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()[:16]
+        return self._help_render_cache_dir / f"help-{digest}.png"
+
+    def _ensure_help_image_cache(self):
+        """Render the nearly-static help card once per effective configuration."""
+        cache_path = self._help_render_cache_path()
+        try:
+            if cache_path.is_file() and cache_path.stat().st_size > 0:
+                return cache_path
+        except OSError:
+            pass
+
+        with self._help_render_cache_lock:
+            try:
+                if cache_path.is_file() and cache_path.stat().st_size > 0:
+                    return cache_path
+            except OSError:
+                pass
+
+            rendered = self._run_with_render_slot(super().render_help_image)
+            if rendered is None:
+                raise RuntimeError("帮助图片渲染没有生成文件")
+            staging = cache_path.with_name(
+                f".{cache_path.name}.{uuid.uuid4().hex}.tmp"
+            )
+            try:
+                shutil.copyfile(rendered, staging)
+                staging.replace(cache_path)
+            finally:
+                rendered.unlink(missing_ok=True)
+                staging.unlink(missing_ok=True)
+            return cache_path
+
+    def render_help_image(self):
+        """Return an expendable hardlink/copy while retaining the cached master."""
+        cache_path = self._ensure_help_image_cache()
+        output = cache_path.with_name(f"help-send-{uuid.uuid4().hex}.png")
+        try:
+            os.link(cache_path, output)
+        except OSError:
+            shutil.copyfile(cache_path, output)
+        return output
+
+    def render_pig_image(self, pig_data):
+        return self._run_with_render_slot(super().render_pig_image, pig_data)
+
+    def render_pigsty_image(self, user_id, page):
+        return self._run_with_render_slot(super().render_pigsty_image, user_id, page)
+
+    def render_catalog_grid(self, pigs, title, subtitle):
+        return self._run_with_render_slot(
+            super().render_catalog_grid, pigs, title, subtitle
+        )
+
+    def render_weekly_summary(self, user_id):
+        return self._run_with_render_slot(super().render_weekly_summary, user_id)
+
+    def render_roast_image(self, pig, user_id, ai_copy=None):
+        return self._run_with_render_slot(
+            super().render_roast_image, pig, user_id, ai_copy
+        )
+
+    def render_daily_report_image(self, report):
+        return self._run_with_render_slot(super().render_daily_report_image, report)
+
     # BEGIN MAIN COMMAND REGISTRATION
     # Decorators stay on the real Star entry module; implementations live below.
     @filter.command('猪猪帮助', alias={'豬豬幫助', '小猪帮助', '小豬幫助', 'rollpig帮助', 'rollpig幫助'}, priority=1000)
     async def rollpig_help(self, event: AstrMessageEvent):
         """展示今日小猪的完整指令说明。"""
+        try:
+            await asyncio.to_thread(self._ensure_help_image_cache)
+        except Exception as exc:
+            logger.warning(f"预生成豬豬幫助圖片缓存失败，将使用原渲染流程：{exc}")
         return await super().rollpig_help(event)
 
     @filter.command('今日小猪', alias={'今日小豬', '今天是什么小猪', '今天是什麼小豬', '抽小猪', '抽小豬', '我的小猪', '我的小豬', 'rollpig'}, priority=1000)
