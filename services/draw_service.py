@@ -18,32 +18,33 @@ class DrawService:
     max_pity_percent: int = 80
 
     @staticmethod
-    def _duplicate_streak(collection: Mapping[str, Any] | None) -> int:
+    def _streak(collection: Mapping[str, Any] | None, key: str) -> int:
         user = collection if isinstance(collection, Mapping) else {}
         try:
-            return max(0, int(user.get("duplicate_streak", 0) or 0))
+            return max(0, int(user.get(key, 0) or 0))
         except (TypeError, ValueError):
             return 0
 
     def pity_chance(self, collection: Mapping[str, Any] | None) -> float:
         """Return the reroll-to-unseen probability for a duplicate candidate.
 
-        ``duplicate_streak`` is the persisted count of consecutive completed daily
-        draws that were already unlocked.  Therefore a streak of 1 means the next
-        candidate is the second consecutive duplicate day.
+        ``duplicate_streak`` keeps the legacy consecutive-draw behavior.
+        ``daily_duplicate_streak`` counts only adjacent completed calendar days, so
+        skipping a day resets the new fatigue bonus without changing legacy pity.
         """
-        streak = self._duplicate_streak(collection)
+        legacy_streak = self._streak(collection, "duplicate_streak")
+        daily_streak = self._streak(collection, "daily_duplicate_streak")
 
         base_percent = 0
         if self.enable_new_pig_pity:
-            base_percent = streak * max(0, int(self.pity_step_percent))
+            base_percent = legacy_streak * max(0, int(self.pity_step_percent))
 
         daily_bonus_percent = 0
         if self.enable_daily_duplicate_pity:
             start_day = min(7, max(2, int(self.daily_duplicate_pity_start_day)))
             step_percent = max(0, int(self.daily_duplicate_pity_step_percent))
             bonus_cap = max(0, int(self.daily_duplicate_pity_max_percent))
-            current_duplicate_day = streak + 1
+            current_duplicate_day = daily_streak + 1
             if current_duplicate_day >= start_day:
                 bonus_layers = current_duplicate_day - start_day + 1
                 daily_bonus_percent = min(bonus_cap, bonus_layers * step_percent)

@@ -43,6 +43,7 @@ try:
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from .rollpig_core import consecutive_duplicate_day_streak
     from .services import DrawService, RoastService
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
@@ -53,6 +54,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from rollpig_core import consecutive_duplicate_day_streak
     from services import DrawService, RoastService
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
@@ -1987,10 +1989,15 @@ class RollPigPlugin(Star):
 
     def _choose_daily_pig(self, user_id: str) -> dict:
         """Delegate pure pity/selection policy to DrawService."""
-        return self.draw_service.choose(
-            self.pig_list,
-            self._get_user_collection(user_id),
+        collection = self._get_user_collection(user_id)
+        draw_context = dict(collection) if isinstance(collection, dict) else {}
+        draw_context["daily_duplicate_streak"] = consecutive_duplicate_day_streak(
+            self.history,
+            draw_context,
+            self._storage_user_key(str(user_id)),
+            self._today(),
         )
+        return self.draw_service.choose(self.pig_list, draw_context)
 
     def _get_daily_pig(self, user_id: str, date_value: datetime.date) -> dict | None:
         candidates = tuple(self._user_read_candidates(str(user_id)))
