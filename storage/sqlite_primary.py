@@ -353,6 +353,28 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
                 self._mark_primary_write_tx(connection)
             return {"changed": changed}
 
+    def consume_roast_charge(
+        self,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        with self.transaction() as connection:
+            result = self._consume_roast_charge_tx(
+                connection,
+                group_id=group_id,
+                actor_id=actor_id,
+                now=now,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+            if result.get("consumed"):
+                self._mark_primary_write_tx(connection)
+            return result
+
     def consume_roast_cooldown(
         self,
         *,
