@@ -3,6 +3,10 @@
     "pig-manager": {
       "title": "豬圈管理",
       "description": "管理本地／雲端小豬素材、從 PigHub 選圖並查看使用與解鎖統計"
+    },
+    "ex-manager": {
+      "title": "EX 成長管理",
+      "description": "為小豬編輯 EX Lv.1-5 本地差分、圖片與實際生效預覽"
     }
   }
 }
