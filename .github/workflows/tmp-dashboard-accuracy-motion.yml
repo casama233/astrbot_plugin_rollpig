@@ -1,0 +1,71 @@
+name: Temporary dashboard accuracy and motion audit
+on:
+  push:
+    branches: [feat/dashboard-accuracy-motion-v1]
+permissions:
+  contents: write
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+      - name: Apply dashboard accuracy audit
+        run: python scripts/tmp_dashboard_accuracy_patch.py
+      - name: Apply dashboard motion redesign
+        run: python scripts/tmp_dashboard_motion_patch.py
+      - name: Check JavaScript syntax
+        run: |
+          node --check pages/pig-manager/ui-bootstrap.js
+          node --check pages/pig-manager/ui-analytics.js
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?: [^>]*)?>(.*?)</script>', page, re.S)
+          for i, source in enumerate(scripts):
+              if not source.strip():
+                  continue
+              path = Path(f'/tmp/rollpig-inline-{i}.js')
+              path.write_text(source, encoding='utf-8')
+          print(f'inline scripts extracted: {len(scripts)}')
+          PY
+          for f in /tmp/rollpig-inline-*.js; do node --check "$f"; done
+      - name: Compile Python source
+        run: python -m compileall -q main.py legacy_main.py storage services source_service renderers
+      - name: Run focused dashboard regressions
+        run: |
+          pytest -q \
+            tests/test_dashboard_accuracy_contract.py \
+            tests/test_dashboard_sql_analytics.py \
+            tests/test_dashboard_insights.py \
+            tests/test_new_unlock_trend.py \
+            tests/test_analytics_readability.py \
+            tests/test_analytics_bridge_bootstrap.py \
+            tests/test_analytics_spa_remount.py \
+            tests/test_ui_asset_delivery.py \
+            tests/test_ui_cache_busting.py
+      - name: Run full tests
+        run: pytest -q
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Check diff
+        run: git diff --check
+      - name: Commit formal dashboard audit
+        run: |
+          rm -f scripts/tmp_dashboard_accuracy_patch.py scripts/tmp_dashboard_motion_patch.py .github/workflows/tmp-dashboard-accuracy-motion.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: calibrate dashboard facts and motion'
+          git push origin HEAD:${GITHUB_REF_NAME}
