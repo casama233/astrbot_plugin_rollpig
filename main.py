@@ -20,14 +20,26 @@ class RollPigPlugin(DailyReportMixin, _BaseRollPigPlugin):
     # Keep the management UI cache contract visible at the plugin entry point.
     UI_ASSET_VERSION = "3.1.2"
 
-    def _init_bold_font(self):
-        """Load the preferred title font with a packaged CJK-safe fallback.
+    def _init_regular_font(self):
+        """Use the packaged full CJK font before any platform fallback.
 
-        Release and marketplace builds are expected to carry 荆南麦圆体.otf.
-        可爱字体.ttf remains the final bundled CJK fallback so title rendering
-        does not silently fall through to DejaVu on Linux if the preferred
-        font is missing or cannot be loaded.
+        Marketplace archives have a strict 16 MB ceiling, so release builds
+        keep the preferred 荆南麦圆体.otf and omit the redundant 可爱字体.ttf.
+        The repository still carries both fonts for source checkouts.
         """
+        font_paths = [
+            self.font_dir / "可爱字体.ttf",
+            self.font_dir / "荆南麦圆体.otf",
+            self.font_dir / "SourceHanSansCN-Regular.otf",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+        return self._load_font(font_paths, self.DESC_FONT_SIZE, "常规")
+
+    def _init_bold_font(self):
+        """Load the preferred title font with CJK-capable fallbacks first."""
         font_paths = [
             self.font_dir / "荆南麦圆体.otf",
             self.font_dir / "SourceHanSansCN-Bold.otf",
