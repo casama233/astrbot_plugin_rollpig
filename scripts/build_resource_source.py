@@ -9,16 +9,24 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
 from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ex_variants import serialize_ex_variants, validate_ex_variants
 
 
 CLIENT_ID = "astrbot_plugin_rollpig_plus"
 PROTOCOL_VERSION = 1
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 MAX_IMAGES = 500
+MAX_VARIANT_IMAGES = 1000
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
 ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
@@ -63,6 +71,22 @@ def _load_catalog(source_root: Path) -> list[dict]:
     return normalized
 
 
+def _validate_image(path: Path, label: str) -> None:
+    if path.is_symlink():
+        raise ValueError(f"資源圖片不能是符號連結：{label}")
+    if path.stat().st_size > MAX_IMAGE_BYTES:
+        raise ValueError(f"圖片超過 10 MiB：{label}")
+    try:
+        with Image.open(path) as image:
+            image.verify()
+        with Image.open(path) as image:
+            width, height = image.size
+    except Exception as exc:
+        raise ValueError(f"圖片無法解碼：{label}") from exc
+    if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+        raise ValueError(f"圖片像素超過安全上限：{label}")
+
+
 def _load_images(source_root: Path, pig_ids: set[str]) -> dict[str, Path]:
     image_root = source_root / "image"
     if not image_root.is_dir():
@@ -71,22 +95,10 @@ def _load_images(source_root: Path, pig_ids: set[str]) -> dict[str, Path]:
     for path in sorted(image_root.iterdir()):
         if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
             continue
-        if path.is_symlink():
-            raise ValueError(f"資源圖片不能是符號連結：{path.name}")
         pig_id = path.stem
         if pig_id in images:
             raise ValueError(f"同一 ID 存在多張圖片：{pig_id}")
-        if path.stat().st_size > MAX_IMAGE_BYTES:
-            raise ValueError(f"圖片超過 10 MiB：{path.name}")
-        try:
-            with Image.open(path) as image:
-                image.verify()
-            with Image.open(path) as image:
-                width, height = image.size
-        except Exception as exc:
-            raise ValueError(f"圖片無法解碼：{path.name}") from exc
-        if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
-            raise ValueError(f"圖片像素超過安全上限：{path.name}")
+        _validate_image(path, path.name)
         images[pig_id] = path
     missing = pig_ids.difference(images)
     extras = set(images).difference(pig_ids)
@@ -95,6 +107,60 @@ def _load_images(source_root: Path, pig_ids: set[str]) -> dict[str, Path]:
     if extras:
         raise ValueError(f"存在無對應資料的圖片：{', '.join(sorted(extras)[:10])}")
     return images
+
+
+def _load_ex_variants(
+    source_root: Path, pig_ids: set[str]
+) -> tuple[dict, dict[str, Path]] | None:
+    variants_path = source_root / "pig_ex_variants.json"
+    if not variants_path.exists():
+        return None
+    try:
+        raw = json.loads(variants_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"無法讀取 pig_ex_variants.json：{exc}") from exc
+    normalized = validate_ex_variants(
+        raw,
+        pig_ids,
+        image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
+    )
+    canonical = serialize_ex_variants(normalized)
+    declared = {
+        str(item.get("image") or "")
+        for levels in normalized.values()
+        for item in levels.values()
+        if str(item.get("image") or "")
+    }
+    if len(declared) > MAX_VARIANT_IMAGES:
+        raise ValueError(f"EX 差分圖片數量超過 {MAX_VARIANT_IMAGES}")
+    image_root = source_root / "ex_variants"
+    if declared and not image_root.is_dir():
+        raise ValueError("EX 差分宣告了圖片，但缺少 resource/ex_variants 目錄")
+    found: dict[str, Path] = {}
+    if image_root.is_dir():
+        for path in sorted(image_root.iterdir()):
+            if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
+                continue
+            if path.name in found:
+                raise ValueError(f"EX 差分圖片重複：{path.name}")
+            _validate_image(path, f"ex_variants/{path.name}")
+            found[path.name] = path
+    missing = declared.difference(found)
+    extras = set(found).difference(declared)
+    if missing:
+        raise ValueError(f"缺少 EX 差分圖片：{', '.join(sorted(missing)[:10])}")
+    if extras:
+        raise ValueError(f"存在未被引用的 EX 差分圖片：{', '.join(sorted(extras)[:10])}")
+    return canonical, found
+
+
+def _file_entry(path: Path, relative: str, *, filename: str | None = None) -> dict:
+    return {
+        **({"filename": filename} if filename is not None else {}),
+        "path": relative,
+        "size": path.stat().st_size,
+        "sha256": _sha256(path),
+    }
 
 
 def build_source(
@@ -112,7 +178,9 @@ def build_source(
         raise FileExistsError(f"輸出目錄已存在：{output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     records = _load_catalog(source_root)
-    images = _load_images(source_root, {item["id"] for item in records})
+    pig_ids = {item["id"] for item in records}
+    images = _load_images(source_root, pig_ids)
+    ex_bundle = _load_ex_variants(source_root, pig_ids)
     stamp = (
         generated_at
         or dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -134,30 +202,55 @@ def build_source(
             source = images[pig_id]
             target = image_output / f"{pig_id}{source.suffix.lower()}"
             shutil.copyfile(source, target)
-            size = target.stat().st_size
-            total_bytes += size
+            total_bytes += target.stat().st_size
             image_entries.append(
-                {
-                    "filename": target.name,
-                    "path": f"images/{target.name}",
-                    "size": size,
-                    "sha256": _sha256(target),
-                }
+                _file_entry(target, f"images/{target.name}", filename=target.name)
             )
+
         manifest = {
             "schema_version": PROTOCOL_VERSION,
             "client": CLIENT_ID,
             "resource_version": resource_version,
             "generated_at": stamp,
             "pig_count": len(records),
-            "package_size": total_bytes,
-            "pig_json": {
-                "path": "pig.json",
-                "size": pig_path.stat().st_size,
-                "sha256": _sha256(pig_path),
-            },
+            "package_size": 0,
+            "pig_json": _file_entry(pig_path, "pig.json"),
             "images": image_entries,
         }
+
+        variant_pig_count = 0
+        variant_image_count = 0
+        if ex_bundle is not None:
+            canonical, variant_images = ex_bundle
+            variant_pig_count = len(canonical.get("pigs", {}))
+            variant_output = staging / "ex_variants"
+            variant_output.mkdir()
+            ex_path = staging / "pig_ex_variants.json"
+            ex_path.write_text(
+                json.dumps(canonical, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            total_bytes += ex_path.stat().st_size
+            variant_entries: list[dict] = []
+            for filename in sorted(variant_images):
+                source = variant_images[filename]
+                target = variant_output / filename
+                shutil.copyfile(source, target)
+                total_bytes += target.stat().st_size
+                variant_entries.append(
+                    _file_entry(
+                        target,
+                        f"ex_variants/{filename}",
+                        filename=filename,
+                    )
+                )
+            variant_image_count = len(variant_entries)
+            manifest["ex_variants"] = _file_entry(
+                ex_path, "pig_ex_variants.json"
+            )
+            manifest["variant_images"] = variant_entries
+
+        manifest["package_size"] = total_bytes
         (staging / "manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
@@ -170,6 +263,8 @@ def build_source(
             "generated_at": stamp,
             "pig_count": len(records),
             "package_size": total_bytes,
+            "ex_variant_pig_count": variant_pig_count,
+            "ex_variant_image_count": variant_image_count,
         }
         (staging / "health.json").write_text(
             json.dumps(health, ensure_ascii=False, indent=2) + "\n",
@@ -202,6 +297,11 @@ def main() -> int:
                 "resource_version": manifest["resource_version"],
                 "pig_count": manifest["pig_count"],
                 "package_size": manifest["package_size"],
+                "ex_variant_pig_count": len(
+                    (json.loads((args.source / "pig_ex_variants.json").read_text(encoding="utf-8-sig")).get("pigs", {}))
+                    if (args.source / "pig_ex_variants.json").exists()
+                    else {}
+                ),
             },
             ensure_ascii=False,
         )
