@@ -49,6 +49,17 @@ def _commands(path: Path) -> dict[str, ast.AsyncFunctionDef]:
     return found
 
 
+def _async_method(path: Path, class_name: str, method_name: str) -> ast.AsyncFunctionDef:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for item in tree.body:
+        if not isinstance(item, ast.ClassDef) or item.name != class_name:
+            continue
+        for fn in item.body:
+            if isinstance(fn, ast.AsyncFunctionDef) and fn.name == method_name:
+                return fn
+    raise AssertionError(f"{class_name}.{method_name} not found in {path.name}")
+
+
 def test_helper_modules_do_not_register_commands():
     leaked = {path: sorted(_commands(ROOT / path)) for path in HELPERS if _commands(ROOT / path)}
     assert not leaked, f"helper modules still own AstrBot commands: {leaked}"
@@ -81,6 +92,42 @@ def test_main_command_wrappers_delegate_to_inherited_implementation():
                 delegated = True
                 break
         assert delegated, f"{name} wrapper no longer delegates to super().{name}"
+
+
+def test_daily_report_handler_uses_live_sender_dispatch():
+    fn = _async_method(
+        ROOT / "daily_report_feature.py", "DailyReportMixin", "pigsty_daily_report"
+    )
+    calls = [node for node in ast.walk(fn) if isinstance(node, ast.Call)]
+
+    live_dispatch = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_event_sender_id"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "self"
+        for call in calls
+    )
+    stale_super_dispatch = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_event_sender_id"
+        and isinstance(call.func.value, ast.Call)
+        and isinstance(call.func.value.func, ast.Name)
+        and call.func.value.func.id == "super"
+        for call in calls
+    )
+    direct_context_remember = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_remember_daily_report_context"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "self"
+        for call in calls
+    )
+
+    assert live_dispatch, "pigsty_daily_report must resolve sender identity through self"
+    assert not stale_super_dispatch, "pigsty_daily_report must not bypass live MRO via super()"
+    assert not direct_context_remember, (
+        "pigsty_daily_report should rely on DailyReportMixin._event_sender_id to remember context"
+    )
 
 
 def test_runtime_rebind_workaround_is_removed():
