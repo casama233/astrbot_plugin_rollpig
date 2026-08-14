@@ -5,6 +5,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py']
+REPORT_ADAPTERS = {
+    "pigsty_daily_report_status": "狀態",
+    "pigsty_daily_report_enable": "開啟",
+    "pigsty_daily_report_disable": "關閉",
+}
 EXPECTED = {
     "eat_group_member",
     "eat_random_group_member",
@@ -14,6 +19,7 @@ EXPECTED = {
     "oven_refill",
     "oven_refill_support",
     "pigsty_daily_report",
+    *REPORT_ADAPTERS,
     "random_pigs",
     "roast_group_member",
     "roast_random_group_member",
@@ -72,6 +78,8 @@ def test_main_owns_complete_command_surface_with_explicit_priority():
 def test_main_command_wrappers_delegate_to_inherited_implementation():
     commands = _commands(ROOT / "main.py")
     for name, fn in commands.items():
+        if name in REPORT_ADAPTERS:
+            continue
         calls = [node for node in ast.walk(fn) if isinstance(node, ast.Call)]
         delegated = False
         for call in calls:
@@ -83,6 +91,18 @@ def test_main_command_wrappers_delegate_to_inherited_implementation():
                 delegated = True
                 break
         assert delegated, f"{name} wrapper no longer delegates to super().{name}"
+
+
+def test_compact_report_adapters_delegate_to_one_existing_report_handler():
+    commands = _commands(ROOT / "main.py")
+    source = (ROOT / "main.py").read_text(encoding="utf-8")
+    for name, action in REPORT_ADAPTERS.items():
+        fn = commands[name]
+        segment = ast.get_source_segment(source, fn) or ""
+        assert "super().pigsty_daily_report(event" in segment
+        assert repr(action) in segment or f"'{action}'" in segment or f'"{action}"' in segment
+        assert "event.send" not in segment
+        assert "_set_daily_report_group_auto" not in segment
 
 
 def test_runtime_rebind_workaround_is_removed():
