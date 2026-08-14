@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
-![Current Version](https://img.shields.io/badge/current-3.6.4-ef5d82)
+![Current Version](https://img.shields.io/badge/current-3.6.5-ef5d82)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
@@ -22,13 +22,14 @@
 > [!NOTE]
 > 這不是一個只會回覆隨機圖片的簡單插件。每位使用者都有穩定的每日結果、可持續累積的永久圖鑑、跨日記錄與群聊玩法；管理員則擁有獨立的數據、資源及存儲工作台。
 
-## 3.6.4 版本亮點
+## 3.6.5 版本亮點
 
-| 修復 | 說明 |
+| 修復／加固 | 說明 |
 | --- | --- |
-| 🐷 公共豬源兼容恢復 | 修復 v3.4 切換預設資源源時只帶入 99 隻小豬的內容縮水；官方源現在以切源前固定 199-ID 快照作兼容下限，再疊加 AstrBot 現有內容 |
-| 🖼️ QQ 圖鑑投遞修復 | NapCat/NTQQ 已把 `/我的豬圈` 圖片送達、但 `sendMsg` ACK 超時返回 retcode=1200 時，不再誤報「圖鑑生成失敗」或重試造成重複圖片 |
-| 📚 永久頁碼修復 | `/我的豬圈` 頁數校驗改以永久 display catalog 為準，歷史保留卡存在時最後頁不會被 active catalog 頁數提前擋掉 |
+| 🔔 群日報改為 opt-in | 群組自動推送預設關閉；只有群主、群管理員或 AstrBot 管理員使用 `/豬圈日報 開啟` 後才會在自然日結束前推送，並提供 `關閉` / `狀態` |
+| 📊 日報資料更可解釋 | 所有豬都只出現一次時不再硬選「最熱門」；歷史只有總量、缺少人物事件明細的烤豬資料會明確標註，避免名人堂看起來與總數矛盾 |
+| 🛡️ 公共源審核加固 | 修復審核圖片只顯示 🐽 fallback；加入名稱近似與 dHash 圖片疑似重複提示、敏感審核代理 CSRF、全局待審上限與 review service systemd sandbox |
+| 🧩 收藏身份邊界 | 新增 claim-aware `CollectionService`；只合併已證明屬於同一 logical user 的收藏 ownership，pig count 取 `max`，不把舊 fragment 的保底／總抽取統計算回目前狀態 |
 
 完整變更請閱讀 [CHANGELOG](CHANGELOG.md)；EX 成長格式見 [EX 差分手冊](docs/EX-VARIANTS.md)，資源使用方式見 [資源管理手冊](docs/RESOURCE-MANAGEMENT.md)，發佈與回退流程見 [豬源維護手冊](docs/RESOURCE-SOURCE-MAINTENANCE.md)。
 
