@@ -44,6 +44,22 @@ def test_mkdocs_and_admin_ui_use_the_same_wiki_origin():
         assert anchor in bootstrap
 
 
+def test_contextual_admin_docs_are_event_driven_without_continuous_watchers():
+    bootstrap = (ROOT / "pages" / "pig-manager" / "ui-bootstrap.js").read_text(
+        encoding="utf-8"
+    )
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "MutationObserver" not in bootstrap
+    assert "setInterval" not in bootstrap
+    assert "state.setResourceSyncFeedback" in bootstrap
+    assert "setResourceSyncFeedback?.(host,message)" in page
+    assert "查看猪源同步排障" in bootstrap
+    assert "查看管理页定向排障" in bootstrap
+
+
 def test_admin_troubleshooting_page_exposes_stable_deep_link_anchors():
     source = (ROOT / "docs" / "troubleshooting" / "admin.md").read_text(
         encoding="utf-8"
