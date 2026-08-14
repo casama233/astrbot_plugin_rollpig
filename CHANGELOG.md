@@ -1,5 +1,13 @@
 # 更新
 
+## 未發佈
+
+### 架構
+
+- 新增共用 `gameplay_events.py` Gameplay Event v1 契約；PR #51 的日報事件保持原 JSON 相容，並改由共用寫入／去重／讀取／裁剪函式管理。
+- `DailyReportMixin` 增加 `_record_gameplay_event()` 作為後續 EX 成長、預約烤豬與烤箱補貨的統一事件入口；原 `_record_daily_report_event()` 開關語義保持不變。
+- 新增 `docs/ARCHITECTURE.md`，記錄漸進式拆分與事件持久化邊界。
+
 ## v3.5.0 (2026-08-14)
 
 ### 版本主題：自己的公共豬源與審核工作流
