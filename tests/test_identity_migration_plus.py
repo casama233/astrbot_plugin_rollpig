@@ -166,7 +166,7 @@ def test_phase2_metadata_and_updater_use_new_identity():
     metadata = Path("metadata.yaml").read_text(encoding="utf-8")
     assert 'name: "astrbot_plugin_rollpig_plus"' in metadata
     assert 'author: "casama233"' in metadata
-    assert 'version: "3.6.5"' in metadata
+    assert 'version: "3.7.0"' in metadata
     updater = Path("updater.py").read_text(encoding="utf-8")
     assert 'name.group(1) != "astrbot_plugin_rollpig_plus"' in updater
     assert 'author.group(1).strip() != "casama233"' in updater
