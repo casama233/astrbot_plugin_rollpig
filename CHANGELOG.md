@@ -4,6 +4,22 @@
 
 - 暫無。
 
+## v3.6.4 (2026-08-14)
+
+### 版本主題：公共豬源兼容與 QQ 圖鑑投遞修復
+
+### 修復
+
+- 修復 v3.4.0 將舊 Felis 預設資源源切換到 AstrBot 專用源時，只以內置 99 隻小豬建立首版來源造成的內容縮水；固定 v3.4 cut-over 前最後一個 Felis RollPig 快照（199 IDs）作 compatibility floor，官方源必須保持其超集，同 ID 仍以目前 AstrBot canonical 資料與圖片為準。
+- 新增公共源兼容建構與 live canonical 原子遷移工具；CI 固定舊快照 commit / resource version / pig.json SHA-256，禁止跟隨可變 Felis main，並以 `miku-pig`、`wechat-pig`、`duke-pig` 作回歸哨兵。
+- 修復 QQ/NapCat/NTQQ 已實際送達 `/我的豬圈` 圖片，但等待 `NodeIKernelMsgService/sendMsg` 回執超時返回 `retcode=1200` 時，被誤報為「圖鑑圖片生成失敗」；此類 ACK timeout 現在視為投遞結果不確定，只記 warning、不重試、不發失敗提示，避免重複圖片。
+- `/我的豬圈` 將圖片渲染與消息投遞錯誤分離；真正 render error 與真正 send error 使用不同提示，且頁碼範圍改按永久 display catalog 計算。
+
+### 相容性
+
+- 可由 **v3.6.3 直接升級**；不修改 SQLite schema、玩家 ownership、EX count、保底、烤豬概率或 Resource Protocol 版本。
+- PR #68 identity-fragment merge 仍未包含；本版不引入烤箱 charge/refill 等新玩法。
+
 ## v3.6.3 (2026-08-14)
 
 ### 版本主題：永久收藏與架構穩定性收口
