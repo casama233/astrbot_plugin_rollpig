@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
-![Current Version](https://img.shields.io/badge/current-3.6.2-ef5d82)
+![Current Version](https://img.shields.io/badge/current-3.6.3-ef5d82)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
@@ -22,15 +22,15 @@
 > [!NOTE]
 > 這不是一個只會回覆隨機圖片的簡單插件。每位使用者都有穩定的每日結果、可持續累積的永久圖鑑、跨日記錄與群聊玩法；管理員則擁有獨立的數據、資源及存儲工作台。
 
-## 3.6.2 版本亮點
+## 3.6.3 版本亮點
 
-| 修復 | 改進 |
+| 修復 / 收口 | 說明 |
 | --- | --- |
-| 🧭 指令事件隔離 | RollPig 指令匹配後會停止繼續傳播，避免 `/今日小豬` 完成後又落入其他插件或 LLM |
-| 📊 日報衝突修復 | 移除 legacy `豬圈日報` 重複註冊，只保留完整統計海報實作 |
-| 🖼️ PigHub 缺圖自癒 | 歷史／本地 PigHub metadata 尚在但圖片遺失時，可由可信來源安全恢復圖片 |
-| 🔤 繁體字體修復 | AI 料理與繁體文案優先使用正式包內完整 CJK 字體，不再誤用 Pillow 預設字體 |
-| ☁️ Cloud cache 修復 | 已版本化但不完整的雲資源快取會在重啟後提前進行完整原子重同步 |
+| 🐷 永久豬圈歷史保留 | 已解鎖但退出現役公共豬源的歷史小豬會繼續出現在 `/我的豬圈`；它們不會重新進入抽池、搜尋或公共源 |
+| 📰 日報 reload 安全 | `/豬圈日報` 改由 live plugin instance 解析 sender，修復模組重載後零參 `super()` 可能觸發的 `TypeError` |
+| 🧭 指令入口正式收口 | 15 個 AstrBot command decorator 全部由真正 `main.py` Star 入口持有，priority=1000，已移除 v3.6.2 runtime rebind workaround |
+| 🧱 讀取 / Renderer 邊界 | Catalog、ResourceRead、單豬卡、圖鑑、週報與料理卡已拆為 service / renderer 邊界，`legacy_main.py` 不再重複持有這些策略 |
+| 🔥 烤豬規則單一來源 | 普通烤群友與預約烤豬共用 `RoastService` 的 60/30/10 policy；日報只觀察 outcome event，不再複製完整玩法流程 |
 
 完整變更請閱讀 [CHANGELOG](CHANGELOG.md)；EX 成長格式見 [EX 差分手冊](docs/EX-VARIANTS.md)，資源使用方式見 [資源管理手冊](docs/RESOURCE-MANAGEMENT.md)，發佈與回退流程見 [豬源維護手冊](docs/RESOURCE-SOURCE-MAINTENANCE.md)。
 
@@ -208,8 +208,8 @@ manifest 格式、安全限制與故障排查請看 [資源管理手冊](docs/RE
 
 ## 升級策略
 
-- **v3.2.0+ → v3.6.2**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
-- **v3.1.4 或更早增強版 → v3.6.2**：先完成獨立身份遷移，再確認新資料正常。
+- **v3.2.0+ → v3.6.3**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
+- **v3.1.4 或更早增強版 → v3.6.3**：先完成獨立身份遷移，再確認新資料正常。
 - **原版與增強版同時存在**：系統只提示衝突，不會擅自停用或刪除另一個插件。
 - **舊 nonebot 源配置**：精確匹配失效舊地址時會遷移到 AstrBot v1 專用源；其他自訂私人 URL 保持不變。
 
