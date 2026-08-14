@@ -26,6 +26,7 @@ class HelpFeatureState:
     enable_roast: bool = True
     enable_group_roast: bool = True
     enable_roast_reservation: bool = True
+    enable_oven_refill: bool = True
     enable_group_eat: bool = True
     enable_roast_protection: bool = True
     enable_ai_roast_copy: bool = False
@@ -86,6 +87,13 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
                 HelpEntry("/打点后厨 @某人", "后门别名每日一次；超管可用 /强行点火"),
             ]
         )
+        if state.enable_oven_refill:
+            group_entries.extend(
+                [
+                    HelpEntry("/烤箱补货", "发起本群今日活跃玩家的协作补货；发起者自动添煤"),
+                    HelpEntry("/添煤", "支持当前补货轮次；达标后活跃玩家各恢复 +1 格能量"),
+                ]
+            )
 
     if state.enable_group_eat:
         group_entries.extend(
@@ -135,6 +143,10 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
                 f"默认最多 {max(1, int(state.group_roast_max_charges))} 格，按群独立自然恢复",
                 kind="feature",
             )
+        )
+    if group_roast_enabled and state.enable_oven_refill:
+        mechanics.append(
+            HelpEntry("群体补货", "本群今日活跃玩家协作达标后各恢复 +1 格能量", kind="feature")
         )
     if group_roast_enabled and state.enable_roast_reservation:
         mechanics.append(
