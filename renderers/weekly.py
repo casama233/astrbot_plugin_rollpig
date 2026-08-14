@@ -9,7 +9,7 @@ from typing import Mapping, Sequence
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 
-from .common import ImageResolver, fit_card_image, get_text_size
+from .common import ImageResolver, fit_card_image, get_text_size, save_png
 
 
 @dataclass(frozen=True)
@@ -141,5 +141,5 @@ def render_weekly_summary(
     )
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         output = Path(tmp.name)
-    canvas.save(output, "PNG", optimize=True)
+    save_png(canvas, output)
     return output

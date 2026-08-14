@@ -45,7 +45,8 @@ try:
     )
     from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
-    from .services import CatalogService, DrawService, ResourceReadService, RoastService
+    from .roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from .services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from .renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -69,7 +70,8 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     )
     from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
-    from services import CatalogService, DrawService, ResourceReadService, RoastService
+    from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -143,7 +145,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.6.4 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.6.5 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -253,6 +255,11 @@ class RollPigPlugin(Star):
         self.group_roast_cooldown_seconds = int(
             min(72, max(1, cooldown_hours)) * 60 * 60
         )
+        try:
+            max_roast_charges = int(self.config.get("group_roast_max_charges", 2))
+        except (TypeError, ValueError):
+            max_roast_charges = 2
+        self.group_roast_max_charges = min(5, max(1, max_roast_charges))
         image_theme = str(self.config.get("image_theme", "auto") or "auto").lower()
         self.image_theme = image_theme if image_theme in {"auto", "light", "dark"} else "auto"
         self.resource_sync_enabled = self.config.get("resource_sync_enabled", True)
@@ -373,6 +380,7 @@ class RollPigPlugin(Star):
             daily_duplicate_pity_max_percent=self.daily_duplicate_pity_max_percent,
         )
         self.catalog_service = CatalogService(page_size=self.CATALOG_PAGE_SIZE)
+        self.collection_service = CollectionService()
         self.resource_read_service = ResourceReadService(
             image_extensions=tuple(self.IMAGE_EXTENSIONS)
         )
@@ -425,6 +433,7 @@ class RollPigPlugin(Star):
         roast_default = {
             "version": 1,
             "cooldowns": {},
+            "roast_charges": {},
             "daily_backdoors": {},
             "daily_roast_counts": {},
             "eaten_penalties": {},
@@ -715,13 +724,23 @@ class RollPigPlugin(Star):
         return tuple(candidates)
 
     def _user_read_candidates(self, user_id: str) -> tuple[str, ...]:
-        """Return only identity keys that belong to the current platform claim."""
+        """Return only identity fragments proven to belong to this logical user."""
         candidates = self._identity_candidates(str(user_id))
         if len(candidates) == 1:
             return candidates
         namespaced = candidates[0]
         storage_key = self._storage_user_key(namespaced)
-        return tuple(dict.fromkeys((namespaced, storage_key)))
+        claims_root = getattr(self, "history", {}).get("identity_claims", {})
+        user_claims = (
+            claims_root.get("users", {})
+            if isinstance(claims_root, dict)
+            else {}
+        )
+        return self.collection_service.claimed_read_candidates(
+            candidates,
+            user_claims,
+            preferred_storage_key=storage_key,
+        )
 
     def _claim_legacy_identity(
         self,
@@ -831,11 +850,14 @@ class RollPigPlugin(Star):
             header = str(request_obj.headers.get("X-RollPig-CSRF", "") or "")
             if header:
                 return header
-            return (
-                str(payload.get("__rollpig_csrf", "") or "")
-                if isinstance(payload, dict)
-                else ""
-            )
+            if isinstance(payload, dict):
+                token = str(payload.get("__rollpig_csrf", "") or "")
+                if token:
+                    return token
+            query = getattr(request_obj, "query", None)
+            if query is not None:
+                return str(query.get("__rollpig_csrf", "") or "")
+            return ""
         except Exception:
             return ""
 
@@ -2115,15 +2137,19 @@ class RollPigPlugin(Star):
 
     def _get_user_collection(self, user_id: str) -> dict:
         candidates = tuple(self._user_read_candidates(str(user_id)))
+        fragments: list[dict] = []
         if getattr(self.storage, "supports_domain_reads", False):
-            stored = self.storage.get_user_collection(candidates)
-            return stored or {}
+            for candidate in candidates:
+                stored = self.storage.get_user_collection((candidate,))
+                if isinstance(stored, dict) and stored:
+                    fragments.append(stored)
+            return self.collection_service.merge_ownership(fragments)
         users = self.history.get("users", {})
         for candidate in candidates:
             user = users.get(candidate, {})
             if isinstance(user, dict) and user:
-                return user
-        return {}
+                fragments.append(user)
+        return self.collection_service.merge_ownership(fragments)
 
     def _reload_catalog(self):
         self.pig_list = self.load_json(self.catalog_path, [])
@@ -2675,34 +2701,80 @@ class RollPigPlugin(Star):
     def _save_roast_state(self) -> None:
         self.save_json(self.roast_state_path, self.roast_state)
 
-    async def _consume_group_roast_cooldown(
+    async def _consume_group_roast_charge(
         self, group_id: str, actor_id: str
-    ) -> int:
-        """记录一次普通烤群友，返回剩余冷却秒数；0 表示已成功占用。"""
+    ) -> dict[str, object]:
+        """Consume one user × group oven charge using one shared token policy."""
         storage_actor = self._storage_user_key(str(actor_id))
+        now_value = time.time()
         if getattr(self.storage, "supports_domain_writes", False):
             result = await asyncio.to_thread(
-                self.storage.consume_roast_cooldown,
+                self.storage.consume_roast_charge,
                 group_id=str(group_id),
                 actor_id=storage_actor,
-                now=time.time(),
-                cooldown_seconds=self.group_roast_cooldown_seconds,
+                now=now_value,
+                max_charges=self.group_roast_max_charges,
+                recovery_seconds=self.group_roast_cooldown_seconds,
             )
             roast_state = result.get("roast_state")
             if isinstance(roast_state, dict):
                 self.roast_state = roast_state
-            return int(result.get("remaining", 0) or 0)
+            return dict(result)
+
         key = f"{group_id}:{storage_actor}"
-        now = time.time()
         with self._data_lock:
-            cooldowns = self.roast_state.setdefault("cooldowns", {})
-            previous = float(cooldowns.get(key, 0) or 0)
-            remaining = int(previous + self.group_roast_cooldown_seconds - now)
-            if remaining > 0:
-                return remaining
-            cooldowns[key] = now
+            charge_states = self.roast_state.setdefault("roast_charges", {})
+            if not isinstance(charge_states, dict):
+                charge_states = {}
+                self.roast_state["roast_charges"] = charge_states
+            entry = charge_states.get(key)
+            if not isinstance(entry, dict):
+                cooldowns = self.roast_state.setdefault("cooldowns", {})
+                legacy_last_used = (
+                    float(cooldowns.get(key, 0) or 0)
+                    if isinstance(cooldowns, dict)
+                    else 0
+                )
+                entry = bootstrap_legacy_cooldown(
+                    legacy_last_used,
+                    now=now_value,
+                    max_charges=self.group_roast_max_charges,
+                    recovery_seconds=self.group_roast_cooldown_seconds,
+                )
+            result = consume_roast_charge_state(
+                entry,
+                now=now_value,
+                max_charges=self.group_roast_max_charges,
+                recovery_seconds=self.group_roast_cooldown_seconds,
+            )
+            charge_states[key] = {
+                "charges": int(result.get("charges", 0) or 0),
+                "refill_anchor": float(result.get("refill_anchor", now_value) or now_value),
+            }
+            if result.get("consumed"):
+                self.roast_state.setdefault("cooldowns", {})[key] = now_value
             self._save_roast_state()
-        return 0
+        return dict(result)
+
+    async def _consume_group_roast_cooldown(
+        self, group_id: str, actor_id: str
+    ) -> int:
+        """Deprecated compatibility facade over the charge system."""
+        status = await self._consume_group_roast_charge(group_id, actor_id)
+        return (
+            0
+            if status.get("consumed")
+            else int(status.get("next_refill_seconds", 0) or 0)
+        )
+
+    @staticmethod
+    def _roast_charge_note(status: dict[str, object] | None) -> str:
+        if not status:
+            return ""
+        return (
+            f"\n🔥 烤箱能量：{int(status.get('charges', 0) or 0)}/"
+            f"{int(status.get('max_charges', 0) or 0)}"
+        )
 
     @staticmethod
     def _roast_count_key(draw_date: str, group_id: str, user_id: str) -> str:
@@ -3297,18 +3369,21 @@ class RollPigPlugin(Star):
                 event.plain_result(self._roast_protection_message(roast_count))
             )
             return
+        charge_status: dict[str, object] | None = None
         if not bypass:
-            remaining = await self._consume_group_roast_cooldown(
-                group_id, actor_id
-            )
-            if remaining:
+            charge_status = await self._consume_group_roast_charge(group_id, actor_id)
+            if not charge_status.get("consumed"):
+                remaining = int(charge_status.get("next_refill_seconds", 0) or 0)
                 await event.send(
                     event.plain_result(
-                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再试。"
+                        "🔥 烤箱能量已耗尽（"
+                        f"0/{self.group_roast_max_charges}）；下一格将在 "
+                        f"{self._format_cooldown(remaining)} 后恢复。"
                     )
                 )
                 return
 
+        charge_note = self._roast_charge_note(charge_status)
         result = self.roast_service.choose_group_roast_outcome(bypass=bypass)
         if result == "escape":
             self._record_roast_outcome_event(
@@ -3318,7 +3393,7 @@ class RollPigPlugin(Star):
                 target_id=target_id,
             )
             await event.send(
-                event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。")
+                event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。" + charge_note)
             )
             return
         if result == "backlash":
@@ -3336,11 +3411,12 @@ class RollPigPlugin(Star):
                 await event.send(
                     event.plain_result(
                         "🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"
+                        + charge_note
                     )
                 )
                 return
             await event.send(
-                event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。")
+                event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。" + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
@@ -3355,7 +3431,7 @@ class RollPigPlugin(Star):
         )
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
         await event.send(
-            event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。")
+            event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。" + charge_note)
         )
         await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
@@ -5333,6 +5409,8 @@ class RollPigPlugin(Star):
     async def page_public_source_reviews(self):
         """Only the maintainer instance may list the server-side review queue."""
         try:
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             if not self._public_source_admin_token():
                 return self._jsonify(
                     {"status": "ok", "data": {"enabled": False, "items": []}}
@@ -5356,7 +5434,9 @@ class RollPigPlugin(Star):
     async def page_public_source_review_image(self):
         """Proxy one review image without exposing the maintainer token."""
         try:
-            submission_id = str(request.args.get("id") or "").strip()
+            if not self._is_authorized_write_request(request):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            submission_id = str(request.query.get("id") or "").strip()
             data = await self._public_source_review_image_payload(submission_id)
             return self._jsonify({"status": "ok", "data": data})
         except ValueError as exc:
