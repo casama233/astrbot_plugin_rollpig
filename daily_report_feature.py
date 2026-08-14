@@ -1393,6 +1393,7 @@ class DailyReportMixin:
     )
     async def pigsty_daily_report(self, event: AstrMessageEvent):
         """Render the current group's rich report; manual views never sacrifice."""
+        self._claim_command_event(event)
         if not self.enable_daily_report:
             await event.send(event.plain_result("猪圈日报功能已在配置中关闭。"))
             return

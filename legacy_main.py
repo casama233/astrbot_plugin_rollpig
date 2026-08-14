@@ -360,6 +360,7 @@ class RollPigPlugin(Star):
         self._public_source_submit_lock = asyncio.Lock()
         self._daily_draw_lock = asyncio.Lock()
         self._ai_roast_copy_locks: dict[str, asyncio.Lock] = {}
+        self._pig_image_repair_locks: dict[str, asyncio.Lock] = {}
         self._csrf_token = secrets.token_urlsafe(32)
         self._background_task: asyncio.Task | None = None
         self._manual_sync_task: asyncio.Task | None = None
@@ -1635,14 +1636,22 @@ class RollPigPlugin(Star):
                 if staging.exists():
                     shutil.rmtree(staging, ignore_errors=True)
 
+    def _cloud_cache_needs_repair(self) -> bool:
+        state = self._cloud_state()
+        return bool(str(state.get("resource_version") or "")) and self._load_cloud_pigs() is None
+
     async def _background_resource_sync(self):
         try:
-            await asyncio.sleep(random.randint(30, 120))
+            damaged_cache = self._cloud_cache_needs_repair()
+            await asyncio.sleep(5 if damaged_cache else random.randint(30, 120))
             while True:
                 try:
                     state = self._cloud_state()
                     due = time.time() - float(state.get("synced_at") or 0)
-                    if due >= self.resource_sync_interval_hours * 3600:
+                    if self._cloud_cache_needs_repair():
+                        logger.warning("检测到云资源缓存不完整，立即尝试原子重新同步")
+                        await self.sync_cloud_resources(force=True)
+                    elif due >= self.resource_sync_interval_hours * 3600:
                         await self.sync_cloud_resources()
                 except asyncio.CancelledError:
                     raise
@@ -3885,7 +3894,7 @@ class RollPigPlugin(Star):
                     ("/随机烤群友", "从今天在本群抽过猪的群友中随机挑选"),
                     ("/吃群友 @某人", f"{self.eat_success_percent}%成功；失败会把自己吃掉，保护同样生效"),
                     ("/随机吃群友", "随机点名可吃群友；成功或失败都会出现吃掉状态"),
-                    ("/猪圈日报", "显示今日抽猪、被吃人数与随机「可怜被吃」"),
+                    ("/猪圈日报", "显示完整统计海报与今日群聊称号"),
                     ("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
                 ],
             ),
@@ -3947,6 +3956,13 @@ class RollPigPlugin(Star):
         canvas.save(output, "PNG")
         return output
 
+    @staticmethod
+    def _claim_command_event(event: AstrMessageEvent) -> None:
+        """Claim a matched RollPig command so it cannot fall through to other plugins/LLM."""
+        stopper = getattr(event, "stop_event", None)
+        if callable(stopper):
+            stopper()
+
     def get_at_ids(self, event: AstrMessageEvent) -> list[str]:
         """获取统一 At 段与原生 mentions 中的用户 ID，并排除机器人自身。"""
         try:
@@ -3976,6 +3992,7 @@ class RollPigPlugin(Star):
     )
     async def rollpig_help(self, event: AstrMessageEvent):
         """展示今日小猪的完整指令说明。"""
+        self._claim_command_event(event)
         output = None
         try:
             output = self.render_help_image()
@@ -4002,6 +4019,7 @@ class RollPigPlugin(Star):
     )
     async def roll_pig(self, event: AstrMessageEvent):
         """Draw for self; mentioning another user is strictly read-only."""
+        self._claim_command_event(event)
         today_str = self._today().isoformat()
         actor_id = self._event_sender_id(event)
         target_id = actor_id
@@ -4144,6 +4162,7 @@ class RollPigPlugin(Star):
     )
     async def my_pigsty(self, event: AstrMessageEvent, args: str = ""):
         """查看永久解锁的小猪图鉴，可附带页码。"""
+        self._claim_command_event(event)
         page = 1
         raw = str(args or "").strip()
         if raw:
@@ -4183,6 +4202,7 @@ class RollPigPlugin(Star):
     @filter.command("昨日小猪", alias={"昨日小豬", "昨天小猪", "昨天小豬"})
     async def yesterday_pig(self, event: AstrMessageEvent):
         """查看昨天抽到的小猪。"""
+        self._claim_command_event(event)
         pig = self._get_daily_pig(
             self._event_sender_id(event), self._today() - datetime.timedelta(days=1)
         )
@@ -4200,6 +4220,7 @@ class RollPigPlugin(Star):
     @filter.command("明日小猪", alias={"明日小豬", "明天小猪", "明天小豬"})
     async def tomorrow_pig(self, event: AstrMessageEvent):
         """给出每天固定、但不会提前解锁图鉴的明日预测。"""
+        self._claim_command_event(event)
         if not self.pig_list:
             await event.send(event.plain_result("小猪图鉴为空。"))
             return
@@ -4227,6 +4248,7 @@ class RollPigPlugin(Star):
     )
     async def weekly_pigs(self, event: AstrMessageEvent):
         """生成本周七日抽取总结。"""
+        self._claim_command_event(event)
         output = None
         try:
             output = await asyncio.to_thread(
@@ -4246,6 +4268,7 @@ class RollPigPlugin(Star):
     )
     async def random_pigs(self, event: AstrMessageEvent, args: str = ""):
         """从本地图鉴随机展示 1-9 只小猪，不影响每日抽取。"""
+        self._claim_command_event(event)
         raw = str(args or "").strip()
         try:
             amount = int(raw.split()[0]) if raw else 1
@@ -4271,6 +4294,7 @@ class RollPigPlugin(Star):
     @filter.command("找猪", alias={"找豬", "搜猪", "搜豬"})
     async def find_pigs(self, event: AstrMessageEvent, keyword: str = ""):
         """在管理员维护的本地图鉴内搜索。"""
+        self._claim_command_event(event)
         query = str(keyword or "").strip().lower()
         if not query:
             await event.send(event.plain_result("请输入关键词，例如：/找猪 玩偶"))
@@ -4303,6 +4327,7 @@ class RollPigPlugin(Star):
     @filter.command("今日烤猪", alias={"今日烤豬", "烤猪", "烤豬"})
     async def roast_today_pig(self, event: AstrMessageEvent):
         """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
+        self._claim_command_event(event)
         if not self.enable_roast:
             await event.send(event.plain_result("今日烤猪功能已在配置中关闭。"))
             return
@@ -4319,6 +4344,7 @@ class RollPigPlugin(Star):
     @filter.command("烤群友", alias={"烤群友"})
     async def roast_group_member(self, event: AstrMessageEvent, args: str = ""):
         """在群聊中烧烤 @ 目标或引用消息的发送者。"""
+        self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
             await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
             return
@@ -4328,6 +4354,7 @@ class RollPigPlugin(Star):
     @filter.command("随机烤群友", alias={"隨機烤群友"})
     async def roast_random_group_member(self, event: AstrMessageEvent):
         """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
+        self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
             await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
             return
@@ -4359,6 +4386,7 @@ class RollPigPlugin(Star):
     @filter.command("吃群友", alias={"吃群友"})
     async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
         """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
+        self._claim_command_event(event)
         if not self.enable_group_eat:
             await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
             return
@@ -4368,6 +4396,7 @@ class RollPigPlugin(Star):
     @filter.command("随机吃群友", alias={"隨機吃群友"})
     async def eat_random_group_member(self, event: AstrMessageEvent):
         """从当天当前群可被吃的成员中随机选择一位。"""
+        self._claim_command_event(event)
         if not self.enable_group_eat:
             await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
             return
@@ -4400,8 +4429,7 @@ class RollPigPlugin(Star):
         await self._send_with_mention(event, target_id, " 🎲 被随机吃群友盯上了。")
         await self._eat_group_target(event, target_id)
 
-    @filter.command("猪圈日报", alias={"豬圈日報", "今日猪圈日报", "今日豬圈日報"})
-    async def pigsty_daily_report(self, event: AstrMessageEvent):
+    async def _legacy_pigsty_daily_report(self, event: AstrMessageEvent):
         """输出当前群当天的简要猪圈日报，并随机点名一位可怜被吃。"""
         group_id = self._event_group_id(event)
         if not group_id:
@@ -4438,6 +4466,7 @@ class RollPigPlugin(Star):
         self, event: AstrMessageEvent, args: str = ""
     ):
         """后门口令：绕过烤群友冷却与概率，但不绕过资格限制。"""
+        self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
             await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
             return
@@ -4469,6 +4498,44 @@ class RollPigPlugin(Star):
             return
         await self._roast_group_target(event, target_id, bypass=True)
 
+    async def _repair_missing_pig_image(self, pig_data: dict) -> bool:
+        """Best-effort restore of a missing local PigHub image from its trusted source URL."""
+        pig_id = str(pig_data.get("id") or "").strip()
+        source_url = str(pig_data.get("source_url") or "").strip()
+        if not pig_id or not source_url:
+            return False
+        try:
+            self._validate_pighub_image_url(source_url)
+        except ValueError:
+            return False
+
+        # Avoid warning-only find_image_file calls while merely probing for repair.
+        for ext in self.IMAGE_EXTENSIONS:
+            if (self.custom_image_dir / f"{pig_id}.{ext}").exists():
+                return False
+        for directory in (self.resource_active_dir / "images", self.image_dir):
+            for ext in self.IMAGE_EXTENSIONS:
+                if (directory / f"{pig_id}.{ext}").exists():
+                    return False
+
+        lock = self._pig_image_repair_locks.setdefault(pig_id, asyncio.Lock())
+        async with lock:
+            for ext in self.IMAGE_EXTENSIONS:
+                if (self.custom_image_dir / f"{pig_id}.{ext}").exists():
+                    return False
+            try:
+                raw = await self._download_pighub_image(source_url)
+                normalized = await asyncio.to_thread(self._normalise_image_bytes, raw)
+                await asyncio.to_thread(self._write_custom_image, pig_id, normalized)
+                logger.info(f"已从 PigHub 自动恢复缺失的小猪图片：{pig_id}")
+                return True
+            except Exception as exc:
+                logger.warning(
+                    f"PigHub 小猪图片自动恢复失败，继续使用无图降级：{pig_id} "
+                    f"({self._describe_sync_error(exc)})"
+                )
+                return False
+
     async def send_rendered_pig(
         self,
         event: AstrMessageEvent,
@@ -4478,6 +4545,7 @@ class RollPigPlugin(Star):
         fallback_title: str = "今日小猪",
     ):
         """合成并发送小猪图片"""
+        await self._repair_missing_pig_image(pig_data)
         # 仅在图片尚未进入适配器发送流程时降级。适配器超时并不代表消息
         # 一定未投递；若此时补发 fallback，慢适配器稍后成功时就会重复消息。
         try:
