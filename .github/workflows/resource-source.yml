@@ -6,12 +6,16 @@ on:
     paths:
       - "resource/**"
       - "scripts/build_resource_source.py"
+      - "scripts/prepare_resource_catalog.py"
+      - "scripts/migrate_public_source_compat.py"
       - ".github/workflows/resource-source.yml"
   pull_request:
     branches: [main]
     paths:
       - "resource/**"
       - "scripts/build_resource_source.py"
+      - "scripts/prepare_resource_catalog.py"
+      - "scripts/migrate_public_source_compat.py"
       - ".github/workflows/resource-source.yml"
   workflow_dispatch:
 
@@ -24,6 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout frozen pre-v3.4 compatibility source
+        uses: actions/checkout@v4
+        with:
+          repository: Felis2026/rollpig-resources
+          ref: 17ac1586a91c33995883803a55e2f755047f6e1f
+          path: _compat/rollpig-resources
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -32,22 +43,53 @@ jobs:
       - name: Install image validator
         run: python -m pip install -r requirements.txt
 
+      - name: Restore compatibility floor
+        run: |
+          python scripts/prepare_resource_catalog.py \
+            --primary resource \
+            --compat _compat/rollpig-resources/rollpig \
+            --output dist/merged-resource
+
       - name: Build validated AstrBot source
         env:
           RESOURCE_VERSION: ${{ github.sha }}
         run: |
           python scripts/build_resource_source.py \
-            --source resource \
+            --source dist/merged-resource \
             --output dist/astrbot-rollpig-source \
             --version "git-${RESOURCE_VERSION:0:12}"
           python -m json.tool dist/astrbot-rollpig-source/manifest.json >/dev/null
           test -f dist/astrbot-rollpig-source/health.json
           test -d dist/astrbot-rollpig-source/images
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          records = json.loads(Path("dist/astrbot-rollpig-source/pig.json").read_text(encoding="utf-8"))
+          ids = {item["id"] for item in records}
+          required = {"miku-pig", "wechat-pig", "duke-pig"}
+          missing = required - ids
+          if missing:
+              raise SystemExit(f"pre-v3.4 compatibility sentinels missing: {sorted(missing)}")
+          floor = json.loads(Path("dist/merged-resource/compatibility_floor.json").read_text(encoding="utf-8"))
+          floor_ids = set(floor["ids"])
+          if not floor_ids <= ids:
+              raise SystemExit("official source shrank below the frozen compatibility floor")
+          print(f"compatibility floor: {len(floor_ids)} ids; published: {len(ids)} ids")
+          PY
 
       - name: Upload deployable source artifact
         uses: actions/upload-artifact@v4
         with:
           name: astrbot-rollpig-source-${{ github.sha }}
           path: dist/astrbot-rollpig-source/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload migrated canonical catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: astrbot-rollpig-canonical-${{ github.sha }}
+          path: dist/merged-resource/
           if-no-files-found: error
           retention-days: 14
