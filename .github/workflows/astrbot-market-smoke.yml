@@ -122,8 +122,8 @@ jobs:
           # WakingCheck removes the configured wake prefix before CommandFilter sees
           # the string, so these are deliberately tested without a leading slash.
           matrix = {
-              "猪圈日报": ("pigsty_daily_report", {}),
-              "豬圈日報": ("pigsty_daily_report", {}),
+              "猪圈日报": ("pigsty_daily_report", {"args": ""}),
+              "豬圈日報": ("pigsty_daily_report", {"args": ""}),
               "猪圈日报 状态": ("pigsty_daily_report", {"args": "状态"}),
               "豬圈日報 狀態": ("pigsty_daily_report", {"args": "狀態"}),
               "猪圈日报 狀態": ("pigsty_daily_report", {"args": "狀態"}),
