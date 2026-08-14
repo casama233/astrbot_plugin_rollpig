@@ -11,6 +11,7 @@
 | [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 全配置說明、預設值與建議 |
 | [`EX-VARIANTS.md`](EX-VARIANTS.md) | EX Lv.1–5 稀疏差分、圖片／描述／文案繼承與 v1 資源擴展 |
 | [`DAILY-REPORT.md`](DAILY-REPORT.md) | 豬圈日報統計、稱號、自動推送、補發與可選祭品 |
+| [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md) | 預約烤豬、添柴、一次性觸發與 Gameplay Event |
 | [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、自建公共源投稿審核與同步排錯 |
 | [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、協議閘門、部署與回退 |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Gameplay Event v1、薄入口與漸進式模組拆分邊界 |

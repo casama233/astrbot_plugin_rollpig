@@ -33,15 +33,21 @@
 | 配置鍵 | 類型 | 預設 | 有效值／範圍 | 說明 |
 | --- | --- | --- | --- | --- |
 | `enable_roast` | bool | `true` | `true` / `false` | 烤豬總開關；關閉後今日烤豬與烤群友相關流程不可用。 |
-| `enable_group_roast` | bool | `true` | `true` / `false` | 群聊烤群友玩法開關，包括普通、隨機與後門口令。 |
+| `enable_group_roast` | bool | `true` | `true` / `false` | 群聊烤群友玩法開關，包括普通、預約、隨機與後門口令。 |
+| `enable_roast_reservation` | bool | `true` | `true` / `false` | 明確 `/烤群友 @尚未抽豬目標` 時建立同群當日預約；隨機／後門不建立。 |
+| `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約包含固定主廚在內的最大參與人數；後續添柴不消耗自己的普通冷卻。 |
 | `enable_group_eat` | bool | `true` | `true` / `false` | 吃群友與隨機吃群友開關。 |
 | `eat_success_percent` | int | `15` | `1-80` | 吃群友成功率。失敗時發起者會變成當天的「吃掉了」。 |
 | `eaten_next_day_failure_percent` | int | `20` | `1-80` | 今天被成功吃掉後，次日第一次抽豬失敗的概率。若判定失敗，當天維持無法抽取直到下一日。 |
-| `group_roast_cooldown_hours` | float | `8` | `1-72` | 普通烤群友按「發起者 + 群組」計算的冷卻時間。後門口令可繞過。 |
+| `group_roast_cooldown_hours` | float | `8` | `1-72` | 普通烤群友按「發起者 + 群組」計算冷卻；第一位主廚建立預約時消耗一次，添柴與預約觸發不重複扣除。後門可繞過。 |
 | `enable_roast_protection` | bool | `true` | `true` / `false` | 啟用「昨日被烤過多 → 今日保護」機制。 |
 | `roast_protection_threshold` | int | `3` | `1-20` | 同一群中，昨日實際被烤次數達到此值後，今日普通烤群友會被阻擋；吃群友選目標時也尊重保護。 |
 | `enable_ai_roast_copy` | bool | `false` | `true` / `false` | 嘗試用當前會話模型生成料理文案；不可用、超時或失敗時回退本地模板。 |
 | `ai_generation_timeout_seconds` | float | `45` | `5-120` | AI 文案調用超時。超時不會阻塞整個烤豬流程，而是回退本地文案。 |
+
+### 預約烤豬建議
+
+預約只在明確指定未抽豬目標時建立。主廚先支付普通冷卻，目標在同群顯示自己的今日小豬時才結算；添柴不增加成功率。詳細行為見 [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md)。
 
 ### AI 文案成本與節流
 

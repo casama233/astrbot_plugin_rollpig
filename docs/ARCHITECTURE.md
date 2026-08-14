@@ -29,7 +29,7 @@
 事件層同時預留下一階段的穩定名稱，包括：
 
 - 收藏：`draw_completed`、`pig_unlocked`、`ex_level_up`、`pity_triggered`；
-- 預約烤豬：`roast_reservation_created/joined/triggered/cancelled`；
+- 預約烤豬：已啟用 `roast_reservation_created/joined/triggered`；`roast_reservation_cancelled` 保留給未來顯式取消流程；
 - 烤箱補貨：`oven_refill_started/supported/succeeded/failed`。
 
 預留名稱只建立契約，不代表對應玩法已經啟用。
