@@ -45,7 +45,7 @@ try:
     )
     from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
-    from .services import CatalogService, DrawService, ResourceReadService, RoastService
+    from .services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from .renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -69,7 +69,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     )
     from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
-    from services import CatalogService, DrawService, ResourceReadService, RoastService
+    from services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -373,6 +373,7 @@ class RollPigPlugin(Star):
             daily_duplicate_pity_max_percent=self.daily_duplicate_pity_max_percent,
         )
         self.catalog_service = CatalogService(page_size=self.CATALOG_PAGE_SIZE)
+        self.collection_service = CollectionService()
         self.resource_read_service = ResourceReadService(
             image_extensions=tuple(self.IMAGE_EXTENSIONS)
         )
@@ -715,13 +716,23 @@ class RollPigPlugin(Star):
         return tuple(candidates)
 
     def _user_read_candidates(self, user_id: str) -> tuple[str, ...]:
-        """Return only identity keys that belong to the current platform claim."""
+        """Return only identity fragments proven to belong to this logical user."""
         candidates = self._identity_candidates(str(user_id))
         if len(candidates) == 1:
             return candidates
         namespaced = candidates[0]
         storage_key = self._storage_user_key(namespaced)
-        return tuple(dict.fromkeys((namespaced, storage_key)))
+        claims_root = getattr(self, "history", {}).get("identity_claims", {})
+        user_claims = (
+            claims_root.get("users", {})
+            if isinstance(claims_root, dict)
+            else {}
+        )
+        return self.collection_service.claimed_read_candidates(
+            candidates,
+            user_claims,
+            preferred_storage_key=storage_key,
+        )
 
     def _claim_legacy_identity(
         self,
@@ -2115,15 +2126,19 @@ class RollPigPlugin(Star):
 
     def _get_user_collection(self, user_id: str) -> dict:
         candidates = tuple(self._user_read_candidates(str(user_id)))
+        fragments: list[dict] = []
         if getattr(self.storage, "supports_domain_reads", False):
-            stored = self.storage.get_user_collection(candidates)
-            return stored or {}
+            for candidate in candidates:
+                stored = self.storage.get_user_collection((candidate,))
+                if isinstance(stored, dict) and stored:
+                    fragments.append(stored)
+            return self.collection_service.merge_ownership(fragments)
         users = self.history.get("users", {})
         for candidate in candidates:
             user = users.get(candidate, {})
             if isinstance(user, dict) and user:
-                return user
-        return {}
+                fragments.append(user)
+        return self.collection_service.merge_ownership(fragments)
 
     def _reload_catalog(self):
         self.pig_list = self.load_json(self.catalog_path, [])
