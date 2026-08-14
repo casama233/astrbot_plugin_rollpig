@@ -4,13 +4,15 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py']
+HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py', 'oven_charge_feature.py']
 EXPECTED = {
     "eat_group_member",
     "eat_random_group_member",
     "find_pigs",
     "force_roast_group_member",
     "my_pigsty",
+    "oven_refill",
+    "oven_refill_support",
     "pigsty_daily_report",
     "random_pigs",
     "roast_group_member",
