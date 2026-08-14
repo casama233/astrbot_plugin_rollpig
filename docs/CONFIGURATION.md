@@ -11,8 +11,18 @@
 | --- | --- | --- | --- | --- |
 | `at_view_pig` | bool | `false` | `true` / `false` | 允許 `/今日小豬 @某人` 只讀查看對方今日結果。對方未抽取時不會替對方抽。 |
 | `enable_new_pig_pity` | bool | `true` | `true` / `false` | 啟用連續抽到已解鎖小豬後的「新豬保底」。 |
-| `pity_step_percent` | int | `15` | `0-50` | 每連續重複一次，下一次重抽未解鎖小豬的概率增量百分點。設為 `0` 等同保留機制但不增加概率。 |
+| `pity_step_percent` | int | `15` | `0-50` | 原連續重複保底：每個既有的連續重複日，下一次重抽未解鎖小豬的概率增加多少百分點。 |
+| `enable_daily_duplicate_pity` | bool | `true` | `true` / `false` | 啟用跨自然日的「重複疲勞」額外加成；可獨立於原保底開關。 |
+| `daily_duplicate_pity_start_day` | int | `2` | `2-7` | 連續第幾個重複日開始追加跨日疲勞加成。 |
+| `daily_duplicate_pity_step_percent` | int | `5` | `0-25` | 從起算日開始，每增加一個連續重複日追加的概率百分點。 |
+| `daily_duplicate_pity_max_percent` | int | `15` | `0-50` | 跨日疲勞額外加成的獨立上限；原保底與此加成相加後仍共同封頂 `80%`。 |
 | `timezone` | string | `local` | IANA 時區或 `local` | 每日邊界時區，例如 `Asia/Hong_Kong`、`Asia/Shanghai`、`America/Los_Angeles`。`local` 使用伺服器系統時區。 |
+
+### 跨日重複疲勞保底如何計算
+
+跨日疲勞層數會從抽取歷史按自然日向前回溯：只有「昨天也完成抽取，而且昨天抽到的小豬在昨天之前就已解鎖」才會延續。中間漏抽一天、昨天抽中新豬，或沒有有效抽取記錄，都會讓跨日疲勞層數歸零。同一天反覆查看 `/今日小豬` 不會增加層數；原本的 `duplicate_streak` 則保持既有的連續抽取語義，不因這次改動而改寫。
+
+預設值下，若下一次候選仍是已解鎖小豬：第 2 個相鄰重複日的額外跨日加成為 `+5%`，第 3 日為 `+10%`，第 4 日起封頂 `+15%`。它會與原 `duplicate_streak × pity_step_percent` 相加，但最終重抽未解鎖小豬的概率仍不超過 `80%`。
 
 ### 時區建議
 
@@ -112,6 +122,10 @@ v3.4.0 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。�
   "at_view_pig": false,
   "enable_new_pig_pity": true,
   "pity_step_percent": 15,
+  "enable_daily_duplicate_pity": true,
+  "daily_duplicate_pity_start_day": 2,
+  "daily_duplicate_pity_step_percent": 5,
+  "daily_duplicate_pity_max_percent": 15,
   "enable_roast": true,
   "enable_group_roast": true,
   "enable_group_eat": true,

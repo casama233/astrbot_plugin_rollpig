@@ -43,6 +43,7 @@ try:
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from .rollpig_core import consecutive_duplicate_day_streak
     from .services import DrawService, RoastService
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
@@ -53,6 +54,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         validate_runtime_namespace,
         warn_if_legacy_loaded,
     )
+    from rollpig_core import consecutive_duplicate_day_streak
     from services import DrawService, RoastService
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
@@ -163,6 +165,30 @@ class RollPigPlugin(Star):
         except (TypeError, ValueError):
             pity_step = 15
         self.pity_step_percent = min(50, max(0, pity_step))
+        self.enable_daily_duplicate_pity: bool = self.config.get(
+            "enable_daily_duplicate_pity", True
+        )
+        try:
+            daily_pity_start_day = int(
+                self.config.get("daily_duplicate_pity_start_day", 2)
+            )
+        except (TypeError, ValueError):
+            daily_pity_start_day = 2
+        self.daily_duplicate_pity_start_day = min(7, max(2, daily_pity_start_day))
+        try:
+            daily_pity_step = int(
+                self.config.get("daily_duplicate_pity_step_percent", 5)
+            )
+        except (TypeError, ValueError):
+            daily_pity_step = 5
+        self.daily_duplicate_pity_step_percent = min(25, max(0, daily_pity_step))
+        try:
+            daily_pity_max = int(
+                self.config.get("daily_duplicate_pity_max_percent", 15)
+            )
+        except (TypeError, ValueError):
+            daily_pity_max = 15
+        self.daily_duplicate_pity_max_percent = min(50, max(0, daily_pity_max))
         self.enable_roast: bool = self.config.get("enable_roast", True)
         self.enable_group_roast: bool = self.config.get("enable_group_roast", True)
         self.enable_group_eat: bool = self.config.get("enable_group_eat", True)
@@ -310,6 +336,10 @@ class RollPigPlugin(Star):
         self.draw_service = DrawService(
             enable_new_pig_pity=self.enable_new_pig_pity,
             pity_step_percent=self.pity_step_percent,
+            enable_daily_duplicate_pity=self.enable_daily_duplicate_pity,
+            daily_duplicate_pity_start_day=self.daily_duplicate_pity_start_day,
+            daily_duplicate_pity_step_percent=self.daily_duplicate_pity_step_percent,
+            daily_duplicate_pity_max_percent=self.daily_duplicate_pity_max_percent,
         )
         self.roast_service = RoastService()
         self._storage_admin_lock = asyncio.Lock()
@@ -1959,10 +1989,15 @@ class RollPigPlugin(Star):
 
     def _choose_daily_pig(self, user_id: str) -> dict:
         """Delegate pure pity/selection policy to DrawService."""
-        return self.draw_service.choose(
-            self.pig_list,
-            self._get_user_collection(user_id),
+        collection = self._get_user_collection(user_id)
+        draw_context = dict(collection) if isinstance(collection, dict) else {}
+        draw_context["daily_duplicate_streak"] = consecutive_duplicate_day_streak(
+            self.history,
+            draw_context,
+            self._storage_user_key(str(user_id)),
+            self._today(),
         )
+        return self.draw_service.choose(self.pig_list, draw_context)
 
     def _get_daily_pig(self, user_id: str, date_value: datetime.date) -> dict | None:
         candidates = tuple(self._user_read_candidates(str(user_id)))

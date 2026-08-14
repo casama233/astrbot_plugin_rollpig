@@ -17,6 +17,30 @@
         "type": "int",
         "default": 15
     },
+    "enable_daily_duplicate_pity": {
+        "description": "开启跨日重复疲劳保底",
+        "hint": "连续多个自然日抽到已解锁小猪时，从指定天数开始额外提高重抽新猪概率；与原连续重复保底叠加但共同受 80% 总上限限制",
+        "type": "bool",
+        "default": true
+    },
+    "daily_duplicate_pity_start_day": {
+        "description": "跨日疲劳保底起算日",
+        "hint": "连续重复到第几天开始获得额外加成，范围 2-7，默认第 2 天",
+        "type": "int",
+        "default": 2
+    },
+    "daily_duplicate_pity_step_percent": {
+        "description": "跨日疲劳每层增加概率（百分比）",
+        "hint": "从起算日开始，每多连续重复一天增加的额外概率，范围 0-25，默认 5",
+        "type": "int",
+        "default": 5
+    },
+    "daily_duplicate_pity_max_percent": {
+        "description": "跨日疲劳额外加成上限（百分比）",
+        "hint": "跨日疲劳机制最多额外增加多少概率，范围 0-50，默认 15；最终保底概率仍封顶 80%",
+        "type": "int",
+        "default": 15
+    },
     "enable_roast": {
         "description": "开启今日烤猪",
         "hint": "允许把自己当天的小猪做成趣味料理卡；人类、熟食形态和已吃掉的小猪会被拦截",

@@ -1,8 +1,10 @@
 """Small dependency-free helpers used by tests and future refactors."""
 from __future__ import annotations
 
+import datetime
 import ipaddress
 import re
+from typing import Any, Mapping
 
 
 def legacy_identity(value: str) -> str:
@@ -74,3 +76,66 @@ def special_pig_state(pig: dict | None) -> str:
     if pig_id in _SPECIAL_COOKED_IDS or name in _SPECIAL_COOKED_NAMES:
         return "cooked"
     return "normal"
+
+def consecutive_duplicate_day_streak(
+    history: Mapping[str, Any] | None,
+    collection: Mapping[str, Any] | None,
+    storage_id: str,
+    before_date: datetime.date,
+) -> int:
+    """Count adjacent prior calendar days whose completed draw was already unlocked.
+
+    A missing day breaks the chain. If a day's visible record was replaced by the
+    special ``eaten`` state, ``eaten_originals`` is used so the original draw still
+    determines whether that day was a duplicate.
+    """
+    history_map = history if isinstance(history, Mapping) else {}
+    daily = history_map.get("daily")
+    if not isinstance(daily, Mapping):
+        return 0
+
+    user = collection if isinstance(collection, Mapping) else {}
+    pigs = user.get("pigs")
+    if not isinstance(pigs, Mapping):
+        return 0
+
+    key = str(storage_id or "")
+    if not key:
+        return 0
+
+    streak = 0
+    cursor = before_date - datetime.timedelta(days=1)
+    while True:
+        day = daily.get(cursor.isoformat())
+        if not isinstance(day, Mapping):
+            break
+        records = day.get("records")
+        if not isinstance(records, Mapping):
+            break
+        pig_id = str(records.get(key) or "")
+        if pig_id == "eaten":
+            originals = day.get("eaten_originals")
+            pig_id = (
+                str(originals.get(key) or "")
+                if isinstance(originals, Mapping)
+                else ""
+            )
+        if not pig_id:
+            break
+
+        record = pigs.get(pig_id)
+        if not isinstance(record, Mapping):
+            break
+        first_unlocked = str(record.get("first_unlocked") or "")
+        try:
+            first_unlocked_date = datetime.date.fromisoformat(first_unlocked)
+        except ValueError:
+            break
+        if first_unlocked_date >= cursor:
+            break
+
+        streak += 1
+        cursor -= datetime.timedelta(days=1)
+
+    return streak
+
