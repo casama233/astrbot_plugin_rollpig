@@ -84,10 +84,28 @@
         "default": 20
     },
     "group_roast_cooldown_hours": {
-        "description": "烤群友冷却时间（小时）",
-        "hint": "普通烤群友按发起者与群组分别冷却，范围 1-72，默认 8；创建预约也会消耗一次，后续添柴不消耗；后门口令会绕过此限制",
+        "description": "旧版烤群友冷却时间（兼容）",
+        "hint": "v3.6.4 及更早版本的兼容配置；Phase 3 默认仍把此值作为充能恢复小时数的后备值。新配置请使用 group_roast_charge_recovery_hours。",
         "type": "float",
         "default": 8
+    },
+    "group_roast_max_charges": {
+        "description": "烤箱最大能量格",
+        "hint": "按发起者 × 群组独立计算；范围 1-5，默认 2。普通烤群友和创建预约各消耗 1 格，后门与后续添柴不消耗。",
+        "type": "int",
+        "default": 2
+    },
+    "group_roast_charge_recovery_hours": {
+        "description": "烤箱每格恢复时间（小时）",
+        "hint": "每隔多少小时自然恢复 1 格能量，范围 1-72，默认 8；恢复不会超过最大能量格。",
+        "type": "float",
+        "default": 8
+    },
+    "oven_refill_daily_limit": {
+        "description": "每日烤箱补货成功上限",
+        "hint": "每群每天最多成功补货几次，范围 1-5，默认 2；每次成功仅为今日活跃玩家恢复 +1 格，不会直接回满。",
+        "type": "int",
+        "default": 2
     },
     "enable_roast_protection": {
         "description": "开启被烤保护机制",
