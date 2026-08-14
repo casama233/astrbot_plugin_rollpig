@@ -6,6 +6,8 @@ from typing import Any
 
 try:
     from .gameplay_events import (
+        EVENT_OVEN_REFILL_SUCCEEDED,
+        EVENT_OVEN_REFILL_SUPPORTED,
         EVENT_ROAST_BACKLASH,
         EVENT_ROAST_ESCAPE,
         EVENT_ROAST_SUCCESS,
@@ -13,6 +15,8 @@ try:
     )
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from gameplay_events import (
+        EVENT_OVEN_REFILL_SUCCEEDED,
+        EVENT_OVEN_REFILL_SUPPORTED,
         EVENT_ROAST_BACKLASH,
         EVENT_ROAST_ESCAPE,
         EVENT_ROAST_SUCCESS,
@@ -99,6 +103,8 @@ def aggregate_daily_report(
     event_roasts = 0
     escapes = 0
     backlashes = 0
+    oven_refill_supports = 0
+    oven_refills = 0
 
     for raw in events:
         if not isinstance(raw, dict):
@@ -124,6 +130,10 @@ def aggregate_daily_report(
             if victim:
                 miserable[victim] += 1
                 event_roasts += 1
+        elif kind == EVENT_OVEN_REFILL_SUPPORTED:
+            oven_refill_supports += 1
+        elif kind == EVENT_OVEN_REFILL_SUCCEEDED:
+            oven_refills += 1
 
     popular = top_tied(pig_counts)
     popular_has_trend = int(popular["value"] or 0) > 1
@@ -146,6 +156,8 @@ def aggregate_daily_report(
         "eats": len(victims),
         "escapes": escapes,
         "backlashes": backlashes,
+        "oven_refill_supports": oven_refill_supports,
+        "oven_refills": oven_refills,
         "popular_pigs": popular_items,
         "pig_variety": len(pig_counts),
         "popular_peak": int(popular["value"] or 0),

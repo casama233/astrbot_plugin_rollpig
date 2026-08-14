@@ -46,6 +46,7 @@ class HelpFeatureMixin:
             enable_roast_reservation=bool(
                 getattr(self, "enable_roast_reservation", True)
             ),
+            enable_oven_refill=bool(getattr(self, "enable_oven_refill", True)),
             enable_group_eat=bool(getattr(self, "enable_group_eat", True)),
             enable_roast_protection=bool(
                 getattr(self, "enable_roast_protection", True)

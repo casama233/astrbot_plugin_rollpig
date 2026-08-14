@@ -812,6 +812,13 @@ class DailyReportMixin:
                 palette,
             )
 
+        draw.text(
+            (58, 531),
+            f"⛽ 烤箱补货 {int(report.get('oven_refills', 0) or 0)} 次 · 添煤 {int(report.get('oven_refill_supports', 0) or 0)} 人次",
+            font=small_font,
+            fill=palette["secondary"],
+        )
+
         pop_y = 558
         draw.rounded_rectangle((44, pop_y, 1156, pop_y + 255), 30, fill=palette["surface"])
         draw.text(

@@ -106,3 +106,27 @@ def test_capacity_one_preserves_legacy_cooldown_behavior():
     assert migrated["charges"] == 0
     assert blocked["consumed"] is False
     assert blocked["next_refill_seconds"] == 7 * HOUR
+
+
+def test_group_refill_adds_only_one_charge():
+    from roast_charges import add_roast_charge_state
+
+    result = add_roast_charge_state(
+        {"charges": 0, "refill_anchor": 1000},
+        now=1200, max_charges=2, recovery_seconds=800,
+    )
+    assert result["charges"] == 1
+    assert result["increased"] is True
+    assert result["refill_anchor"] == 1000
+
+
+def test_group_refill_never_overbanks_and_stops_recovery_when_full():
+    from roast_charges import add_roast_charge_state
+
+    result = add_roast_charge_state(
+        {"charges": 1, "refill_anchor": 1000},
+        now=1200, max_charges=2, recovery_seconds=800,
+    )
+    assert result["charges"] == 2
+    assert result["refill_anchor"] == 1200
+    assert result["next_refill_seconds"] == 0
