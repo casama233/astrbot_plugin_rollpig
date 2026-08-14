@@ -25,6 +25,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Repair patch helper marker
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply_gameplay_events_refactor.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'end = feature.find("    def _profile_for_report(\\n", start)'
+          new = 'end = feature.find("    def _profile_for_report(", start)'
+          if old not in text:
+              raise SystemExit('patch helper marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Apply refactor
         run: python .github/scripts/apply_gameplay_events_refactor.py
 
