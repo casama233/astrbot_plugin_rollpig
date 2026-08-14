@@ -116,7 +116,7 @@ class RoastReservationMixin:
         actor_id: str,
         target_id: str,
     ) -> bool:
-        """Reserve an absent target; creator pays cooldown, later users join free."""
+        """Reserve an absent target; creator pays one charge, later users join free."""
         today = self._today().isoformat()
         actor_pig = self._get_daily_pig(actor_id, self._today())
         actor_reason = self._roast_block_reason(actor_pig, subject="actor")
@@ -191,11 +191,14 @@ class RoastReservationMixin:
                     )
                 return True
 
-            remaining = await self._consume_group_roast_cooldown(group_id, actor_id)
-            if remaining:
+            charge_status = await self._consume_group_roast_charge(group_id, actor_id)
+            if not charge_status.get("consumed"):
+                remaining = int(charge_status.get("next_refill_seconds", 0) or 0)
                 await event.send(
                     event.plain_result(
-                        f"烤架还在降温，请 {self._format_cooldown(remaining)} 后再来埋伏。"
+                        "🔥 烤箱能量已耗尽（"
+                        f"0/{self.group_roast_max_charges}）；下一格将在 "
+                        f"{self._format_cooldown(remaining)} 后恢复，暂时不能创建预约。"
                     )
                 )
                 return True
@@ -230,7 +233,8 @@ class RoastReservationMixin:
                 event,
                 target_id,
                 " 🔥 今天还没抽猪，烤箱已被提前预热；等你在本群现身抽猪后自动结算。"
-                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人添柴。",
+                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人添柴。"
+                + self._roast_charge_note(charge_status),
             )
             logger.info(
                 "创建预约烤猪：group=%s target=%s chef=%s id=%s",

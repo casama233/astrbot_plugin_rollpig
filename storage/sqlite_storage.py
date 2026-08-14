@@ -13,6 +13,11 @@ from typing import Any, Iterator
 from .base import StorageBackend
 from .json_storage import JSONStorage
 
+try:
+    from ..roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+
 
 class SQLiteStorage(StorageBackend):
     """SQLite-backed logical JSON documents with normalized read projections.
@@ -161,7 +166,9 @@ class SQLiteStorage(StorageBackend):
                     cooldown_key TEXT PRIMARY KEY,
                     group_id TEXT NOT NULL,
                     actor_id TEXT NOT NULL REFERENCES identities(identity_key),
-                    last_used_at REAL NOT NULL
+                    last_used_at REAL NOT NULL,
+                    charges INTEGER NOT NULL DEFAULT -1,
+                    refill_anchor REAL NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS daily_roast_counts (
                     draw_date TEXT NOT NULL,
@@ -241,6 +248,18 @@ class SQLiteStorage(StorageBackend):
                 if "created_at" not in identity_columns:
                     connection.execute(
                         "ALTER TABLE identities ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0"
+                    )
+                cooldown_columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(roast_cooldowns)")
+                }
+                if "charges" not in cooldown_columns:
+                    connection.execute(
+                        "ALTER TABLE roast_cooldowns ADD COLUMN charges INTEGER NOT NULL DEFAULT -1"
+                    )
+                if "refill_anchor" not in cooldown_columns:
+                    connection.execute(
+                        "ALTER TABLE roast_cooldowns ADD COLUMN refill_anchor REAL NOT NULL DEFAULT 0"
                     )
                 draw_columns = {
                     str(row[1]) for row in connection.execute("PRAGMA table_info(daily_draws)")
@@ -732,8 +751,45 @@ class SQLiteStorage(StorageBackend):
                 group_id, actor_id = "", str(cooldown_key)
             self._remember_identity(connection, actor_id)
             connection.execute(
-                "INSERT INTO roast_cooldowns VALUES (?, ?, ?, ?)",
+                "INSERT INTO roast_cooldowns("
+                "cooldown_key, group_id, actor_id, last_used_at, charges, refill_anchor"
+                ") VALUES (?, ?, ?, ?, -1, 0)",
                 (str(cooldown_key), group_id, actor_id, float(used_at or 0)),
+            )
+
+        charge_states = (
+            state.get("roast_charges")
+            if isinstance(state.get("roast_charges"), dict)
+            else {}
+        )
+        for charge_key, entry in charge_states.items():
+            if not isinstance(entry, dict):
+                continue
+            group_id, separator, actor_id = str(charge_key).rpartition(":")
+            if not separator:
+                group_id, actor_id = "", str(charge_key)
+            self._remember_identity(connection, actor_id)
+            try:
+                charges = int(entry.get("charges", -1))
+                refill_anchor = float(entry.get("refill_anchor", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            legacy_last_used = float(cooldowns.get(charge_key, 0) or 0)
+            connection.execute(
+                "INSERT INTO roast_cooldowns("
+                "cooldown_key, group_id, actor_id, last_used_at, charges, refill_anchor"
+                ") VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(cooldown_key) DO UPDATE SET "
+                "group_id = excluded.group_id, actor_id = excluded.actor_id, "
+                "charges = excluded.charges, refill_anchor = excluded.refill_anchor",
+                (
+                    str(charge_key),
+                    group_id,
+                    actor_id,
+                    legacy_last_used,
+                    charges,
+                    refill_anchor,
+                ),
             )
 
         counts = state.get("daily_roast_counts") if isinstance(state.get("daily_roast_counts"), dict) else {}
@@ -1490,6 +1546,16 @@ class SQLiteStorage(StorageBackend):
                 "ORDER BY cooldown_key"
             ).fetchall()
         }
+        roast["roast_charges"] = {
+            str(row["cooldown_key"]): {
+                "charges": int(row["charges"]),
+                "refill_anchor": float(row["refill_anchor"]),
+            }
+            for row in connection.execute(
+                "SELECT cooldown_key, charges, refill_anchor FROM roast_cooldowns "
+                "WHERE charges >= 0 ORDER BY cooldown_key"
+            ).fetchall()
+        }
         roast["daily_roast_counts"] = {
             self._event_key(
                 str(row["draw_date"]), str(row["group_id"]), str(row["user_id"])
@@ -1724,6 +1790,7 @@ class SQLiteStorage(StorageBackend):
         return {
             "version": 1,
             "cooldowns": {},
+            "roast_charges": {},
             "daily_backdoors": {},
             "daily_roast_counts": {},
             "eaten_penalties": {},
@@ -1741,6 +1808,95 @@ class SQLiteStorage(StorageBackend):
             "('write_authority', 'sql-primary-v2.14') "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         )
+
+    def _consume_roast_charge_tx(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        group_id = str(group_id)
+        actor_id = str(actor_id)
+        charge_key = f"{group_id}:{actor_id}"
+        now_value = float(now)
+        row = connection.execute(
+            "SELECT last_used_at, charges, refill_anchor FROM roast_cooldowns "
+            "WHERE cooldown_key = ?",
+            (charge_key,),
+        ).fetchone()
+        if row and int(row["charges"]) >= 0:
+            state = {
+                "charges": int(row["charges"]),
+                "refill_anchor": float(row["refill_anchor"]),
+            }
+        else:
+            state = bootstrap_legacy_cooldown(
+                float(row["last_used_at"]) if row else 0,
+                now=now_value,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+        result = consume_roast_charge_state(
+            state,
+            now=now_value,
+            max_charges=max_charges,
+            recovery_seconds=recovery_seconds,
+        )
+        if not result.get("consumed"):
+            return result
+        self._remember_identity(connection, actor_id)
+        connection.execute(
+            """
+            INSERT INTO roast_cooldowns(
+                cooldown_key, group_id, actor_id, last_used_at, charges, refill_anchor
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cooldown_key) DO UPDATE SET
+                group_id = excluded.group_id,
+                actor_id = excluded.actor_id,
+                last_used_at = excluded.last_used_at,
+                charges = excluded.charges,
+                refill_anchor = excluded.refill_anchor
+            """,
+            (
+                charge_key,
+                group_id,
+                actor_id,
+                now_value,
+                int(result["charges"]),
+                float(result["refill_anchor"]),
+            ),
+        )
+        return result
+
+    def consume_roast_charge(
+        self,
+        *,
+        group_id: str,
+        actor_id: str,
+        now: float,
+        max_charges: int,
+        recovery_seconds: int,
+    ) -> dict[str, Any]:
+        """Consume one user × group charge and persist its refill queue."""
+        with self.transaction() as connection:
+            result = self._consume_roast_charge_tx(
+                connection,
+                group_id=group_id,
+                actor_id=actor_id,
+                now=now,
+                max_charges=max_charges,
+                recovery_seconds=recovery_seconds,
+            )
+            if result.get("consumed"):
+                roast = self._roast_document_from_sql(connection)
+                self._write_document_tx(connection, "roast_state.json", roast)
+                self._set_write_authority(connection)
+                result["roast_state"] = roast
+            return result
 
     def consume_roast_cooldown(
         self,
