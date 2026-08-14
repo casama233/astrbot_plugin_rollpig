@@ -17,4 +17,5 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 class RollPigPlugin(DailyReportMixin, _BaseRollPigPlugin):
     """RollPig Plus with configurable rich daily Pigsty reports."""
 
-    pass
+    # Keep the management UI cache contract visible at the plugin entry point.
+    UI_ASSET_VERSION = "3.1.2"
