@@ -1121,7 +1121,7 @@ class RollPigPlugin(Star):
         self.pig_list = self.catalog_service.merge_layers(
             base, overrides, tombstones
         )
-        self.save_json(self.catalog_path, merged)
+        self.save_json(self.catalog_path, self.pig_list)
         self._thumbnail_cache.clear()
 
     def _cloud_state(self) -> dict:
