@@ -22,13 +22,17 @@ nav:
   - 🚀 5 分鐘開始養豬: getting-started/index.md
   - 🎮 玩家玩法:
       - 玩法總覽: gameplay/index.md
+      - 📚 永久圖鑑與新豬保底: gameplay/collection-pity.md
       - ⭐ EX 成長: gameplay/ex-growth.md
-      - 🔥 Roast Charge: gameplay/roast-charge.md
+      - 🔥 60/30/10 與次日保護: gameplay/roast-outcomes.md
+      - ⚡ Roast Charge: gameplay/roast-charge.md
       - 📰 豬圈日報: gameplay/daily-report.md
       - 精確 EX 差分規則: EX-VARIANTS.md
       - 精確烤箱 Charge 規則: ROAST-CHARGES.md
       - 預約烤豬: ROAST-RESERVATIONS.md
       - 日報技術規則: DAILY-REPORT.md
+  - 🎨 做一隻小豬: creators/index.md
+  - 🧯 常見故障: troubleshooting/index.md
   - 📖 指令百科: COMMANDS.md
   - ⚙️ 管理員指南:
       - 完整配置: CONFIGURATION.md
@@ -103,9 +107,11 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/wiki-v2.css
 
 extra_javascript:
   - javascripts/pigsty.js
+  - javascripts/wiki-v2.js
 
 extra:
   social:
