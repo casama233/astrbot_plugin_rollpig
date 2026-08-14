@@ -21,14 +21,13 @@ class RollPigPlugin(DailyReportMixin, _BaseRollPigPlugin):
     UI_ASSET_VERSION = "3.1.2"
 
     def _init_regular_font(self):
-        """Use the packaged full CJK font before any platform fallback.
+        """Load the packaged full CJK font before platform fallbacks.
 
-        Marketplace archives have a strict 16 MB ceiling, so release builds
-        keep the preferred 荆南麦圆体.otf and omit the redundant 可爱字体.ttf.
-        The repository still carries both fonts for source checkouts.
+        Marketplace archives have a strict 16 MB ceiling. Release builds keep
+        荆南麦圆体.otf as the single bundled full CJK face so both body text and
+        titles remain readable without silently falling through to DejaVu.
         """
         font_paths = [
-            self.font_dir / "可爱字体.ttf",
             self.font_dir / "荆南麦圆体.otf",
             self.font_dir / "SourceHanSansCN-Regular.otf",
             "C:/Windows/Fonts/msyh.ttc",
@@ -39,11 +38,10 @@ class RollPigPlugin(DailyReportMixin, _BaseRollPigPlugin):
         return self._load_font(font_paths, self.DESC_FONT_SIZE, "常规")
 
     def _init_bold_font(self):
-        """Load the preferred title font with CJK-capable fallbacks first."""
+        """Load the packaged full CJK title font before platform fallbacks."""
         font_paths = [
             self.font_dir / "荆南麦圆体.otf",
             self.font_dir / "SourceHanSansCN-Bold.otf",
-            self.font_dir / "可爱字体.ttf",
             "C:/Windows/Fonts/msyhbd.ttc",
             "/System/Library/Fonts/PingFang.ttc",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
