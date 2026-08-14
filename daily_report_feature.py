@@ -1387,10 +1387,6 @@ class DailyReportMixin:
         await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
 
-    @filter.command(
-        "猪圈日报",
-        alias={"豬圈日報", "今日猪圈日报", "今日豬圈日報"},
-    )
     async def pigsty_daily_report(self, event: AstrMessageEvent):
         """Render the current group's rich report; manual views never sacrifice."""
         self._claim_command_event(event)

@@ -1,21 +1,13 @@
 """RollPig plugin entry point.
 
-The long-lived v3.5.0 implementation remains in ``legacy_main`` while focused
-feature mixins provide independently testable growth/report/gameplay layers.
-Keeping the entry point thin avoids changing existing storage, resource and
-admin semantics while the historical implementation is split gradually.
-
-AstrBot stores handler ownership from ``handler.__module__`` when decorators
-run. Since v3.6.0 keeps decorated handlers in ``legacy_main`` and feature
-mixins but registers the Star itself from this module, those handlers must be
-rebound to the real entry module or AstrBot can discover a command yet skip it
-at dispatch time because ``star_map`` has no Star registered for the helper
-module. The rebind below restores the v3.5.x ownership semantics without moving
-thousands of lines back into this file.
+AstrBot command decorators intentionally live in this module. Business logic may
+remain in ``legacy_main`` or focused feature mixins during the gradual refactor,
+but helper modules must not register commands themselves. Thin wrappers below
+delegate to the inherited implementation and keep AstrBot handler ownership,
+priority and unload semantics bound to the real Star entry point.
 """
 
-from astrbot.api import logger
-from astrbot.core.star.star_handler import star_handlers_registry
+from astrbot.api.event import AstrMessageEvent, filter
 
 try:
     from .daily_report_feature import DailyReportMixin
@@ -29,92 +21,89 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from roast_reservation_feature import RoastReservationMixin
 
 
-_COMMAND_HANDLER_PRIORITY = 1000
-
-
-def _rebind_rollpig_handlers_to_entrypoint() -> tuple[int, int]:
-    """Make inherited/mixin handlers belong to the actual AstrBot Star module.
-
-    AstrBot's decorator registry captures the defining module of each handler.
-    After the v3.6.0 split that means commands defined in ``legacy_main`` or a
-    feature mixin are registered under those helper modules, while the only
-    Star metadata entry belongs to ``main``. ``StarRequestSubStage`` resolves a
-    handler through ``star_map[handler.handler_module_path]``; a helper-module
-    path therefore makes the handler discoverable during wake/command matching
-    but non-dispatchable at execution time.
-
-    Rebinding only metadata keeps function bodies, storage and data formats
-    unchanged. Command handlers also receive an explicit high priority so a
-    generic message/AI handler cannot consume a matched RollPig command before
-    RollPig has a chance to stop event propagation.
-    """
-
-    package = __package__ or __name__.rpartition(".")[0]
-    package_prefix = f"{package}." if package else ""
-    rebound = 0
-    prioritized = 0
-
-    for handler in list(star_handlers_registry):
-        module_path = str(getattr(handler, "handler_module_path", "") or "")
-        belongs_to_rollpig = module_path == __name__ or (
-            bool(package_prefix) and module_path.startswith(package_prefix)
-        )
-        if not belongs_to_rollpig:
-            continue
-
-        if module_path != __name__:
-            handler.handler_module_path = __name__
-            rebound += 1
-
-        filters = getattr(handler, "event_filters", ()) or ()
-        is_command = any(
-            item.__class__.__name__ in {"CommandFilter", "CommandGroupFilter"}
-            for item in filters
-        )
-        if not is_command:
-            continue
-
-        extras = getattr(handler, "extras_configs", None)
-        if not isinstance(extras, dict):
-            extras = {}
-            handler.extras_configs = extras
-        try:
-            current_priority = int(extras.get("priority", 0) or 0)
-        except (TypeError, ValueError):
-            current_priority = 0
-        if current_priority < _COMMAND_HANDLER_PRIORITY:
-            extras["priority"] = _COMMAND_HANDLER_PRIORITY
-        prioritized += 1
-
-    # StarHandlerRegistry sorts only when handlers are appended. We changed
-    # priorities after decorator registration, so re-sort the existing list.
-    handlers = getattr(star_handlers_registry, "_handlers", None)
-    if isinstance(handlers, list):
-        handlers.sort(
-            key=lambda item: -int(
-                (getattr(item, "extras_configs", {}) or {}).get("priority", 0) or 0
-            )
-        )
-
-    return rebound, prioritized
-
-
-_REBOUND_HANDLER_COUNT, _PRIORITIZED_COMMAND_COUNT = (
-    _rebind_rollpig_handlers_to_entrypoint()
-)
-if _REBOUND_HANDLER_COUNT or _PRIORITIZED_COMMAND_COUNT:
-    logger.info(
-        "RollPig 指令注册已绑定到主入口：rebound=%s, prioritized=%s, module=%s",
-        _REBOUND_HANDLER_COUNT,
-        _PRIORITIZED_COMMAND_COUNT,
-        __name__,
-    )
-
 
 class RollPigPlugin(
     RoastReservationMixin, DailyReportMixin, ExVariantMixin, _BaseRollPigPlugin
 ):
     """RollPig Plus with growth, roast reservations and rich daily reports."""
+
+    # BEGIN MAIN COMMAND REGISTRATION
+    # Decorators stay on the real Star entry module; implementations live below.
+    @filter.command('猪猪帮助', alias={'豬豬幫助', '小猪帮助', '小豬幫助', 'rollpig帮助', 'rollpig幫助'}, priority=1000)
+    async def rollpig_help(self, event: AstrMessageEvent):
+        """展示今日小猪的完整指令说明。"""
+        return await super().rollpig_help(event)
+
+    @filter.command('今日小猪', alias={'今日小豬', '今天是什么小猪', '今天是什麼小豬', '抽小猪', '抽小豬', '我的小猪', '我的小豬', 'rollpig'}, priority=1000)
+    async def roll_pig(self, event: AstrMessageEvent):
+        """Draw for self; mentioning another user is strictly read-only."""
+        return await super().roll_pig(event)
+
+    @filter.command('我的猪圈', alias={'我的豬圈', '小猪图鉴', '小豬圖鑑', '猪圈', '豬圈'}, priority=1000)
+    async def my_pigsty(self, event: AstrMessageEvent, args: str=''):
+        """查看永久解锁的小猪图鉴，可附带页码。"""
+        return await super().my_pigsty(event, args)
+
+    @filter.command('昨日小猪', alias={'昨日小豬', '昨天小猪', '昨天小豬'}, priority=1000)
+    async def yesterday_pig(self, event: AstrMessageEvent):
+        """查看昨天抽到的小猪。"""
+        return await super().yesterday_pig(event)
+
+    @filter.command('明日小猪', alias={'明日小豬', '明天小猪', '明天小豬'}, priority=1000)
+    async def tomorrow_pig(self, event: AstrMessageEvent):
+        """给出每天固定、但不会提前解锁图鉴的明日预测。"""
+        return await super().tomorrow_pig(event)
+
+    @filter.command('本周小猪', alias={'本周小豬', '本週小猪', '本週小豬', '本周猪报', '本週豬報'}, priority=1000)
+    async def weekly_pigs(self, event: AstrMessageEvent):
+        """生成本周七日抽取总结。"""
+        return await super().weekly_pigs(event)
+
+    @filter.command('随机小猪', alias={'随机小豬', '隨機小猪', '隨機小豬', '随机猪', '隨機豬'}, priority=1000)
+    async def random_pigs(self, event: AstrMessageEvent, args: str=''):
+        """从本地图鉴随机展示 1-9 只小猪，不影响每日抽取。"""
+        return await super().random_pigs(event, args)
+
+    @filter.command('找猪', alias={'找豬', '搜猪', '搜豬'}, priority=1000)
+    async def find_pigs(self, event: AstrMessageEvent, keyword: str=''):
+        """在管理员维护的本地图鉴内搜索。"""
+        return await super().find_pigs(event, keyword)
+
+    @filter.command('今日烤猪', alias={'今日烤豬', '烤猪', '烤豬'}, priority=1000)
+    async def roast_today_pig(self, event: AstrMessageEvent):
+        """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
+        return await super().roast_today_pig(event)
+
+    @filter.command('烤群友', alias={'烤群友'}, priority=1000)
+    async def roast_group_member(self, event: AstrMessageEvent, args: str=''):
+        """在群聊中烧烤 @ 目标或引用消息的发送者。"""
+        return await super().roast_group_member(event, args)
+
+    @filter.command('随机烤群友', alias={'隨機烤群友'}, priority=1000)
+    async def roast_random_group_member(self, event: AstrMessageEvent):
+        """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
+        return await super().roast_random_group_member(event)
+
+    @filter.command('吃群友', alias={'吃群友'}, priority=1000)
+    async def eat_group_member(self, event: AstrMessageEvent, args: str=''):
+        """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
+        return await super().eat_group_member(event, args)
+
+    @filter.command('随机吃群友', alias={'隨機吃群友'}, priority=1000)
+    async def eat_random_group_member(self, event: AstrMessageEvent):
+        """从当天当前群可被吃的成员中随机选择一位。"""
+        return await super().eat_random_group_member(event)
+
+    @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行點火'}, priority=1000)
+    async def force_roast_group_member(self, event: AstrMessageEvent, args: str=''):
+        """后门口令：绕过烤群友冷却与概率，但不绕过资格限制。"""
+        return await super().force_roast_group_member(event, args)
+
+    @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
+    async def pigsty_daily_report(self, event: AstrMessageEvent):
+        """Render the current group's rich report; manual views never sacrifice."""
+        return await super().pigsty_daily_report(event)
+    # END MAIN COMMAND REGISTRATION
 
     # Keep the management UI cache contract visible at the plugin entry point.
     UI_ASSET_VERSION = "3.1.2"
