@@ -1,0 +1,56 @@
+name: TEMP catalog read boundary inventory
+
+on:
+  push:
+    branches:
+      - refactor/catalog-read-boundary
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Inventory legacy catalog/read methods
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('legacy_main.py')
+          src = path.read_text(encoding='utf-8')
+          tree = ast.parse(src)
+          needles = {
+              'catalog', 'collection', 'pigsty', 'pigs_info', 'image_dir',
+              'custom_image', 'resource_active', 'cloud', 'tombstone',
+              'local_override', 'rendered_pig', 'find_pigs', 'random_pigs',
+          }
+          for node in tree.body:
+              if not isinstance(node, ast.ClassDef) or node.name != 'RollPigPlugin':
+                  continue
+              for fn in node.body:
+                  if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                      continue
+                  seg = ast.get_source_segment(src, fn) or ''
+                  hits = sorted(n for n in needles if n in fn.name.lower() or n in seg)
+                  if not hits:
+                      continue
+                  attrs = sorted({
+                      x.attr for x in ast.walk(fn)
+                      if isinstance(x, ast.Attribute)
+                      and isinstance(x.value, ast.Name)
+                      and x.value.id == 'self'
+                  })
+                  calls = sorted({
+                      x.func.attr for x in ast.walk(fn)
+                      if isinstance(x, ast.Call)
+                      and isinstance(x.func, ast.Attribute)
+                      and isinstance(x.func.value, ast.Name)
+                      and x.func.value.id == 'self'
+                  })
+                  print(f'## {fn.name} L{fn.lineno}-L{getattr(fn, "end_lineno", fn.lineno)} hits={hits}')
+                  print('  self attrs:', ', '.join(attrs))
+                  print('  self calls:', ', '.join(calls))
+          PY
