@@ -1,0 +1,185 @@
+name: Phase 3B Replay Current Main
+
+on:
+  push:
+    branches:
+      - feature/oven-refill
+    paths:
+      - .github/workflows/phase3b-replay-current-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  replay-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/oven-refill
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+      - name: Fetch verified Phase 3B snapshot
+        run: git fetch origin tmp/phase3b-verified-final:refs/remotes/origin/tmp/phase3b-verified-final
+      - name: Restore non-conflicting verified files
+        run: |
+          git checkout origin/tmp/phase3b-verified-final -- \
+            daily_report_core.py \
+            docs/CONFIGURATION.md \
+            docs/ROAST-CHARGES.md \
+            oven_refill_feature.py \
+            roast_charges.py \
+            services/__init__.py \
+            services/oven_refill_service.py \
+            storage/base.py \
+            storage/sqlite_primary.py \
+            storage/sqlite_storage.py \
+            tests/test_dashboard_sql_analytics.py \
+            tests/test_new_unlock_trend.py \
+            tests/test_oven_refill_service.py \
+            tests/test_oven_refill_storage.py \
+            tests/test_sqlite_storage.py \
+            tests/test_sqlite_v3_primary.py
+      - name: Merge Phase 3B into current main conflict files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual < count:
+                  raise SystemExit(f'{path}: marker missing {actual} < {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          # main.py: preserve HelpFeature/render backpressure and add OvenRefill as a focused mixin.
+          replace(
+              'main.py',
+              '    from .help_feature import HelpFeatureMixin\n    from .legacy_main import RollPigPlugin as _BaseRollPigPlugin\n',
+              '    from .help_feature import HelpFeatureMixin\n    from .oven_refill_feature import OvenRefillMixin\n    from .legacy_main import RollPigPlugin as _BaseRollPigPlugin\n',
+          )
+          replace(
+              'main.py',
+              '    from help_feature import HelpFeatureMixin\n    from legacy_main import RollPigPlugin as _BaseRollPigPlugin\n',
+              '    from help_feature import HelpFeatureMixin\n    from oven_refill_feature import OvenRefillMixin\n    from legacy_main import RollPigPlugin as _BaseRollPigPlugin\n',
+          )
+          replace(
+              'main.py',
+              'class RollPigPlugin(\n    HelpFeatureMixin,\n    RoastReservationMixin,\n',
+              'class RollPigPlugin(\n    HelpFeatureMixin,\n    OvenRefillMixin,\n    RoastReservationMixin,\n',
+          )
+          marker = "    @filter.command('烤群友', alias={'烤群友'}, priority=1000)\n"
+          insert = '''    @filter.command('烤箱补货', alias={'烤箱補貨'}, priority=1000)\n    async def oven_refill(self, event: AstrMessageEvent):\n        \"\"\"发起本群今日活跃玩家的协作补货。\"\"\"\n        return await super().oven_refill(event)\n\n    @filter.command('添煤', priority=1000)\n    async def oven_refill_support(self, event: AstrMessageEvent):\n        \"\"\"为本群当前补货轮次添加一次唯一支持。\"\"\"\n        return await super().oven_refill_support(event)\n\n'''
+          replace('main.py', marker, insert + marker)
+
+          # Current config already contains Phase 3A charge keys; insert Phase 3B directly after them.
+          conf_marker = '''    "group_roast_max_charges": {\n        "description": "烤箱最大能量格数",\n        "hint": "按发起者 × 群组独立储存，范围 1-5，默认 2；普通烤群友与创建预约各消耗 1 格，后续添柴和预约触发不重复消耗",\n        "type": "int",\n        "default": 2\n    },\n'''
+          conf_add = conf_marker + '''    "enable_oven_refill": {\n        "description": "开启群体烤箱补货",\n        "hint": "允许本群今日活跃玩家使用 /烤箱补货 发起补货、/添煤 参与；达标后为本群今日活跃玩家恢复 +1 格烤箱能量",\n        "type": "bool",\n        "default": true\n    },\n    "oven_refill_daily_limit": {\n        "description": "每群每日成功补货上限",\n        "hint": "范围 1-5，默认 2；失败或因所有人已满而作废的轮次不计入成功次数",\n        "type": "int",\n        "default": 2\n    },\n    "oven_refill_support_ratio_percent": {\n        "description": "首次补货活跃人数支持比例（百分比）",\n        "hint": "默认 30%；例如今日活跃 16 人时首次需要 5 人支持，仍受最少支持人数约束",\n        "type": "int",\n        "default": 30\n    },\n    "oven_refill_min_supporters": {\n        "description": "补货最少支持人数",\n        "hint": "范围 2-20，默认 3；若本群今日只有 2 位活跃玩家，则需要两人全部支持",\n        "type": "int",\n        "default": 3\n    },\n    "oven_refill_extra_supporters_per_success": {\n        "description": "当天每成功补货一次后增加的支持人数",\n        "hint": "范围 0-10，默认 2；第二轮及以后逐步提高门槛，但不会超过本群今日活跃人数",\n        "type": "int",\n        "default": 2\n    },\n'''
+          replace('_conf_schema.json', conf_marker, conf_add)
+
+          # Daily report: preserve latest debounce/backpressure code, only extend the metric grid.
+          replace('daily_report_feature.py', '        height = 1680 + (285 if sacrifice_id else 0)\n', '        height = 1820 + (285 if sacrifice_id else 0)\n')
+          replace(
+              'daily_report_feature.py',
+              '''            ("触发反噬", report.get("backlashes", 0)),\n        ]\n''',
+              '''            ("触发反噬", report.get("backlashes", 0)),\n            ("补货发起", report.get("oven_refill_started", 0)),\n            ("添煤人次", report.get("oven_refill_supports", 0)),\n            ("补货成功", report.get("oven_refill_successes", 0)),\n        ]\n''',
+          )
+          replace('daily_report_feature.py', '        pop_y = 558\n', '        pop_y = 698\n')
+          replace('daily_report_feature.py', '        awards_y = 846\n', '        awards_y = 986\n')
+          replace('daily_report_feature.py', '        footer_y = 1512\n', '        footer_y = 1652\n')
+          replace('daily_report_feature.py', '            sac_y = 1490\n', '            sac_y = 1630\n')
+          replace('daily_report_feature.py', '            footer_y = 1800\n', '            footer_y = 1940\n')
+
+          # COMMANDS: latest main accidentally still documents the pre-Charge cooldown; fix both 3A and 3B.
+          replace(
+              'docs/COMMANDS.md',
+              '普通烤群友按「發起者 + 群組」計算冷卻，預設 8 小時，可由 `group_roast_cooldown_hours` 調整。',
+              '普通烤群友按「發起者 + 群組」使用烤箱能量，預設 `2 / 2` 格；每次消耗 1 格。`group_roast_cooldown_hours` 現表示每格缺失能量的恢復時間（預設 8 小時），`group_roast_max_charges` 控制最大格數（預設 2）。',
+          )
+          replace(
+              'docs/COMMANDS.md',
+              '- 第一位玩家成為固定主廚，必須先抽到自己可料理的小豬，並立即消耗一次普通烤架冷卻。\n- 後續其他群友對同一目標再使用 `/烤群友` 會免費「添柴」，不消耗自己的冷卻；同一人不重複計數。',
+              '- 第一位玩家成為固定主廚，必須先抽到自己可料理的小豬，並立即消耗 1 格烤箱能量。\n- 後續其他群友對同一目標再使用 `/烤群友` 會免費「添柴」，不消耗自己的烤箱能量；同一人不重複計數。',
+          )
+          replace('docs/COMMANDS.md', '- 觸發時不再次扣主廚冷卻，仍使用原本 60% / 30% / 10% 結果。', '- 觸發時不再次扣主廚能量，仍使用原本 60% / 30% / 10% 結果。')
+          command_insert = '''## 烤箱補貨\n\n### `/烤箱補貨`\n\n只可在群聊中使用。發起者必須是本群今天已參與 RollPig 的活躍玩家；發起成功後自動計入第 1 份支持。\n\n預設首輪需要 `max(3, ceil(今日活躍 × 30%))` 人支持；只有 2 位活躍玩家時需要兩人全部支持。當天每成功一次，下一輪預設再增加 2 人需求，且不會超過今日活躍人數。每群每日預設最多成功補貨 2 次。\n\n### `/添煤`\n\n支持本群目前進行中的補貨。只有今天在本群參與過 RollPig 的玩家可添煤，同一玩家同一輪只計一次。\n\n達標後，本群今日活躍玩家各恢復 **+1 格** 烤箱能量，不會直接補滿，也不會超過 `group_roast_max_charges`。若達標時所有符合資格玩家都已滿格，本輪作廢且不計入每日成功上限。\n\n補貨流程會產生 Gameplay Event，豬圈日報統計「補貨發起 / 添煤人次 / 補貨成功」。\n\n'''
+          replace('docs/COMMANDS.md', '### `/隨機烤群友`\n', command_insert + '### `/隨機烤群友`\n')
+
+          # Daily report guide: append event read-model note without deleting new opt-in/debounce docs.
+          p = Path('docs/DAILY-REPORT.md')
+          text = p.read_text(encoding='utf-8')
+          note = '''\n## 烤箱補貨指標\n\nPhase 3B 後，日報從 Gameplay Event 聚合並額外顯示：\n\n- 補貨發起：`oven_refill_started`。\n- 添煤人次：發起者自動支持 + `oven_refill_supported`。\n- 補貨成功：`oven_refill_succeeded`。\n\n`oven_refill_failed` 仍保留在事件流中供後續統計／管理面板使用，但不佔主海報核心指標卡。日報不直接查詢 `oven_refill_groups` 或 `oven_refill_supporters`。\n'''
+          if '## 烤箱補貨指標' not in text:
+              text += note
+          p.write_text(text, encoding='utf-8')
+
+          # Preserve latest daily-report tests, append Phase 3B aggregation contract.
+          p = Path('tests/test_daily_report.py')
+          text = p.read_text(encoding='utf-8')
+          test = '''\n\ndef test_daily_report_aggregates_oven_refill_gameplay_events():\n    events = [\n        {"kind": "oven_refill_started", "actor_id": "a"},\n        {"kind": "oven_refill_supported", "actor_id": "b"},\n        {"kind": "oven_refill_supported", "actor_id": "c"},\n        {"kind": "oven_refill_succeeded", "actor_id": "c"},\n        {"kind": "oven_refill_started", "actor_id": "d"},\n        {"kind": "oven_refill_supported", "actor_id": "e"},\n        {"kind": "oven_refill_failed", "actor_id": "e"},\n    ]\n    report = aggregate_daily_report([], events, [], roast_total=0)\n    assert report["oven_refill_started"] == 2\n    assert report["oven_refill_supports"] == 5\n    assert report["oven_refill_successes"] == 1\n    assert report["oven_refill_failures"] == 1\n'''
+          if 'test_daily_report_aggregates_oven_refill_gameplay_events' not in text:
+              text += test
+          p.write_text(text, encoding='utf-8')
+
+          # Latest command contracts retain HelpFeature and add only the two new entry wrappers.
+          replace(
+              'tests/test_command_registration_boundary.py',
+              "HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py']",
+              "HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py', 'oven_refill_feature.py']",
+          )
+          replace(
+              'tests/test_command_registration_boundary.py',
+              '    "my_pigsty",\n    "pigsty_daily_report",\n',
+              '    "my_pigsty",\n    "oven_refill",\n    "oven_refill_support",\n    "pigsty_daily_report",\n',
+          )
+          replace(
+              'tests/test_v361_hotfix_contract.py',
+              '    "roast_reservation_feature.py",\n)',
+              '    "roast_reservation_feature.py",\n    "oven_refill_feature.py",\n)',
+          )
+
+          # Changelog: add Phase 3B under current Unreleased without removing concurrent entries.
+          p = Path('CHANGELOG.md')
+          text = p.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          add = '''## 未發佈\n\n### Added\n- Phase 3B 群體烤箱補貨：新增 `/烤箱補貨` 與 `/添煤`；本群今日活躍玩家協作達標後各恢復 +1 格烤箱能量，首輪預設門檻為 `max(3, ceil(活躍 × 30%))`，成功後下一輪預設 +2 人，每群每日預設最多成功 2 次。\n- 新增正規化 `oven_refill_groups` / `oven_refill_supporters` SQL 狀態，達標狀態與逐人 +1 charge 在同一 transaction 完成；JSON fallback 使用相同狀態語義。\n- Gameplay Event 正式接入 `oven_refill_started/supported/succeeded/failed`，豬圈日報新增「補貨發起 / 添煤人次 / 補貨成功」三個指標。\n\n'''
+          if marker not in text:
+              raise SystemExit('CHANGELOG Unreleased marker missing')
+          if 'Phase 3B 群體烤箱補貨' not in text:
+              text = text.replace(marker, add, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+      - name: Run focused Phase 3B contracts
+        run: |
+          pytest -q \
+            tests/test_oven_refill_service.py \
+            tests/test_oven_refill_storage.py \
+            tests/test_daily_report.py \
+            tests/test_command_registration_boundary.py \
+            tests/test_v361_hotfix_contract.py
+      - name: Compile source
+        run: python -m compileall -q main.py daily_report_core.py daily_report_feature.py oven_refill_feature.py roast_charges.py storage services
+      - name: Run full test suite
+        run: pytest -q
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Diff check
+        run: git diff --check
+      - name: Commit replayed Phase 3B and remove one-shot workflow
+        run: |
+          git rm .github/workflows/phase3b-replay-current-main.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: add cooperative oven refill Phase 3B"
+          git push origin HEAD:feature/oven-refill
