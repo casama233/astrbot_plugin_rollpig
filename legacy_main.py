@@ -119,7 +119,7 @@ class RollPigPlugin(Star):
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
-        "AstrBot-RollPig/3.6.1 (+https://github.com/casama233/astrbot_plugin_rollpig)"
+        "AstrBot-RollPig/3.6.2 (+https://github.com/casama233/astrbot_plugin_rollpig)"
     )
     # 管理页静态资源本次未变更，继续复用已验证的 3.1.2 缓存版本。
     UI_ASSET_VERSION = "3.1.2"
@@ -1854,7 +1854,7 @@ class RollPigPlugin(Star):
     def _public_source_headers(self, *, admin: bool = False) -> dict[str, str]:
         headers = {
             **self._resource_request_headers(),
-            "X-RollPig-Version": "3.6.1",
+            "X-RollPig-Version": "3.6.2",
         }
         if admin:
             token = self._public_source_admin_token()

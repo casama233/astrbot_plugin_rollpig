@@ -4,6 +4,22 @@
 
 - 暫無。
 
+## v3.6.2 (2026-08-14)
+
+### 版本主題：指令派發所有權 Hotfix
+
+### 修復
+
+- 修復 v3.6.0 將 decorated handlers 拆到 `legacy_main.py`／feature mixin 後，AstrBot 仍以函數定義模組記錄 `handler_module_path`，而真正 Star 只註冊在 `main.py`，造成 `/今日小豬` 等指令可被指令管理器發現、卻在 `StarRequestSubStage` 執行時因 `star_map` 找不到 helper module 而被跳過，最後落入其他插件／LLM 的嚴重回歸。
+- `main.py` 現在在 feature import 完成後，把本插件 handler metadata 統一重新綁定到真正的 Star 入口，恢復 v3.5.x 時「插件入口與 handler owner 一致」的派發語義；函數本體、存儲與資料格式不變。
+- RollPig command handler 明確提升至 priority `1000` 並重排 registry；搭配 v3.6.1 已加入的 handler 入口 `stop_event()`，形成「先執行 RollPig 指令，再停止後續通用 AI／消息 handler」的雙層隔離。
+- AstrBot Market Smoke 新增真實 runtime registry 契約：以 `data.plugins.astrbot_plugin_rollpig_plus.main` 實際匯入插件後，必須驗證所有 RollPig handler owner 均為 `main`、所有 command priority ≥ 1000，且 `roll_pig` handler 存在；避免未來再次出現「指令列表可見但實際不派發」的回歸。
+
+### 相容性
+
+- 可由 **v3.6.0 / v3.6.1 直接升級**；SQLite／JSON、永久圖鑑、本地 override、歷史記錄、EX 差分、日報與預約烤豬資料均不需要 migration。
+- 本版不新增玩法、不修改資源協議與資料 schema，只修正 AstrBot handler registry metadata 與指令執行順序。
+
 ## v3.6.1 (2026-08-14)
 
 ### 版本主題：指令隔離與資源自癒 Hotfix
