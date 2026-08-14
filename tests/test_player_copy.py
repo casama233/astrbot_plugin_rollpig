@@ -27,11 +27,11 @@ def _flatten_help(locale: str) -> str:
         ),
         locale=locale,
     )
-    return "\n".join(
-        [section.title]
-        + [f"{entry.command} {entry.detail}" for entry in section.entries]
-        for section in sections
-    )
+    rows: list[str] = []
+    for section in sections:
+        rows.append(section.title)
+        rows.extend(f"{entry.command} {entry.detail}" for entry in section.entries)
+    return "\n".join(rows)
 
 
 def test_player_copy_locales_have_identical_keys_and_placeholders():
