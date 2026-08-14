@@ -55,6 +55,7 @@ try:
         render_catalog_grid as render_catalog_grid_image,
         render_pig_card,
         render_pigsty,
+        render_roast_card as render_roast_card_image,
         render_weekly_summary as render_weekly_summary_image,
     )
     from .storage import StorageManager, StorageMigrationError
@@ -78,6 +79,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         render_catalog_grid as render_catalog_grid_image,
         render_pig_card,
         render_pigsty,
+        render_roast_card as render_roast_card_image,
         render_weekly_summary as render_weekly_summary_image,
     )
     from storage import StorageManager, StorageMigrationError
@@ -2775,10 +2777,7 @@ class RollPigPlugin(Star):
         return count >= self.roast_protection_threshold, count
 
     def _roast_protection_message(self, count: int) -> str:
-        return (
-            f"🛡️ 对方昨天被烤了 {count} 次，今天已获得猪圈保护。"
-            "普通烧烤会被拦截；后门强制模式仍可突破保护。"
-        )
+        return self.roast_service.roast_protection_message(count)
 
     def _apply_domain_write_result(self, result: dict) -> None:
         history = result.get("history") if isinstance(result, dict) else None
@@ -2975,10 +2974,7 @@ class RollPigPlugin(Star):
 
     @staticmethod
     def _format_cooldown(seconds: int) -> str:
-        seconds = max(1, int(seconds))
-        hours, remainder = divmod(seconds, 3600)
-        minutes = max(1, math.ceil(remainder / 60)) if remainder else 0
-        return f"{hours} 小时 {minutes} 分" if hours else f"{minutes} 分钟"
+        return RoastService.format_cooldown(seconds)
 
     def _recent_ai_roast_copies(self, pig_id: str) -> tuple[dict[str, str], bool]:
         """返回指定小猪近七天文案，并清理缓存和生成尝试。"""
@@ -3257,6 +3253,18 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
+    def _record_roast_outcome_event(
+        self,
+        kind: str,
+        group_id: str,
+        *,
+        actor_id: str,
+        target_id: str,
+        victim_id: str = "",
+    ) -> None:
+        """Extension hook; report/event mixins can observe without owning the flow."""
+        del kind, group_id, actor_id, target_id, victim_id
+
     async def _roast_group_target(
         self,
         event: AstrMessageEvent,
@@ -3264,7 +3272,7 @@ class RollPigPlugin(Star):
         *,
         bypass: bool = False,
     ) -> None:
-        """执行烤群友结果。后门仅传入 bypass，不绕过目标资格。"""
+        """Execute the single normal group-roast flow; mixins observe via hooks."""
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
@@ -3281,12 +3289,18 @@ class RollPigPlugin(Star):
         if reason:
             await event.send(event.plain_result(reason))
             return
-        protected, roast_count = await self._roast_protection_status(group_id, target_id)
+        protected, roast_count = await self._roast_protection_status(
+            group_id, target_id
+        )
         if protected and not bypass:
-            await event.send(event.plain_result(self._roast_protection_message(roast_count)))
+            await event.send(
+                event.plain_result(self._roast_protection_message(roast_count))
+            )
             return
         if not bypass:
-            remaining = await self._consume_group_roast_cooldown(group_id, actor_id)
+            remaining = await self._consume_group_roast_cooldown(
+                group_id, actor_id
+            )
             if remaining:
                 await event.send(
                     event.plain_result(
@@ -3295,25 +3309,54 @@ class RollPigPlugin(Star):
                 )
                 return
 
-        result = "success" if bypass else random.choices(
-            ["success", "escape", "backlash"], weights=[60, 30, 10], k=1
-        )[0]
+        result = self.roast_service.choose_group_roast_outcome(bypass=bypass)
         if result == "escape":
-            await event.send(event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。"))
+            self._record_roast_outcome_event(
+                "roast_escape",
+                group_id,
+                actor_id=actor_id,
+                target_id=target_id,
+            )
+            await event.send(
+                event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。")
+            )
             return
         if result == "backlash":
             actor_pig = self._get_daily_pig(actor_id, self._today())
             actor_reason = self._roast_block_reason(actor_pig, subject="actor")
+            victim_id = "" if actor_reason else actor_id
+            self._record_roast_outcome_event(
+                "roast_backlash",
+                group_id,
+                actor_id=actor_id,
+                target_id=target_id,
+                victim_id=victim_id,
+            )
             if actor_reason:
-                await event.send(event.plain_result("🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"))
+                await event.send(
+                    event.plain_result(
+                        "🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"
+                    )
+                )
                 return
-            await event.send(event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。"))
+            await event.send(
+                event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。")
+            )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
             return
 
+        self._record_roast_outcome_event(
+            "roast_success",
+            group_id,
+            actor_id=actor_id,
+            target_id=target_id,
+            victim_id=target_id,
+        )
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
-        await event.send(event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。"))
+        await event.send(
+            event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。")
+        )
         await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
 
@@ -3503,58 +3546,22 @@ class RollPigPlugin(Star):
     def render_roast_image(
         self, pig: dict, user_id: str, ai_copy: str | None = None
     ) -> Path:
-        palette = self._image_palette()
-        recipes = [
-            ("蜜汁脆皮", "外脆里嫩，甜度刚好，今日烦恼全部烤化。"),
-            ("炭火蒜香", "火候拉满，蒜香扑鼻，猪圈厨神认证出品。"),
-            ("椒盐黄金", "咸香酥脆，一口下去好运值直接加满。"),
-            ("慢烤照烧", "低温慢烤锁住快乐，再刷上一层闪亮好运。"),
-            ("香草熔岩", "表面平静，内心滚烫，是今天最有戏的小猪料理。"),
-        ]
-        seed = f"{user_id}:{self._today().isoformat()}:{pig.get('id')}"
-        digest = hashlib.sha256(seed.encode("utf-8")).digest()
-        recipe, copy = recipes[digest[0] % len(recipes)]
-        if ai_copy:
-            recipe = "AI 私房"
-            copy = ai_copy
-        canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
-        draw = ImageDraw.Draw(canvas)
-        title_font = self.font_bold.font_variant(size=52)
-        name_font = self.font_bold.font_variant(size=38)
-        body_font = self._ai_copy_font(copy, 26) if ai_copy else self.font_regular.font_variant(size=26)
-        draw.rounded_rectangle((34, 28, 766, 830), 38, fill=palette["roast_surface"], outline=palette["roast_outline"], width=5)
-        source = "AI 料理" if ai_copy else "本地料理"
-        draw.text((64, 58), f"今日烤猪 · {source}", font=title_font, fill=palette["roast_title"])
-        path = self.find_image_file(str(pig.get("id") or ""))
-        if path:
-            thumb = self._fit_card_image(path, (430, 430))
-            warm = PILImage.new("RGBA", thumb.size, (232, 91, 38, 45))
-            thumb = PILImage.alpha_composite(thumb, warm)
-            canvas.paste(thumb.convert("RGB"), (185, 150))
-        dish_name = f"{recipe}{pig.get('name', '小猪')}"
-        dish_name = dish_name if len(dish_name) <= 16 else dish_name[:15] + "…"
-        dish_w, _ = self._get_text_size(dish_name, name_font)
-        draw.text(((800 - dish_w) // 2, 625), dish_name, font=name_font, fill=palette["roast_title"])
-        lines, current = [], ""
-        for char in copy:
-            candidate = current + char
-            if self._get_text_size(candidate, body_font)[0] > 640:
-                lines.append(current)
-                current = char
-            else:
-                current = candidate
-        if current:
-            lines.append(current)
-        if len(lines) > 3:
-            lines = lines[:3]
-            lines[-1] = lines[-1].rstrip("…") + "…"
-        for index, line in enumerate(lines):
-            line_w, _ = self._get_text_size(line, body_font)
-            draw.text(((800 - line_w) // 2, 705 + index * 42), line, font=body_font, fill=palette["roast_body"])
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            output = Path(tmp.name)
-        canvas.save(output, "PNG", optimize=True)
-        return output
+        copy = ai_copy or ""
+        body_font = (
+            self._ai_copy_font(copy, 26)
+            if ai_copy
+            else self.font_regular.font_variant(size=26)
+        )
+        return render_roast_card_image(
+            pig,
+            user_id=str(user_id),
+            draw_date=self._today().isoformat(),
+            ai_copy=ai_copy,
+            palette=self._image_palette(),
+            font_bold=self.font_bold,
+            body_font=body_font,
+            image_resolver=self.find_image_file,
+        )
 
     def render_help_image(self) -> Path:
         """渲染聊天指令帮助卡，避免在会话中输出冗长纯文本。"""

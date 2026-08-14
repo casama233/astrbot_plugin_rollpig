@@ -77,4 +77,12 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 架構重構的 CI 不得只驗證 module import 與 command registry；至少還要保留一次 AstrBot 官方 validator 的完整插件 load/lifecycle smoke。這次 renderer 階段正是由完整 load 揭露上一階段 `_reload_catalog_layers()` 的殘留 `merged` 名稱，而單純 import 無法觸發該路徑。
 
-目前 `render_roast_image`、管理面板縮圖與其他舊圖像輸出尚在 `legacy_main.py`。後續應按同一原則逐個拆分，而不是讓 `renderers/` 取得整個 plugin instance。
+目前管理面板縮圖與其他少量舊圖像輸出尚在 `legacy_main.py`。後續應按同一原則逐個拆分，而不是讓 `renderers/` 取得整個 plugin instance。
+
+## Roast / Group Interaction Boundary
+
+第四階段把烤豬料理卡移入 `renderers/roast.py`，renderer 只接收小豬 view data、日期、字體、palette 與 image resolver；不讀 storage、不知道 AstrBot event，也不決定烤豬結果。
+
+普通 `/烤群友` 與預約烤豬的 **60/30/10** 結果選擇統一由 `RoastService.choose_group_roast_outcome()` 提供，後門仍固定成功。`DailyReportMixin` 不再複製整條 `_roast_group_target()`；它只透過 `_record_roast_outcome_event()` hook 觀察既有結算並寫入日報事件，因此資格、保護、冷卻、反噬與料理卡投遞只有一份正常流程。
+
+這個 service 仍是純規則層：SQLite／JSON 寫入、冷卻消耗、實際被烤次數、消息投遞、預約一次性 resolved 與 Gameplay Event persistence 都留在 orchestration。這一階段**不新增烤箱次數／補貨玩法**；下一階段若導入 charge/refill，應替換 orchestration 的冷卻消耗策略，而不是再次複製 roast outcome 或 settlement。
