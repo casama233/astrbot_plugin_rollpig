@@ -46,6 +46,17 @@ try:
     from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
     from .services import CatalogService, DrawService, ResourceReadService, RoastService
+    from .renderers import (
+        PigCardLayout,
+        WeeklyEntry,
+        draw_bold_text as renderer_draw_bold_text,
+        fit_card_image as renderer_fit_card_image,
+        get_text_size as renderer_get_text_size,
+        render_catalog_grid as render_catalog_grid_image,
+        render_pig_card,
+        render_pigsty,
+        render_weekly_summary as render_weekly_summary_image,
+    )
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
@@ -58,6 +69,17 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
     from services import CatalogService, DrawService, ResourceReadService, RoastService
+    from renderers import (
+        PigCardLayout,
+        WeeklyEntry,
+        draw_bold_text as renderer_draw_bold_text,
+        fit_card_image as renderer_fit_card_image,
+        get_text_size as renderer_get_text_size,
+        render_catalog_grid as render_catalog_grid_image,
+        render_pig_card,
+        render_pigsty,
+        render_weekly_summary as render_weekly_summary_image,
+    )
     from storage import StorageManager, StorageMigrationError
     from updater import PluginUpdateManager, UpdateError
 
@@ -926,18 +948,8 @@ class RollPigPlugin(Star):
     def _get_text_size(
         self, text: str, font: ImageFont.FreeTypeFont
     ) -> tuple[int, int]:
-        """
-        兼容PIL不同版本的文字尺寸计算\n
-        :param text: 文字内容
-        :param font: 字体对象
-        :return: 文字宽高元组
-        """
-        draw = ImageDraw.Draw(PILImage.new("RGB", (1, 1)))
-        try:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return (bbox[2] - bbox[0], bbox[3] - bbox[1])
-        except:
-            return draw.textsize(text, font=font)
+        """Compatibility facade for shared renderer text measurement."""
+        return renderer_get_text_size(text, font)
 
     def _image_palette(self, now: datetime.datetime | None = None) -> dict[str, tuple[int, int, int] | bool]:
         """返回图片卡片的日／夜配色；自动模式在 19:00 至次日 06:59 使用夜色。"""
@@ -992,19 +1004,8 @@ class RollPigPlugin(Star):
         font: ImageFont.FreeTypeFont,
         fill: tuple,
     ):
-        """
-        模拟文字加粗（兜底方案）\n
-        :param draw: ImageDraw对象
-        :param pos: 文字位置
-        :param text: 文字内容
-        :param font: 字体对象
-        :param fill: 文字颜色
-        """
-        x, y = pos
-        offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        for ox, oy in offsets:
-            draw.text((x + ox, y + oy), text, fill=fill, font=font)
-        draw.text((x, y), text, fill=fill, font=font)
+        """Compatibility facade for the shared synthetic-bold primitive."""
+        renderer_draw_bold_text(draw, pos, text, font, fill)
 
     def load_json(self, path: Path, default):
         """Compatibility facade for the configured storage backend."""
@@ -3392,274 +3393,69 @@ class RollPigPlugin(Star):
         return None
 
     def render_pig_image(self, pig_data: dict) -> Path | None:
-        """
-        整体居中渲染（垂直+水平双居中）\n
-        :param pig_data: 小猪数据字典
-        :return: 生成的图片临时文件路径，失败返回None
-        """
-        palette = self._image_palette()
-        pig_id = pig_data.get("id", "")
-        pig_name = pig_data.get("name", "未知小猪")
-        pig_desc = pig_data.get("description", "无描述")
-        pig_analysis = pig_data.get("analysis", "无解析")
-
-        # 1. 画布基础配置
-        canvas_width = self.CANVAS_WIDTH
-        canvas_height = self.CANVAS_HEIGHT
-        canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
-        draw = ImageDraw.Draw(canvas)
-
-        # 2. 预加载所有元素并计算尺寸（用于总高度计算）
-        # 2.1 头像尺寸【核心修改：放大到280x280】
-        avatar_w, avatar_h = self.AVATAR_SIZE, self.AVATAR_SIZE
-        avatar = None
-        avatar_path = self.find_image_file(
-            pig_id, ex_level=int(pig_data.get("_ex_level", 0) or 0)
+        """Prepare plugin-owned dependencies, then delegate single-pig drawing."""
+        return render_pig_card(
+            pig_data,
+            palette=self._image_palette(),
+            font_bold=self.font_bold,
+            font_regular=self.font_regular,
+            image_resolver=self.find_image_file,
+            layout=PigCardLayout(
+                canvas_width=self.CANVAS_WIDTH,
+                canvas_height=self.CANVAS_HEIGHT,
+                avatar_size=self.AVATAR_SIZE,
+                spacing_avatar_name=self.SPACING_AVATAR_NAME,
+                spacing_name_desc=self.SPACING_NAME_DESC,
+                spacing_desc_analysis=self.SPACING_DESC_ANALYSIS,
+                desc_font_size=self.DESC_FONT_SIZE,
+                analysis_font_size=self.ANALYSIS_FONT_SIZE,
+                analysis_line_height_factor=self.ANALYSIS_LINE_HEIGHT_FACTOR,
+                analysis_width_ratio=self.ANALYSIS_WIDTH_RATIO,
+            ),
         )
-        if avatar_path:
-            try:
-                with PILImage.open(avatar_path) as source:
-                    method = getattr(PILImage, "Resampling", PILImage).LANCZOS
-                    avatar = ImageOps.fit(
-                        ImageOps.exif_transpose(source).convert("RGBA"),
-                        (avatar_w, avatar_h),
-                        method,
-                    )
-            except Exception as e:
-                logger.error(f"加载小猪图片失败：{str(e)}")
-                avatar = None
-
-        # 2.2 名称尺寸
-        name_font = self.font_bold
-        name_w, name_h = self._get_text_size(pig_name, name_font)
-
-        # 2.3 描述尺寸
-        desc_font = self.font_regular.font_variant(
-            size=self.DESC_FONT_SIZE
-        )  # 匹配示例的描述字号
-        desc_w, desc_h = self._get_text_size(pig_desc, desc_font)
-
-        # 2.4 解析尺寸（自动换行后）
-        analysis_font = self.font_regular.font_variant(size=self.ANALYSIS_FONT_SIZE)
-        line_height = int(
-            self.ANALYSIS_FONT_SIZE * self.ANALYSIS_LINE_HEIGHT_FACTOR
-        )  # 匹配示例的行间距
-        max_analysis_width = int(
-            canvas_width * self.ANALYSIS_WIDTH_RATIO
-        )  # 更宽的解析区域
-        # 解析文字换行
-        analysis_lines = []
-        current_line = ""
-        for char in pig_analysis:
-            current_line += char
-            line_w, _ = self._get_text_size(current_line, analysis_font)
-            if line_w > max_analysis_width:
-                analysis_lines.append(current_line[:-1])
-                current_line = char
-        if current_line:
-            analysis_lines.append(current_line)
-        max_analysis_lines = 6
-        if len(analysis_lines) > max_analysis_lines:
-            analysis_lines = analysis_lines[:max_analysis_lines]
-            analysis_lines[-1] = analysis_lines[-1].rstrip("…") + "…"
-        # 计算解析总高度
-        analysis_total_h = len(analysis_lines) * line_height
-
-        # 3. 计算整体内容总高度（所有元素+间距）
-        spacing_avatar_name = (
-            self.SPACING_AVATAR_NAME
-        )  # 头像放大后，间距从30调小到20，避免布局拥挤
-        spacing_name_desc = self.SPACING_NAME_DESC  # 名称到描述的间距保持
-        spacing_desc_analysis = self.SPACING_DESC_ANALYSIS  # 描述到解析的间距保持
-        total_content_h = (
-            avatar_h
-            + spacing_avatar_name
-            + name_h
-            + spacing_name_desc
-            + desc_h
-            + spacing_desc_analysis
-            + analysis_total_h
-        )
-
-        # 4. 计算垂直居中的起始Y坐标（核心：让整个内容块在画布中垂直居中）
-        start_y = (canvas_height - total_content_h) // 2
-
-        # 5. 绘制所有元素（基于起始Y坐标，保证整体居中）
-        # 5.1 绘制头像（水平+垂直居中）
-        avatar_x = (canvas_width - avatar_w) // 2
-        avatar_y = start_y
-        if avatar:
-            canvas.paste(
-                avatar,
-                (avatar_x, avatar_y),
-                mask=avatar if avatar.mode == "RGBA" else None,
-            )
-        else:
-            # 头像加载失败时的提示（适配新尺寸）
-            error_font = self.font_regular.font_variant(size=24)
-            error_text = "图片加载失败"
-            error_w, error_h = self._get_text_size(error_text, error_font)
-            error_x = (canvas_width - error_w) // 2
-            draw.text(
-                (error_x, avatar_y + 120),  # 从90调到120，适配280高度的头像居中
-                error_text,
-                fill=palette["accent"],
-                font=error_font,
-            )
-
-        # 5.2 绘制名称（水平居中）
-        name_y = avatar_y + avatar_h + spacing_avatar_name
-        name_x = (canvas_width - name_w) // 2
-        self._draw_bold_text(draw, (name_x, name_y), pig_name, name_font, palette["title"])
-
-        # 5.3 绘制描述（水平居中）
-        desc_y = name_y + name_h + spacing_name_desc
-        desc_x = (canvas_width - desc_w) // 2
-        draw.text((desc_x, desc_y), pig_desc, fill=palette["body"], font=desc_font)
-
-        # 5.4 绘制解析（逐行水平居中）
-        analysis_y = desc_y + desc_h + spacing_desc_analysis
-        for line in analysis_lines:
-            line_w, line_h = self._get_text_size(line, analysis_font)
-            line_x = (canvas_width - line_w) // 2
-            draw.text((line_x, analysis_y), line, fill=palette["secondary"], font=analysis_font)
-            analysis_y += line_height
-
-        # 6. 保存临时文件
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                tmp_path = Path(tmp.name)
-                canvas.save(tmp_path, format="PNG", quality=95)
-            logger.debug(f"合成图片成功，临时文件路径：{tmp_path.absolute()}")
-            if not tmp_path.exists():
-                logger.error(f"临时文件创建失败：{tmp_path}")
-                return None
-            return tmp_path
-        except Exception as e:
-            logger.error(f"合成图片失败：{str(e)}")
-            return None
 
     def _fit_card_image(self, path: Path, size: tuple[int, int]) -> PILImage.Image:
-        with PILImage.open(path) as source:
-            frame = ImageOps.exif_transpose(source).convert("RGBA")
-            method = getattr(PILImage, "Resampling", PILImage).LANCZOS
-            return ImageOps.fit(frame, size, method=method)
+        """Compatibility facade for the shared card-image primitive."""
+        return renderer_fit_card_image(path, size)
 
     def render_pigsty_image(self, user_id: str, page: int) -> tuple[Path, int]:
-        """渲染用户永久图鉴；未解锁条目以灰阶卡片显示。"""
-        palette = self._image_palette()
-        total = len(self.pig_list)
-        total_pages = max(1, math.ceil(total / self.CATALOG_PAGE_SIZE))
-        page = min(max(1, page), total_pages)
+        """Prepare collection reads, then delegate permanent-catalog drawing."""
         user = self._get_user_collection(user_id)
-        unlocked = user.get("pigs", {}) if isinstance(user, dict) else {}
-        unlocked_count = len(set(unlocked).intersection(
-            str(pig.get("id")) for pig in self.pig_list
-        ))
-        ordered_pigs = self._ordered_pigsty_pigs(unlocked)
-        start = (page - 1) * self.CATALOG_PAGE_SIZE
-        pigs = ordered_pigs[start : start + self.CATALOG_PAGE_SIZE]
-
-        width, height = 900, 1260
-        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
-        draw = ImageDraw.Draw(canvas)
-        title_font = self.font_bold.font_variant(size=52)
-        stat_font = self.font_regular.font_variant(size=26)
-        name_font = self.font_bold.font_variant(size=25)
-        small_font = self.font_regular.font_variant(size=20)
-
-        draw.rounded_rectangle((28, 24, 872, 195), 30, fill=palette["surface"])
-        draw.text((58, 45), "我的猪圈 · 永久图鉴", font=title_font, fill=palette["title"])
-        rate = (unlocked_count / total * 100) if total else 0
-        stat = f"已解锁 {unlocked_count}/{total}  ·  收藏率 {rate:.1f}%"
-        draw.text((60, 122), stat, font=stat_font, fill=palette["secondary"])
-
+        if not isinstance(user, dict):
+            user = {}
+        unlocked = user.get("pigs", {})
+        if not isinstance(unlocked, dict):
+            unlocked = {}
+        ordered_pigs = self.catalog_service.ordered_for_collection(
+            self.pig_list, unlocked
+        )
         favorite_id = ""
         favorite_count = 0
         for item_id, record in unlocked.items():
-            count = int(record.get("count", 0))
+            if not isinstance(record, dict):
+                continue
+            count = int(record.get("count", 0) or 0)
             if count > favorite_count:
-                favorite_id, favorite_count = item_id, count
-        favorite = self._find_catalog_pig(favorite_id) if favorite_id else None
+                favorite_id, favorite_count = str(item_id), count
+        favorite = (
+            self.catalog_service.find(self.pig_list, favorite_id)
+            if favorite_id
+            else None
+        )
         favorite_name = str(favorite.get("name")) if favorite else "暂无"
-        favorite_name = (
-            favorite_name if len(favorite_name) <= 10 else favorite_name[:9] + "…"
+        return render_pigsty(
+            catalog=self.pig_list,
+            user=user,
+            ordered_pigs=ordered_pigs,
+            favorite_name=favorite_name,
+            page=page,
+            total_pages=self.catalog_service.page_count(self.pig_list),
+            page_size=self.CATALOG_PAGE_SIZE,
+            palette=self._image_palette(),
+            font_bold=self.font_bold,
+            font_regular=self.font_regular,
+            image_resolver=self.find_image_file,
         )
-        highest_ex = max(
-            (max(0, int(record.get("count", 0)) - 1) for record in unlocked.values()),
-            default=0,
-        )
-        growth = (
-            f"本命 {favorite_name}  ·  最高 EX Lv.{highest_ex}  ·  "
-            f"累计 {int(user.get('total_draws', 0))} 次"
-        )
-        draw.text((60, 158), growth, font=small_font, fill=palette["muted"])
-
-        card_w, card_h = 260, 218
-        gap_x, gap_y = 30, 28
-        origin_x, origin_y = 30, 220
-        for index, pig in enumerate(pigs):
-            row, col = divmod(index, 3)
-            x = origin_x + col * (card_w + gap_x)
-            y = origin_y + row * (card_h + gap_y)
-            pig_id = str(pig.get("id") or "")
-            is_unlocked = pig_id in unlocked
-            bg = palette["surface"] if is_unlocked else palette["locked"]
-            draw.rounded_rectangle((x, y, x + card_w, y + card_h), 24, fill=bg)
-            image_path = self.find_image_file(
-                pig_id,
-                ex_level=(
-                    max(0, int(unlocked[pig_id].get("count", 1)) - 1)
-                    if is_unlocked
-                    else 0
-                ),
-            )
-            if image_path:
-                try:
-                    thumb = self._fit_card_image(image_path, (130, 130))
-                    if not is_unlocked:
-                        thumb = ImageOps.grayscale(thumb).convert("RGBA")
-                        shade = PILImage.new("RGBA", thumb.size, (20, 16, 23, 120))
-                        thumb = PILImage.alpha_composite(thumb, shade)
-                    mask = PILImage.new("L", thumb.size, 0)
-                    ImageDraw.Draw(mask).rounded_rectangle(
-                        (0, 0, 129, 129), 22, fill=255
-                    )
-                    canvas.paste(thumb.convert("RGB"), (x + 65, y + 16), mask)
-                except Exception as exc:
-                    logger.warning(f"渲染图鉴小猪 {pig_id} 失败：{exc}")
-            name = str(pig.get("name") or "未知小猪")
-            if len(name) > 9:
-                name = name[:8] + "…"
-            name_w, _ = self._get_text_size(name, name_font)
-            draw.text(
-                (x + (card_w - name_w) // 2, y + 155),
-                name,
-                font=name_font,
-                fill=palette["title"] if is_unlocked else palette["locked_text"],
-            )
-            count = int(unlocked[pig_id].get("count", 1)) if is_unlocked else 0
-            label = f"EX Lv.{max(0, count - 1)} · ×{count}" if is_unlocked else "尚未解锁"
-            label_w, _ = self._get_text_size(label, small_font)
-            draw.text(
-                (x + (card_w - label_w) // 2, y + 190),
-                label,
-                font=small_font,
-                fill=palette["accent"] if is_unlocked else palette["muted"],
-            )
-
-        footer = f"已解锁优先  ·  第 {page}/{total_pages} 页  ·  使用 /我的猪圈 页码 翻页"
-        footer_w, _ = self._get_text_size(footer, stat_font)
-        draw.text(
-            ((width - footer_w) // 2, 1210),
-            footer,
-            font=stat_font,
-            fill=palette["secondary"],
-        )
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            output = Path(tmp.name)
-        canvas.save(output, "PNG", optimize=True)
-        return output, page
 
     def _ordered_pigsty_pigs(self, unlocked: dict) -> list[dict]:
         """按解锁状态分区，且不改变每个分区内的管理员图鉴顺序。"""
@@ -3674,119 +3470,35 @@ class RollPigPlugin(Star):
     def render_catalog_grid(
         self, pigs: list[dict], title: str, subtitle: str
     ) -> Path:
-        """为随机小猪和本地搜索渲染轻量九宫格。"""
-        palette = self._image_palette()
-        pigs = pigs[:9]
-        rows = max(1, math.ceil(len(pigs) / 3))
-        width, height = 900, 155 + rows * 245 + 30
-        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
-        draw = ImageDraw.Draw(canvas)
-        title_font = self.font_bold.font_variant(size=48)
-        # 插件自带常规字体在部分环境的繁体字距异常，帮助卡统一使用
-        # 已验证覆盖完整的粗体字，优先保证指令可读性。
-        subtitle_font = self.font_bold.font_variant(size=21)
-        name_font = self.font_bold.font_variant(size=25)
-        desc_font = self.font_regular.font_variant(size=18)
-        draw.rounded_rectangle((28, 22, 872, 132), 28, fill=palette["surface"])
-        safe_title = title if len(title) <= 18 else title[:17] + "…"
-        safe_subtitle = subtitle if len(subtitle) <= 36 else subtitle[:35] + "…"
-        draw.text((56, 40), safe_title, font=title_font, fill=palette["title"])
-        draw.text((58, 98), safe_subtitle, font=subtitle_font, fill=palette["secondary"])
-        for index, pig in enumerate(pigs):
-            row, col = divmod(index, 3)
-            x, y = 30 + col * 290, 155 + row * 245
-            draw.rounded_rectangle((x, y, x + 260, y + 218), 22, fill=palette["surface"])
-            path = self.find_image_file(
-                str(pig.get("id") or ""),
-                ex_level=int(pig.get("_ex_level", 0) or 0),
-            )
-            if path:
-                try:
-                    thumb = self._fit_card_image(path, (140, 140))
-                    mask = PILImage.new("L", thumb.size, 0)
-                    ImageDraw.Draw(mask).rounded_rectangle((0, 0, 139, 139), 20, fill=255)
-                    canvas.paste(thumb.convert("RGB"), (x + 60, y + 12), mask)
-                except Exception as exc:
-                    logger.warning(f"渲染小猪列表图片失败：{exc}")
-            name = str(pig.get("name") or "未知小猪")
-            name = name if len(name) <= 9 else name[:8] + "…"
-            name_w, _ = self._get_text_size(name, name_font)
-            draw.text((x + (260 - name_w) // 2, y + 158), name, font=name_font, fill=palette["title"])
-            desc = str(pig.get("description") or "")
-            desc = desc if len(desc) <= 14 else desc[:13] + "…"
-            desc_w, _ = self._get_text_size(desc, desc_font)
-            draw.text((x + (260 - desc_w) // 2, y + 193), desc, font=desc_font, fill=palette["muted"])
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            output = Path(tmp.name)
-        canvas.save(output, "PNG", optimize=True)
-        return output
+        """Delegate random/search grid drawing to the renderer boundary."""
+        return render_catalog_grid_image(
+            pigs,
+            title,
+            subtitle,
+            palette=self._image_palette(),
+            font_bold=self.font_bold,
+            font_regular=self.font_regular,
+            image_resolver=self.find_image_file,
+        )
 
     def render_weekly_summary(self, user_id: str) -> Path:
-        palette = self._image_palette()
+        """Prepare weekly domain reads, then delegate drawing."""
         today = self._today()
         monday = today - datetime.timedelta(days=today.weekday())
-        canvas = PILImage.new("RGB", (900, 1080), palette["canvas"])
-        draw = ImageDraw.Draw(canvas)
-        title_font = self.font_bold.font_variant(size=50)
-        body_font = self.font_bold.font_variant(size=27)
-        small_font = self.font_regular.font_variant(size=20)
-        draw.rounded_rectangle((28, 22, 872, 135), 28, fill=palette["surface"])
-        draw.text((56, 40), "本周小猪周报", font=title_font, fill=palette["title"])
-        draw.text(
-            (58, 101),
-            f"{monday.isoformat()} — {(monday + datetime.timedelta(days=6)).isoformat()}",
-            font=small_font,
-            fill=palette["secondary"],
-        )
-        weekday_names = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-        collected = 0
+        entries: list[WeeklyEntry] = []
         for index in range(7):
             day = monday + datetime.timedelta(days=index)
             pig, was_eaten = self._get_weekly_pig(user_id, day)
-            y = 155 + index * 125
-            active = day <= today
-            fill = palette["surface"] if pig else palette["surface_muted"]
-            draw.rounded_rectangle((34, y, 866, y + 104), 22, fill=fill)
-            draw.text((58, y + 19), weekday_names[index], font=body_font, fill=palette["body"])
-            draw.text((58, y + 62), f"{day.month}/{day.day}", font=small_font, fill=palette["muted"])
-            if pig:
-                collected += 1
-                path = self.find_image_file(
-                str(pig.get("id") or ""),
-                ex_level=int(pig.get("_ex_level", 0) or 0),
-            )
-                if path:
-                    try:
-                        thumb = self._fit_card_image(path, (82, 82))
-                        canvas.paste(thumb.convert("RGB"), (270, y + 11))
-                    except Exception:
-                        pass
-                pig_name = str(pig.get("name") or "未知小猪")
-                pig_desc = str(pig.get("description") or "")
-                pig_name = pig_name if len(pig_name) <= 14 else pig_name[:13] + "…"
-                pig_desc = pig_desc if len(pig_desc) <= 28 else pig_desc[:27] + "…"
-                draw.text((378, y + 18), pig_name, font=body_font, fill=palette["title"])
-                draw.text((378, y + 62), pig_desc, font=small_font, fill=palette["secondary"])
-                if was_eaten:
-                    badge = "被吃掉了"
-                    badge_w, _ = self._get_text_size(badge, small_font)
-                    badge_x = 842 - badge_w - 22
-                    draw.rounded_rectangle(
-                        (badge_x - 12, y + 16, 846, y + 49),
-                        14,
-                        fill=(181, 71, 95),
-                    )
-                    draw.text((badge_x, y + 21), badge, font=small_font, fill=(255, 244, 247))
-            else:
-                status = "等待未来" if not active else "本日未抽取"
-                draw.text((300, y + 37), status, font=body_font, fill=palette["muted"])
-        summary = f"本周已签到 {collected}/7 天"
-        summary_w, _ = self._get_text_size(summary, body_font)
-        draw.text(((900 - summary_w) // 2, 1040), summary, font=body_font, fill=palette["accent"])
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            output = Path(tmp.name)
-        canvas.save(output, "PNG", optimize=True)
-        return output
+            entries.append(WeeklyEntry(day=day, pig=pig, was_eaten=was_eaten))
+        return render_weekly_summary_image(
+            entries,
+            today=today,
+            monday=monday,
+            palette=self._image_palette(),
+            font_bold=self.font_bold,
+            font_regular=self.font_regular,
+            image_resolver=self.find_image_file,
+        )
 
     def render_roast_image(
         self, pig: dict, user_id: str, ai_copy: str | None = None
