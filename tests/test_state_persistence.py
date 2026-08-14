@@ -30,8 +30,12 @@ class _FakeTimer:
     def fire(self):
         if not self._alive:
             return
-        self._alive = False
+        # threading.Timer remains alive while its callback is running. Keeping
+        # that contract matters because mutations during persistence must see
+        # the current timer as active and let the revision check schedule the
+        # single follow-up flush.
         self.callback()
+        self._alive = False
 
 
 def _install_fake_timer(monkeypatch):
