@@ -1,0 +1,27 @@
+name: Cleanup v3.6.4 artifacts
+
+on:
+  push:
+    branches:
+      - release/v3.6.4
+    paths:
+      - .github/workflows/_cleanup-v364.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v3.6.4
+      - name: Remove generated release-check artifacts
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm -r dist
+          git rm .github/workflows/_cleanup-v364.yml
+          git commit -m "chore: remove generated release artifacts"
+          git push origin HEAD:release/v3.6.4
