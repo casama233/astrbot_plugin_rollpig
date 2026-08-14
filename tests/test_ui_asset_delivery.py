@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN = (ROOT / "main.py").read_text(encoding="utf-8")
+MAIN = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 PAGE = (ROOT / "pages/pig-manager/index.html").read_text(encoding="utf-8")
 BOOTSTRAP = (ROOT / "pages/pig-manager/ui-bootstrap.js").read_text(encoding="utf-8")
 

@@ -95,6 +95,54 @@
         "type": "bool",
         "default": false
     },
+    "enable_daily_report": {
+        "description": "开启猪圈日报",
+        "hint": "启用 /猪圈日报、群内日报统计与相关称号；关闭后手动和自动日报都停止",
+        "type": "bool",
+        "default": true
+    },
+    "daily_report_auto_send": {
+        "description": "每天自动发送猪圈日报",
+        "hint": "在当天有 RollPig 活动且已记录群会话时，按配置时间自动把日报图片发送回群聊",
+        "type": "bool",
+        "default": true
+    },
+    "daily_report_send_time": {
+        "description": "猪圈日报发送时间",
+        "hint": "使用 timezone 对应时区的 HH:MM，例如 23:50；默认 23:50，之后还会叠加少量随机延迟",
+        "type": "string",
+        "default": "23:50"
+    },
+    "daily_report_random_delay_minutes": {
+        "description": "日报随机延迟上限（分钟）",
+        "hint": "为避免多个群同时推送，在发送时间后随机延迟 0 到该值分钟；范围 0-60，默认 10",
+        "type": "int",
+        "default": 10
+    },
+    "daily_report_skip_empty_groups": {
+        "description": "跳过无活动群的日报",
+        "hint": "当天没有任何 RollPig 抽取记录的群不自动发送日报，默认开启",
+        "type": "bool",
+        "default": true
+    },
+    "daily_report_random_eat_enabled": {
+        "description": "开启日报随机祭品",
+        "hint": "默认关闭；开启后仅在自动日报发送时，从当天在本群参与 RollPig 且可被吃的用户中随机选择一人，将该日状态改为「吃掉了」并沿用次日惩罚。手动 /猪圈日报 不触发",
+        "type": "bool",
+        "default": false
+    },
+    "daily_report_avatar_enabled": {
+        "description": "日报显示平台头像",
+        "hint": "称号获得者优先使用平台提供的头像；获取失败会自动使用昵称首字占位，不影响日报发送",
+        "type": "bool",
+        "default": true
+    },
+    "daily_report_avatar_cache_hours": {
+        "description": "日报头像缓存时间（小时）",
+        "hint": "平台头像本地缓存时长，范围 1-168，默认 24 小时",
+        "type": "int",
+        "default": 24
+    },
     "image_theme": {
         "description": "图片卡片日夜主题",
         "hint": "auto 会在 19:00-06:59 使用深色夜间主题；也可填 light 或 dark 固定主题",

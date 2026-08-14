@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_v340_release_contract_is_readable_lazy_and_versioned():
     metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")
-    main = (ROOT / "main.py").read_text(encoding="utf-8")
+    main = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
     updater = (ROOT / "updater.py").read_text(encoding="utf-8")
     bootstrap = (ROOT / "pages/pig-manager/ui-bootstrap.js").read_text(encoding="utf-8")
     page = (ROOT / "pages/pig-manager/index.html").read_text(encoding="utf-8")
