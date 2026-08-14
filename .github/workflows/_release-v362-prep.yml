@@ -1,0 +1,60 @@
+name: v3.6.2 Release Prep
+
+on:
+  push:
+    branches:
+      - release/v3.6.2
+    paths:
+      - .github/workflows/_release-v362-prep.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v3.6.2
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Prepare v3.6.2 release files
+        run: python scripts/_release_v362.py
+
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services
+
+      - name: Run full tests
+        run: pytest -q
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Remove one-shot helper
+        run: rm -f scripts/_release_v362.py
+
+      - name: Commit verified release prep
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md CHANGELOG.md docs/COMMANDS.md docs/CONFIGURATION.md docs/OPERATIONS.md docs/RESOURCE-MANAGEMENT.md docs/ARCHITECTURE.md legacy_main.py updater.py tests/test_identity_migration_plus.py tests/test_source_regressions.py tests/test_v312_release_contract.py .github/release-v3.6.2.md scripts/_release_v362.py
+          if git diff --cached --quiet; then
+            echo "No release prep changes to commit"
+            exit 1
+          fi
+          git commit -m "chore: prepare v3.6.2 release"
+          git push origin HEAD:release/v3.6.2
