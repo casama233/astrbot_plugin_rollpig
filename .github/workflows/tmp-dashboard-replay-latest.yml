@@ -1,0 +1,82 @@
+name: Temporary dashboard replay on latest main
+on:
+  push:
+    branches: [feat/dashboard-accuracy-motion-v2]
+permissions:
+  contents: write
+jobs:
+  replay-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Replay verified dashboard audit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git cherry-pick 083763e396aafd5a1c325d8a4928823512737eaf
+      - name: Verify latest-main command fixes survived
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('main.py').read_text(encoding='utf-8')
+          for token in ('pigsty_daily_report_status', 'pigsty_daily_report_enable', 'pigsty_daily_report_disable'):
+              assert token in source, f'missing latest-main command adapter: {token}'
+          assert 'UI_ASSET_VERSION = "3.2.0"' in source
+          PY
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+      - name: Check JavaScript syntax
+        run: |
+          node --check pages/pig-manager/ui-bootstrap.js
+          node --check pages/pig-manager/ui-analytics.js
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          for i, source in enumerate(re.findall(r'<script(?: [^>]*)?>(.*?)</script>', page, re.S)):
+              if source.strip():
+                  Path(f'/tmp/rollpig-inline-{i}.js').write_text(source, encoding='utf-8')
+          PY
+          for f in /tmp/rollpig-inline-*.js; do node --check "$f"; done
+      - name: Compile Python source
+        run: python -m compileall -q main.py legacy_main.py storage services source_service renderers
+      - name: Run dashboard accuracy regressions
+        run: |
+          pytest -q \
+            tests/test_dashboard_accuracy_contract.py \
+            tests/test_dashboard_sql_analytics.py \
+            tests/test_dashboard_insights.py \
+            tests/test_new_unlock_trend.py \
+            tests/test_analytics_readability.py \
+            tests/test_analytics_bridge_bootstrap.py \
+            tests/test_analytics_spa_remount.py \
+            tests/test_ui_asset_delivery.py \
+            tests/test_ui_cache_busting.py
+      - name: Run command compatibility regressions
+        run: |
+          pytest -q \
+            tests/test_command_registration_boundary.py \
+            tests/test_command_script_compatibility.py \
+            tests/test_dynamic_help_system.py \
+            tests/test_v361_hotfix_contract.py
+      - name: Run full tests
+        run: pytest -q
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Check diff
+        run: git diff --check
+      - name: Remove one-shot workflow and push
+        run: |
+          rm -f .github/workflows/tmp-dashboard-replay-latest.yml
+          git add -A
+          git diff --cached --check
+          git commit -m 'chore: finalize dashboard audit on latest main'
+          git push origin HEAD:${GITHUB_REF_NAME}
