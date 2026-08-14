@@ -874,9 +874,16 @@ class DailyReportMixin:
                 fill=palette["secondary"],
             )
         else:
+            variety = int(report.get("pig_variety", 0) or 0)
+            peak = int(report.get("popular_peak", 0) or 0)
+            summary = (
+                f"今天 {variety} 种小猪各出现 1 次，尚未形成热门形态。"
+                if variety > 1 and peak == 1
+                else "今天还没有形成流行趋势。"
+            )
             draw.text(
                 (76, pop_y + 105),
-                "今天还没有形成流行趋势。",
+                summary,
                 font=label_font,
                 fill=palette["muted"],
             )
@@ -959,9 +966,15 @@ class DailyReportMixin:
             font=small_font,
             fill=palette["muted"],
         )
+        detail_missing = int(report.get("roast_detail_missing", 0) or 0)
+        footer_line = (
+            f"烤猪总数另含 {detail_missing} 笔仅有总量的历史记录 · 人物称号只按可追溯玩法事件计算"
+            if detail_missing > 0
+            else f"自动推送 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机延迟"
+        )
         draw.text(
             (68, footer_y + 58),
-            f"自动推送 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机延迟",
+            footer_line,
             font=small_font,
             fill=palette["secondary"],
         )

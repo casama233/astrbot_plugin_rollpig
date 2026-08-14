@@ -104,3 +104,26 @@ def test_daily_report_contract_keeps_sacrifice_opt_in():
     assert "unified_msg_origin" in feature
     assert "self.context.send_message(umo, chain)" in feature
     assert "daily_report_sacrifice" in feature
+
+
+def test_daily_report_does_not_invent_a_popular_pig_for_all_unique_draws():
+    members = [
+        {"user_id": f"u{i}", "pig_id": f"pig-{i}", "pig_name": f"猪{i}"}
+        for i in range(16)
+    ]
+    report = aggregate_daily_report(members, [], [], roast_total=0)
+    assert report["popular_pigs"] == []
+    assert report["pig_variety"] == 16
+    assert report["popular_peak"] == 1
+    assert report["popular_has_trend"] is False
+
+
+def test_daily_report_discloses_aggregate_only_roast_records():
+    events = [
+        {"kind": "roast_success", "actor_id": "a", "target_id": "b", "victim_id": "b"}
+    ]
+    report = aggregate_daily_report([], events, [], roast_total=3)
+    assert report["roasts"] == 3
+    assert report["roast_detail_missing"] == 2
+    assert report["roast_detail_complete"] is False
+    assert report["awards"]["roast_maniac"] == {"value": 1, "winners": ["a"]}
