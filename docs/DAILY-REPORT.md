@@ -65,3 +65,13 @@
 - `/豬圈日報 狀態`：查看本群與全局 master switch 狀態。
 
 群組今天才開啟時不會補發開啟日前的舊日報；隨機延遲也會被限制在報告自然日結束前。重啟 catch-up 僅對當時已 opt-in 的群生效。
+
+## 烤箱補貨指標
+
+Phase 3B 後，日報從 Gameplay Event 聚合並額外顯示：
+
+- 補貨發起：`oven_refill_started`。
+- 添煤人次：發起者自動支持 + `oven_refill_supported`。
+- 補貨成功：`oven_refill_succeeded`。
+
+`oven_refill_failed` 仍會保留在事件流中供後續統計／管理面板使用，但不佔主海報的核心指標卡。日報不直接查詢 `oven_refill_groups` 或 `oven_refill_supporters`，保持「玩法寫事件、日報只讀事件」的邊界。

@@ -1,4 +1,4 @@
-# 烤箱 Charge（Phase 3A）
+# 烤箱 Charge 與群體補貨（Phase 3A–3B）
 
 Phase 3A 將原本「每次 `/烤群友` 後整體等待固定冷卻」改為 **使用者 × 群組** 的儲存式烤箱能量。
 
@@ -56,15 +56,25 @@ JSON fallback 使用 `roast_state.json -> roast_charges`，但與 SQLite 共用 
 
 Charge key 使用 canonical `_storage_user_key()` + group ID，因此沿用 claim-aware Collection Identity Boundary，不枚舉 sibling Bot instance，也不退回裸 user ID。
 
-## Phase 3B
+## Phase 3B：群體補貨
 
-本階段 **不包含** `/烤箱補貨` 與 `/添煤`。
+Phase 3B 已在 Phase 3A 的 charge/storage contract 上加入：
 
-Phase 3B 會建立群體補貨事件，成功時為符合條件的本群玩家恢復 **+1 格**，而不是直接補滿，並寫入已預留的 Gameplay Event：
+- `/烤箱補貨`：由本群今天已參與 RollPig 的玩家發起；發起者自動計入第 1 份支持。
+- `/添煤`：同一玩家每輪只計一次；只有本群今日活躍玩家可參與。
+- 首輪預設門檻為 `max(3, ceil(今日活躍 × 30%))`；若只有 2 位活躍玩家則必須 2 人全部支持。
+- 每成功一次，下一輪門檻預設再增加 2 人，但永遠不會高於本群今日活躍人數。
+- 每群每日預設最多成功補貨 2 次。
+- 達標時為本群今日活躍玩家各恢復 **+1 格**，不直接補滿；已滿能量者不會溢出。
+- 若達標時所有符合資格玩家都已自行恢復滿格，本輪作廢，不消耗每日成功次數。
+
+SQLite 使用正規化 `oven_refill_groups` / `oven_refill_supporters`；達標狀態切換與逐人 +1 charge 在同一 transaction 完成。JSON fallback 使用 `roast_state.json -> oven_refills`，並共用相同 charge policy。
+
+Gameplay Event：
 
 - `oven_refill_started`
 - `oven_refill_supported`
 - `oven_refill_succeeded`
 - `oven_refill_failed`
 
-在 Phase 3A 的 charge/storage contract 穩定後再接入，避免同一個 PR 同時重寫冷卻、預約與群體補貨。
+豬圈日報只讀 Gameplay Event，顯示「補貨發起 / 添煤人次 / 補貨成功」，不直接讀補貨資料表。

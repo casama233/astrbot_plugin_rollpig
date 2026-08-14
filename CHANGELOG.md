@@ -3,6 +3,11 @@
 ## 未發佈
 
 ### Added
+- Phase 3B 群體烤箱補貨：新增 `/烤箱補貨` 與 `/添煤`；本群今日活躍玩家協作達標後各恢復 +1 格烤箱能量，首輪預設門檻為 `max(3, ceil(活躍 × 30%))`，成功後下一輪預設 +2 人，每群每日預設最多成功 2 次。
+- 新增正規化 `oven_refill_groups` / `oven_refill_supporters` SQL 狀態，達標狀態與逐人 +1 charge 在同一 transaction 完成；JSON fallback 使用相同狀態語義。
+- Gameplay Event 正式接入 `oven_refill_started/supported/succeeded/failed`，豬圈日報新增「補貨發起 / 添煤人次 / 補貨成功」三個指標。
+
+### Added
 - Phase 3A 烤箱 Charge：普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗可儲存能量，預設 2 格；沿用 `group_roast_cooldown_hours` 作每格恢復週期，新增 `group_roast_max_charges`（1–5，預設 2）。
 - SQLite/JSON 共用同一 token-bucket policy；舊 `roast_cooldowns.last_used_at` lazy 遷移為 charge state，活動中的舊冷卻視為已消耗 1 格，避免升級重置或雙重懲罰。
 - 預約主廚建立預約消耗 1 格，添柴與日後觸發不重複消耗；後門 bypass 與 60/30/10 outcome policy 保持不變。

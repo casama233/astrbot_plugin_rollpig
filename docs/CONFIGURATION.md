@@ -39,11 +39,17 @@
 | `enable_roast` | bool | `true` | `true` / `false` | 烤豬總開關；關閉後今日烤豬與烤群友相關流程不可用。 |
 | `enable_group_roast` | bool | `true` | `true` / `false` | 群聊烤群友玩法開關，包括普通、預約、隨機與後門口令。 |
 | `enable_roast_reservation` | bool | `true` | `true` / `false` | 明確 `/烤群友 @尚未抽豬目標` 時建立同群當日預約；隨機／後門不建立。 |
-| `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約包含固定主廚在內的最大參與人數；後續添柴不消耗自己的普通冷卻。 |
+| `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約包含固定主廚在內的最大參與人數；後續添柴不消耗自己的烤箱能量。 |
 | `enable_group_eat` | bool | `true` | `true` / `false` | 吃群友與隨機吃群友開關。 |
 | `eat_success_percent` | int | `15` | `1-80` | 吃群友成功率。失敗時發起者會變成當天的「吃掉了」。 |
 | `eaten_next_day_failure_percent` | int | `20` | `1-80` | 今天被成功吃掉後，次日第一次抽豬失敗的概率。若判定失敗，當天維持無法抽取直到下一日。 |
-| `group_roast_cooldown_hours` | float | `8` | `1-72` | 普通烤群友按「發起者 + 群組」計算冷卻；第一位主廚建立預約時消耗一次，添柴與預約觸發不重複扣除。後門可繞過。 |
+| `group_roast_cooldown_hours` | float | `8` | `1-72` | 每格缺失烤箱能量的恢復時間；沿用舊冷卻配置。 |
+| `group_roast_max_charges` | int | `2` | `1-5` | 每位玩家在每個群組可儲存的最大烤箱能量；普通烤群友與建立預約各消耗 1 格。 |
+| `enable_oven_refill` | bool | `true` | `true` / `false` | 是否啟用 `/烤箱補貨` 與 `/添煤`。 |
+| `oven_refill_daily_limit` | int | `2` | `1-5` | 每群每天成功補貨次數上限；作廢輪次不計。 |
+| `oven_refill_support_ratio_percent` | int | `30` | `1-100` | 首輪補貨需要的本群今日活躍玩家比例。 |
+| `oven_refill_min_supporters` | int | `3` | `2-20` | 補貨的最少支持人數；僅 2 位活躍玩家時固定需要 2 人。 |
+| `oven_refill_extra_supporters_per_success` | int | `2` | `0-10` | 當天每成功補貨一次，下一輪增加的支持人數。 |
 | `enable_roast_protection` | bool | `true` | `true` / `false` | 啟用「昨日被烤過多 → 今日保護」機制。 |
 | `roast_protection_threshold` | int | `3` | `1-20` | 同一群中，昨日實際被烤次數達到此值後，今日普通烤群友會被阻擋；吃群友選目標時也尊重保護。 |
 | `enable_ai_roast_copy` | bool | `false` | `true` / `false` | 嘗試用當前會話模型生成料理文案；不可用、超時或失敗時回退本地模板。 |
@@ -51,7 +57,7 @@
 
 ### 預約烤豬建議
 
-預約只在明確指定未抽豬目標時建立。主廚先支付普通冷卻，目標在同群顯示自己的今日小豬時才結算；添柴不增加成功率。詳細行為見 [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md)。
+預約只在明確指定未抽豬目標時建立。主廚先支付 1 格烤箱能量，目標在同群顯示自己的今日小豬時才結算；添柴不增加成功率。詳細行為見 [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md)。
 
 ### AI 文案成本與節流
 
@@ -142,6 +148,9 @@ v3.4.0+ 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。
   "eat_success_percent": 15,
   "eaten_next_day_failure_percent": 20,
   "group_roast_cooldown_hours": 8,
+  "group_roast_max_charges": 2,
+  "enable_oven_refill": true,
+  "oven_refill_daily_limit": 2,
   "enable_roast_protection": true,
   "roast_protection_threshold": 3,
   "enable_ai_roast_copy": false,
