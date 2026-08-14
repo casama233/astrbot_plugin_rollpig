@@ -601,10 +601,7 @@
     const script = document.createElement('script');
     script.dataset.rollpigUiAsset = asset.name;
     script.dataset.version = VERSION;
-    script.textContent = `try {
-${asset.source}
-} catch (error) { window.${STATE_KEY}?.reportModuleError(${JSON.stringify(asset.name)}, error); }
-//# sourceURL=rollpig-${asset.name}-${VERSION}.js`;
+    script.textContent = `try {\n${asset.source}\n} catch (error) { window.${STATE_KEY}?.reportModuleError(${JSON.stringify(asset.name)}, error); }\n//# sourceURL=rollpig-${asset.name}-${VERSION}.js`;
     document.body.appendChild(script);
     if (!state.errors.some(item => item.name === asset.name)) state.assets[asset.name] = 'ready';
   };
