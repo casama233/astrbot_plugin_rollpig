@@ -7,6 +7,11 @@ from help_system import HelpFeatureState, build_help_sections, help_sections_fin
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPORT_ADAPTERS = {
+    "pigsty_daily_report_status": "/豬圈日報狀態",
+    "pigsty_daily_report_enable": "/豬圈日報開啟／關閉",
+    "pigsty_daily_report_disable": "/豬圈日報開啟／關閉",
+}
 
 
 def _commands(state: HelpFeatureState) -> set[str]:
@@ -17,9 +22,9 @@ def _commands(state: HelpFeatureState) -> set[str]:
     }
 
 
-def _registered_primary_commands() -> set[str]:
+def _registered_command_surfaces() -> dict[str, set[str]]:
     tree = ast.parse((ROOT / "main.py").read_text(encoding="utf-8"))
-    commands: set[str] = set()
+    commands: dict[str, set[str]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -34,9 +39,17 @@ def _registered_primary_commands() -> set[str]:
                 and func.attr == "command"
             ):
                 continue
+            surfaces: set[str] = set()
             first = decorator.args[0]
             if isinstance(first, ast.Constant) and isinstance(first.value, str):
-                commands.add(first.value)
+                surfaces.add(first.value)
+            for keyword in decorator.keywords:
+                if keyword.arg != "alias" or not isinstance(keyword.value, ast.Set):
+                    continue
+                for item in keyword.value.elts:
+                    if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                        surfaces.add(item.value)
+            commands[node.name] = surfaces
     return commands
 
 
@@ -56,17 +69,17 @@ def test_disabled_features_are_omitted_instead_of_advertised():
     )
     commands = _commands(state)
 
-    assert "/今日小猪 @某人" not in commands
-    assert "/今日烤猪" not in commands
+    assert "/今日小豬 @某人" not in commands
+    assert "/今日烤豬" not in commands
     assert "/烤群友 @某人" not in commands
-    assert "/随机烤群友" not in commands
-    assert "/打点后厨 @某人" not in commands
+    assert "/隨機烤群友" not in commands
+    assert "/打點後廚 @某人" not in commands
     assert "/吃群友 @某人" not in commands
-    assert "/随机吃群友" not in commands
-    assert not any(command.startswith("/猪圈日报") for command in commands)
-    assert "新猪保底" not in commands
-    assert "跨日疲劳保底" not in commands
-    assert "预约烤猪" not in commands
+    assert "/隨機吃群友" not in commands
+    assert not any(command.startswith("/豬圈日報") for command in commands)
+    assert "新豬保底" not in commands
+    assert "跨日疲勞保底" not in commands
+    assert "預約烤豬" not in commands
 
 
 def test_enabled_features_expose_new_report_and_reservation_capabilities():
@@ -84,19 +97,19 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     )
     commands = _commands(state)
 
-    assert "/今日小猪 @某人" in commands
-    assert "/猪圈日报 状态" in commands
-    assert "/烤箱补货" in commands
+    assert "/今日小豬 @某人" in commands
+    assert "/豬圈日報狀態" in commands
+    assert "/烤箱補貨" in commands
     assert "/添煤" in commands
-    assert "/猪圈日报 开启／关闭" in commands
-    assert "自动日报总开关" in commands
-    assert "预约烤猪" in commands
-    assert "次日保护" in commands
-    assert "AI 烤猪文案" in commands
-    assert "日报随机祭品" in commands
+    assert "/豬圈日報開啟／關閉" in commands
+    assert "自動日報總開關" in commands
+    assert "預約烤豬" in commands
+    assert "次日保護" in commands
+    assert "AI 烤豬文案" in commands
+    assert "日報隨機祭品" in commands
 
 
-def test_all_registered_commands_have_help_coverage_when_enabled():
+def test_all_registered_commands_have_script_aware_help_coverage_when_enabled():
     commands = _commands(
         HelpFeatureState(
             at_view_pig=True,
@@ -104,13 +117,21 @@ def test_all_registered_commands_have_help_coverage_when_enabled():
             daily_report_random_eat_enabled=True,
         )
     )
-    registered = _registered_primary_commands() - {"猪猪帮助"}
+    registered = _registered_command_surfaces()
 
-    uncovered = {
-        command
-        for command in registered
-        if not any(entry.startswith(f"/{command}") for entry in commands)
-    }
+    uncovered = set()
+    for handler, surfaces in registered.items():
+        if handler == "rollpig_help":
+            continue
+        if handler in REPORT_ADAPTERS:
+            if REPORT_ADAPTERS[handler] not in commands:
+                uncovered.add(handler)
+            continue
+        if not any(
+            any(entry.startswith(f"/{surface}") for entry in commands)
+            for surface in surfaces
+        ):
+            uncovered.add(handler)
     assert uncovered == set(), f"commands missing from dynamic help: {sorted(uncovered)}"
 
 
