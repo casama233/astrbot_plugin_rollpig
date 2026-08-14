@@ -20,12 +20,22 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest pre-commit
       - name: Apply public source review/browser patch
-        run: python scripts/tmp_apply_public_source_review_browser.py
+        run: |
+          python scripts/tmp_apply_public_source_review_browser.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_public_source_review.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    assert reviewed["status"] == "rejected"\n    assert reviewed["reviewer_note"] == "内容不符合公共源要求"\n    assert app.list_submissions("pending") == []\n    rejected = app.list_submissions("rejected")\n    assert rejected[0]["submission_id"] == submission_id\n'''
+          new = '''    assert reviewed["status"] == "rejected"\n    assert app.list_submissions("pending") == []\n    rejected = app.list_submissions("rejected")\n    assert rejected[0]["submission_id"] == submission_id\n    assert rejected[0]["reviewer_note"] == "内容不符合公共源要求"\n'''
+          if old not in text:
+              raise SystemExit('reject test patch marker missing')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Compile source
         run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services source_service
       - name: Run focused regression tests
-        run: |
-          pytest -q tests/test_public_source_review.py tests/test_public_source_ui_confirmation.py tests/test_public_source_browser_contract.py tests/test_group_report_source_review_hardening.py
+        run: pytest -q tests/test_public_source_review.py tests/test_public_source_ui_confirmation.py tests/test_public_source_browser_contract.py tests/test_group_report_source_review_hardening.py
       - name: Run full tests
         run: pytest -q
       - name: Run pre-commit
