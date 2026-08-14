@@ -43,6 +43,10 @@ jobs:
       - name: Build wiki strictly
         run: mkdocs build --strict --clean
 
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
       - name: Upload site artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
