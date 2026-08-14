@@ -13,17 +13,22 @@ try:
     from .daily_report_feature import DailyReportMixin
     from .ex_variant_feature import ExVariantMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from .permanent_collection_feature import PermanentCollectionMixin
     from .roast_reservation_feature import RoastReservationMixin
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
     from ex_variant_feature import ExVariantMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from permanent_collection_feature import PermanentCollectionMixin
     from roast_reservation_feature import RoastReservationMixin
 
 
-
 class RollPigPlugin(
-    RoastReservationMixin, DailyReportMixin, ExVariantMixin, _BaseRollPigPlugin
+    RoastReservationMixin,
+    DailyReportMixin,
+    ExVariantMixin,
+    PermanentCollectionMixin,
+    _BaseRollPigPlugin,
 ):
     """RollPig Plus with growth, roast reservations and rich daily reports."""
 
