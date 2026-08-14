@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
-![Current Version](https://img.shields.io/badge/current-3.4.0-ef5d82)
+![Current Version](https://img.shields.io/badge/current-3.5.0-ef5d82)
 [![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
@@ -22,18 +22,19 @@
 > [!NOTE]
 > 這不是一個只會回覆隨機圖片的簡單插件。每位使用者都有穩定的每日結果、可持續累積的永久圖鑑、跨日記錄與群聊玩法；管理員則擁有獨立的數據、資源及存儲工作台。
 
-## 3.4.0 版本亮點
+## 3.5.0 版本亮點
 
 | 能力 | 帶來的改進 |
 | --- | --- |
-| ☁️ AstrBot 專用豬源 | 由本專案維護 v1 manifest、99 張完整資源與 HTTPS 端點，替換失效的 nonebot 來源 |
+| 🐽 自建公共豬源 | 本地小豬可把完整資料與圖片提交到我們自己的 AstrBot 審核隊列，不再借用 PigHub 投稿流程 |
+| ✅ 面板人工審核 | 維護者可在管理面板預覽待審核內容、批准或拒絕；批准後自動產生新資源版本 |
+| ☁️ AstrBot 專用豬源 | 由本專案維護 v1 manifest、完整資源與 HTTPS 端點，替換失效的 nonebot 來源 |
 | 🔐 客戶端協議閘門 | 只接受 AstrBot RollPig 的 Client、Protocol 與版本化 User-Agent，其他普通請求回傳 403 |
-| 🧪 可重建、可回退 | 建構器強制校驗圖鑑、圖片、大小與 SHA-256；伺服器保留不可變版本並原子切換 |
+| 🧪 可重建、可回退 | 批准投稿時強制校驗圖鑑與圖片；伺服器保留不可變版本、目錄備份並原子切換 |
 | 🧩 本地資源分層 | 一眼分辨「本地新增」與「覆蓋基礎源」，不再猜測哪一筆資料會生效 |
 | 🚫 屏蔽管理 | 刪除小豬會進入可查看的屏蔽清單，管理員可安全取消屏蔽 |
 | 🖼️ 原圖重修 | 編輯時可下載目前生效的原圖，重修後再上傳替換 |
-| 🌐 PigHub 投稿 | 明確確認後，只把名稱與圖片提交到公共人工審核隊列 |
-| 📚 文檔重整 | README、配置、運維、資源管理及發版說明按正式專案方式維護 |
+| 🔒 審核憑證隔離 | 投稿公開可用；審核 Token 只存在維護者後端，不進配置、不下發瀏覽器 |
 
 完整變更請閱讀 [CHANGELOG](CHANGELOG.md)；使用方式見 [資源管理手冊](docs/RESOURCE-MANAGEMENT.md)，發佈與回退流程見 [豬源維護手冊](docs/RESOURCE-SOURCE-MAINTENANCE.md)。
 
@@ -136,7 +137,8 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 | --- | --- |
 | 數據總覽 | 總使用者、累計抽取、今日活躍、人均解鎖、收藏率、14 日趨勢與熱門小豬 |
 | 豬豬圖鑑 | 搜尋、新增、編輯、刪除、PigHub 選圖、AI 草稿、下載原圖重修 |
-| 本地資源 | 查看本地新增與基礎源覆蓋、管理刪除屏蔽、取消屏蔽、提交 PigHub 審核 |
+| 本地資源 | 查看本地新增與基礎源覆蓋、管理刪除屏蔽、取消屏蔽、提交自建公共豬源審核 |
+| 公共源審核 | 僅維護者實例顯示待審核卡片；可預覽完整內容、批准發佈或拒絕 |
 | AstrBot 豬源 | 預設連接本專案 v1 專用源；顯示協議、同步診斷及基礎層狀態，也可改用私人源 |
 | 數據存儲 | SQLite 驗證、派生狀態修復、JSON 匯出與安全回退 |
 | 插件更新 | 只接受官方穩定 Release，下載、校驗、備份後再替換，不自動重啟 |
@@ -164,14 +166,14 @@ flowchart LR
 
 這代表同步和更新不會悄悄覆蓋管理員的本地編輯；刪除的基礎小豬也不會在下一次同步後自行復活。
 
-### AstrBot 專用源、PigHub 與私人源
+### AstrBot 公共源、PigHub 選圖與私人源
 
 - 預設源是 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`，由本專案產生與維護。
 - 普通瀏覽器、錯誤客戶端或舊 nonebot 客戶端會收到 HTTP 403；相容的 AstrBot v1 請求可正常同步。
-- [PigHub](https://pighub.top/) 是公共圖片分享及人工審核平台，適合投稿單張名稱與圖片。
-- PigHub 不是本插件完整的 `pig.json` 元資料源；描述、文案與本地規則不會隨投稿上傳。
+- 本地資源頁的「投稿公共源」會把 ID、名稱、描述、完整文案與圖片送到本專案自建隊列；人工批准後才會進入預設源。
+- [PigHub](https://pighub.top/) 在本插件中只用作圖片挑選與創作靈感，不是本插件的投稿審核端，也不是完整 `pig.json` 元資料源。
 - 如需在多個實例間同步完整圖鑑，請維護你有權使用的 HTTPS manifest。
-- 舊 `pig.felislab.cc` 仍是 nonebot 專用受限源；v3.4.0 會把該舊地址遷移到新的 AstrBot 專用源。
+- 舊 `pig.felislab.cc` 仍是 nonebot 專用受限源；v3.4.0+ 會把該舊地址遷移到新的 AstrBot 專用源。
 
 專用標頭屬於協議相容性檢查，不是不可偽造的秘密；真正封閉的私人源應另外使用每實例 Token 或 mTLS。
 
@@ -187,7 +189,8 @@ manifest 格式、安全限制與故障排查請看 [資源管理手冊](docs/RE
 | 協議隔離 | 預設源要求 AstrBot Client／Protocol 標頭與版本化 User-Agent |
 | 本地資料隔離 | 插件更新不覆蓋插件資料目錄中的圖鑑、圖片與歷史記錄 |
 | 失敗保留現況 | 同步、遷移或更新失敗時保留最後可用版本與恢復證據 |
-| 公開投稿需確認 | PigHub 投稿每次都需管理員確認，只傳送名稱與圖片 |
+| 公開投稿需確認 | 自建公共源投稿每次都需管理員確認，傳送完整小豬資料與圖片，不傳群友或聊天資料 |
+| 審核最小權限 | 審核 Token 只由維護者插件後端讀取，普通實例與瀏覽器不可取得 |
 
 詳細備份、SQLite、身份遷移、更新及恢復流程請看 [運維手冊](docs/OPERATIONS.md)。
 
@@ -209,8 +212,8 @@ manifest 格式、安全限制與故障排查請看 [資源管理手冊](docs/RE
 
 ## 升級策略
 
-- **v3.2.0+ → v3.4.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
-- **v3.1.4 或更早增強版 → v3.4.0**：先完成獨立身份遷移，再確認新資料正常。
+- **v3.2.0+ → v3.5.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。
+- **v3.1.4 或更早增強版 → v3.5.0**：先完成獨立身份遷移，再確認新資料正常。
 - **原版與增強版同時存在**：系統只提示衝突，不會擅自停用或刪除另一個插件。
 - **舊 nonebot 源配置**：精確匹配失效舊地址時會遷移到 AstrBot v1 專用源；其他自訂私人 URL 保持不變。
 
@@ -220,7 +223,7 @@ manifest 格式、安全限制與故障排查請看 [資源管理手冊](docs/RE
 | --- | --- | --- |
 | [指令手冊](docs/COMMANDS.md) | 使用者、群管理員 | 指令、別名、限制與玩法規則 |
 | [配置手冊](docs/CONFIGURATION.md) | 插件管理員 | 全配置項、預設值與建議 |
-| [資源管理手冊](docs/RESOURCE-MANAGEMENT.md) | 資源維護者 | 分層、manifest、PigHub 投稿與 403 排查 |
+| [資源管理手冊](docs/RESOURCE-MANAGEMENT.md) | 資源維護者 | 分層、manifest、自建公共源投稿審核與 403 排查 |
 | [豬源維護手冊](docs/RESOURCE-SOURCE-MAINTENANCE.md) | 來源維護者 | 建構、協議閘門、部署、驗證與原子回退 |
 | [運維手冊](docs/OPERATIONS.md) | 系統管理員 | 遷移、SQLite、備份、恢復與安全更新 |
 | [市場分發](docs/MARKETPLACE.md) | 發版維護者 | 16 MB 限制、精簡包及驗證規則 |

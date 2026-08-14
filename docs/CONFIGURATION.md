@@ -1,6 +1,6 @@
 # 配置參考
 
-本文對應 v3.4.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
+本文對應 v3.5.0 的 `_conf_schema.json`。推薦透過 AstrBot 插件配置介面修改；除非你清楚 AstrBot 的配置載入方式，否則不要直接改寫運行時配置檔。
 
 > [!NOTE]
 > 程式會對數值配置再次做範圍夾取與類型容錯，因此超出範圍的值通常會被限制到安全區間；仍建議只填本文列出的有效值。
@@ -68,7 +68,7 @@ AI 烤豬文案預設關閉。啟用後，同一隻小豬同一天最多實際�
 
 如果同步失敗，插件會繼續使用既有快取或內置資源，不會先刪掉可用資料。
 
-v3.4.0 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。來源要求 AstrBot v1 的 Client／Protocol 標頭與版本化 User-Agent；普通瀏覽器和 nonebot 客戶端會收到 HTTP 403。精確匹配舊 `pig.felislab.cc` 地址的配置會遷移到新來源，其他自訂 URL 保持不變。完整格式與排錯方式見 [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md)。
+v3.4.0+ 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。來源要求 AstrBot v1 的 Client／Protocol 標頭與版本化 User-Agent；普通瀏覽器和 nonebot 客戶端會收到 HTTP 403。精確匹配舊 `pig.felislab.cc` 地址的配置會遷移到新來源，其他自訂 URL 保持不變。完整格式與排錯方式見 [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md)。
 
 ## 管理面板安全更新
 

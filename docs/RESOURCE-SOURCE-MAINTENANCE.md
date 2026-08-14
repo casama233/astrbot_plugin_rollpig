@@ -101,7 +101,40 @@ OpenResty 規則範本位於 `deploy/rollpig-source.nginx.conf`。部署順序�
 3. 插件同步失敗時會保留原有 active 快取，不會清空圖鑑。
 4. 修正資源後使用另一個新版本號重新發佈。
 
-## 6. 私人實例加固
+## 6. 公共投稿審核服務
+
+v3.5.0 起公共源不是只讀靜態目錄。插件管理員可向固定端點提交本地小豬，維護者在自己的 AstrBot 管理面板完成審核：
+
+```text
+POST /astrbot-rollpig/api/v1/submissions
+GET  /astrbot-rollpig/api/v1/admin/submissions?status=pending
+GET  /astrbot-rollpig/api/v1/admin/submissions/<id>/image
+POST /astrbot-rollpig/api/v1/admin/submissions/<id>/review
+```
+
+服務實作位於 `source_service/app.py`，OpenResty 與 systemd 範本分別位於：
+
+- `deploy/rollpig-source-api.nginx.conf`
+- `deploy/rollpig-source-review.service`
+
+### 權限邊界
+
+- 投稿只要求正確 AstrBot Client／Protocol／版本標頭，每個來源 24 小時最多 5 次。
+- 審核端點另要求高熵 Bearer Token；Token 只保存在來源服務與維護者插件資料目錄的 `public_source_admin.token`。
+- Token 不可寫進 Git、`_conf_schema.json`、瀏覽器儲存、前端響應或日誌。
+- 普通插件實例沒有 Token，面板自動隱藏審核區，但仍可投稿。
+
+### 批准發佈流程
+
+1. 服務校驗 ID、名稱、描述、完整文案、Base64 與圖片像素，統一轉為 `512×512 PNG`。
+2. SQLite 保存待審核資料、圖片 SHA-256、客戶端版本與經 HMAC 處理的來源指紋；不保存原始來源地址。
+3. 維護者批准後，在同一把審核鎖內複製 canonical catalog、加入記錄與圖片，再調用正式建構器做全量驗證。
+4. 建立新的不可變 `releases/<resource_version>`，備份 canonical catalog，最後以臨時符號連結原子替換 `v1`。
+5. 發佈或目錄切換失敗會恢復原 catalog；服務啟動時還會對齊「已發佈但資料庫未及時更新」的極短崩潰窗口。
+
+拒絕操作只更新審核狀態與備註，不改動公共目錄。日常備份應同時涵蓋 canonical catalog、`releases/`、`catalog-backups/`、審核 SQLite 與投稿圖片。
+
+## 7. 私人實例加固
 
 若不希望所有 AstrBot 增強版使用者共用來源，可在此協議閘門之外加入：
 

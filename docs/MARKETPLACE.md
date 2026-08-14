@@ -56,7 +56,7 @@ AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、�
 {
   "name": "astrbot_plugin_rollpig_plus",
   "display_name": "今日小豬 · 增強版",
-  "desc": "獨立維護的今日小豬增強版；提供永久圖鑑、群聊玩法、本地資源分層、PigHub 審核投稿、SQLite 安全存儲與管理面板",
+  "desc": "獨立維護的今日小豬增強版；提供永久圖鑑、群聊玩法、自建公共豬源投稿審核、本地資源分層、SQLite 安全存儲與管理面板",
   "author": "casama233",
   "repo": "https://github.com/casama233/astrbot_plugin_rollpig",
   "tags": ["娛樂", "群聊互動", "每日抽取", "圖鑑", "WebUI"],

@@ -9,7 +9,7 @@
 | [`../README.md`](../README.md) | 專案總覽、安裝、快速開始與主要能力 |
 | [`COMMANDS.md`](COMMANDS.md) | 完整聊天指令、別名、上下文限制與玩法規則 |
 | [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 全配置說明、預設值與建議 |
-| [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、PigHub 投稿與同步排錯 |
+| [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、自建公共源投稿審核與同步排錯 |
 | [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、協議閘門、部署與回退 |
 | [`OPERATIONS.md`](OPERATIONS.md) | 身份遷移、SQLite、備份、同步、安全更新與故障排查 |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 開發環境、測試、提交與文檔維護規範 |
@@ -32,7 +32,7 @@
 1. `README.md` 是否仍準確描述當前版本。
 2. `docs/COMMANDS.md` 是否與 `@filter.command(...)` 和實際限制一致。
 3. `docs/CONFIGURATION.md` 是否與 `_conf_schema.json` 一致。
-4. `docs/RESOURCE-MANAGEMENT.md` 是否與圖鑑分層、manifest 及 PigHub 流程一致。
+4. `docs/RESOURCE-MANAGEMENT.md` 是否與圖鑑分層、manifest 及公共源投稿審核流程一致。
 5. `docs/OPERATIONS.md` 是否與 `storage/`、`identity_migration.py`、`updater.py` 的行為一致。
 6. `CHANGELOG.md` 是否記錄對使用者有感的變更。
 
