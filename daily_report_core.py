@@ -126,12 +126,18 @@ def aggregate_daily_report(
                 event_roasts += 1
 
     popular = top_tied(pig_counts)
-    popular_items = [
-        {"id": pig_id, "name": pig_names.get(pig_id, pig_id), "count": popular["value"]}
-        for pig_id in popular["winners"]
-    ]
+    popular_has_trend = int(popular["value"] or 0) > 1
+    popular_items = (
+        [
+            {"id": pig_id, "name": pig_names.get(pig_id, pig_id), "count": popular["value"]}
+            for pig_id in popular["winners"]
+        ]
+        if popular_has_trend
+        else []
+    )
     victims = sorted({str(value) for value in eaten_victims if str(value)})
     total_roasts = event_roasts if roast_total is None else max(event_roasts, int(roast_total))
+    roast_detail_missing = max(0, total_roasts - event_roasts)
 
     return {
         "active_users": len(unique_members),
@@ -141,6 +147,11 @@ def aggregate_daily_report(
         "escapes": escapes,
         "backlashes": backlashes,
         "popular_pigs": popular_items,
+        "pig_variety": len(pig_counts),
+        "popular_peak": int(popular["value"] or 0),
+        "popular_has_trend": popular_has_trend,
+        "roast_detail_missing": roast_detail_missing,
+        "roast_detail_complete": roast_detail_missing == 0,
         "awards": {
             "roast_maniac": top_tied(roast_maniac),
             "miserable_ingredient": top_tied(miserable),
