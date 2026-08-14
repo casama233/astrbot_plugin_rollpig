@@ -75,4 +75,6 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 `legacy_main.py` 只保留 compatibility facade：先從既有 domain read API 準備 collection／weekly entries、palette 與字體，再把明確輸入交給 renderer。圖片路徑仍經 `find_image_file()` → `ResourceReadService`；圖鑑排序／查找／頁數仍經 `CatalogService`，renderer 不重新實作 precedence 或 catalog policy。
 
+架構重構的 CI 不得只驗證 module import 與 command registry；至少還要保留一次 AstrBot 官方 validator 的完整插件 load/lifecycle smoke。這次 renderer 階段正是由完整 load 揭露上一階段 `_reload_catalog_layers()` 的殘留 `merged` 名稱，而單純 import 無法觸發該路徑。
+
 目前 `render_roast_image`、管理面板縮圖與其他舊圖像輸出尚在 `legacy_main.py`。後續應按同一原則逐個拆分，而不是讓 `renderers/` 取得整個 plugin instance。
