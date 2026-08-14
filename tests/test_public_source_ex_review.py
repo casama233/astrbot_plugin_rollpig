@@ -190,7 +190,10 @@ def test_v2_variant_image_is_normalized_reviewable_and_published(tmp_path):
     manifest = json.loads(
         (app.config.publish_root / "v1" / "manifest.json").read_text(encoding="utf-8")
     )
-    assert "image-pig-ex2.png" in manifest["variant_images"]
+    assert any(
+        item.get("filename") == "image-pig-ex2.png"
+        for item in manifest["variant_images"]
+    )
 
 
 def test_v2_reject_keeps_catalog_and_public_release_unchanged(tmp_path):
