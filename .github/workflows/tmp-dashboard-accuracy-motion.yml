@@ -36,11 +36,15 @@ jobs:
           path.write_text(text, encoding='utf-8')
 
           spa = Path('tests/test_analytics_spa_remount.py')
-          spa_text = spa.read_text(encoding='utf-8').replace(
-              "const VERSION = '3.1.2'",
-              "const VERSION = '3.2.0'",
+          spa.write_text(
+              spa.read_text(encoding='utf-8').replace('3.1.2', '3.2.0'),
+              encoding='utf-8',
           )
-          spa.write_text(spa_text, encoding='utf-8')
+          asset = Path('tests/test_ui_asset_delivery.py')
+          asset.write_text(
+              asset.read_text(encoding='utf-8').replace('3.1.2', '3.2.0'),
+              encoding='utf-8',
+          )
           PY
       - name: Check JavaScript syntax
         run: |
