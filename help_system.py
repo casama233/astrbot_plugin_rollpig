@@ -81,7 +81,7 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
             [
                 HelpEntry("/烤群友 @某人", detail),
                 HelpEntry("/随机烤群友", "从今天在本群抽过猪的可料理群友中随机挑选"),
-                HelpEntry("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
+                HelpEntry("/打点后厨 @某人", "后门别名每日一次；超管可用 /强行点火"),
             ]
         )
 
