@@ -3986,10 +3986,6 @@ class RollPigPlugin(Star):
                 user_ids.append(user_id)
         return user_ids
 
-    @filter.command(
-        "猪猪帮助",
-        alias={"豬豬幫助", "小猪帮助", "小豬幫助", "rollpig帮助", "rollpig幫助"},
-    )
     async def rollpig_help(self, event: AstrMessageEvent):
         """展示今日小猪的完整指令说明。"""
         self._claim_command_event(event)
@@ -4004,19 +4000,6 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
-    @filter.command(
-        "今日小猪",
-        alias={
-            "今日小豬",
-            "今天是什么小猪",
-            "今天是什麼小豬",
-            "抽小猪",
-            "抽小豬",
-            "我的小猪",
-            "我的小豬",
-            "rollpig",
-        },
-    )
     async def roll_pig(self, event: AstrMessageEvent):
         """Draw for self; mentioning another user is strictly read-only."""
         self._claim_command_event(event)
@@ -4156,10 +4139,6 @@ class RollPigPlugin(Star):
         if pig_to_send:
             await self.send_rendered_pig(event, pig_to_send, send_user_id)
 
-    @filter.command(
-        "我的猪圈",
-        alias={"我的豬圈", "小猪图鉴", "小豬圖鑑", "猪圈", "豬圈"},
-    )
     async def my_pigsty(self, event: AstrMessageEvent, args: str = ""):
         """查看永久解锁的小猪图鉴，可附带页码。"""
         self._claim_command_event(event)
@@ -4199,7 +4178,6 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
-    @filter.command("昨日小猪", alias={"昨日小豬", "昨天小猪", "昨天小豬"})
     async def yesterday_pig(self, event: AstrMessageEvent):
         """查看昨天抽到的小猪。"""
         self._claim_command_event(event)
@@ -4217,7 +4195,6 @@ class RollPigPlugin(Star):
             fallback_title="昨日小猪",
         )
 
-    @filter.command("明日小猪", alias={"明日小豬", "明天小猪", "明天小豬"})
     async def tomorrow_pig(self, event: AstrMessageEvent):
         """给出每天固定、但不会提前解锁图鉴的明日预测。"""
         self._claim_command_event(event)
@@ -4242,10 +4219,6 @@ class RollPigPlugin(Star):
             fallback_title="明日小猪预测",
         )
 
-    @filter.command(
-        "本周小猪",
-        alias={"本周小豬", "本週小猪", "本週小豬", "本周猪报", "本週豬報"},
-    )
     async def weekly_pigs(self, event: AstrMessageEvent):
         """生成本周七日抽取总结。"""
         self._claim_command_event(event)
@@ -4262,10 +4235,6 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
-    @filter.command(
-        "随机小猪",
-        alias={"随机小豬", "隨機小猪", "隨機小豬", "随机猪", "隨機豬"},
-    )
     async def random_pigs(self, event: AstrMessageEvent, args: str = ""):
         """从本地图鉴随机展示 1-9 只小猪，不影响每日抽取。"""
         self._claim_command_event(event)
@@ -4291,7 +4260,6 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
-    @filter.command("找猪", alias={"找豬", "搜猪", "搜豬"})
     async def find_pigs(self, event: AstrMessageEvent, keyword: str = ""):
         """在管理员维护的本地图鉴内搜索。"""
         self._claim_command_event(event)
@@ -4324,7 +4292,6 @@ class RollPigPlugin(Star):
             if output:
                 output.unlink(missing_ok=True)
 
-    @filter.command("今日烤猪", alias={"今日烤豬", "烤猪", "烤豬"})
     async def roast_today_pig(self, event: AstrMessageEvent):
         """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
         self._claim_command_event(event)
@@ -4341,7 +4308,6 @@ class RollPigPlugin(Star):
             return
         await self._send_roast_card(event, pig, str(user_id))
 
-    @filter.command("烤群友", alias={"烤群友"})
     async def roast_group_member(self, event: AstrMessageEvent, args: str = ""):
         """在群聊中烧烤 @ 目标或引用消息的发送者。"""
         self._claim_command_event(event)
@@ -4351,7 +4317,6 @@ class RollPigPlugin(Star):
         target_id = self._extract_roast_target_id(event, args)
         await self._roast_group_target(event, target_id)
 
-    @filter.command("随机烤群友", alias={"隨機烤群友"})
     async def roast_random_group_member(self, event: AstrMessageEvent):
         """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
         self._claim_command_event(event)
@@ -4383,7 +4348,6 @@ class RollPigPlugin(Star):
         await self._send_with_mention(event, target_id, " 🎲 被随机烤群友抽中了。")
         await self._roast_group_target(event, target_id)
 
-    @filter.command("吃群友", alias={"吃群友"})
     async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
         """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
         self._claim_command_event(event)
@@ -4393,7 +4357,6 @@ class RollPigPlugin(Star):
         target_id = self._extract_roast_target_id(event, args)
         await self._eat_group_target(event, target_id)
 
-    @filter.command("随机吃群友", alias={"隨機吃群友"})
     async def eat_random_group_member(self, event: AstrMessageEvent):
         """从当天当前群可被吃的成员中随机选择一位。"""
         self._claim_command_event(event)
@@ -4449,19 +4412,6 @@ class RollPigPlugin(Star):
                 event, random.choice(victims), " 🥀 获得今日「可怜被吃」称号。"
             )
 
-    @filter.command(
-        "打点后厨",
-        alias={
-            "打點後廚",
-            "偷换烤架",
-            "偷換烤架",
-            "贿赂主厨",
-            "賄賂主廚",
-            "加急生火",
-            "强行点火",
-            "強行點火",
-        },
-    )
     async def force_roast_group_member(
         self, event: AstrMessageEvent, args: str = ""
     ):
