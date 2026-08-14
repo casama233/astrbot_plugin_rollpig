@@ -7,6 +7,10 @@
     "ex-manager": {
       "title": "EX 成長管理",
       "description": "為小豬編輯 EX Lv.1-5 本地差分、圖片與實際生效預覽"
+    },
+    "ex-public-source": {
+      "title": "EX 公共源",
+      "description": "連同 EX 差分投稿公共源，並審核基礎資料與 EX 圖片"
     }
   }
 }
