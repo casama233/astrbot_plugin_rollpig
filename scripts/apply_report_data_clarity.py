@@ -39,8 +39,8 @@ s=replace_once(s,
 '''        pixels = list(image.convert("L").resize((9, 8), method).getdata())\n''',
 '''        resized = image.convert("L").resize((9, 8), method)\n        getter = getattr(resized, "get_flattened_data", None)\n        pixels = list(getter() if callable(getter) else resized.getdata())\n''','Pillow hash pixels')
 s=replace_once(s,
-'''        self.config = config\n        self._init_database()\n''',
-'''        self.config = config\n        self._duplicate_index_cache_key: tuple[int, int] | None = None\n        self._duplicate_index_cache: list[dict[str, object]] = []\n        self._init_database()\n''','duplicate cache init')
+'''        self.admin_token = _read_admin_token(self.config.admin_token_file)\n        self._review_lock = threading.Lock()\n        self._init_database()\n''',
+'''        self.admin_token = _read_admin_token(self.config.admin_token_file)\n        self._review_lock = threading.Lock()\n        self._duplicate_index_cache_key: tuple[int, int] | None = None\n        self._duplicate_index_cache: list[dict[str, object]] = []\n        self._init_database()\n''','duplicate cache init')
 s=replace_once(s,
 '''    def _catalog_duplicate_index(self) -> list[dict[str, object]]:\n        image_root = self.config.catalog_root / "image"\n        index: list[dict[str, object]] = []\n''',
 '''    def _catalog_duplicate_index(self) -> list[dict[str, object]]:\n        catalog_path = self.config.catalog_root / "pig.json"\n        try:\n            stat = catalog_path.stat()\n            cache_key = (int(stat.st_mtime_ns), int(stat.st_size))\n        except OSError:\n            cache_key = (-1, -1)\n        if cache_key == self._duplicate_index_cache_key and self._duplicate_index_cache:\n            return [dict(item) for item in self._duplicate_index_cache]\n        image_root = self.config.catalog_root / "image"\n        index: list[dict[str, object]] = []\n''','duplicate cache lookup')
