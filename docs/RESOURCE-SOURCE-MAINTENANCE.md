@@ -29,6 +29,11 @@ pig.json
 images/
   pig.png
   ...
+# 可選 EX 成長差分
+pig_ex_variants.json
+ex_variants/
+  pig-ex2.png
+  ...
 ```
 
 v1 manifest 除原有大小與 SHA-256 欄位外，新增：
@@ -44,7 +49,7 @@ v1 manifest 除原有大小與 SHA-256 欄位外，新增：
 }
 ```
 
-插件仍向下兼容未聲明 `schema_version`／`client` 的私人 manifest；本專案預設源則強制要求兩者正確。
+插件仍向下兼容未聲明 `schema_version`／`client` 的私人 manifest；本專案預設源則強制要求兩者正確。EX 成長使用 v1 的可選 `ex_variants`／`variant_images` 欄位，不需要提升協議版本；舊來源不提供時維持基礎圖與文案。
 
 ## 3. 建構與驗證
 
@@ -63,9 +68,10 @@ python scripts/build_resource_source.py \
 - 缺少名稱、描述或完整文案的記錄。
 - 缺圖、一個 ID 多圖或沒有對應資料的多餘圖片。
 - 符號連結、無法解碼、超過 10 MiB 或超過像素上限的圖片。
-- 超過 500 張圖片的來源。
+- 超過 500 張基礎圖片，或超過 1000 張 EX 差分圖片的來源。
+- EX 差分引用未知小豬、超出 Lv.1–5、使用非法欄位、缺圖或存在未引用差分圖片。
 
-全部通過後才會原子建立輸出目錄，並為 `pig.json` 與每張圖片生成大小和 SHA-256。
+全部通過後才會原子建立輸出目錄，並為 `pig.json`、可選 `pig_ex_variants.json` 與每張基礎／差分圖片生成大小和 SHA-256。
 
 GitHub 的 `AstrBot Resource Source` workflow 會在資源或建構器變更時重建並保存 14 天的可部署 Artifact。
 

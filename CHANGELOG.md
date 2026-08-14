@@ -2,6 +2,14 @@
 
 ## 未發佈
 
+### 新功能
+
+- 新增 EX Lv.1–5 稀疏成長差分：同一隻小豬可按玩家既有 `count - 1` EX 等級替換圖片、描述或完整文案，各欄位獨立向下繼承；EX 5 以上沿用最後有效差分。
+- AstrBot Resource Protocol v1 增加可選 `pig_ex_variants.json`／`variant_images`，仍沿用大小、SHA-256、圖片解碼、128 MiB 預算、staging 與原子切換；舊 v1／私人來源不需要修改。
+- 本地小豬 override 仍高於遠端／內置 EX 差分；`/明日小豬` 預測不套用玩家已擁有的 EX 成長，避免把收藏狀態洩漏到未來結果。
+- 群聊本人重複抽取可寫入去重的 `ex_level_up` Gameplay Event，為後續日報與成就統計提供資料，不改變收藏權威狀態。
+- 新增 [`docs/EX-VARIANTS.md`](docs/EX-VARIANTS.md) 說明格式、繼承、安全邊界與目前尚未包含的管理面板 EX 編輯／投稿範圍。
+
 ### 架構
 
 - 新增共用 `gameplay_events.py` Gameplay Event v1 契約；PR #51 的日報事件保持原 JSON 相容，並改由共用寫入／去重／讀取／裁剪函式管理。
