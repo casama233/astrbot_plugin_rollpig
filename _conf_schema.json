@@ -121,7 +121,7 @@
     },
     "daily_report_auto_send": {
         "description": "每天自动发送猪圈日报",
-        "hint": "在当天有 RollPig 活动且已记录群会话时，按配置时间自动把日报图片发送回群聊",
+        "hint": "全局自动推送总开关；仅对已由 AstrBot 管理员在群内显式开启的群生效，群默认关闭",
         "type": "bool",
         "default": true
     },
