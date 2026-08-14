@@ -41,9 +41,22 @@ class OvenRefillMixin:
         super().__init__(context, config)
         self._init_oven_refill_feature()
 
+    @staticmethod
+    def _oven_refill_bool(value: Any, default: bool) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return bool(default)
+        text = str(value).strip().lower()
+        if text in {"1", "true", "yes", "on"}:
+            return True
+        if text in {"0", "false", "no", "off"}:
+            return False
+        return bool(default)
+
     def _init_oven_refill_feature(self) -> None:
         config = self.config if hasattr(self.config, "get") else {}
-        self.enable_oven_refill = self._config_bool(
+        self.enable_oven_refill = self._oven_refill_bool(
             config.get("enable_oven_refill", True), True
         )
         try:
