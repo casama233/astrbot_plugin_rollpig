@@ -58,10 +58,16 @@ jobs:
           )
           for file in "${files[@]}"; do
             sha=$(gh api "repos/${GITHUB_REPOSITORY}/contents/${file}?ref=feat/oven-charge-refill" --jq .sha)
-            content=$(base64 -w 0 "$file")
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${file}" \
-              -f message="feat: persist verified oven charge integration" \
-              -f content="$content" \
-              -f sha="$sha" \
-              -f branch="feat/oven-charge-refill" >/dev/null
+            python - "$file" "$sha" <<'PY'
+          import base64, json, pathlib, sys
+          path, sha = sys.argv[1], sys.argv[2]
+          payload = {
+              "message": "feat: persist verified oven charge integration",
+              "content": base64.b64encode(pathlib.Path(path).read_bytes()).decode("ascii"),
+              "sha": sha,
+              "branch": "feat/oven-charge-refill",
+          }
+          pathlib.Path("/tmp/contents-payload.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${file}" --input /tmp/contents-payload.json >/dev/null
           done
