@@ -7,9 +7,16 @@ from pathlib import Path
 from typing import Mapping
 
 from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont, ImageOps
+from PIL import ImageDraw, ImageFont
 
-from .common import ImageResolver, draw_bold_text, get_text_size
+from .common import (
+    ImageResolver,
+    draw_bold_text,
+    fit_card_image,
+    get_text_size,
+    save_png,
+    wrap_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +63,7 @@ def render_pig_card(
     )
     if avatar_path:
         try:
-            with PILImage.open(avatar_path) as source:
-                method = getattr(PILImage, "Resampling", PILImage).LANCZOS
-                avatar = ImageOps.fit(
-                    ImageOps.exif_transpose(source).convert("RGBA"),
-                    (avatar_w, avatar_h),
-                    method,
-                )
+            avatar = fit_card_image(avatar_path, (avatar_w, avatar_h))
         except Exception as exc:
             logger.error("加载小猪图片失败：%s", exc)
             avatar = None
@@ -78,20 +79,12 @@ def render_pig_card(
         layout.analysis_font_size * layout.analysis_line_height_factor
     )
     max_analysis_width = int(canvas_width * layout.analysis_width_ratio)
-    analysis_lines: list[str] = []
-    current_line = ""
-    for char in pig_analysis:
-        current_line += char
-        line_w, _ = get_text_size(current_line, analysis_font)
-        if line_w > max_analysis_width:
-            analysis_lines.append(current_line[:-1])
-            current_line = char
-    if current_line:
-        analysis_lines.append(current_line)
-    max_analysis_lines = 6
-    if len(analysis_lines) > max_analysis_lines:
-        analysis_lines = analysis_lines[:max_analysis_lines]
-        analysis_lines[-1] = analysis_lines[-1].rstrip("…") + "…"
+    analysis_lines = wrap_text(
+        pig_analysis,
+        analysis_font,
+        max_analysis_width,
+        max_lines=6,
+    )
     analysis_total_h = len(analysis_lines) * line_height
 
     total_content_h = (
@@ -159,7 +152,7 @@ def render_pig_card(
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             tmp_path = Path(tmp.name)
-            canvas.save(tmp_path, format="PNG", quality=95)
+        save_png(canvas, tmp_path)
         logger.debug("合成图片成功，临时文件路径：%s", tmp_path.absolute())
         if not tmp_path.exists():
             logger.error("临时文件创建失败：%s", tmp_path)
