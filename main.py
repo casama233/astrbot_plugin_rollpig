@@ -221,9 +221,9 @@ class RollPigPlugin(
         return await super().force_roast_group_member(event, args)
 
     @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
-    async def pigsty_daily_report(self, event: AstrMessageEvent):
-        """Render the current group's rich report; manual views never sacrifice."""
-        return await super().pigsty_daily_report(event)
+    async def pigsty_daily_report(self, event: AstrMessageEvent, args: str=''):
+        """查看日报，或由管理员开启/关闭本群自动推送。"""
+        return await super().pigsty_daily_report(event, args)
     # END MAIN COMMAND REGISTRATION
 
     # Keep the management UI cache contract visible at the plugin entry point.
