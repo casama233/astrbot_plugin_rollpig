@@ -5,6 +5,8 @@ from pathlib import Path
 
 from services.resource_read_service import ResourceReadService
 
+# Keep these tests functional: this cache sits directly on a renderer hot path.
+
 
 def test_repeated_base_lookup_reuses_directory_probe_cache(tmp_path, monkeypatch):
     custom = tmp_path / "custom"
