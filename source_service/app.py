@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import datetime as dt
+from difflib import SequenceMatcher
 import hashlib
 import hmac
 import io
@@ -41,6 +42,9 @@ MAX_REQUEST_BYTES = 16 * 1024 * 1024
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
 MAX_PENDING_PER_DAY = 5
+MAX_PENDING_TOTAL = 200
+DUPLICATE_NAME_THRESHOLD = 0.82
+DUPLICATE_IMAGE_DISTANCE = 8
 
 
 class APIError(Exception):
@@ -129,6 +133,64 @@ def _validate_record(payload: object) -> dict[str, str]:
     }
 
 
+def _name_key(value: object) -> str:
+    text = str(value or "").strip().lower().replace("豬", "猪")
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", text)
+
+
+def _image_dhash(raw: bytes) -> int:
+    with Image.open(io.BytesIO(raw)) as image:
+        method = getattr(Image, "Resampling", Image).LANCZOS
+        pixels = list(image.convert("L").resize((9, 8), method).getdata())
+    value = 0
+    for y in range(8):
+        row = y * 9
+        for x in range(8):
+            value = (value << 1) | int(pixels[row + x] > pixels[row + x + 1])
+    return value
+
+
+def _duplicate_hints(
+    record: dict[str, str], image: bytes, catalog_index: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    name_key = _name_key(record.get("name"))
+    image_hash = _image_dhash(image)
+    hints: list[dict[str, object]] = []
+    for item in catalog_index:
+        reasons: list[str] = []
+        candidate_name = str(item.get("name") or "")
+        candidate_key = str(item.get("name_key") or "")
+        ratio = SequenceMatcher(None, name_key, candidate_key).ratio() if name_key and candidate_key else 0.0
+        if name_key and name_key == candidate_key:
+            reasons.append("名称相同")
+        elif ratio >= DUPLICATE_NAME_THRESHOLD:
+            reasons.append(f"名称相似 {round(ratio * 100)}%")
+        distance = 64
+        candidate_hash = item.get("image_dhash")
+        if isinstance(candidate_hash, int):
+            distance = (image_hash ^ candidate_hash).bit_count()
+            if distance <= DUPLICATE_IMAGE_DISTANCE:
+                reasons.append(f"图片相似 dHash={distance}")
+        if reasons:
+            hints.append(
+                {
+                    "id": str(item.get("id") or ""),
+                    "name": candidate_name,
+                    "reasons": reasons,
+                    "name_similarity": round(ratio, 3),
+                    "image_distance": distance if distance < 64 else None,
+                }
+            )
+    hints.sort(
+        key=lambda item: (
+            int(item.get("image_distance") if item.get("image_distance") is not None else 99),
+            -float(item.get("name_similarity") or 0),
+            str(item.get("id") or ""),
+        )
+    )
+    return hints[:5]
+
+
 class ReviewApplication:
     def __init__(self, config: ServiceConfig):
         self.config = config
@@ -208,6 +270,37 @@ class ReviewApplication:
             hashlib.sha256,
         ).hexdigest()
 
+
+    def _catalog_records(self) -> list[dict]:
+        path = self.config.catalog_root / "pig.json"
+        try:
+            records = json.loads(path.read_text(encoding="utf-8-sig"))
+        except Exception as exc:
+            raise APIError(HTTPStatus.SERVICE_UNAVAILABLE, "公共豬源目錄暫不可用") from exc
+        return [dict(item) for item in records if isinstance(item, dict)]
+
+    def _catalog_duplicate_index(self) -> list[dict[str, object]]:
+        image_root = self.config.catalog_root / "image"
+        index: list[dict[str, object]] = []
+        for record in self._catalog_records():
+            pig_id = str(record.get("id") or "")
+            item: dict[str, object] = {
+                "id": pig_id,
+                "name": str(record.get("name") or pig_id),
+                "name_key": _name_key(record.get("name")),
+                "image_dhash": None,
+            }
+            for path in sorted(image_root.glob(f"{pig_id}.*")):
+                if not path.is_file():
+                    continue
+                try:
+                    item["image_dhash"] = _image_dhash(path.read_bytes())
+                    break
+                except Exception:
+                    continue
+            index.append(item)
+        return index
+
     def _catalog_ids(self) -> set[str]:
         path = self.config.catalog_root / "pig.json"
         try:
@@ -228,6 +321,11 @@ class ReviewApplication:
         fingerprint = self._source_fingerprint(source_address)
         cutoff = int(time.time()) - 24 * 3600
         with self._connect() as connection:
+            pending_total = int(
+                connection.execute("SELECT COUNT(*) FROM submissions WHERE status = 'pending'").fetchone()[0]
+            )
+            if pending_total >= MAX_PENDING_TOTAL:
+                raise APIError(HTTPStatus.TOO_MANY_REQUESTS, "公共豬源待审核队列已满，请稍后再试")
             recent = connection.execute(
                 "SELECT COUNT(*) FROM submissions WHERE source_fingerprint = ? "
                 "AND submitted_at >= ?",
@@ -280,12 +378,26 @@ class ReviewApplication:
             raise APIError(HTTPStatus.BAD_REQUEST, "審核狀態無效")
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT submission_id,pig_id,name,description,analysis,image_sha256,"
+                "SELECT submission_id,pig_id,name,description,analysis,image_path,image_sha256,"
                 "client_version,status,reviewer_note,resource_version,submitted_at,reviewed_at "
                 "FROM submissions WHERE status = ? ORDER BY submitted_at DESC LIMIT 50",
                 (status,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        catalog_index = self._catalog_duplicate_index()
+        items: list[dict] = []
+        for row in rows:
+            item = dict(row)
+            image_path = Path(str(item.pop("image_path", "")))
+            try:
+                item["duplicate_hints"] = _duplicate_hints(
+                    {"name": str(item.get("name") or "")},
+                    image_path.read_bytes(),
+                    catalog_index,
+                )
+            except Exception:
+                item["duplicate_hints"] = []
+            items.append(item)
+        return items
 
     def image_path(self, submission_id: str) -> Path:
         if not SUBMISSION_PATTERN.fullmatch(submission_id):
