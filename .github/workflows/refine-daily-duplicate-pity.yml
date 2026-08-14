@@ -1,0 +1,40 @@
+name: Refine daily duplicate pity
+
+on:
+  push:
+    branches:
+      - feature/daily-duplicate-pity
+    paths:
+      - .github/workflows/refine-daily-duplicate-pity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/daily-duplicate-pity
+          fetch-depth: 0
+
+      - name: Apply calendar-day refinement
+        run: python tools/refine_daily_duplicate_pity_patch.py
+
+      - name: Validate source and focused tests
+        run: |
+          python -m compileall -q main.py rollpig_core.py services
+          python -m json.tool _conf_schema.json > /dev/null
+          python -m pip install pytest
+          pytest -q tests/test_draw_service_pity.py
+
+      - name: Commit clean refinement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/refine-daily-duplicate-pity.yml tools/refine_daily_duplicate_pity_patch.py
+          git add main.py rollpig_core.py services/draw_service.py docs/CONFIGURATION.md tests/test_draw_service_pity.py
+          git commit -m "fix: make duplicate pity follow calendar days"
+          git push origin HEAD:feature/daily-duplicate-pity
