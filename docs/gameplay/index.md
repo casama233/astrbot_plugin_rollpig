@@ -27,6 +27,8 @@ description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
 你解鎖過的小豬會留在永久豬圈；重複抽取會累積次數，並參與新豬保底與跨日疲勞保底。
 
 <span class="pig-command">/我的豬圈</span>
+
+[看保底到底怎麼算 →](collection-pity.md)
 </div>
 
 <div class="pig-card" markdown>
@@ -45,6 +47,8 @@ description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
 烤自己、烤群友、隨機烤、吃群友。群烤還有預約、添柴、60/30/10 結算與次日保護。
 
 <span class="pig-command">/烤群友 @某人</span>
+
+[看看 60/30/10 到底誰熟 →](roast-outcomes.md)
 </div>
 
 <div class="pig-card" markdown>
@@ -115,4 +119,4 @@ B 對 A `/烤群友 @A`。如果 A 還沒在本群抽豬，會進預約流程；
 </div>
 
 !!! tip "只想查一個精確規則？"
-    直接用頂部搜尋。Wiki 搜尋已針對「Roast Charge」「烤箱補貨」「添煤」「EX 成長」「豬圈日報」等詞做中文分詞補強。
+    直接用頂部搜尋。Wiki 搜尋已針對「Roast Charge」「60/30/10」「烤箱補貨」「添煤」「EX 成長」「新豬保底」「跨日疲勞」「豬圈日報」等詞做中文分詞補強。
