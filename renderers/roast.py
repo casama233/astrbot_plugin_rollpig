@@ -8,7 +8,13 @@ from typing import Mapping
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 
-from .common import ImageResolver, fit_card_image, get_text_size
+from .common import (
+    ImageResolver,
+    fit_card_image,
+    get_text_size,
+    save_png,
+    wrap_text,
+)
 
 
 RECIPES = (
@@ -76,20 +82,7 @@ def render_roast_card(
         fill=palette["roast_title"],
     )
 
-    lines: list[str] = []
-    current = ""
-    for char in copy:
-        candidate = current + char
-        if get_text_size(candidate, body_font)[0] > 640:
-            lines.append(current)
-            current = char
-        else:
-            current = candidate
-    if current:
-        lines.append(current)
-    if len(lines) > 3:
-        lines = lines[:3]
-        lines[-1] = lines[-1].rstrip("…") + "…"
+    lines = wrap_text(copy, body_font, 640, max_lines=3)
     for index, line in enumerate(lines):
         line_w, _ = get_text_size(line, body_font)
         draw.text(
@@ -101,5 +94,5 @@ def render_roast_card(
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         output = Path(tmp.name)
-    canvas.save(output, "PNG", optimize=True)
+    save_png(canvas, output)
     return output
