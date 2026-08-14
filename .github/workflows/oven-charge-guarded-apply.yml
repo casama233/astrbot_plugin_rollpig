@@ -42,8 +42,6 @@ jobs:
         run: pre-commit run --all-files --show-diff-on-failure
       - name: Diff check
         run: git diff --check
-      - name: Remove one-shot helpers
-        run: git rm scripts/apply_oven_charge_phase3.py .github/workflows/oven-charge-guarded-apply.yml
       - name: Commit verified Phase 3 implementation
         run: |
           git config user.name "github-actions[bot]"
