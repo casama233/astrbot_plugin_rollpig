@@ -1,0 +1,82 @@
+name: Prepare v3.6.3 release
+
+on:
+  push:
+    branches:
+      - release/v3.6.3
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v3.6.3
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Prepare release files
+        run: python .github/scripts/prepare_v363_release.py
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py roast_reservations.py roast_reservation_feature.py permanent_collection_feature.py rollpig_core.py updater.py storage services renderers
+
+      - name: Run full tests
+        run: pytest -q
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Check release version consistency
+        run: |
+          grep -q 'version: "3.6.3"' metadata.yaml
+          grep -q 'AstrBot-RollPig/3.6.3' legacy_main.py
+          grep -q 'AstrBot-RollPig-Safe-Updater/3.6.3' updater.py
+          test -f .github/release-v3.6.3.md
+
+      - name: Check Marketplace archive size
+        run: |
+          mkdir -p dist/astrbot_plugin_rollpig_plus
+          rsync -a ./ dist/astrbot_plugin_rollpig_plus/ \
+            --exclude '.git/' --exclude '.github/' --exclude '.venv/' \
+            --exclude '__pycache__/' --exclude '.pytest_cache/' --exclude 'dist/' \
+            --exclude 'tests/' --exclude 'scripts/' --exclude 'deploy/' \
+            --exclude 'source_service/' --exclude 'node_modules/' \
+            --exclude 'package.json' --exclude 'package-lock.json' \
+            --exclude '.pre-commit-config.yaml' --exclude 'CONTRIBUTING.md' \
+            --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
+            --exclude '*.pyc' --exclude '*.pyo' --exclude '.env' \
+            --exclude 'data/' --exclude 'plugin_data/'
+          test -f dist/astrbot_plugin_rollpig_plus/resource/font/荆南麦圆体.otf
+          (cd dist && zip -qr astrbot_plugin_rollpig_plus-v3.6.3.zip astrbot_plugin_rollpig_plus)
+          size=$(stat -c%s dist/astrbot_plugin_rollpig_plus-v3.6.3.zip)
+          echo "Archive size: $size bytes"
+          test "$size" -le 16000000
+
+      - name: Check diff
+        run: git diff --check
+
+      - name: Commit verified release prep
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/release-v3.6.3.md .github/workflows/astrbot-market-smoke.yml CHANGELOG.md README.md docs/COMMANDS.md docs/CONFIGURATION.md docs/OPERATIONS.md docs/RESOURCE-MANAGEMENT.md legacy_main.py metadata.yaml tests/test_identity_migration_plus.py tests/test_source_regressions.py tests/test_v312_release_contract.py updater.py
+          git diff --cached --check
+          git commit -m "chore: prepare v3.6.3 release"
+          git push origin HEAD:release/v3.6.3
