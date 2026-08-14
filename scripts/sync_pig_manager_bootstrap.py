@@ -29,7 +29,11 @@ def render_page(page: str, bootstrap: str) -> str:
         f"{bootstrap.rstrip()}\n"
         "</script>"
     )
-    updated, count = _BOOTSTRAP_BLOCK.subn(block, page, count=1)
+    # Use a replacement function instead of a replacement string. ``re.sub``
+    # interprets backslash escapes in replacement strings, which would turn
+    # JavaScript ``\\n`` literals inside the bootstrap into real newlines and
+    # break the byte-for-byte inline/source contract.
+    updated, count = _BOOTSTRAP_BLOCK.subn(lambda _match: block, page, count=1)
     if count != 1:
         raise RuntimeError("pig-manager bootstrap block not found exactly once")
 
