@@ -1,29 +1,28 @@
 #!/usr/bin/env python3
 """EX-aware wrapper for the RollPig public-source review service.
 
-This keeps Resource Protocol v1 and the existing HTTP routes compatible while
-adding a versioned submission envelope. Legacy base-only submissions continue
-to use submission_version=1 implicitly. EX-aware clients send version 2 with a
-canonical EX schema and the referenced variant PNGs.
+Resource Protocol v1 and every legacy HTTP route remain compatible. Base-only
+clients keep the implicit submission envelope v1. EX-aware clients use envelope
+v2, while EX metadata is stored in a sidecar table so the original submissions
+schema and insert path remain untouched.
 """
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
 import json
 import os
 import re
 import shutil
 import tempfile
-import time
 import uuid
 from http import HTTPStatus
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-import app as legacy
+try:  # package import under tests
+    from . import app as legacy
+except ImportError:  # direct systemd execution beside app.py
+    import app as legacy
 
 
 SUBMISSION_ENVELOPE_VERSION = 2
@@ -41,8 +40,7 @@ def _canonical_ex_payload(payload: object, pig_id: str) -> dict:
     pigs = payload.get("pigs")
     if not isinstance(pigs, dict):
         raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 差分 pigs 必須是物件")
-    unknown = {str(key) for key in pigs}.difference({pig_id})
-    if unknown:
+    if {str(key) for key in pigs}.difference({pig_id}):
         raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 投稿只能包含目前這隻小豬")
     levels_raw = pigs.get(pig_id, {})
     if not isinstance(levels_raw, dict):
@@ -57,8 +55,7 @@ def _canonical_ex_payload(payload: object, pig_id: str) -> dict:
             raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 等級必須為 1-5")
         if not isinstance(raw_item, dict) or not raw_item:
             raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 差分內容不能為空")
-        extras = set(raw_item).difference(_ALLOWED_FIELDS)
-        if extras:
+        if set(raw_item).difference(_ALLOWED_FIELDS):
             raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 差分包含不允許欄位")
         item: dict[str, str] = {}
         description = str(raw_item.get("description") or "").strip()
@@ -123,7 +120,8 @@ def _normalize_variant_images(
             detail.append("未引用：" + ", ".join(extra))
         raise legacy.APIError(
             HTTPStatus.BAD_REQUEST,
-            "EX 圖片與差分引用不一致" + ("（" + "；".join(detail) + "）" if detail else ""),
+            "EX 圖片與差分引用不一致"
+            + ("（" + "；".join(detail) + "）" if detail else ""),
         )
     return images
 
@@ -153,26 +151,26 @@ class ReviewApplicationV2(legacy.ReviewApplication):
     def _init_database(self) -> None:
         super()._init_database()
         with self._connect() as connection:
-            columns = {
-                str(row[1])
-                for row in connection.execute("PRAGMA table_info(submissions)").fetchall()
-            }
-            if "submission_version" not in columns:
-                connection.execute(
-                    "ALTER TABLE submissions ADD COLUMN submission_version INTEGER NOT NULL DEFAULT 1"
-                )
-            if "ex_variants_json" not in columns:
-                connection.execute(
-                    "ALTER TABLE submissions ADD COLUMN ex_variants_json TEXT NOT NULL DEFAULT ''"
-                )
-            if "variant_image_dir" not in columns:
-                connection.execute(
-                    "ALTER TABLE submissions ADD COLUMN variant_image_dir TEXT NOT NULL DEFAULT ''"
-                )
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS submission_ex (
+                    submission_id TEXT PRIMARY KEY,
+                    submission_version INTEGER NOT NULL DEFAULT 2,
+                    ex_variants_json TEXT NOT NULL,
+                    variant_image_dir TEXT NOT NULL DEFAULT '',
+                    FOREIGN KEY(submission_id) REFERENCES submissions(submission_id)
+                );
+                """
+            )
 
     def submit(self, payload: object, *, source_address: str, client_version: str) -> dict:
         record = legacy._validate_record(payload)
         ex_payload, variant_images = _decode_submission_ex(payload, record["id"])
+        if not ex_payload.get("pigs"):
+            return super().submit(
+                payload, source_address=source_address, client_version=client_version
+            )
+
         result = super().submit(
             payload, source_address=source_address, client_version=client_version
         )
@@ -191,20 +189,17 @@ class ReviewApplicationV2(legacy.ReviewApplication):
                 temporary_dir.rename(target_dir)
                 temporary_dir = None
             with self._connect() as connection:
-                changed = connection.execute(
-                    "UPDATE submissions SET submission_version=?,ex_variants_json=?,variant_image_dir=? "
-                    "WHERE submission_id=? AND status='pending'",
+                connection.execute(
+                    "INSERT INTO submission_ex "
+                    "(submission_id,submission_version,ex_variants_json,variant_image_dir) "
+                    "VALUES (?,?,?,?)",
                     (
-                        SUBMISSION_ENVELOPE_VERSION
-                        if ex_payload.get("pigs")
-                        else int(payload.get("submission_version") or 1),
+                        submission_id,
+                        SUBMISSION_ENVELOPE_VERSION,
                         json.dumps(ex_payload, ensure_ascii=False, sort_keys=True),
                         str(target_dir) if variant_images else "",
-                        submission_id,
                     ),
-                ).rowcount
-                if changed != 1:
-                    raise RuntimeError("submission disappeared before EX metadata commit")
+                )
         except Exception:
             if temporary_dir and temporary_dir.exists():
                 shutil.rmtree(temporary_dir, ignore_errors=True)
@@ -222,9 +217,7 @@ class ReviewApplicationV2(legacy.ReviewApplication):
             if row:
                 Path(str(row["image_path"])).unlink(missing_ok=True)
             raise
-        result["submission_version"] = (
-            SUBMISSION_ENVELOPE_VERSION if ex_payload.get("pigs") else 1
-        )
+        result["submission_version"] = SUBMISSION_ENVELOPE_VERSION
         result["ex_variant_levels"] = len(
             ex_payload.get("pigs", {}).get(record["id"], {})
         )
@@ -239,13 +232,17 @@ class ReviewApplicationV2(legacy.ReviewApplication):
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT submission_id,submission_version,ex_variants_json,variant_image_dir "
-                f"FROM submissions WHERE submission_id IN ({placeholders})",
+                f"FROM submission_ex WHERE submission_id IN ({placeholders})",
                 ids,
             ).fetchall()
         extra = {str(row["submission_id"]): row for row in rows}
         for item in items:
             row = extra.get(str(item.get("submission_id") or ""))
             if not row:
+                item["submission_version"] = 1
+                item["ex_variants"] = {"schema_version": 1, "pigs": {}}
+                item["ex_variant_levels"] = 0
+                item["variant_images"] = []
                 continue
             try:
                 ex_payload = json.loads(str(row["ex_variants_json"] or ""))
@@ -253,7 +250,7 @@ class ReviewApplicationV2(legacy.ReviewApplication):
                 ex_payload = {"schema_version": 1, "pigs": {}}
             pig_id = str(item.get("pig_id") or "")
             levels = ex_payload.get("pigs", {}).get(pig_id, {})
-            item["submission_version"] = int(row["submission_version"] or 1)
+            item["submission_version"] = int(row["submission_version"] or 2)
             item["ex_variants"] = ex_payload
             item["ex_variant_levels"] = len(levels) if isinstance(levels, dict) else 0
             item["variant_images"] = sorted(
@@ -273,11 +270,13 @@ class ReviewApplicationV2(legacy.ReviewApplication):
             raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 圖片檔名無效")
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT pig_id,variant_image_dir FROM submissions WHERE submission_id=?",
+                "SELECT s.pig_id,e.variant_image_dir FROM submissions s "
+                "JOIN submission_ex e ON e.submission_id=s.submission_id "
+                "WHERE s.submission_id=?",
                 (submission_id,),
             ).fetchone()
         if not row:
-            raise legacy.APIError(HTTPStatus.NOT_FOUND, "投稿不存在")
+            raise legacy.APIError(HTTPStatus.NOT_FOUND, "EX 投稿不存在")
         if not filename.startswith(f"{row['pig_id']}-ex"):
             raise legacy.APIError(HTTPStatus.BAD_REQUEST, "EX 圖片與投稿小豬不匹配")
         root = Path(str(row["variant_image_dir"] or "")).resolve()
@@ -286,6 +285,24 @@ class ReviewApplicationV2(legacy.ReviewApplication):
         if root != expected_parent or path.parent != expected_parent or not path.is_file():
             raise legacy.APIError(HTTPStatus.NOT_FOUND, "EX 投稿圖片不存在")
         return path
+
+    def _submission_ex(self, submission_id: str) -> tuple[dict, Path | None]:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT ex_variants_json,variant_image_dir FROM submission_ex "
+                "WHERE submission_id=?",
+                (submission_id,),
+            ).fetchone()
+        if not row:
+            return {"schema_version": 1, "pigs": {}}, None
+        try:
+            payload = json.loads(str(row["ex_variants_json"] or ""))
+        except Exception as exc:
+            raise legacy.APIError(
+                HTTPStatus.CONFLICT, "投稿 EX 差分資料已損壞"
+            ) from exc
+        raw_dir = str(row["variant_image_dir"] or "")
+        return payload, Path(raw_dir) if raw_dir else None
 
     def _publish(self, row) -> str:
         if str(row["pig_id"]) in self._catalog_ids():
@@ -316,12 +333,8 @@ class ReviewApplicationV2(legacy.ReviewApplication):
                 candidate / "image" / f"{row['pig_id']}.png",
             )
 
-            ex_text = str(row["ex_variants_json"] or "")
-            if ex_text:
-                incoming = json.loads(ex_text)
-                incoming_levels = incoming.get("pigs", {}).get(str(row["pig_id"]), {})
-            else:
-                incoming_levels = {}
+            incoming, variant_dir = self._submission_ex(str(row["submission_id"]))
+            incoming_levels = incoming.get("pigs", {}).get(str(row["pig_id"]), {})
             if incoming_levels:
                 ex_path = candidate / "pig_ex_variants.json"
                 if ex_path.is_file():
@@ -340,15 +353,14 @@ class ReviewApplicationV2(legacy.ReviewApplication):
                     json.dumps(ex_catalog, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8",
                 )
-                variant_dir = Path(str(row["variant_image_dir"] or ""))
                 destination = candidate / "ex_variants"
                 destination.mkdir(exist_ok=True)
                 for level_data in incoming_levels.values():
                     filename = str(level_data.get("image") or "")
                     if not filename:
                         continue
-                    source = variant_dir / filename
-                    if not source.is_file():
+                    source = (variant_dir / filename) if variant_dir else Path()
+                    if not variant_dir or not source.is_file():
                         raise legacy.APIError(
                             HTTPStatus.CONFLICT,
                             f"投稿缺少 EX 圖片：{filename}",
@@ -411,8 +423,6 @@ class ReviewHandlerV2(legacy.ReviewHandler):
 
 
 def main() -> int:
-    # The original service remains the protocol/runtime owner. Replace only the
-    # extensible classes before its CLI constructs the application/server.
     legacy.ReviewApplication = ReviewApplicationV2
     legacy.ReviewHandler = ReviewHandlerV2
     return legacy.main()
