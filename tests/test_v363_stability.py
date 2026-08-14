@@ -35,8 +35,10 @@ def test_v363_keeps_permanent_collection_read_model_in_entry_mro():
     assert "from .permanent_collection_feature import PermanentCollectionMixin" in source
     assert "PermanentCollectionMixin," in source
     permanent = (ROOT / "permanent_collection_feature.py").read_text(encoding="utf-8")
-    assert "active draw/search catalog" in permanent
-    assert "unlocked historical snapshots" in permanent
+    assert "def _collection_display_catalog" in permanent
+    assert "_collection_retired" in permanent
+    assert "catalog=self.pig_list" in permanent
+    assert "ordered_pigs=display_catalog" in permanent
 
 
 def test_v363_does_not_ship_unreviewed_identity_fragment_merge():
