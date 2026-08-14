@@ -15,6 +15,7 @@ from astrbot.api.event import AstrMessageEvent, filter
 
 try:
     from .daily_report_feature import DailyReportMixin
+    from .ex_admin_feature import ExAdminMixin
     from .ex_variant_feature import ExVariantMixin
     from .help_feature import HelpFeatureMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
@@ -24,6 +25,7 @@ try:
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_feature import DailyReportMixin
+    from ex_admin_feature import ExAdminMixin
     from ex_variant_feature import ExVariantMixin
     from help_feature import HelpFeatureMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
@@ -38,6 +40,7 @@ class RollPigPlugin(
     HelpFeatureMixin,
     RoastReservationMixin,
     DailyReportMixin,
+    ExAdminMixin,
     ExVariantMixin,
     PermanentCollectionMixin,
     _BaseRollPigPlugin,
