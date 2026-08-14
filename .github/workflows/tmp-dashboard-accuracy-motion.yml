@@ -23,7 +23,7 @@ jobs:
         run: python scripts/tmp_dashboard_accuracy_patch.py
       - name: Apply dashboard motion redesign
         run: python scripts/tmp_dashboard_motion_patch.py
-      - name: Correct generated UI contract
+      - name: Correct generated UI contracts
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -34,6 +34,13 @@ jobs:
               'assert "Number(ai.ready || 0) + Number(ai.failed || 0)" in source',
           )
           path.write_text(text, encoding='utf-8')
+
+          spa = Path('tests/test_analytics_spa_remount.py')
+          spa_text = spa.read_text(encoding='utf-8').replace(
+              "const VERSION = '3.1.2'",
+              "const VERSION = '3.2.0'",
+          )
+          spa.write_text(spa_text, encoding='utf-8')
           PY
       - name: Check JavaScript syntax
         run: |
@@ -61,8 +68,12 @@ jobs:
         run: pytest -q tests/test_dashboard_insights.py
       - name: New unlock projection
         run: pytest -q tests/test_new_unlock_trend.py
-      - name: Analytics UI contracts
-        run: pytest -q tests/test_analytics_readability.py tests/test_analytics_bridge_bootstrap.py tests/test_analytics_spa_remount.py
+      - name: Analytics readability
+        run: pytest -q tests/test_analytics_readability.py
+      - name: Analytics bridge
+        run: pytest -q tests/test_analytics_bridge_bootstrap.py
+      - name: Analytics SPA remount
+        run: pytest -q tests/test_analytics_spa_remount.py
       - name: UI asset contracts
         run: pytest -q tests/test_ui_asset_delivery.py tests/test_ui_cache_busting.py
       - name: Run full tests
