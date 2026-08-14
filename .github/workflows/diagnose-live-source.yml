@@ -1,0 +1,59 @@
+name: Diagnose live RollPig source
+
+on:
+  push:
+    branches:
+      - diagnostic/live-source-catalog
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch live public source with real protocol headers
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          base = "https://curryudon.top/astrbot-rollpig/v1/"
+          headers = {
+              "User-Agent": "AstrBot-RollPig/3.6.3 (+https://github.com/casama233/astrbot_plugin_rollpig)",
+              "X-RollPig-Client": "astrbot_plugin_rollpig_plus",
+              "X-RollPig-Protocol": "1",
+          }
+
+          def get_json(name):
+              req = urllib.request.Request(base + name, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  print(name, "status", resp.status)
+                  return json.loads(resp.read().decode("utf-8-sig"))
+
+          manifest = get_json("manifest.json")
+          catalog = get_json("pig.json")
+          print("LIVE resource_version=", manifest.get("resource_version"))
+          print("LIVE pig_count manifest/catalog=", manifest.get("pig_count"), len(catalog))
+
+          targets = ("猪音未来", "豬音未來", "猪信", "豬信", "猪龙鱼公爵", "豬龍魚公爵")
+          print("TARGET RECORDS:")
+          for item in catalog:
+              name = str(item.get("name") or "")
+              if any(target in name or name in target for target in targets):
+                  print(json.dumps(item, ensure_ascii=False, sort_keys=True))
+
+          bundled = json.loads(Path("resource/pig.json").read_text(encoding="utf-8-sig"))
+          print("BUNDLED pig_count=", len(bundled))
+          print("BUNDLED TARGET RECORDS:")
+          for item in bundled:
+              name = str(item.get("name") or "")
+              if any(target in name or name in target for target in targets):
+                  print(json.dumps(item, ensure_ascii=False, sort_keys=True))
+          PY
