@@ -13,7 +13,7 @@ def test_v340_release_contract_is_readable_lazy_and_versioned():
     release_workflow = (ROOT / ".github/workflows/release.yml").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.6.5"' in metadata
+    assert 'version: "3.7.0"' in metadata
     assert "AstrBot-RollPig/3.6.5" in main
     assert "AstrBot-RollPig-Safe-Updater/3.6.5" in updater
     assert "analyticsLoadBtn" in bootstrap
