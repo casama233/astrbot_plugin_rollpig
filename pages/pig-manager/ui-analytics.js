@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const STATE_KEY = '__rollpigAnalyticsUiState';
-  const VERSION = '3.1.2';
+  const VERSION = '3.2.0';
   const pageRoot = document.querySelector('.shell');
   const bridge = window.AstrBotPluginPage;
   if (!pageRoot || !bridge?.apiGet) throw new Error('深度分析缺少页面根节点或管理桥接');
@@ -27,6 +27,8 @@
   };
   window[STATE_KEY] = state;
   const number = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 1});
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+  const finePointer = window.matchMedia?.('(pointer: fine)')?.matches ?? false;
   const percent = value => `${number.format(Number(value || 0))}%`;
   const format = value => number.format(Number(value || 0));
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -123,9 +125,9 @@
         note: `解锁效率 ${percent(current.unlock_efficiency)}`
       },
       {
-        label: '7 日回访率', value: percent(retention.rate),
+        label: '上期→本期回访率', value: percent(retention.rate),
         delta: `${format(retention.returning_users)} 人回访`, className: 'is-accent',
-        note: `新增/回流 ${format(retention.new_current_users)} 人`
+        note: `本期独有活跃 ${format(retention.new_current_users)} 人`
       },
       {
         label: '零收藏猪猪', value: format(catalog.zero_collector_count),
@@ -167,7 +169,7 @@
     const previous = data.periods?.previous || {};
     const rows = [
       ['活跃用户', current.active_users, previous.active_users],
-      ['累计抽取', current.draws, previous.draws],
+      ['周期抽取', current.draws, previous.draws],
       ['新解锁', current.new_unlocks, previous.new_unlocks]
     ];
     document.getElementById('analyticsComparison').innerHTML = `
@@ -183,12 +185,12 @@
     const retention = data.retention || {};
     const rate = Math.max(0, Math.min(100, Number(retention.rate || 0)));
     document.getElementById('analyticsRetention').innerHTML = `
-      ${cardHead('Audience', '回访与新增用户')}
+      ${cardHead('Audience', '回访与周期独有活跃')}
       <div class="retention-layout">
-        <div class="retention-ring" style="--rate:${rate}"><div><strong>${percent(rate)}</strong><span>7 日回访率</span></div></div>
+        <div class="retention-ring" style="--rate:${rate}"><div><strong>${percent(rate)}</strong><span>上期→本期回访率</span></div></div>
         <dl class="analytics-dl">
           <div><dt>回访用户</dt><dd>${format(retention.returning_users)}</dd></div>
-          <div><dt>本期新增/回流</dt><dd>${format(retention.new_current_users)}</dd></div>
+          <div><dt>本期独有活跃</dt><dd>${format(retention.new_current_users)}</dd></div>
           <div><dt>上期活跃基数</dt><dd>${format(retention.previous_active_users)}</dd></div>
         </dl>
       </div>`;
@@ -209,7 +211,7 @@
     const rows = Array.isArray(data.platforms) ? data.platforms : [];
     const max = Math.max(1, ...rows.map(item => Number(item.users || 0)));
     document.getElementById('analyticsPlatforms').innerHTML = `
-      ${cardHead('Audience Mix', '平台用户构成', `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 个身份`)}
+      ${cardHead('Audience Mix', '平台身份构成', `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 个身份`)}
       <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : '<div class="analytics-empty">暂无平台分布数据</div>'}</div>`;
   }
 
@@ -226,8 +228,8 @@
   function renderOperations(data) {
     const ops = data.operations || {};
     const ai = ops.ai || {};
-    const totalAi = Number(ai.ready || 0) + Number(ai.failed || 0) + Number(ai.generating || 0);
-    const success = totalAi ? Number(ai.ready || 0) / totalAi * 100 : 0;
+    const completedAi = Number(ai.ready || 0) + Number(ai.failed || 0);
+    const success = completedAi ? Number(ai.ready || 0) / completedAi * 100 : 0;
     document.getElementById('analyticsOperations').innerHTML = `
       ${cardHead('Runtime Signals', '玩法运行健康', '最近 7 日')}
       <div class="operations-grid">
@@ -236,7 +238,34 @@
         <div><span>AI 成功</span><strong>${format(ai.ready)}</strong></div>
         <div><span>AI 失败</span><strong>${format(ai.failed)}</strong></div>
       </div>
-      <div class="ai-health"><div><span>AI 文案成功率</span><b>${percent(success)}</b></div><i><em style="width:${Math.max(0, Math.min(100, success)).toFixed(2)}%"></em></i></div>`;
+      <div class="ai-health"><div><span>AI 文案成功率 · 已完成样本</span><b>${percent(success)}</b></div><i><em style="width:${Math.max(0, Math.min(100, success)).toFixed(2)}%"></em></i><small>生成中 ${format(ai.generating)} 次，不计入成功率分母</small></div>`;
+  }
+
+  function installAnalyticsMotion() {
+    if (reducedMotion || !finePointer) return;
+    document.querySelectorAll('#analyticsSuite .analytics-card, #analyticsSuite .analytics-kpi').forEach(card => {
+      if (card.dataset.motionBound === '1') return;
+      card.dataset.motionBound = '1';
+      let frame = 0;
+      card.addEventListener('pointermove', event => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          const rect = card.getBoundingClientRect();
+          const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+          const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+          card.style.setProperty('--spot-x', `${x}px`);
+          card.style.setProperty('--spot-y', `${y}px`);
+          const tiltX = ((y / Math.max(1, rect.height)) - .5) * -2.2;
+          const tiltY = ((x / Math.max(1, rect.width)) - .5) * 2.2;
+          card.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}deg`);
+          card.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}deg`);
+        });
+      }, {passive: true, signal: abortController.signal});
+      card.addEventListener('pointerleave', () => {
+        card.style.setProperty('--tilt-x', '0deg');
+        card.style.setProperty('--tilt-y', '0deg');
+      }, {passive: true, signal: abortController.signal});
+    });
   }
 
   function render(data) {
@@ -250,9 +279,10 @@
     renderPlatforms(data);
     renderRising(data);
     renderOperations(data);
+    installAnalyticsMotion();
     const source = document.getElementById('analyticsSource');
     const latency = document.getElementById('analyticsLatency');
-    if (source) source.textContent = data.source === 'normalized-sql' ? 'SQL 实时聚合' : 'JSON 兼容统计';
+    if (source) source.textContent = data.source === 'normalized-sql' ? 'SQL 事实聚合' : 'JSON 兼容统计';
     if (latency) latency.textContent = `${number.format(data.observability?.query_elapsed_ms || 0)} ms`;
   }
 
