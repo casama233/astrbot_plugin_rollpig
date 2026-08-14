@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# This source-level contract intentionally avoids importing AstrBot runtime code.
 
 
 def _method(name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
