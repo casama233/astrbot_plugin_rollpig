@@ -4,6 +4,11 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 
+try:
+    from .player_copy import DEFAULT_PLAYER_LOCALE, copy_text
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from player_copy import DEFAULT_PLAYER_LOCALE, copy_text
+
 
 @dataclass(frozen=True)
 class HelpEntry:
@@ -43,56 +48,69 @@ def _section(title: str, entries: list[HelpEntry]) -> HelpSection | None:
     return HelpSection(title, tuple(entries)) if entries else None
 
 
-def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
-    """Build the visible help model from the currently enabled feature set.
+def build_help_sections(
+    state: HelpFeatureState, *, locale: object = DEFAULT_PLAYER_LOCALE
+) -> tuple[HelpSection, ...]:
+    """Build visible help from enabled features and the shared copy catalog.
 
     Command rows are omitted when the feature that makes them usable is disabled.
     Passive mechanics use the same rule so the card never advertises an inactive
-    behavior. Traditional Chinese is the display canonical form; Simplified
-    aliases remain accepted by the command registration layer.
+    behavior. Command spellings remain stable protocol/UI tokens; descriptions
+    and section copy are resolved through ``player_copy``.
     """
 
+    def t(key: str, **values: object) -> str:
+        return copy_text(key, locale=locale, **values)
+
     daily_entries = [
-        HelpEntry("/今日小豬", "抽取或查看今天的小豬"),
-        HelpEntry("/昨日小豬", "查看昨天的結果"),
-        HelpEntry("/明日小豬", "明天運勢預測，不會提前解鎖"),
-        HelpEntry("/本週小豬", "生成本週七日小豬週報"),
+        HelpEntry("/今日小豬", t("help.daily.today")),
+        HelpEntry("/昨日小豬", t("help.daily.yesterday")),
+        HelpEntry("/明日小豬", t("help.daily.tomorrow")),
+        HelpEntry("/本週小豬", t("help.daily.weekly")),
     ]
     if state.at_view_pig:
         daily_entries.insert(
             1,
-            HelpEntry("/今日小豬 @某人", "唯讀查看對方今天的小豬；不會替對方抽取"),
+            HelpEntry("/今日小豬 @某人", t("help.daily.today_other")),
         )
 
     discovery_entries = [
-        HelpEntry("/我的豬圈 [頁碼]", "永久圖鑑，例如 /我的豬圈 2"),
-        HelpEntry("/隨機小豬 [1-9]", "隨機展示，不影響今日結果"),
-        HelpEntry("/找豬／搜豬 關鍵詞", "按名稱、ID、描述或文案搜尋"),
+        HelpEntry("/我的豬圈 [頁碼]", t("help.discovery.pigsty")),
+        HelpEntry("/隨機小豬 [1-9]", t("help.discovery.random")),
+        HelpEntry("/找豬／搜豬 關鍵詞", t("help.discovery.search")),
     ]
 
     group_entries: list[HelpEntry] = []
     if state.enable_roast:
-        group_entries.append(HelpEntry("/今日烤豬", "把今天的小豬做成趣味料理卡"))
+        group_entries.append(HelpEntry("/今日烤豬", t("help.group.roast_today")))
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
         capacity = max(1, int(state.group_roast_max_charges))
         recovery = max(1, round(float(state.group_roast_recovery_hours)))
-        detail = f"群內指定目標；每人每群 {capacity} 格能量，每 {recovery}h 恢復 1 格"
-        if state.enable_roast_reservation:
-            detail += "；目標未抽豬時自動建立預約"
+        reservation_suffix = (
+            t("help.group.roast_reservation_suffix")
+            if state.enable_roast_reservation
+            else ""
+        )
+        detail = t(
+            "help.group.roast_target",
+            capacity=capacity,
+            recovery=recovery,
+            reservation_suffix=reservation_suffix,
+        )
         group_entries.extend(
             [
                 HelpEntry("/烤群友 @某人", detail),
-                HelpEntry("/隨機烤群友", "從今天在本群抽過豬的可料理群友中隨機挑選"),
-                HelpEntry("/打點後廚 @某人", "後門別名每日一次；超管可用 /強行點火"),
+                HelpEntry("/隨機烤群友", t("help.group.random_roast")),
+                HelpEntry("/打點後廚 @某人", t("help.group.force_roast")),
             ]
         )
         if state.enable_oven_refill:
             group_entries.extend(
                 [
-                    HelpEntry("/烤箱補貨", "發起本群今日協作補貨；發起者自動貢獻第一份煤"),
-                    HelpEntry("/添煤", "今日在本群參與過 RollPig 的群友每輪可支持一次"),
+                    HelpEntry("/烤箱補貨", t("help.group.oven_refill")),
+                    HelpEntry("/添煤", t("help.group.oven_support")),
                 ]
             )
 
@@ -101,9 +119,12 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
             [
                 HelpEntry(
                     "/吃群友 @某人",
-                    f"成功率 {max(1, int(state.eat_success_percent))}%；失敗會把自己吃掉",
+                    t(
+                        "help.group.eat_target",
+                        percent=max(1, int(state.eat_success_percent)),
+                    ),
                 ),
-                HelpEntry("/隨機吃群友", "隨機點名當前群可吃目標"),
+                HelpEntry("/隨機吃群友", t("help.group.random_eat")),
             ]
         )
 
@@ -111,22 +132,16 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
     if state.enable_daily_report:
         report_entries.extend(
             [
-                HelpEntry("/豬圈日報", "手動生成本群今日完整統計海報與稱號"),
-                HelpEntry(
-                    "/豬圈日報狀態",
-                    "也可使用 /豬圈日報 狀態；查看本群自動推送狀態、計劃時間與全局總開關",
-                ),
-                HelpEntry(
-                    "/豬圈日報開啟／關閉",
-                    "也可使用 /豬圈日報 開啟／關閉；僅 AstrBot 管理員可設定",
-                ),
+                HelpEntry("/豬圈日報", t("help.report.manual")),
+                HelpEntry("/豬圈日報狀態", t("help.report.status")),
+                HelpEntry("/豬圈日報開啟／關閉", t("help.report.toggle")),
             ]
         )
         if not state.daily_report_auto_send:
             report_entries.append(
                 HelpEntry(
-                    "自動日報總開關",
-                    "當前全局關閉；本群仍可保存開啟狀態，手動日報不受影響",
+                    t("help.report.auto_off_title"),
+                    t("help.report.auto_off"),
                     kind="status",
                 )
             )
@@ -134,57 +149,89 @@ def build_help_sections(state: HelpFeatureState) -> tuple[HelpSection, ...]:
     mechanics: list[HelpEntry] = []
     if state.enable_new_pig_pity:
         mechanics.append(
-            HelpEntry("新豬保底", "連續抽到已解鎖小豬時，逐步提高新豬重抽機會", kind="feature")
+            HelpEntry(
+                t("help.mechanic.new_pig_pity_title"),
+                t("help.mechanic.new_pig_pity"),
+                kind="feature",
+            )
         )
     if state.enable_daily_duplicate_pity:
         mechanics.append(
-            HelpEntry("跨日疲勞保底", "連續多天重複時再疊加額外的新豬機會", kind="feature")
+            HelpEntry(
+                t("help.mechanic.duplicate_pity_title"),
+                t("help.mechanic.duplicate_pity"),
+                kind="feature",
+            )
         )
     if group_roast_enabled:
         mechanics.append(
             HelpEntry(
-                "烤箱能量",
-                f"默認最多 {max(1, int(state.group_roast_max_charges))} 格，按群獨立自然恢復",
+                t("help.mechanic.oven_energy_title"),
+                t(
+                    "help.mechanic.oven_energy",
+                    capacity=max(1, int(state.group_roast_max_charges)),
+                ),
                 kind="feature",
             )
         )
     if group_roast_enabled and state.enable_oven_refill:
         mechanics.append(
-            HelpEntry("群體補貨", "達成群體支持門檻後，今日活躍玩家統一恢復 +1 格能量", kind="feature")
+            HelpEntry(
+                t("help.mechanic.group_refill_title"),
+                t("help.mechanic.group_refill"),
+                kind="feature",
+            )
         )
     if group_roast_enabled and state.enable_roast_reservation:
         mechanics.append(
             HelpEntry(
-                "預約烤豬",
-                f"未抽目標可提前埋伏，最多 {max(2, int(state.roast_reservation_max_participants))} 人添柴",
+                t("help.mechanic.reservation_title"),
+                t(
+                    "help.mechanic.reservation",
+                    participants=max(
+                        2, int(state.roast_reservation_max_participants)
+                    ),
+                ),
                 kind="feature",
             )
         )
     if state.enable_roast_protection and (group_roast_enabled or state.enable_group_eat):
         mechanics.append(
-            HelpEntry("次日保護", "前一天被頻繁成功燒烤後，普通群烤／吃會受到保護", kind="feature")
+            HelpEntry(
+                t("help.mechanic.protection_title"),
+                t("help.mechanic.protection"),
+                kind="feature",
+            )
         )
     if state.enable_ai_roast_copy and state.enable_roast:
         mechanics.append(
-            HelpEntry("AI 烤豬文案", "當前會話模型可生成料理文案；異常時自動回退本地模板", kind="feature")
+            HelpEntry(
+                t("help.mechanic.ai_copy_title"),
+                t("help.mechanic.ai_copy"),
+                kind="feature",
+            )
         )
     if state.enable_daily_report and state.daily_report_random_eat_enabled:
         mechanics.append(
-            HelpEntry("日報隨機祭品", "僅自動日報發送時可能觸發；手動查看不會吃人", kind="feature")
+            HelpEntry(
+                t("help.mechanic.report_random_eat_title"),
+                t("help.mechanic.report_random_eat"),
+                kind="feature",
+            )
         )
 
     sections = [
-        _section("每天一豬", daily_entries),
-        _section("圖鑑與探索", discovery_entries),
-        _section("群聊玩法", group_entries),
-        _section("豬圈日報", report_entries),
-        _section("已啟用機制", mechanics),
+        _section(t("help.section.daily"), daily_entries),
+        _section(t("help.section.discovery"), discovery_entries),
+        _section(t("help.section.group"), group_entries),
+        _section(t("help.section.report"), report_entries),
+        _section(t("help.section.mechanics"), mechanics),
         _section(
-            "管理與資源",
+            t("help.section.admin"),
             [
                 HelpEntry(
-                    "管理面板",
-                    "同步資源，新增／編輯／刪除小豬，PigHub 選圖與公共源審核",
+                    t("help.admin.panel_title"),
+                    t("help.admin.panel"),
                     kind="feature",
                 )
             ],
