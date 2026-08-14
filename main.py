@@ -181,6 +181,18 @@ class RollPigPlugin(
     @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
     async def pigsty_daily_report(self, event: AstrMessageEvent, args: str=''):
         return await super().pigsty_daily_report(event, args)
+
+    @filter.command('猪圈日报状态', alias={'豬圈日報狀態', '猪圈日报狀態', '豬圈日報状态', '今日猪圈日报状态', '今日豬圈日報狀態'}, priority=1000)
+    async def pigsty_daily_report_status(self, event: AstrMessageEvent):
+        return await super().pigsty_daily_report(event, '狀態')
+
+    @filter.command('猪圈日报开启', alias={'豬圈日報開啟', '猪圈日报開啟', '豬圈日報开启', '猪圈日报启用', '豬圈日報啟用', '今日猪圈日报开启', '今日豬圈日報開啟'}, priority=1000)
+    async def pigsty_daily_report_enable(self, event: AstrMessageEvent):
+        return await super().pigsty_daily_report(event, '開啟')
+
+    @filter.command('猪圈日报关闭', alias={'豬圈日報關閉', '猪圈日报關閉', '豬圈日報关闭', '今日猪圈日报关闭', '今日豬圈日報關閉'}, priority=1000)
+    async def pigsty_daily_report_disable(self, event: AstrMessageEvent):
+        return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
 
     UI_ASSET_VERSION = "3.1.2"
