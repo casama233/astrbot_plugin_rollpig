@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = ROOT / "main.py"
+HELP_FEATURE = ROOT / "help_feature.py"
 
 
 def _class_node() -> ast.ClassDef:
@@ -24,15 +25,6 @@ def _method(name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name == name
     )
-
-
-def _dotted(node: ast.AST) -> str:
-    if isinstance(node, ast.Attribute):
-        head = _dotted(node.value)
-        return f"{head}.{node.attr}" if head else node.attr
-    if isinstance(node, ast.Name):
-        return node.id
-    return ""
 
 
 def test_image_rendering_has_bounded_thread_backpressure():
@@ -59,17 +51,20 @@ def test_image_rendering_has_bounded_thread_backpressure():
         ), f"{name} bypasses the shared render gate"
 
 
-def test_help_cache_miss_is_prepared_off_event_loop_before_delegation():
+def test_dynamic_help_owns_off_loop_cache_and_uses_shared_render_gate():
+    source = HELP_FEATURE.read_text(encoding="utf-8")
+    assert "await asyncio.to_thread(self.render_help_image)" in source
+    assert 'self.plugin_data_dir / "render_cache" / "help"' in source
+    assert "os.link(master, output)" in source
+    assert "shutil.copyfile(master, output)" in source
+    assert "HELP_RENDER_CACHE_VERSION = 2" in source
+    assert 'gate = getattr(self, "_run_with_render_slot", None)' in source
+    assert "rendered = gate(render_help_card" in source
+
+
+def test_main_help_wrapper_only_delegates_to_dynamic_feature():
     fn = _method("rollpig_help")
     calls = [node for node in ast.walk(fn) if isinstance(node, ast.Call)]
-
-    assert any(
-        _dotted(call.func) == "asyncio.to_thread"
-        and call.args
-        and isinstance(call.args[0], ast.Attribute)
-        and call.args[0].attr == "_ensure_help_image_cache"
-        for call in calls
-    )
     assert any(
         isinstance(call.func, ast.Attribute)
         and call.func.attr == "rollpig_help"
@@ -78,11 +73,3 @@ def test_help_cache_miss_is_prepared_off_event_loop_before_delegation():
         and call.func.value.func.id == "super"
         for call in calls
     )
-
-
-def test_help_render_uses_stable_master_and_expendable_send_copy():
-    source = MAIN.read_text(encoding="utf-8")
-    assert 'self.plugin_data_dir / "render_cache" / "help"' in source
-    assert "os.link(cache_path, output)" in source
-    assert "shutil.copyfile(cache_path, output)" in source
-    assert "HELP_RENDER_CACHE_VERSION = 1" in source
