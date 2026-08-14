@@ -1,0 +1,19 @@
+[Unit]
+Description=AstrBot RollPig Public Source Review API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/rollpig-source-review
+ExecStart=/usr/bin/python3 /opt/rollpig-source-review/app.py --host 127.0.0.1 --port 17841 --state-root /opt/1panel/apps/astrbot/astrbot/data/plugin_data/astrbot_plugin_rollpig_plus/public_source_review --catalog-root /opt/1panel/www/sites/curryudon.top/index/astrbot-rollpig/catalog --publish-root /opt/1panel/www/sites/curryudon.top/index/astrbot-rollpig --admin-token-file /opt/1panel/apps/astrbot/astrbot/data/plugin_data/astrbot_plugin_rollpig_plus/public_source_admin.token
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/1panel/apps/astrbot/astrbot/data/plugin_data/astrbot_plugin_rollpig_plus /opt/1panel/www/sites/curryudon.top/index/astrbot-rollpig
+
+[Install]
+WantedBy=multi-user.target

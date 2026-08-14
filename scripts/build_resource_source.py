@@ -113,7 +113,10 @@ def build_source(
     output.parent.mkdir(parents=True, exist_ok=True)
     records = _load_catalog(source_root)
     images = _load_images(source_root, {item["id"] for item in records})
-    stamp = generated_at or dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat()
+    stamp = (
+        generated_at
+        or dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    )
     staging = Path(
         tempfile.mkdtemp(prefix=f".{output.name}.", dir=str(output.parent))
     )
