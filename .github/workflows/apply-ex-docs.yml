@@ -1,0 +1,57 @@
+name: Apply EX documentation updates
+
+on:
+  push:
+    branches:
+      - feature/ex-variants
+    paths:
+      - .github/workflows/apply-ex-docs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/ex-variants
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply documentation patch
+        run: python .github/scripts/apply_ex_docs.py
+
+      - name: Validate documentation references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root = Path('.')
+          assert (root / 'docs/EX-VARIANTS.md').is_file()
+          readme = (root / 'README.md').read_text(encoding='utf-8')
+          resource = (root / 'docs/RESOURCE-MANAGEMENT.md').read_text(encoding='utf-8')
+          source = (root / 'docs/RESOURCE-SOURCE-MAINTENANCE.md').read_text(encoding='utf-8')
+          changelog = (root / 'CHANGELOG.md').read_text(encoding='utf-8')
+          assert 'docs/EX-VARIANTS.md' in readme
+          assert 'pig_ex_variants.json' in resource
+          assert 'variant_images' in resource
+          assert 'pig_ex_variants.json' in source
+          assert 'EX Lv.1–5' in changelog
+          PY
+
+      - name: Commit clean docs
+        run: |
+          rm -f .github/scripts/apply_ex_docs.py
+          rm -f .github/workflows/apply-ex-docs.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "docs: 完整記錄 EX Lv. 差分資源"
+          git push origin HEAD:feature/ex-variants
