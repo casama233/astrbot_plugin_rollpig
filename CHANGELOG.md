@@ -2,20 +2,30 @@
 
 ## 未發佈
 
+- 暫無。
+
+## v3.6.3 (2026-08-14)
+
+### 版本主題：永久收藏與架構穩定性收口
+
 ### 修復
 
 - 修復 catalog read boundary 在 `_reload_catalog_layers()` 已改以 `self.pig_list` 接收合併結果後，仍以已移除的 `merged` 變量保存 catalog，導致完整插件初始化可觸發 `NameError`；新增持久化契約測試防止回歸。
+- 修復永久豬圈把「目前 active catalog」錯當成永久收藏全集：玩家已解鎖、但後來退出現役公共豬源的歷史小豬會由 `pig_snapshots` 補入 `/我的豬圈` read model，保留收藏可見性與歷史資料；退役小豬不會重新加入每日抽池、隨機／搜尋 catalog，管理員 tombstone 仍可明確隱藏。
+- 修復 `DailyReportMixin.pigsty_daily_report()` 在模組重載／MRO class identity 變化後使用零參 `super()._event_sender_id(event)` 可能觸發 `TypeError: super(type, obj)`；改由 live plugin instance `self._event_sender_id(event)` 分派，並避免重複寫入日報會話資料。
 
 ### 架構
 
-- 完成 command registration boundary 第一階段：15 個 RollPig 指令 decorator 全部收回 `main.py` 真正 Star 入口，helper/mixin 僅保留業務方法；每個 command 顯式 `priority=1000` 並由薄 wrapper 委派，移除 v3.6.2 的 runtime handler rebind / registry 重排 workaround。
-- 新增 AST 契約測試，禁止 `legacy_main.py` / feature mixin 再註冊 AstrBot command，並要求入口 wrapper 保持完整指令面與 `super()` 委派。
-- 完成 catalog/resource read boundary 第二階段：新增純 `CatalogService`，集中 base/local/tombstone 合併、ID 查找、圖鑑排序、頁數、隨機與搜尋；`legacy_main.py` 改為委派，不再重複實作讀策略。
-- 新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 圖片解析順位，並以單元與 AST 契約測試鎖定；PIL renderer、同步、寫入、storage schema 與資源協議均不變。
-- 完成 renderer boundary 第三階段：單豬卡、永久圖鑑、隨機／搜尋九宮格與本週小豬的 PIL 繪製移入 `renderers/`；`legacy_main.py` 僅準備 domain read model 與視圖依賴後委派。
-- 新增 renderer 架構契約與獨立輸出 smoke；`renderers/` 禁止 AstrBot/storage/同步依賴，collection 與 weekly domain read 仍留在插件 orchestration，視覺與命令行為不變。
-- 完成 roast/group interaction boundary 第四階段：`render_roast_image` 移入 `renderers/roast.py`；料理卡 renderer 僅接受明確 view input，不取得 plugin instance。
-- 普通烤群友與預約烤豬共用 `RoastService` 的單一 60/30/10 outcome policy；`DailyReportMixin` 改為 outcome event hook，不再複製完整烤豬流程。現有保護、冷卻、後門、反噬、預約一次性與資料 schema 均不變。
+- 完成 command registration boundary：15 個 RollPig 指令 decorator 全部收回 `main.py` 真正 Star 入口，helper/mixin 僅保留業務方法；每個 command 顯式 `priority=1000` 並由薄 wrapper 委派，移除 v3.6.2 的 runtime handler rebind / registry 重排 workaround。
+- 完成 catalog/resource read boundary：新增純 `CatalogService`，集中 base/local/tombstone 合併、ID 查找、圖鑑排序、頁數、隨機與搜尋；新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 圖片解析順位。
+- 完成 renderer boundary：單豬卡、永久圖鑑、隨機／搜尋九宮格、本週小豬與料理卡的 PIL 繪製移入 `renderers/`；renderer 不取得 AstrBot/storage/sync 依賴，domain read 仍由插件 orchestration 準備。
+- 完成 roast/group interaction boundary：普通烤群友與預約烤豬共用 `RoastService` 的單一 60/30/10 outcome policy；`DailyReportMixin` 改為 outcome event hook，不再複製完整烤豬流程。
+- AstrBot Market Smoke 現在對 PR checked-out revision 建乾淨 snapshot，直接交給官方 validator worker 的 `PluginManager.load()`，避免 PR CI 實際偷驗 default branch。
+
+### 相容性
+
+- 可由 **v3.6.0 / v3.6.1 / v3.6.2 直接升級**；不修改 SQLite schema、資源協議、烤豬概率、保底或 EX 等級語義。
+- PR #68 的 identity-fragment collection merge **未包含在本版**；該修復仍需完成 claim-aware end-to-end 驗證，避免跨平台串資料、重算保底或虛增 EX count。
 
 ## v3.6.2 (2026-08-14)
 
