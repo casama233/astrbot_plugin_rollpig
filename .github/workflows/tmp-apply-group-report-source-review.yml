@@ -24,6 +24,16 @@ jobs:
           sed -i 's/marker = "## \[Unreleased\]"/marker = "## 未發佈"/' scripts/apply_group_report_source_review_fix.py
           sed -i 's/pattern.subn(replacement, text, count=1)/pattern.subn(lambda _: replacement, text, count=1)/' scripts/apply_group_report_source_review_fix.py
           python scripts/apply_group_report_source_review_fix.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('daily_report_feature.py')
+          s = p.read_text(encoding='utf-8')
+          old = '        """Manual report plus per-group automatic-push management."""\n'
+          new = '        """manual views never sacrifice; manage per-group automatic push."""\n'
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one report docstring, got {s.count(old)}')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
