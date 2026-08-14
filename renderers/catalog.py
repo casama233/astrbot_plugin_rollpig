@@ -28,15 +28,28 @@ def render_pigsty(
     font_regular: ImageFont.FreeTypeFont,
     image_resolver: ImageResolver,
 ) -> tuple[Path, int]:
-    """Render the permanent collection from an already prepared read model."""
-    total = len(catalog)
-    total_pages = max(1, int(total_pages))
+    """Render active catalog progress plus permanent historical ownership."""
+    active_total = len(catalog)
+    page_size = max(1, int(page_size))
+    display_total = len(ordered_pigs)
+    # The permanent view may contain retired owned pigs in addition to the active
+    # draw catalog, so pagination follows the prepared display model rather than
+    # the active catalog denominator.
+    total_pages = max(1, math.ceil(display_total / page_size))
     page = min(max(1, int(page)), total_pages)
     raw_unlocked = user.get("pigs", {}) if isinstance(user, Mapping) else {}
     unlocked = raw_unlocked if isinstance(raw_unlocked, Mapping) else {}
     catalog_ids = {str(pig.get("id") or "") for pig in catalog}
-    unlocked_count = len(set(unlocked).intersection(catalog_ids))
-    page_size = max(1, int(page_size))
+    unlocked_ids = {str(item) for item in unlocked if str(item)}
+    unlocked_count = len(unlocked_ids.intersection(catalog_ids))
+    retired_count = len(
+        {
+            str(pig.get("id") or "")
+            for pig in ordered_pigs
+            if bool(pig.get("_collection_retired"))
+            and str(pig.get("id") or "") in unlocked_ids
+        }
+    )
     start = (page - 1) * page_size
     pigs = list(ordered_pigs[start : start + page_size])
 
@@ -55,8 +68,11 @@ def render_pigsty(
         font=title_font,
         fill=palette["title"],
     )
-    rate = (unlocked_count / total * 100) if total else 0
-    stat = f"已解锁 {unlocked_count}/{total}  ·  收藏率 {rate:.1f}%"
+    rate = (unlocked_count / active_total * 100) if active_total else 0
+    stat = (
+        f"现役已解锁 {unlocked_count}/{active_total}  ·  "
+        f"历史保留 {retired_count}  ·  收藏率 {rate:.1f}%"
+    )
     draw.text((60, 122), stat, font=stat_font, fill=palette["secondary"])
 
     favorite_name = str(favorite_name or "暂无")
@@ -86,6 +102,7 @@ def render_pigsty(
         y = origin_y + row * (card_h + gap_y)
         pig_id = str(pig.get("id") or "")
         is_unlocked = pig_id in unlocked
+        is_retired = bool(pig.get("_collection_retired")) and is_unlocked
         bg = palette["surface"] if is_unlocked else palette["locked"]
         draw.rounded_rectangle((x, y, x + card_w, y + card_h), 24, fill=bg)
 
@@ -96,10 +113,18 @@ def render_pigsty(
                 count = int(record.get("count", 1) or 1)
             else:
                 count = 1
-        image_path = image_resolver(
-            pig_id,
-            max(0, count - 1) if is_unlocked else 0,
-        )
+
+        image_path = None
+        if is_retired:
+            retired_path = str(pig.get("_collection_image_path") or "")
+            if retired_path:
+                image_path = Path(retired_path)
+        else:
+            image_path = image_resolver(
+                pig_id,
+                max(0, count - 1) if is_unlocked else 0,
+            )
+
         if image_path:
             try:
                 thumb = fit_card_image(image_path, (130, 130))
@@ -114,6 +139,15 @@ def render_pigsty(
                 canvas.paste(thumb.convert("RGB"), (x + 65, y + 16), mask)
             except Exception as exc:
                 logger.warning("渲染图鉴小猪 %s 失败：%s", pig_id, exc)
+        elif is_retired:
+            placeholder = "历史收藏"
+            placeholder_w, _ = get_text_size(placeholder, small_font)
+            draw.text(
+                (x + (card_w - placeholder_w) // 2, y + 70),
+                placeholder,
+                font=small_font,
+                fill=palette["muted"],
+            )
 
         name = str(pig.get("name") or "未知小猪")
         if len(name) > 9:
@@ -125,11 +159,12 @@ def render_pigsty(
             font=name_font,
             fill=palette["title"] if is_unlocked else palette["locked_text"],
         )
-        label = (
-            f"EX Lv.{max(0, count - 1)} · ×{count}"
-            if is_unlocked
-            else "尚未解锁"
-        )
+        if is_retired:
+            label = f"历史 · EX Lv.{max(0, count - 1)} · ×{count}"
+        elif is_unlocked:
+            label = f"EX Lv.{max(0, count - 1)} · ×{count}"
+        else:
+            label = "尚未解锁"
         label_w, _ = get_text_size(label, small_font)
         draw.text(
             (x + (card_w - label_w) // 2, y + 190),
@@ -139,7 +174,8 @@ def render_pigsty(
         )
 
     footer = (
-        f"已解锁优先  ·  第 {page}/{total_pages} 页  ·  使用 /我的猪圈 页码 翻页"
+        f"已解锁优先 · 历史收藏保留 · 第 {page}/{total_pages} 页 · "
+        "使用 /我的猪圈 页码 翻页"
     )
     footer_w, _ = get_text_size(footer, stat_font)
     draw.text(
