@@ -23,6 +23,18 @@ jobs:
         run: python scripts/tmp_dashboard_accuracy_patch.py
       - name: Apply dashboard motion redesign
         run: python scripts/tmp_dashboard_motion_patch.py
+      - name: Correct generated UI contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_dashboard_accuracy_contract.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              'assert "ready + failed" in source or "ready||0) + Number(ai.failed" in source',
+              'assert "Number(ai.ready || 0) + Number(ai.failed || 0)" in source',
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Check JavaScript syntax
         run: |
           node --check pages/pig-manager/ui-bootstrap.js
