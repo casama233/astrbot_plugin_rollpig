@@ -1330,8 +1330,7 @@ class DailyReportMixin:
         if not group_id:
             await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
             return
-        actor_id = super()._event_sender_id(event)
-        self._remember_daily_report_context(event, actor_id)
+        actor_id = self._event_sender_id(event)
         draw_date = self._today().isoformat()
         members = self._daily_group_members(group_id, draw_date)
         if not members:
