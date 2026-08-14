@@ -13,7 +13,8 @@ if text.count(old) != 1:
     raise SystemExit("unexpected enable_oven_refill parser block")
 feature.write_text(text.replace(old, new, 1), encoding="utf-8")
 
-contract = Path("tests/test_oven_refill_feature_contract.py")nt = contract.read_text(encoding="utf-8")
+contract = Path("tests/test_oven_refill_feature_contract.py")
+nt = contract.read_text(encoding="utf-8")
 if "test_refill_init_owns_its_bool_parser" not in nt:
     nt += '''\n\ndef test_refill_init_owns_its_bool_parser_and_does_not_depend_on_base_helper():\n    source = Path("oven_refill_feature.py").read_text(encoding="utf-8")\n    assert "def _oven_refill_bool(" in source\n    assert "self._oven_refill_bool(" in source\n    assert "self._config_bool(" not in source\n'''
     contract.write_text(nt, encoding="utf-8")
