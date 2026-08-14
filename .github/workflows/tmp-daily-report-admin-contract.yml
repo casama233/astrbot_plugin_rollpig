@@ -1,0 +1,136 @@
+name: Temporary daily report admin contract
+
+on:
+  push:
+    branches:
+      - fix/daily-report-admin-sacrifice-contract
+    paths:
+      - .github/workflows/tmp-daily-report-admin-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/daily-report-admin-sacrifice-contract
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply contract patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'marker not found in {path}: {old[:100]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          feature = Path('daily_report_feature.py')
+          text = feature.read_text(encoding='utf-8')
+          old = '''    def _daily_report_group_manager(self, event: AstrMessageEvent, actor_id: str) -> bool:\n        """Allow AstrBot admins and native group owner/admin roles to manage push state."""\n        try:\n            if self._is_admin_id(event, actor_id):\n                return True\n        except Exception:\n            pass\n        roles: list[str] = []\n        message_obj = getattr(event, "message_obj", None)\n        sender = getattr(message_obj, "sender", None)\n        raw = getattr(message_obj, "raw_message", None)\n        if sender is not None:\n            roles.append(str(getattr(sender, "role", "") or ""))\n        if isinstance(raw, dict):\n            raw_sender = raw.get("sender")\n            if isinstance(raw_sender, dict):\n                roles.append(str(raw_sender.get("role") or ""))\n            roles.append(str(raw.get("role") or ""))\n        return any(role.strip().lower() in {"owner", "admin", "administrator"} for role in roles)\n'''
+          new = '''    def _daily_report_group_manager(self, event: AstrMessageEvent, actor_id: str) -> bool:\n        """Only AstrBot administrators may manage per-group automatic reports."""\n        try:\n            return bool(self._is_admin_id(event, actor_id))\n        except Exception:\n            return False\n'''
+          if old not in text:
+              raise SystemExit('daily-report permission block marker not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              'event.plain_result("只有群主、群管理员或 AstrBot 管理员可以修改日报自动推送。")',
+              'event.plain_result("只有 AstrBot 管理员可以修改日报自动推送。")',
+              1,
+          )
+          feature.write_text(text, encoding='utf-8')
+
+          replace(
+              '_conf_schema.json',
+              '"hint": "在当天有 RollPig 活动且已记录群会话时，按配置时间自动把日报图片发送回群聊",',
+              '"hint": "全局自动推送总开关；仅对已由 AstrBot 管理员在群内显式开启的群生效，群默认关闭",',
+          )
+
+          replace(
+              'docs/COMMANDS.md',
+              '- `/豬圈日報 開啟`：群主、群管理員或 AstrBot 管理員開啟本群自動推送；',
+              '- `/豬圈日報 開啟`：僅 AstrBot 管理員可開啟本群自動推送；',
+          )
+          replace(
+              'docs/COMMANDS.md',
+              '- `/豬圈日報 關閉`：關閉本群自動推送，手動查看仍可用；',
+              '- `/豬圈日報 關閉`：僅 AstrBot 管理員可關閉本群自動推送，手動查看仍可用；',
+          )
+
+          replace(
+              'docs/DAILY-REPORT.md',
+              '自动发送先锁定 `report_date`，再计算随机延迟。因此即使配置 `23:58`、随机延迟后在次日 `00:04` 才真正发送，统计数据和可选祭品仍属于前一天，不会误伤新一天的抽猪记录。',
+              '自动发送先锁定 `report_date`，再计算随机延迟；延迟会被限制在该自然日结束前，因此不会跨到次日发送。统计数据和可选祭品始终只属于锁定的报告日期。',
+          )
+          replace(
+              'docs/DAILY-REPORT.md',
+              '- `/豬圈日報 開啟`：群主、群管理員或 AstrBot 管理員開啟本群自動推送；',
+              '- `/豬圈日報 開啟`：僅 AstrBot 管理員可開啟本群自動推送；',
+          )
+          replace(
+              'docs/DAILY-REPORT.md',
+              '- `/豬圈日報 關閉`：關閉本群自動推送；',
+              '- `/豬圈日報 關閉`：僅 AstrBot 管理員可關閉本群自動推送；',
+          )
+
+          test = Path('tests/test_group_report_source_review_hardening.py')
+          text = test.read_text(encoding='utf-8')
+          old = 'for word in ("开启", "关闭", "状态", "群主、群管理员或 AstrBot 管理员"):\n        assert word in source'
+          new = 'for word in ("开启", "关闭", "状态", "只有 AstrBot 管理员"):\n        assert word in source\n    manager_start = source.index("    def _daily_report_group_manager")\n    manager_end = source.index("    def _daily_report_group_auto_enabled", manager_start)\n    manager = source[manager_start:manager_end]\n    assert "self._is_admin_id(event, actor_id)" in manager\n    assert "sender.role" not in manager\n    assert "raw_message" not in manager\n    assert "owner" not in manager'
+          if old not in text:
+              raise SystemExit('permission contract test marker not found')
+          test.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/test_daily_report.py')
+          text = test.read_text(encoding='utf-8')
+          old = '''    assert 'config.get("daily_report_random_eat_enabled", False)' in feature\n    assert "manual views never sacrifice" in feature\n    assert "unified_msg_origin" in feature\n    assert "self.context.send_message(umo, chain)" in feature\n    assert "daily_report_sacrifice" in feature\n'''
+          new = '''    assert 'config.get("daily_report_random_eat_enabled", False)' in feature\n    assert "manual views never sacrifice" in feature\n    assert "unified_msg_origin" in feature\n    assert "self.context.send_message(umo, chain)" in feature\n    assert "daily_report_sacrifice" in feature\n    scheduled_start = feature.index("    async def _send_scheduled_daily_report")\n    scheduled_end = feature.index("    async def _daily_report_tick", scheduled_start)\n    scheduled = feature[scheduled_start:scheduled_end]\n    assert "if self.daily_report_random_eat_enabled:" in scheduled\n    assert "await self._apply_job_sacrifice(group_id, draw_date)" in scheduled\n    manual_start = feature.index("    async def pigsty_daily_report")\n    manual_end = feature.index("    async def terminate", manual_start)\n    manual = feature[manual_start:manual_end]\n    assert "_apply_job_sacrifice" not in manual\n    assert "daily_report_random_eat_enabled" not in manual\n'''
+          if old not in text:
+              raise SystemExit('sacrifice contract test marker not found')
+          test.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## 未發佈\n'
+          if marker not in text:
+              raise SystemExit('CHANGELOG marker not found')
+          entry = '''## 未發佈\n\n### Changed\n- 豬圈日報群組自動推送的開啟／關閉權限收緊為僅 AstrBot 管理員；原生群主／群管理員不再具備修改權限。\n- 固化祭品契約：`daily_report_random_eat_enabled` 預設關閉，且只允許定時自動日報流程觸發；手動 `/豬圈日報` 永不改變任何人的祭品狀態。\n'''
+          changelog.write_text(text.replace(marker, entry, 1), encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pre-commit
+
+      - name: Compile
+        run: python -m compileall -q .
+
+      - name: Full test suite
+        run: pytest -q
+
+      - name: Pre-commit
+        run: pre-commit run --all-files
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit verified patch
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-daily-report-admin-contract.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: restrict daily report controls to AstrBot admins'
+          git push origin HEAD:fix/daily-report-admin-sacrifice-contract
