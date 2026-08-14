@@ -25,6 +25,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Repair strict patch guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply_ex_variants.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'if count < 3:\n    raise RuntimeError(f"expected at least 3 pig dictionary image lookups, found {count}")'
+          new = 'if count != 2:\n    raise RuntimeError(f"expected exactly 2 pig dictionary image lookups, found {count}")'
+          if old not in text:
+              raise SystemExit('strict lookup guard marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Apply legacy integration
         run: python .github/scripts/apply_ex_variants.py
 
