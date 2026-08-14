@@ -61,13 +61,87 @@ class CatalogService:
     def ordered_for_collection(
         catalog: Sequence[Mapping[str, Any]], unlocked: Mapping[str, Any] | None
     ) -> list[Mapping[str, Any]]:
-        """Put unlocked pigs first while preserving order inside both partitions."""
+        """Put unlocked active pigs first while preserving active catalog order."""
         unlocked_ids = set(unlocked) if isinstance(unlocked, Mapping) else set()
         return [
             pig for pig in catalog if str(pig.get("id") or "") in unlocked_ids
         ] + [
             pig for pig in catalog if str(pig.get("id") or "") not in unlocked_ids
         ]
+
+    @staticmethod
+    def collection_display_catalog(
+        catalog: Sequence[Mapping[str, Any]],
+        unlocked: Mapping[str, Any] | None,
+        snapshots: Mapping[str, Any] | None = None,
+        *,
+        hidden_ids: set[str] | frozenset[str] = frozenset(),
+    ) -> list[dict[str, Any]]:
+        """Build the permanent collection view without mutating the draw catalog.
+
+        The active catalog is the authority for what may currently be drawn, not
+        for what a player permanently owns.  An unlocked pig that disappeared
+        from a later resource source remains visible from its historical snapshot.
+        Explicit local tombstones stay hidden so an administrator can still remove
+        content intentionally.
+        """
+        unlocked_map = unlocked if isinstance(unlocked, Mapping) else {}
+        snapshot_map = snapshots if isinstance(snapshots, Mapping) else {}
+        blocked = {str(item) for item in hidden_ids if str(item)}
+
+        active = [
+            dict(pig)
+            for pig in catalog
+            if isinstance(pig, Mapping) and str(pig.get("id") or "")
+        ]
+        active_ids = {str(pig.get("id") or "") for pig in active}
+        unlocked_ids = {str(item) for item in unlocked_map if str(item)}
+
+        active_unlocked = [
+            pig for pig in active if str(pig.get("id") or "") in unlocked_ids
+        ]
+        active_locked = [
+            pig for pig in active if str(pig.get("id") or "") not in unlocked_ids
+        ]
+
+        retired_ids = [
+            pig_id
+            for pig_id in unlocked_ids
+            if pig_id not in active_ids and pig_id not in blocked
+        ]
+
+        def retired_sort_key(pig_id: str) -> tuple[str, str]:
+            record = unlocked_map.get(pig_id, {})
+            first_unlocked = (
+                str(record.get("first_unlocked") or "")
+                if isinstance(record, Mapping)
+                else ""
+            )
+            return (first_unlocked or "9999-99-99", pig_id)
+
+        retired: list[dict[str, Any]] = []
+        for pig_id in sorted(retired_ids, key=retired_sort_key):
+            snapshot = snapshot_map.get(pig_id)
+            if isinstance(snapshot, Mapping):
+                pig = dict(snapshot)
+            else:
+                pig = {
+                    "id": pig_id,
+                    "name": pig_id,
+                    "description": "歷史收藏",
+                    "analysis": "這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。",
+                }
+            pig["id"] = pig_id
+            pig["name"] = str(pig.get("name") or pig_id)
+            pig["description"] = str(pig.get("description") or "歷史收藏")
+            pig["analysis"] = str(
+                pig.get("analysis")
+                or "這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。"
+            )
+            pig["_collection_retired"] = True
+            retired.append(pig)
+
+        return active_unlocked + retired + active_locked
 
     def page_count(self, catalog: Sequence[Mapping[str, Any]]) -> int:
         size = max(1, int(self.page_size))
