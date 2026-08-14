@@ -30,8 +30,8 @@ nav:
   - 🛠 開發者與維護者:
       - 架構總覽: ARCHITECTURE.md
       - Collection Identity: COLLECTION-IDENTITY.md
-      - 參與開發: ../CONTRIBUTING.md
-  - 📜 版本歷史: ../CHANGELOG.md
+      - 參與開發: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md
+  - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
 
 # Material 會負責可搜尋、響應式的主體；品牌與特效全部放在 extra.css / pigsty.js，
 # 方便後續升級主題而不 fork 上游模板。
@@ -100,8 +100,6 @@ extra_javascript:
   - javascripts/pigsty.js
 
 extra:
-  version:
-    provider: mike
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/casama233/astrbot_plugin_rollpig
