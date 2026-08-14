@@ -12,6 +12,11 @@ HELPER_FILES = (
     "roast_reservation_feature.py",
     "oven_refill_feature.py",
 )
+REPORT_ADAPTERS = {
+    "pigsty_daily_report_status",
+    "pigsty_daily_report_enable",
+    "pigsty_daily_report_disable",
+}
 
 
 def _source(name: str) -> str:
@@ -54,29 +59,45 @@ def test_only_rich_daily_report_is_registered():
     assert "async def pigsty_daily_report" in rich
     commands = {node.name: node for node in _command_functions(main)}
     assert "pigsty_daily_report" in commands
+    assert REPORT_ADAPTERS.issubset(commands)
     decorators = [ast.unparse(dec) for dec in commands["pigsty_daily_report"].decorator_list]
     assert any("猪圈日报" in decorator for decorator in decorators)
 
 
-def test_all_rollpig_command_implementations_claim_the_event():
+def test_all_business_command_implementations_claim_the_event():
     main = _source("main.py")
     command_names = {node.name for node in _command_functions(main)}
-    assert command_names
+    business_names = command_names - REPORT_ADAPTERS
+    assert business_names
 
     implementations: dict[str, tuple[str, ast.AsyncFunctionDef]] = {}
     for filename in HELPER_FILES:
         source = _source(filename)
         for name, node in _async_functions(source).items():
-            if name in command_names:
+            if name in business_names:
                 implementations[name] = (source, node)
 
-    assert set(implementations) == command_names
+    assert set(implementations) == business_names
     missing = []
     for name, (source, node) in implementations.items():
         segment = ast.get_source_segment(source, node) or ""
         if "self._claim_command_event(event)" not in segment:
             missing.append(name)
     assert missing == []
+
+
+def test_compact_report_adapters_reuse_claimed_report_implementation():
+    main = _source("main.py")
+    commands = {node.name: node for node in _command_functions(main)}
+    for name in REPORT_ADAPTERS:
+        segment = ast.get_source_segment(main, commands[name]) or ""
+        assert "super().pigsty_daily_report(event" in segment
+        assert "_claim_command_event" not in segment
+        assert "event.send" not in segment
+
+    report = _async_functions(_source("daily_report_feature.py"))["pigsty_daily_report"]
+    report_segment = ast.get_source_segment(_source("daily_report_feature.py"), report) or ""
+    assert "self._claim_command_event(event)" in report_segment
 
 
 def test_traditional_font_prefers_packaged_cjk_face():
