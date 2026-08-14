@@ -66,9 +66,17 @@ description: 一天的抽豬、燒烤、逃脫和反噬，晚上總要有人寫�
 常用控制：
 
 <span class="pig-command">/豬圈日報</span>
+<span class="pig-command">/豬圈日報狀態</span>
+<span class="pig-command">/豬圈日報開啟</span>
+<span class="pig-command">/豬圈日報關閉</span>
+
+帶空格的形式同樣可用：
+
 <span class="pig-command">/豬圈日報 狀態</span>
 <span class="pig-command">/豬圈日報 開啟</span>
 <span class="pig-command">/豬圈日報 關閉</span>
+
+簡體 `/猪圈日报` 與對應控制詞也保持相容。Wiki 優先展示繁體 canonical 寫法，避免同一頁把八種別名排成一道滿漢全席。
 
 目前開啟／關閉自動推送以 **AstrBot 管理員** 身份判定，不拿 QQ、Telegram 等平台原生群主／群管理員角色代替。
 
