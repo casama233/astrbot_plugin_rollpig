@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from astrbot.api import logger
 
@@ -89,6 +88,19 @@ class ExVariantMixin:
         self._ex_variant_image_root = None
         self._ex_variant_source = "none"
 
+    def _has_local_pig_override(self, pig_id: str) -> bool:
+        """Remote/bundled variants never override an administrator's local pig."""
+        try:
+            overrides = self._runtime_document(
+                "catalog_overrides", self.local_overrides_path, []
+            )
+        except Exception:
+            return False
+        return any(
+            isinstance(item, dict) and str(item.get("id") or "") == str(pig_id)
+            for item in (overrides if isinstance(overrides, list) else [])
+        )
+
     def _ex_level_for_user(self, user_id: str, pig_id: str) -> int:
         user = self._get_user_collection(str(user_id))
         pigs = user.get("pigs", {}) if isinstance(user, dict) else {}
@@ -104,15 +116,16 @@ class ExVariantMixin:
         pig_id = str(pig.get("id") or "")
         if not pig_id or pig_id == "eaten":
             return dict(pig)
-        return resolve_ex_variant(
-            pig,
-            self._ex_variants,
-            self._ex_level_for_user(user_id, pig_id),
-        )
+        ex_level = self._ex_level_for_user(user_id, pig_id)
+        if self._has_local_pig_override(pig_id):
+            result = dict(pig)
+            result["_ex_level"] = ex_level
+            return result
+        return resolve_ex_variant(pig, self._ex_variants, ex_level)
 
     def _ex_variant_image_path(self, pig_id: str, ex_level: int) -> Path | None:
         root = self._ex_variant_image_root
-        if not root or ex_level <= 0:
+        if not root or ex_level <= 0 or self._has_local_pig_override(pig_id):
             return None
         base = self._find_catalog_pig(str(pig_id))
         if not base:
