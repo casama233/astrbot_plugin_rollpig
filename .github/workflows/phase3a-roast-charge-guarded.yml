@@ -1,0 +1,66 @@
+name: Phase 3A Roast Charge Guarded Apply
+
+on:
+  push:
+    branches:
+      - feature/roast-charge
+    paths:
+      - scripts/_apply_phase3a_roast_charge.py
+      - .github/workflows/phase3a-roast-charge-guarded.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/roast-charge
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
+
+      - name: Apply Phase 3A patch
+        run: python scripts/_apply_phase3a_roast_charge.py
+
+      - name: Run focused charge tests
+        run: |
+          pytest -q \
+            tests/test_roast_charges.py \
+            tests/test_roast_charge_storage.py \
+            tests/test_roast_charge_boundary_contract.py
+
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py roast_charges.py roast_reservation_feature.py storage services
+
+      - name: Run full test suite
+        run: pytest -q
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit verified implementation and remove one-shot helpers
+        run: |
+          git rm scripts/_apply_phase3a_roast_charge.py .github/workflows/phase3a-roast-charge-guarded.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: replace roast cooldown with charge system"
+          git push origin HEAD:feature/roast-charge
