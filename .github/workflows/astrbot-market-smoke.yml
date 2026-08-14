@@ -96,7 +96,7 @@ jobs:
               "name": "astrbot_plugin_rollpig_plus",
               "display_name": "今日小豬 · 增強版",
               "desc": "AstrBot market smoke-test record",
-              "version": "3.6.1",
+              "version": "3.6.2",
               "author": "casama233",
               "repo": "https://github.com/casama233/astrbot_plugin_rollpig"
             }
