@@ -86,7 +86,6 @@ jobs:
             --exclude '.pre-commit-config.yaml' \
             --exclude 'CONTRIBUTING.md' \
             --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
-            --exclude 'resource/font/荆南麦圆体.otf' \
             --exclude '*.pyc' \
             --exclude '*.pyo' \
             --exclude '.env' \
@@ -95,6 +94,7 @@ jobs:
           test -f "dist/$plugin_name/metadata.yaml"
           test -f "dist/$plugin_name/main.py"
           test -f "dist/$plugin_name/requirements.txt"
+          test -f "dist/$plugin_name/resource/font/荆南麦圆体.otf"
           (cd dist && zip -qr "$archive" "$plugin_name")
 
           archive_size=$(stat -c%s "dist/$archive")
