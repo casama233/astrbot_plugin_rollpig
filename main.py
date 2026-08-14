@@ -195,7 +195,7 @@ class RollPigPlugin(
         return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
 
-    UI_ASSET_VERSION = "3.1.2"
+    UI_ASSET_VERSION = "3.2.0"
 
     def _init_regular_font(self):
         font_paths = [

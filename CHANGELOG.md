@@ -2,6 +2,12 @@
 
 ## 未發佈
 
+### Dashboard Accuracy & Motion
+- 管理面板統計改為 claim-aware logical-user 口徑：SQLite 與 JSON fallback 都不再把已確認屬於同一人的 legacy fragment 重複計入使用者、收藏、熱門豬與週期活躍；重疊收藏次數沿用 `max` 而非相加，避免遷移副本虛增。
+- 修正核心 KPI 的誤導性迷你趨勢：移除以「新解鎖倒推圖鑑數」、「新解鎖 + 活躍人數」等非指標資料拼出的 sparkline；只保留可證明的累計抽取／日活序列與明確標示的當前快照視覺。
+- 深度分析修正 AI 文案成功率分母（只計已完成 ready + failed，不把 generating 當失敗），並把回訪、平台身份與本期獨有活躍的標籤改為精確口徑。
+- Overview / Analytics 新增本地事實快照與資料口徑提示；14/28 日圖表、熱門榜、收藏覆蓋等繼續只輸出聚合資料，不暴露使用者或群組原始 ID。
+
 ### Changed
 - 修復 AstrBot Plugin Page sandbox 下公共豬源「拒絕／批准發布」依賴原生 `window.confirm` / `window.prompt` 而可能無反應；改為頁內審核對話框，保留 300 字備註與明確二次確認。
 - 公共豬源管理新增 PigHub 風格正式源圖鑑：可搜尋 ID、名稱、描述、完整文案，分頁預覽圖片與完整資料；疑似重複提示可直接跳到現有公共豬。
