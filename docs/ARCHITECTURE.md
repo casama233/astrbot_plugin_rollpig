@@ -11,6 +11,17 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 這是漸進式拆分的第一個硬邊界：**命令註冊屬於入口，玩法實作屬於 service/feature。** 後續可以安全地逐步搬走 `legacy_main.py` 內容，而不再改變 AstrBot 的 handler ownership。
 
+## Catalog / resource read boundary
+
+第二階段把「有效圖鑑怎樣被讀取」從 `legacy_main.py` 的大型流程抽成兩個無 AstrBot 依賴的小服務：
+
+- `CatalogService`：負責 base + local override + tombstone 的純合併規則、按 ID 查找、圖鑑解鎖優先排序、頁數、隨機抽樣與 `/找豬` 的文字搜尋；
+- `ResourceReadService`：只負責圖片路徑解析，固定沿用 **local override → EX variant → cloud base → bundled base** 的既有 precedence。
+
+這兩個 service **不負責** storage mutation、JSON/SQLite IO、remote resource sync、公開源投稿/審核、PIL renderer 或 AstrBot event。`legacy_main.py` 暫時保留這些 orchestration，但 `_reload_catalog_layers()`、`_find_catalog_pig()`、`find_image_file()`、圖鑑排序、隨機與搜尋已改為委派 service。
+
+這個邊界的目的不是立刻刪除 `legacy_main.py`，而是先讓 renderer 與 command 只依賴穩定的 read policy。下一階段可以把 `render_pig_image`、`render_pigsty_image`、`render_catalog_grid`、`render_weekly_summary` 逐步移入 renderer 模組，而不再重新實作圖鑑與圖片 precedence。
+
 ## Gameplay Event v1
 
 `gameplay_events.py` 定義跨功能共用的事件 JSON 形狀、事件名稱、去重寫入、讀取與自然日裁剪。PR #51 已建立的 `daily_report_state.json -> events` 暫時繼續作為持久化容器，因此既有資料**不需要遷移**。
@@ -51,7 +62,8 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 ## 後續拆分順序
 
-1. 先讓新功能只透過 Gameplay Event API 寫事件。
-2. 把日報、統計、管理面板等讀模型改為消費共用事件。
-3. 逐步把 `legacy_main.py` 的收藏、烤豬、資源與管理面板邏輯移入獨立 service／renderer／command 模組。
-4. 最後再決定是否把事件持久化從日報狀態提升為獨立存儲權威。
+1. `main.py` 保持唯一 AstrBot command registration 入口。
+2. catalog/resource read policy 只經 `CatalogService` / `ResourceReadService`。
+3. 把 PIL 圖片輸出逐步拆到獨立 renderer；renderer 不直接決定 catalog precedence。
+4. 再拆 collection/storage orchestration、烤豬與管理面板 service。
+5. 最後才評估把 Gameplay Event 持久化從日報狀態提升為獨立存儲權威。

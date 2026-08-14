@@ -6,6 +6,8 @@
 
 - 完成 command registration boundary 第一階段：15 個 RollPig 指令 decorator 全部收回 `main.py` 真正 Star 入口，helper/mixin 僅保留業務方法；每個 command 顯式 `priority=1000` 並由薄 wrapper 委派，移除 v3.6.2 的 runtime handler rebind / registry 重排 workaround。
 - 新增 AST 契約測試，禁止 `legacy_main.py` / feature mixin 再註冊 AstrBot command，並要求入口 wrapper 保持完整指令面與 `super()` 委派。
+- 完成 catalog/resource read boundary 第二階段：新增純 `CatalogService`，集中 base/local/tombstone 合併、ID 查找、圖鑑排序、頁數、隨機與搜尋；`legacy_main.py` 改為委派，不再重複實作讀策略。
+- 新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 圖片解析順位，並以單元與 AST 契約測試鎖定；PIL renderer、同步、寫入、storage schema 與資源協議均不變。
 
 ## v3.6.2 (2026-08-14)
 
