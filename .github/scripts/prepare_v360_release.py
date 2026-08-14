@@ -14,9 +14,19 @@ def replace_once(path: str, old: str, new: str) -> None:
 replace_once("metadata.yaml", 'version: "3.5.0"', 'version: "3.6.0"')
 replace_once("legacy_main.py", "AstrBot-RollPig/3.5.0", "AstrBot-RollPig/3.6.0")
 replace_once(
+    "legacy_main.py",
+    '"X-RollPig-Version": "3.5.0"',
+    '"X-RollPig-Version": "3.6.0"',
+)
+replace_once(
     "updater.py",
     "AstrBot-RollPig-Safe-Updater/3.5.0",
     "AstrBot-RollPig-Safe-Updater/3.6.0",
+)
+replace_once(
+    ".github/workflows/astrbot-market-smoke.yml",
+    '"version": "3.5.0"',
+    '"version": "3.6.0"',
 )
 replace_once(
     "tests/test_v312_release_contract.py",
@@ -34,6 +44,21 @@ replace_once(
     'assert "AstrBot-RollPig-Safe-Updater/3.6.0" in updater',
 )
 replace_once(
+    "tests/test_identity_migration_plus.py",
+    'assert \'version: "3.5.0"\' in metadata',
+    'assert \'version: "3.6.0"\' in metadata',
+)
+replace_once(
+    "tests/test_source_regressions.py",
+    'assert \'version: "3.5.0"\' in metadata',
+    'assert \'version: "3.6.0"\' in metadata',
+)
+replace_once(
+    "tests/test_source_regressions.py",
+    'assert "AstrBot-RollPig/3.5.0" in SOURCE',
+    'assert "AstrBot-RollPig/3.6.0" in SOURCE',
+)
+replace_once(
     "docs/COMMANDS.md",
     "本文以 v3.5.0 的 `main.py` 實作為準。",
     "本文以 v3.6.0 的 `main.py` 實作為準。",
@@ -43,12 +68,32 @@ replace_once(
     "本文對應 v3.5.0 的 `_conf_schema.json`。",
     "本文對應 v3.6.0 的 `_conf_schema.json`。",
 )
+replace_once(
+    "docs/OPERATIONS.md",
+    "本文面向插件管理員與維護者，說明 v3.5.0 的",
+    "本文面向插件管理員與維護者，說明 v3.6.0 的",
+)
+replace_once(
+    "docs/RESOURCE-MANAGEMENT.md",
+    "本文對應 v3.5.0，面向需要維護",
+    "本文對應 v3.6.0，面向需要維護",
+)
 
 readme = Path("README.md")
 text = readme.read_text(encoding="utf-8")
 if "current-3.5.0-ef5d82" not in text:
     raise RuntimeError("README current-version badge anchor missing")
 text = text.replace("current-3.5.0-ef5d82", "current-3.6.0-ef5d82", 1)
+text = text.replace(
+    "- **v3.2.0+ → v3.5.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。",
+    "- **v3.2.0+ → v3.6.0**：直接更新；現有 SQLite、本地小豬、自訂圖片和屏蔽記錄會保留。",
+    1,
+)
+text = text.replace(
+    "- **v3.1.4 或更早增強版 → v3.5.0**：先完成獨立身份遷移，再確認新資料正常。",
+    "- **v3.1.4 或更早增強版 → v3.6.0**：先完成獨立身份遷移，再確認新資料正常。",
+    1,
+)
 pattern = re.compile(r"## 3\.5\.0 版本亮點\n\n.*?\n完整變更請閱讀", re.S)
 replacement = """## 3.6.0 版本亮點
 
