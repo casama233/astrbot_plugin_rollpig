@@ -31,13 +31,14 @@ jobs:
       - name: Install AstrBot dependencies
         run: python -m pip install -r .cache/AstrBot/requirements.txt
 
-      - name: Verify command dispatch ownership on current AstrBot
+      - name: Verify command dispatch ownership and script compatibility on current AstrBot
         run: |
           mkdir -p .cache/runtime/data/plugins
           ln -s "$GITHUB_WORKSPACE" .cache/runtime/data/plugins/astrbot_plugin_rollpig_plus
           PYTHONPATH="$GITHUB_WORKSPACE/.cache/AstrBot:$GITHUB_WORKSPACE/.cache/runtime" python - <<'PY'
           import importlib
 
+          from astrbot.core.star.filter.command import CommandFilter
           from astrbot.core.star.star_handler import star_handlers_registry
 
           prefix = "data.plugins.astrbot_plugin_rollpig_plus"
@@ -69,13 +70,13 @@ jobs:
           assert not wrong_owner, f"RollPig handlers are not owned by main: {wrong_owner}"
 
           commands = []
+          command_filters = []
           for handler in handlers:
               filters = getattr(handler, "event_filters", ()) or ()
-              if any(
-                  item.__class__.__name__ in {"CommandFilter", "CommandGroupFilter"}
-                  for item in filters
-              ):
+              matched = [item for item in filters if isinstance(item, CommandFilter)]
+              if matched:
                   commands.append(handler)
+                  command_filters.extend((handler, item) for item in matched)
           assert commands, "RollPig registered no command handlers"
 
           low_priority = [
@@ -92,8 +93,77 @@ jobs:
           assert roll_pig is not None, "roll_pig command handler is missing"
           assert roll_pig.handler_module_path == entry
           assert roll_pig.handler.__module__ == entry
+
+          class FakeEvent:
+              """Minimal AstrBot event surface required by CommandFilter.filter()."""
+
+              is_at_or_wake_command = True
+
+              def __init__(self, message):
+                  self.message = message
+                  self.extras = {}
+
+              def get_message_str(self):
+                  return self.message
+
+              def set_extra(self, key, value):
+                  self.extras[key] = value
+
+          def matching_handlers(message):
+              matched = []
+              parsed = {}
+              for handler, command_filter in command_filters:
+                  fake = FakeEvent(message)
+                  if command_filter.filter(fake, {}):
+                      matched.append(handler.handler_name)
+                      parsed[handler.handler_name] = fake.extras.get("parsed_params", {})
+              return matched, parsed
+
+          # WakingCheck removes the configured wake prefix before CommandFilter sees
+          # the string, so these are deliberately tested without a leading slash.
+          matrix = {
+              "猪圈日报": ("pigsty_daily_report", {"args": ""}),
+              "豬圈日報": ("pigsty_daily_report", {"args": ""}),
+              "猪圈日报 状态": ("pigsty_daily_report", {"args": "状态"}),
+              "豬圈日報 狀態": ("pigsty_daily_report", {"args": "狀態"}),
+              "猪圈日报 狀態": ("pigsty_daily_report", {"args": "狀態"}),
+              "豬圈日報 状态": ("pigsty_daily_report", {"args": "状态"}),
+              "猪圈日报 开启": ("pigsty_daily_report", {"args": "开启"}),
+              "豬圈日報 開啟": ("pigsty_daily_report", {"args": "開啟"}),
+              "猪圈日报 关闭": ("pigsty_daily_report", {"args": "关闭"}),
+              "豬圈日報 關閉": ("pigsty_daily_report", {"args": "關閉"}),
+              "猪圈日报状态": ("pigsty_daily_report_status", {}),
+              "豬圈日報狀態": ("pigsty_daily_report_status", {}),
+              "猪圈日报狀態": ("pigsty_daily_report_status", {}),
+              "豬圈日報状态": ("pigsty_daily_report_status", {}),
+              "猪圈日报开启": ("pigsty_daily_report_enable", {}),
+              "豬圈日報開啟": ("pigsty_daily_report_enable", {}),
+              "猪圈日报关闭": ("pigsty_daily_report_disable", {}),
+              "豬圈日報關閉": ("pigsty_daily_report_disable", {}),
+              "烤箱补货": ("oven_refill", {}),
+              "烤箱補貨": ("oven_refill", {}),
+              "随机烤群友": ("roast_random_group_member", {}),
+              "隨機烤群友": ("roast_random_group_member", {}),
+          }
+          for message, (expected_handler, expected_params) in matrix.items():
+              matched, parsed = matching_handlers(message)
+              assert matched == [expected_handler], (
+                  f"AstrBot command collision for {message!r}: expected "
+                  f"{expected_handler}, got {matched}"
+              )
+              assert parsed.get(expected_handler, {}) == expected_params, (
+                  f"AstrBot parsed params changed for {message!r}: {parsed}"
+              )
+
+          # Boundary regression: compact controls must not be swallowed by the
+          # shorter report root, and arbitrary suffixes must not be accepted.
+          for invalid in ("猪圈日报狀态x", "豬圈日報狀態x", "烤箱補貨x"):
+              matched, _ = matching_handlers(invalid)
+              assert matched == [], f"unexpected prefix match for {invalid!r}: {matched}"
+
           print(
               f"verified {len(handlers)} RollPig handlers / {len(commands)} commands; "
+              f"{len(matrix)} bilingual AstrBot dispatch cases; "
               f"roll_pig definer={roll_pig.handler.__module__}, "
               f"owner={roll_pig.handler_module_path}, "
               f"priority={roll_pig.extras_configs.get('priority')}"
