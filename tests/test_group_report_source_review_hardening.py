@@ -62,3 +62,10 @@ def test_review_service_has_global_pending_ceiling_and_hardened_unit():
     unit = (ROOT / "deploy/rollpig-source-review.service").read_text(encoding="utf-8")
     for directive in ("PrivateDevices=true", "ProtectHome=true", "ProtectKernelTunables=true", "MemoryDenyWriteExecute=true"):
         assert directive in unit
+
+
+def test_review_duplicate_index_is_cached_by_catalog_revision():
+    source = (ROOT / "source_service/app.py").read_text(encoding="utf-8")
+    assert "_duplicate_index_cache_key" in source
+    assert "stat.st_mtime_ns" in source
+    assert "get_flattened_data" in source

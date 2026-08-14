@@ -141,7 +141,9 @@ def _name_key(value: object) -> str:
 def _image_dhash(raw: bytes) -> int:
     with Image.open(io.BytesIO(raw)) as image:
         method = getattr(Image, "Resampling", Image).LANCZOS
-        pixels = list(image.convert("L").resize((9, 8), method).getdata())
+        resized = image.convert("L").resize((9, 8), method)
+        getter = getattr(resized, "get_flattened_data", None)
+        pixels = list(getter() if callable(getter) else resized.getdata())
     value = 0
     for y in range(8):
         row = y * 9
@@ -200,6 +202,8 @@ class ReviewApplication:
         self.database = self.config.state_root / "reviews.db"
         self.admin_token = _read_admin_token(self.config.admin_token_file)
         self._review_lock = threading.Lock()
+        self._duplicate_index_cache_key: tuple[int, int] | None = None
+        self._duplicate_index_cache: list[dict[str, object]] = []
         self._init_database()
         self._reconcile_published_submissions()
 
@@ -280,6 +284,14 @@ class ReviewApplication:
         return [dict(item) for item in records if isinstance(item, dict)]
 
     def _catalog_duplicate_index(self) -> list[dict[str, object]]:
+        catalog_path = self.config.catalog_root / "pig.json"
+        try:
+            stat = catalog_path.stat()
+            cache_key = (int(stat.st_mtime_ns), int(stat.st_size))
+        except OSError:
+            cache_key = (-1, -1)
+        if cache_key == self._duplicate_index_cache_key and self._duplicate_index_cache:
+            return [dict(item) for item in self._duplicate_index_cache]
         image_root = self.config.catalog_root / "image"
         index: list[dict[str, object]] = []
         for record in self._catalog_records():
@@ -299,6 +311,8 @@ class ReviewApplication:
                 except Exception:
                     continue
             index.append(item)
+        self._duplicate_index_cache_key = cache_key
+        self._duplicate_index_cache = [dict(item) for item in index]
         return index
 
     def _catalog_ids(self) -> set[str]:
