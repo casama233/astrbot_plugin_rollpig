@@ -114,3 +114,36 @@ def test_public_source_rejects_existing_catalog_id(tmp_path):
         assert exc.status == 409
     else:  # pragma: no cover - assertion clarity
         raise AssertionError("duplicate source ID was accepted")
+
+
+
+def test_public_source_submission_reject_mutates_pending_without_publishing(tmp_path):
+    app = _application(tmp_path)
+    upload = tmp_path / "reject.png"
+    image = _png(upload, (90, 80, 70, 255))
+    result = app.submit(
+        {
+            "record": {
+                "id": "rejected-pig",
+                "name": "被拒绝的小猪",
+                "description": "不应发布",
+                "analysis": "拒绝操作必须真正把 pending 改为 rejected。",
+            },
+            "image": base64.b64encode(image).decode("ascii"),
+        },
+        source_address="203.0.113.12",
+        client_version="3.6.5",
+    )
+    submission_id = result["submission_id"]
+    before = (app.config.publish_root / "v1").resolve()
+
+    reviewed = app.review(submission_id, "reject", "内容不符合公共源要求")
+
+    assert reviewed["status"] == "rejected"
+    assert app.list_submissions("pending") == []
+    rejected = app.list_submissions("rejected")
+    assert rejected[0]["submission_id"] == submission_id
+    assert rejected[0]["reviewer_note"] == "内容不符合公共源要求"
+    assert (app.config.publish_root / "v1").resolve() == before
+    current_catalog = json.loads((before / "pig.json").read_text(encoding="utf-8"))
+    assert "rejected-pig" not in {item["id"] for item in current_catalog}
