@@ -1,0 +1,65 @@
+name: TEMP fix catalog reload persistence
+
+on:
+  push:
+    branches:
+      - refactor/renderer-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/renderer-boundary
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Apply regression fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('legacy_main.py')
+          text = path.read_text(encoding='utf-8')
+          old = '        self.save_json(self.catalog_path, merged)\n'
+          new = '        self.save_json(self.catalog_path, self.pig_list)\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one stale merged save, got {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          change = changelog.read_text(encoding='utf-8')
+          marker = '### 架構\n'
+          fix_section = '### 修復\n\n- 修復 catalog read boundary 在 `_reload_catalog_layers()` 已改以 `self.pig_list` 接收合併結果後，仍以已移除的 `merged` 變量保存 catalog，導致完整插件初始化可觸發 `NameError`；新增持久化契約測試防止回歸。\n\n'
+          if '完整插件初始化可觸發 `NameError`' not in change:
+              if marker not in change:
+                  raise SystemExit('unreleased architecture marker missing')
+              change = change.replace(marker, fix_section + marker, 1)
+              changelog.write_text(change, encoding='utf-8')
+          PY
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pre-commit
+      - name: Verify targeted regression
+        run: pytest -q tests/test_catalog_reload_persistence_contract.py
+      - name: Verify full suite
+        run: |
+          python -m compileall -q main.py legacy_main.py renderers services tests
+          pytest -q
+          pre-commit run --all-files
+          git diff --check
+      - name: Commit verified fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/_tmp-fix-catalog-reload.yml
+          git add legacy_main.py CHANGELOG.md tests/test_catalog_reload_persistence_contract.py
+          git diff --cached --check
+          git commit -m 'fix: persist merged catalog after read-boundary reload'
+          git push origin HEAD:refactor/renderer-boundary
