@@ -88,24 +88,11 @@ class DailyReportMixin:
         return default
 
     def _daily_report_group_manager(self, event: AstrMessageEvent, actor_id: str) -> bool:
-        """Allow AstrBot admins and native group owner/admin roles to manage push state."""
+        """Only AstrBot administrators may manage per-group automatic reports."""
         try:
-            if self._is_admin_id(event, actor_id):
-                return True
+            return bool(self._is_admin_id(event, actor_id))
         except Exception:
-            pass
-        roles: list[str] = []
-        message_obj = getattr(event, "message_obj", None)
-        sender = getattr(message_obj, "sender", None)
-        raw = getattr(message_obj, "raw_message", None)
-        if sender is not None:
-            roles.append(str(getattr(sender, "role", "") or ""))
-        if isinstance(raw, dict):
-            raw_sender = raw.get("sender")
-            if isinstance(raw_sender, dict):
-                roles.append(str(raw_sender.get("role") or ""))
-            roles.append(str(raw.get("role") or ""))
-        return any(role.strip().lower() in {"owner", "admin", "administrator"} for role in roles)
+            return False
 
     def _daily_report_group_auto_enabled(self, group_id: str) -> bool:
         with self._data_lock:
@@ -1420,7 +1407,7 @@ class DailyReportMixin:
                 return
             if not self._daily_report_group_manager(event, actor_id):
                 await event.send(
-                    event.plain_result("只有群主、群管理员或 AstrBot 管理员可以修改日报自动推送。")
+                    event.plain_result("只有 AstrBot 管理员可以修改日报自动推送。")
                 )
                 return
             target = action in enable_actions
