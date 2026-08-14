@@ -127,3 +127,22 @@ def test_daily_report_discloses_aggregate_only_roast_records():
     assert report["roast_detail_missing"] == 2
     assert report["roast_detail_complete"] is False
     assert report["awards"]["roast_maniac"] == {"value": 1, "winners": ["a"]}
+
+
+def test_daily_report_aggregates_oven_refill_gameplay_events():
+    events = [
+        {"kind": "oven_refill_started", "actor_id": "a"},
+        {"kind": "oven_refill_supported", "actor_id": "b"},
+        {"kind": "oven_refill_supported", "actor_id": "c"},
+        {"kind": "oven_refill_succeeded", "actor_id": "c"},
+        {"kind": "oven_refill_started", "actor_id": "d"},
+        {"kind": "oven_refill_supported", "actor_id": "e"},
+        {"kind": "oven_refill_failed", "actor_id": "e"},
+    ]
+    report = aggregate_daily_report([], events, [], roast_total=0)
+
+    assert report["oven_refill_started"] == 2
+    # 两位发起者各自动贡献 1 份煤，再加 3 条显式 supported 事件。
+    assert report["oven_refill_supports"] == 5
+    assert report["oven_refill_successes"] == 1
+    assert report["oven_refill_failures"] == 1

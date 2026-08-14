@@ -764,7 +764,7 @@ class DailyReportMixin:
         palette = self._report_palette()
         sacrifice_id = str(report.get("sacrifice_id") or "")
         width = 1200
-        height = 1680 + (285 if sacrifice_id else 0)
+        height = 1820 + (285 if sacrifice_id else 0)
         canvas = PILImage.new("RGB", (width, height), palette["canvas"])
         draw = ImageDraw.Draw(canvas)
 
@@ -811,6 +811,9 @@ class DailyReportMixin:
             ("今日被吃", report.get("eats", 0)),
             ("成功逃脱", report.get("escapes", 0)),
             ("触发反噬", report.get("backlashes", 0)),
+            ("补货发起", report.get("oven_refill_started", 0)),
+            ("添煤人次", report.get("oven_refill_supports", 0)),
+            ("补货成功", report.get("oven_refill_successes", 0)),
         ]
         card_w, card_h = 350, 118
         for index, (label, value) in enumerate(metrics):
@@ -825,7 +828,7 @@ class DailyReportMixin:
                 palette,
             )
 
-        pop_y = 558
+        pop_y = 698
         draw.rounded_rectangle((44, pop_y, 1156, pop_y + 255), 30, fill=palette["surface"])
         draw.text(
             (76, pop_y + 30),
@@ -888,7 +891,7 @@ class DailyReportMixin:
                 fill=palette["muted"],
             )
 
-        awards_y = 846
+        awards_y = 986
         draw.text((56, awards_y), "今日猪圈名人堂", font=big_font, fill=palette["title"])
         award_defs = [
             ("roast_maniac", "烧烤狂人"),
@@ -910,9 +913,9 @@ class DailyReportMixin:
                 palette,
             )
 
-        footer_y = 1512
+        footer_y = 1652
         if sacrifice_id:
-            sac_y = 1490
+            sac_y = 1630
             draw.rounded_rectangle(
                 (44, sac_y, 1156, sac_y + 255),
                 32,
@@ -957,7 +960,7 @@ class DailyReportMixin:
                 font=label_font,
                 fill=palette["danger"],
             )
-            footer_y = 1800
+            footer_y = 1940
 
         draw.line((64, footer_y, 1136, footer_y), fill=palette["line"], width=2)
         draw.text(
