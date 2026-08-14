@@ -30,6 +30,9 @@ _MARKERS = (
     ("inline-code", re.compile(r"`[^`\n]+`")),
     ("list-item", re.compile(r"(?m)(?:^|\n)\s*[-*+]\s+\S")),
 )
+_REQUIRED_IDS = {
+    Path("troubleshooting/admin/index.html"): ("resource-sync", "admin-ui"),
+}
 
 
 class PigUiMarkdownLeakParser(HTMLParser):
@@ -101,6 +104,20 @@ def scan(site_dir: Path) -> list[str]:
     return leaks
 
 
+def missing_required_anchors(site_dir: Path) -> list[str]:
+    failures: list[str] = []
+    for relative_path, ids in _REQUIRED_IDS.items():
+        path = site_dir / relative_path
+        if not path.is_file():
+            failures.append(f"missing rendered page: {relative_path}")
+            continue
+        html = path.read_text(encoding="utf-8")
+        for anchor_id in ids:
+            if f'id="{anchor_id}"' not in html:
+                failures.append(f"{relative_path}: missing id=\"{anchor_id}\"")
+    return failures
+
+
 def main() -> int:
     site_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "site")
     if not site_dir.is_dir():
@@ -108,15 +125,25 @@ def main() -> int:
         return 2
 
     leaks = scan(site_dir)
-    if not leaks:
-        print("wiki render check: no raw Markdown leaked inside pig-* UI containers")
+    anchor_failures = missing_required_anchors(site_dir)
+    if not leaks and not anchor_failures:
+        print(
+            "wiki render check: no raw Markdown leaked inside pig-* UI containers; "
+            "required deep-link anchors are present"
+        )
         return 0
 
-    print("wiki render check: raw Markdown leaked into rendered pig UI:", file=sys.stderr)
-    for leak in leaks[:40]:
-        print(f"- {leak}", file=sys.stderr)
-    if len(leaks) > 40:
-        print(f"... and {len(leaks) - 40} more", file=sys.stderr)
+    if leaks:
+        print("wiki render check: raw Markdown leaked into rendered pig UI:", file=sys.stderr)
+        for leak in leaks[:40]:
+            print(f"- {leak}", file=sys.stderr)
+        if len(leaks) > 40:
+            print(f"... and {len(leaks) - 40} more", file=sys.stderr)
+
+    if anchor_failures:
+        print("wiki render check: required deep-link anchors are missing:", file=sys.stderr)
+        for failure in anchor_failures:
+            print(f"- {failure}", file=sys.stderr)
     return 1
 
 
