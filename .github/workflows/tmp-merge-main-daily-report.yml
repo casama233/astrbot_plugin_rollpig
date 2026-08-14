@@ -21,12 +21,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Merge latest main
+      - name: Merge latest main and resolve changelog only
+        shell: bash
         run: |
           git fetch origin main
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git merge --no-edit origin/main
+          git merge --no-commit origin/main || true
+
+          conflicts="$(git diff --name-only --diff-filter=U)"
+          unexpected="$(printf '%s\n' "$conflicts" | grep -v '^CHANGELOG.md$' | sed '/^$/d' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected merge conflicts:"
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+          if printf '%s\n' "$conflicts" | grep -qx 'CHANGELOG.md'; then
+            git checkout --theirs CHANGELOG.md
+            python - <<'PY'
+          from pathlib import Path
+          p = Path('CHANGELOG.md')
+          text = p.read_text(encoding='utf-8')
+          marker = '## 未發佈\n'
+          block = '''\n### Changed\n- 豬圈日報群組自動推送的開啟／關閉權限收緊為僅 AstrBot 管理員；原生群主／群管理員不再具備修改權限。\n- 固化祭品契約：`daily_report_random_eat_enabled` 預設關閉，且只允許定時自動日報流程觸發；手動 `/豬圈日報` 永不改變任何人的祭品狀態。\n'''
+          if '豬圈日報群組自動推送的開啟／關閉權限收緊' not in text:
+              if marker not in text:
+                  raise SystemExit('Unreleased marker missing')
+              text = text.replace(marker, marker + block, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+            git add CHANGELOG.md
+          fi
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo 'Unresolved merge conflicts remain'
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          git add -A
+          git commit -m 'chore: merge latest main into daily report fix'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
