@@ -9,7 +9,7 @@ from typing import Any
 class StorageBackend(ABC):
     """Persistence contract used by RollPig business services.
 
-    The first implementation remains JSON-compatible.  SQLite can implement
+    The first implementation remains JSON-compatible. SQLite can implement
     the same contract later without making commands and dashboard handlers
     depend on a concrete file format.
     """
@@ -58,6 +58,9 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     def consume_roast_charge(self, **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def grant_roast_charge(self, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
     def increment_roast_count(self, **kwargs: Any) -> dict[str, Any]:

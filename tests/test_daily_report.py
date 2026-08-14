@@ -137,3 +137,19 @@ def test_daily_report_discloses_aggregate_only_roast_records():
     assert report["roast_detail_missing"] == 2
     assert report["roast_detail_complete"] is False
     assert report["awards"]["roast_maniac"] == {"value": 1, "winners": ["a"]}
+
+
+def test_daily_report_counts_oven_refill_events():
+    from daily_report_core import aggregate_daily_report
+
+    result = aggregate_daily_report(
+        [],
+        [
+            {"kind": "oven_refill_supported", "actor_id": "u1"},
+            {"kind": "oven_refill_supported", "actor_id": "u2"},
+            {"kind": "oven_refill_succeeded", "actor_id": "u2"},
+        ],
+        [],
+    )
+    assert result["oven_refill_supports"] == 2
+    assert result["oven_refills"] == 1
