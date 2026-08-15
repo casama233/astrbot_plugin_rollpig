@@ -1,47 +1,58 @@
-# 今日小豬增強版文檔
+# 🐷 今日小豬文檔中心：玩家先養豬，維護者再看機房
 
-這個目錄同時保存「目前仍適用的使用／運維文檔」與「特定版本的技術驗證記錄」。新使用者請優先閱讀前者；帶版本號的檔案主要供維護與回歸追蹤使用。
+`docs/` 同時保存目前適用的玩家／管理／運維文檔與少量歷史技術證據。**帶版本號的性能、審查或 migration 記錄不是當前操作手冊。**
 
-## 使用與運維文檔
+## 玩家先從這裡進
 
 | 文檔 | 內容 |
 | --- | --- |
-| [`../README.md`](../README.md) | 專案總覽、安裝、快速開始與主要能力 |
-| [`COMMANDS.md`](COMMANDS.md) | 完整聊天指令、別名、上下文限制與玩法規則 |
-| [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 全配置說明、預設值與建議 |
-| [`EX-VARIANTS.md`](EX-VARIANTS.md) | EX Lv.1–5 稀疏差分、圖片／描述／文案繼承與 v1 資源擴展 |
-| [`DAILY-REPORT.md`](DAILY-REPORT.md) | 豬圈日報統計、稱號、自動推送、補發與可選祭品 |
-| [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md) | 預約烤豬、添柴、一次性觸發與 Gameplay Event |
-| [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地資源分層、私人 manifest、自建公共源投稿審核與同步排錯 |
-| [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、協議閘門、部署與回退 |
-| [`RESOURCE-SOURCE-COMPATIBILITY.md`](RESOURCE-SOURCE-COMPATIBILITY.md) | v3.4 切源兼容下限、完整舊 ID 恢復、live canonical 遷移與防縮水契約 |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Gameplay Event v1、薄入口與漸進式模組拆分邊界 |
-| [`OPERATIONS.md`](OPERATIONS.md) | 身份遷移、SQLite、備份、同步、安全更新與故障排查 |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 開發環境、測試、提交與文檔維護規範 |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | 版本變更記錄 |
+| [`index.md`](index.md) | Wiki 首頁：先抽一隻，再決定今天要搞多大 |
+| [`getting-started/index.md`](getting-started/index.md) | 30 秒開始養豬 |
+| [`gameplay/index.md`](gameplay/index.md) | 玩家玩法總覽 |
+| [`gameplay/collection-pity.md`](gameplay/collection-pity.md) | 永久豬籍、新豬保底與跨日疲勞 |
+| [`gameplay/ex-growth.md`](gameplay/ex-growth.md) | EX Lv.1–5 成長與官方手寫內容 |
+| [`gameplay/roast-charge.md`](gameplay/roast-charge.md) | Roast Charge、群體補貨與 contextual `/添柴` |
+| [`gameplay/roast-outcomes.md`](gameplay/roast-outcomes.md) | 60/30/10、真正 victim 與次日保護 |
+| [`gameplay/daily-report.md`](gameplay/daily-report.md) | 豬圈日報、opt-in 與可選祭品 |
+| [`creators/index.md`](creators/index.md) | 普通群友／創作者怎麼做一隻自己的豬 |
+| [`troubleshooting/index.md`](troubleshooting/index.md) | 按症狀排障，先別炸資料庫 |
 
-## 歷史技術記錄
+## 精確規則與管理文檔
 
-以下檔案是特定版本的管理頁驗證或性能證據，不應被當成當前安裝／操作手冊：
+| 文檔 | 內容 |
+| --- | --- |
+| [`COMMANDS.md`](COMMANDS.md) | 完整 command surface、別名、上下文與限制 |
+| [`CONFIGURATION.md`](CONFIGURATION.md) | `_conf_schema.json` 對應的全配置、預設與範圍 |
+| [`ROAST-CHARGES.md`](ROAST-CHARGES.md) | Charge token-bucket、補貨狀態與存儲邊界 |
+| [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md) | 預約、添柴、一次性結算與競態邊界 |
+| [`EX-VARIANTS.md`](EX-VARIANTS.md) | EX 稀疏差分、圖片／描述／文案繼承 |
+| [`EX-ACCEPTANCE.md`](EX-ACCEPTANCE.md) | EX 產品閉環與官方內容驗收 |
+| [`DAILY-REPORT.md`](DAILY-REPORT.md) | 日報統計、排程、補發與副作用 |
+| [`RESOURCE-MANAGEMENT.md`](RESOURCE-MANAGEMENT.md) | 本地層、私人 manifest、公共投稿與同步排錯 |
+| [`RESOURCE-SOURCE-MAINTENANCE.md`](RESOURCE-SOURCE-MAINTENANCE.md) | AstrBot v1 豬源建構、部署與回退 |
+| [`RESOURCE-SOURCE-COMPATIBILITY.md`](RESOURCE-SOURCE-COMPATIBILITY.md) | 豬源 compatibility floor 與 cut-over 契約 |
+| [`OPERATIONS.md`](OPERATIONS.md) | 身份遷移、SQLite、備份、更新、恢復 |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Gameplay Event、邊界與漸進式模組化 |
+| [`COLLECTION-IDENTITY.md`](COLLECTION-IDENTITY.md) | claim-aware logical-user 邊界 |
+| [`COPY-STYLE.md`](COPY-STYLE.md) | 玩家文案、Wiki 與圖鑑 renderer 的 Piggy Voice 規範 |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | 開發、測試、提交與文檔維護 |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | 正式版本可見變更 |
 
-- `admin-ui-authenticated-assets-v310.md` — v3.1.0 認證資源橋接設計與驗證。
-- `admin-ui-performance-v3.1.1.md` — v3.1.1 管理頁按需載入與性能記錄。
-- `admin-ui-review.md` — 管理頁審查紀錄。
-- `performance-v3.1.1.json` / `performance-v3.1.2.json` — 瀏覽器性能測量輸出。
-- `readability-v3.1.2.json` — v3.1.2 字體／可讀性測量輸出。
+## 歷史技術證據
 
-## 維護原則
+例如 `admin-ui-*`、`performance-v*.json`、`readability-v*.json` 等只保留作歷史測量／審查證據。它們可以回答「當時怎麼驗的」，不能回答「現在怎麼用」。
 
-當功能、指令、配置或資料語義變更時，請至少同步檢查：
+## 文檔維護契約
 
-1. `README.md` 是否仍準確描述當前版本。
-2. `docs/COMMANDS.md` 是否與 `@filter.command(...)` 和實際限制一致。
-3. `docs/CONFIGURATION.md` 是否與 `_conf_schema.json` 一致。
-4. `docs/EX-VARIANTS.md` 是否與 EX 差分格式、繼承與資源同步語義一致。
-5. `docs/DAILY-REPORT.md` 是否與日報事件、排程與群聊副作用一致。
-6. `docs/RESOURCE-MANAGEMENT.md` 是否與圖鑑分層、manifest 及公共源投稿審核流程一致。
-7. `docs/RESOURCE-SOURCE-COMPATIBILITY.md` 是否仍固定正確的 v3.4 cut-over 快照，且官方源保持 compatibility floor 超集。
-8. `docs/OPERATIONS.md` 是否與 `storage/`、`identity_migration.py`、`updater.py` 的行為一致。
-9. `CHANGELOG.md` 是否記錄對使用者有感的變更。
+功能、指令、配置、資料或玩家文案變更時，至少同步檢查：
 
-版本化性能／審查檔案可以保留作歷史證據，但不要讓它們取代當前文檔。
+1. **README + Wiki 玩家入口**：有沒有還在主推被降級為 compatibility 的舊命令。
+2. **`COMMANDS.md` + `main.py`**：command / alias / 權限 / context 是否一致。
+3. **`CONFIGURATION.md` + `_conf_schema.json`**：key、預設、範圍與語義是否一致；尤其不要把 `group_roast_cooldown_hours` 再寫回舊「整段冷卻」。
+4. **動態 `/豬豬幫助` + `player_copy.py`**：玩家看見的功能是否和文檔同一套命名。
+5. **`/添柴`**：玩家文檔只主推 canonical `/添柴`；`/添煤` 只留在相容說明／搜尋同義詞。預約與補貨上下文必須講清楚。
+6. **永久豬籍 renderer**：卡面上的收藏、歷史、EX 和翻頁文案也屬於玩家 copy，不是「代碼裡的字就不用管」。
+7. **EX / 日報 / 資源 / 運維**：各自的技術手冊要跟真實 authority、事件與失敗語義一致。
+8. **`CHANGELOG.md`**：正式發版時補上玩家有感的變更。
+
+文檔不是功能做完後順手補的附件。**玩家看見的規則如果比程式慢一版，那就是產品 bug。**
