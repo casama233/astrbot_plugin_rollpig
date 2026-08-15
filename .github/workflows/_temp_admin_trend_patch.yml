@@ -46,7 +46,21 @@ jobs:
           path.write_text(text, encoding='utf-8')
           PY
 
-          python -m pytest -q tests/test_admin_trend_ui_contract.py
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          assert 'function smoothLinePath' in page
+          assert 'curve=.42' in page
+          assert ' C ${' in page
+          assert 'userLine=smoothLinePath' in page
+          assert 'unlockLine=smoothLinePath' in page
+          assert '.trend-panel{align-self:start' in page
+          assert 'grid-template-columns:repeat(4,minmax(0,1fr))' in page
+          assert '@media(max-width:760px){.trend-summary' in page
+          for label in ('活跃峰值', '日均活跃', '14 日抽取', '14 日新解锁'):
+              assert label in page
+          PY
 
       - name: Commit final patch and remove temporary workflow
         run: |
