@@ -1,10 +1,226 @@
-/* Final responsive containment layer for the Wiki home hero.
- * Loaded after wiki-v3.css so mobile safety wins over decorative desktop rules.
+/* Wiki responsive layout system.
+ *
+ * MkDocs Material can keep a narrow content column on a very wide viewport
+ * because the primary navigation and secondary TOC consume horizontal space.
+ * Component layout must therefore follow the width that it actually receives,
+ * not only window-level media queries.
+ *
+ * md_in_html also wraps inline-only custom UI children in <p> elements. The
+ * rendered DOM contract below normalizes those wrappers so flex/grid styling
+ * follows the HTML MkDocs actually emits rather than the Markdown source shape.
+ *
+ * This file is intentionally loaded last. Older viewport rules in extra.css,
+ * wiki-v2.css and wiki-v3.css remain useful fallbacks; the container rules
+ * below are the authoritative layout layer for modern browsers.
  */
+
+:root {
+  --pig-home-max-width: 1480px;
+}
+
+/* ---------- Material shell ---------- */
+.md-content,
+.md-content__inner {
+  min-width: 0;
+}
+
+.md-content__inner {
+  container: pig-content / inline-size;
+}
+
+/*
+ * Let the visual landing page breathe on large monitors without stretching
+ * every long-form documentation page into an unreadably wide text measure.
+ * Hide the document sidebars only at Material's desktop breakpoint so the
+ * mobile navigation drawer remains available on the home page.
+ * Browsers without :has() simply keep Material's safe default layout.
+ */
+@media screen and (min-width: 76.25em) {
+  .md-main__inner.md-grid:has(.pig-hero--v3) {
+    max-width: var(--pig-home-max-width);
+  }
+
+  .md-main__inner.md-grid:has(.pig-hero--v3) > .md-sidebar {
+    display: none;
+  }
+}
+
+/* Do not squeeze a long tab bar into unreadable labels at intermediate widths. */
+.md-tabs__inner {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.md-tabs__inner::-webkit-scrollbar {
+  display: none;
+}
+
+.md-tabs__list {
+  width: max-content;
+  min-width: 100%;
+}
+
+.md-tabs__item {
+  flex: 0 0 auto;
+}
+
+/* ---------- Rendered Markdown DOM normalization ---------- */
+/*
+ * md_in_html wraps inline children in a paragraph. Without these rules the
+ * outer flex/grid containers only see one <p>, so spacing, columns and mobile
+ * stacking silently stop working after MkDocs renders the page.
+ */
+.pig-actions > p,
+.pig-badges > p,
+.pig-live-strip__track > p,
+.pig-console__top > p,
+.pig-console-stat > p,
+.pig-console__footer > p,
+.pig-mascot > p,
+.pig-evolution-flow > p,
+.pig-charge-row > p,
+.pig-versus__arrow > p,
+.pig-layer > p,
+.pig-outcome > p,
+.pig-checklist > p,
+.pig-pity-gauge > p {
+  margin: 0;
+}
+
+.pig-actions > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  width: 100%;
+}
+
+.pig-badges > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  width: 100%;
+}
+
+.pig-live-strip__track > p {
+  display: flex;
+  width: max-content;
+  gap: 1.3rem;
+}
+
+.pig-console__top > p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .7rem;
+  width: 100%;
+}
+
+.pig-console-stat {
+  display: block;
+}
+
+.pig-console-stat > p {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .25rem .65rem;
+  align-items: center;
+  width: 100%;
+}
+
+.pig-console-stat > p > em {
+  grid-column: 1 / -1;
+}
+
+.pig-console__footer > p {
+  width: 100%;
+}
+
+.pig-mascot > p {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  line-height: 1;
+}
+
+.pig-evolution-flow > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .38rem;
+  width: 100%;
+}
+
+.pig-charge-row > p {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.pig-versus__arrow > p {
+  line-height: 1;
+}
+
+.pig-layer > p {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.pig-outcome > p {
+  width: 100%;
+}
+
+.pig-checklist > p {
+  display: grid;
+  gap: .45rem;
+  width: 100%;
+}
+
+.pig-pity-gauge > p {
+  width: 100%;
+  height: 100%;
+}
+
+.pig-pity-gauge > p > i {
+  height: 100%;
+}
+
+/* ---------- Defensive custom-surface containment ---------- */
+.pig-hero,
+.pig-card-grid,
+.pig-versus,
+.pig-charge-panel,
+.pig-steps,
+.pig-flowline,
+.pig-pity-lab,
+.pig-outcome-grid,
+.pig-roast-demo,
+.pig-creator-pipeline,
+.pig-layer-stack,
+.pig-triage,
+.pig-highlight,
+.pig-player-entry,
+.pig-admin-exit {
+  min-width: 0;
+  max-width: 100%;
+}
 
 .pig-hero--v3,
 .pig-hero--v3 * {
   box-sizing: border-box;
+}
+
+.pig-hero--v3 {
+  container: pig-hero / inline-size;
+  width: 100%;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1.08fr) minmax(20rem, .92fr);
+  gap: clamp(1.2rem, 3cqw, 2.4rem);
+  padding: clamp(1.65rem, 4.2cqw, 3.3rem);
 }
 
 .pig-hero--v3 > *,
@@ -12,9 +228,31 @@
 .pig-hero--v3 .pig-hero-console,
 .pig-hero--v3 .pig-actions,
 .pig-hero--v3 .pig-badges,
-.pig-hero--v3 .pig-live-strip {
+.pig-hero--v3 .pig-live-strip,
+.pig-hero--v3 .pig-console__center,
+.pig-hero--v3 .pig-console__stats,
+.pig-hero--v3 .pig-console-stat {
   min-width: 0;
   max-width: 100%;
+}
+
+/* Headline wrapping should be deliberate, not forced between arbitrary glyphs. */
+.pig-hero--v3 h1,
+.pig-hero--v3 .pig-gradient-text,
+.pig-hero--v3 .pig-lead {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.pig-hero--v3 h1 {
+  max-width: 100%;
+  font-size: clamp(48px, 5cqw, 72px);
+  line-height: 1.04;
+}
+
+.pig-hero--v3 .pig-lead {
+  text-wrap: pretty;
 }
 
 .pig-hero--v3 .pig-kicker {
@@ -24,19 +262,185 @@
   line-height: 1.4;
 }
 
-.pig-hero--v3 h1,
-.pig-hero--v3 .pig-gradient-text,
-.pig-hero--v3 .pig-lead {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
 .pig-hero--v3 .pig-button,
 .pig-hero--v3 .pig-badge {
   min-width: 0;
   max-width: 100%;
 }
 
+/* HUD: reserve enough room for labels and never let READY/OPT-IN clip. */
+.pig-hero-console {
+  min-width: 0;
+}
+
+.pig-console__center {
+  grid-template-columns: minmax(7.5rem, .78fr) minmax(10rem, 1.22fr);
+}
+
+.pig-console-stat span,
+.pig-console-stat strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Content-width breakpoints ---------- */
+/*
+ * These rules deliberately use the actual .md-content__inner width. A docs
+ * page with two Material sidebars can therefore enter a compact layout even
+ * when the physical monitor is 1900px wide.
+ */
+@container pig-content (max-width: 64rem) {
+  .pig-creator-pipeline {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pig-triage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container pig-content (max-width: 52rem) {
+  .pig-hero--v3 {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    padding: 1.65rem 1.25rem;
+  }
+
+  .pig-hero--v3 .pig-hero__copy,
+  .pig-hero--v3 .pig-hero-console {
+    width: 100%;
+  }
+
+  .pig-versus,
+  .pig-versus--v3,
+  .pig-outcome-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pig-versus__arrow,
+  .pig-versus--v3 .pig-versus__arrow {
+    transform: rotate(90deg);
+  }
+
+  .pig-creator-pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container pig-content (max-width: 40rem) {
+  .pig-hero--v3 {
+    padding: 1.4rem 1rem;
+    border-radius: 24px;
+  }
+
+  .pig-card-grid,
+  .pig-roast-demo,
+  .pig-creator-pipeline,
+  .pig-triage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pig-layer > p {
+    display: grid;
+  }
+
+  .pig-roast-button {
+    min-height: 88px;
+  }
+
+  .pig-step {
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding: .85rem;
+  }
+
+  .pig-step__n {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@container pig-content (max-width: 29rem) {
+  .pig-hero--v3 {
+    padding: 1.25rem .85rem;
+  }
+}
+
+/* ---------- Hero-internal breakpoints ---------- */
+/* These follow the Hero itself, which also protects embedded/narrow contexts. */
+@container pig-hero (max-width: 42rem) {
+  .pig-hero--v3 h1 {
+    font-size: clamp(2rem, 10.2cqw, 2.9rem);
+    line-height: 1.06;
+    text-wrap: pretty;
+  }
+
+  .pig-hero--v3 .pig-actions > p {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .pig-hero--v3 .pig-button {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .pig-hero--v3 .pig-badges,
+  .pig-hero--v3 .pig-live-strip {
+    width: 100%;
+  }
+
+  .pig-hero--v3 .pig-badge {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .pig-hero--v3 .pig-live-strip {
+    margin-inline: 0;
+  }
+
+  .pig-console__center {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pig-hero-console .pig-mascot-wrap {
+    min-height: 190px;
+  }
+
+  .pig-hero-console .pig-mascot {
+    width: 132px;
+    font-size: 5.3rem;
+  }
+
+  .pig-console__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container pig-hero (max-width: 29rem) {
+  .pig-hero--v3 h1 {
+    font-size: clamp(1.9rem, 10cqw, 2.55rem);
+  }
+
+  .pig-hero--v3 .pig-kicker {
+    width: fit-content;
+    border-radius: 18px;
+  }
+
+  .pig-console__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pig-console__top > p {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* ---------- Viewport fallbacks ---------- */
+/* Keep essential mobile safety for engines without container queries. */
 @media (max-width: 900px) {
   .pig-hero--v3 {
     width: 100%;
@@ -58,15 +462,9 @@
   .pig-hero--v3 h1 {
     font-size: clamp(2rem, 10.2vw, 2.85rem);
     line-height: 1.06;
-    text-wrap: pretty;
   }
 
-  .pig-hero--v3 .pig-kicker {
-    width: fit-content;
-    border-radius: 18px;
-  }
-
-  .pig-hero--v3 .pig-actions {
+  .pig-hero--v3 .pig-actions > p {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     width: 100%;
@@ -78,29 +476,11 @@
     text-align: center;
     overflow-wrap: anywhere;
   }
-
-  .pig-hero--v3 .pig-badges {
-    width: 100%;
-  }
-
-  .pig-hero--v3 .pig-badge {
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .pig-hero--v3 .pig-live-strip {
-    width: 100%;
-    margin-inline: 0;
-  }
 }
 
 @media (max-width: 430px) {
   .pig-hero--v3 {
     padding-inline: .85rem;
-  }
-
-  .pig-hero--v3 h1 {
-    font-size: clamp(1.9rem, 10vw, 2.55rem);
   }
 
   .pig-hero--v3 .pig-console__stats {
