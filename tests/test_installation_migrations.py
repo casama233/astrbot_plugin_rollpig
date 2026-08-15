@@ -4,6 +4,10 @@ from pathlib import Path
 
 import installation_migrations
 from installation_migrations import cleanup_legacy_installation_paths
+from updater import PluginUpdateManager
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_page(root: Path, name: str, text: str = "page") -> Path:
@@ -46,6 +50,40 @@ def test_overlay_upgrade_legacy_pages_are_removed_and_pig_manager_is_default(tmp
     ]
     assert not (tmp_path / "pages" / "ex-manager").exists()
     assert not (tmp_path / "pages" / "ex-public-source").exists()
+
+
+def test_real_self_updater_overlay_converges_after_startup_migration(tmp_path):
+    plugin = tmp_path / "plugin"
+    data = tmp_path / "data"
+    staging = tmp_path / "staging"
+    backup = tmp_path / "backup"
+    plugin.mkdir()
+    data.mkdir()
+    staging.mkdir()
+    backup.mkdir()
+
+    # Old installation before #109.
+    _write_page(plugin, "ex-manager", "legacy EX manager")
+    _write_page(plugin, "ex-public-source", "legacy EX source")
+    _write_page(plugin, "pig-manager", "main manager")
+
+    # New release payload after #109. The historical updater overlays these
+    # paths but does not itself remove names absent from the archive.
+    _write_page(staging, "pig-manager", "main manager v2")
+    _write_page(staging, "pig-manager-ex", "new EX manager")
+    _write_page(staging, "pig-manager-ex-public-source", "new EX source")
+
+    manager = PluginUpdateManager(plugin, data)
+    manager._overlay_install(staging, backup)
+    assert _discover_pages(plugin)[0] == "ex-manager"
+
+    cleanup_legacy_installation_paths(plugin)
+
+    assert _discover_pages(plugin) == [
+        "pig-manager",
+        "pig-manager-ex",
+        "pig-manager-ex-public-source",
+    ]
 
 
 def test_cleanup_does_not_touch_unrelated_or_user_owned_pages(tmp_path):
@@ -94,3 +132,14 @@ def test_cleanup_is_idempotent(tmp_path):
 
     assert cleanup_legacy_installation_paths(tmp_path) == ["pages/ex-manager"]
     assert cleanup_legacy_installation_paths(tmp_path) == []
+
+
+def test_star_entry_runs_installation_cleanup_before_base_initialization():
+    source = (ROOT / "main.py").read_text(encoding="utf-8")
+    init_block = source.split("    def __init__(self, context, config):", 1)[1].split(
+        "    def _save_daily_report_state_locked", 1
+    )[0]
+
+    cleanup_pos = init_block.index("cleanup_legacy_installation_paths(")
+    super_pos = init_block.index("super().__init__(context, config)")
+    assert cleanup_pos < super_pos
