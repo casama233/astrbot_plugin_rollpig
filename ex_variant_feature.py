@@ -6,10 +6,18 @@ from pathlib import Path
 from astrbot.api import logger
 
 try:
-    from .ex_variants import resolve_ex_variant, validate_ex_variants
+    from .ex_variants import (
+        build_effective_ex_variants,
+        resolve_ex_variant,
+        validate_ex_variants,
+    )
     from .gameplay_events import EVENT_EX_LEVEL_UP
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from ex_variants import resolve_ex_variant, validate_ex_variants
+    from ex_variants import (
+        build_effective_ex_variants,
+        resolve_ex_variant,
+        validate_ex_variants,
+    )
     from gameplay_events import EVENT_EX_LEVEL_UP
 
 
@@ -38,7 +46,12 @@ class ExVariantMixin:
         self, path: Path, image_root: Path, source: str
     ) -> tuple[dict[str, dict[int, dict[str, str]]], Path, str]:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
-        pig_ids = {str(item.get("id") or "") for item in getattr(self, "pig_list", [])}
+        pigs = [
+            item
+            for item in getattr(self, "pig_list", [])
+            if isinstance(item, dict)
+        ]
+        pig_ids = {str(item.get("id") or "") for item in pigs}
         variants = validate_ex_variants(
             payload,
             pig_ids,
@@ -51,7 +64,11 @@ class ExVariantMixin:
                     raise ValueError(
                         f"{source} EX 差分缺少图片：{pig_id} EX Lv.{level} -> {image}"
                     )
-        return variants, image_root, source
+        # Explicit resources stay sparse authoring layers. The active catalog is
+        # completed underneath them so every current/compatibility pig has
+        # distinct EX1-EX5 copy even when it has no bespoke asset yet.
+        effective = build_effective_ex_variants(pigs, variants)
+        return effective, image_root, source
 
     def _reload_ex_variants(self) -> None:
         """Prefer the active cloud snapshot, falling back to bundled variants."""
@@ -81,12 +98,19 @@ class ExVariantMixin:
             self._ex_variant_image_root = root
             self._ex_variant_source = resolved_source
             logger.info(
-                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪"
+                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪（含官方五级文案基线）"
             )
             return
-        self._ex_variants = {}
+
+        pigs = [
+            item
+            for item in getattr(self, "pig_list", [])
+            if isinstance(item, dict)
+        ]
+        self._ex_variants = build_effective_ex_variants(pigs)
         self._ex_variant_image_root = None
-        self._ex_variant_source = "none"
+        self._ex_variant_source = "baseline"
+        logger.info(f"已加载官方 EX 五级文案基线：{len(self._ex_variants)} 只小猪")
 
     def _has_local_pig_override(self, pig_id: str) -> bool:
         """Remote/bundled variants never override an administrator's local pig."""
