@@ -185,6 +185,38 @@ def _blend_rgb(
     )
 
 
+@lru_cache(maxsize=64)
+def _catalog_thumbnail_surface_cached(
+    width: int,
+    height: int,
+    radius: int,
+    surface_rgb: tuple[int, int, int],
+    accent_rgb: tuple[int, int, int],
+    canvas_rgb: tuple[int, int, int],
+) -> PILImage.Image:
+    """Cache the repeated panel-style background shared by one catalog page."""
+    start_rgb = _blend_rgb(surface_rgb, accent_rgb, 0.16)
+    end_rgb = _blend_rgb(surface_rgb, canvas_rgb, 0.10)
+
+    gradient = PILImage.new("RGBA", (width, height))
+    pixels: list[tuple[int, int, int, int]] = []
+    denominator = max(1, width + height - 2)
+    for y in range(height):
+        for x in range(width):
+            factor = (x + y) / denominator
+            color = _blend_rgb(start_rgb, end_rgb, factor)
+            pixels.append((*color, 255))
+    gradient.putdata(pixels)
+
+    rounded_mask = PILImage.new("L", (width, height), 0)
+    ImageDraw.Draw(rounded_mask).rounded_rectangle(
+        (0, 0, width - 1, height - 1), radius=radius, fill=255
+    )
+    surface = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
+    surface.paste(gradient, (0, 0), rounded_mask)
+    return surface
+
+
 def render_catalog_thumbnail(
     path: Path,
     size: tuple[int, int],
@@ -211,25 +243,14 @@ def render_catalog_thumbnail(
     canvas_rgb = _palette_rgb(palette, "canvas", (23, 19, 22))
     # Mirror the panel's pink-soft -> strong-surface feeling without coupling the
     # Pillow renderer to CSS literals. The current image theme drives both ends.
-    start_rgb = _blend_rgb(surface_rgb, accent_rgb, 0.16)
-    end_rgb = _blend_rgb(surface_rgb, canvas_rgb, 0.10)
-
-    gradient = PILImage.new("RGBA", (width, height))
-    pixels: list[tuple[int, int, int, int]] = []
-    denominator = max(1, width + height - 2)
-    for y in range(height):
-        for x in range(width):
-            factor = (x + y) / denominator
-            color = _blend_rgb(start_rgb, end_rgb, factor)
-            pixels.append((*color, 255))
-    gradient.putdata(pixels)
-
-    rounded_mask = PILImage.new("L", (width, height), 0)
-    ImageDraw.Draw(rounded_mask).rounded_rectangle(
-        (0, 0, width - 1, height - 1), radius=radius, fill=255
-    )
-    surface = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
-    surface.paste(gradient, (0, 0), rounded_mask)
+    surface = _catalog_thumbnail_surface_cached(
+        width,
+        height,
+        radius,
+        surface_rgb,
+        accent_rgb,
+        canvas_rgb,
+    ).copy()
 
     inner_width = max(1, width - padding * 2)
     inner_height = max(1, height - padding * 2)
