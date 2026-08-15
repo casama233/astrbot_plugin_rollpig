@@ -1,4 +1,4 @@
-name: Apply Piggy Copy Polish
+name: Finalize Piggy Copy Polish
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout integration branch
@@ -19,53 +19,36 @@ jobs:
         with:
           ref: feat/piggy-copy-polish
 
-      - name: Align final copy baselines
+      - name: Repair generated newline escapes
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/apply_piggy_copy_polish.py')
+          path = Path('roast_reservation_feature.py')
           text = path.read_text(encoding='utf-8')
-          pairs = [
-              ('給待結算預約添柴；單一預約可直接用，多個預約請 @目標', '加入本群待結算預約；只有一張時直接添柴，多張時請 @目標；主廚已算 1 人'),
-              ('给待结算预约添柴；单一预约可直接用，多个预约请 @目标', '加入本群待结算预约；只有一张时直接添柴，多张时请 @目标；主厨已算 1 人'),
+          repairs = [
+              ('这口埋伏会立刻结算。\n"', '这口埋伏会立刻结算。\\n"'),
+              ('后厨埋伏立刻掀锅！\n主厨带着 ', '后厨埋伏立刻掀锅！\\n主厨带着 '),
+              ('烤架顺着火舌反咬主厨。\n这次轮到主厨的小猪上桌。', '烤架顺着火舌反咬主厨。\\n这次轮到主厨的小猪上桌。'),
           ]
-          for old, new in pairs:
+          for old, new in repairs:
               if old not in text:
-                  raise SystemExit(f'mapping baseline not found: {old}')
-              text = text.replace(old, new)
-          old_loop = '    for old, new in replacements:'
-          new_loop = '    for old, new in sorted(replacements, key=lambda pair: len(pair[0]), reverse=True):'
-          if old_loop not in text:
-              raise SystemExit('replace_many loop baseline not found')
-          text = text.replace(old_loop, new_loop, 1)
-          old_replace = '        text = text.replace(old, new)'
-          new_replace = '        text = text.replace(old, new, 1) if path == "player_copy.py" else text.replace(old, new)'
-          if old_replace not in text:
-              raise SystemExit('replace_many implementation baseline not found')
-          text = text.replace(old_replace, new_replace, 1)
-          target_line = '    target = ROOT / path'
-          skip_block = (
-              '    if path in {"reservation_firewood_feature.py", "services/roast_service.py"}:\n'
-              '        return\n'
-              '    target = ROOT / path'
-          )
-          if target_line not in text:
-              raise SystemExit('replace_many target baseline not found')
-          text = text.replace(target_line, skip_block, 1)
+                  raise SystemExit(f'generated newline baseline not found: {old!r}')
+              text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
-      - name: Apply copy polish
-        run: python scripts/apply_piggy_copy_polish.py
+      - name: Verify repaired Python compiles
+        run: |
+          python -m py_compile roast_reservation_feature.py
+          python -m py_compile reservation_firewood_feature.py services/roast_service.py oven_refill_feature.py legacy_main.py player_copy.py
 
-      - name: Commit polished copy
+      - name: Remove temporary transformation tooling
+        run: rm -f scripts/apply_piggy_copy_polish.py .github/workflows/apply-copy-polish.yml
+
+      - name: Commit final generated copy state
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+casama233@users.noreply.github.com"
-          git add player_copy.py oven_refill_feature.py roast_reservation_feature.py legacy_main.py permanent_collection_feature.py resource/pig.json
-          if git diff --cached --quiet; then
-            echo "no copy changes produced"
-            exit 1
-          fi
-          git commit -m "content: unify player-facing Piggy voice"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "build: finalize Piggy copy polish"
           git push origin HEAD:feat/piggy-copy-polish
