@@ -11,12 +11,14 @@ HELPER_FILES = (
     "ex_variant_feature.py",
     "roast_reservation_feature.py",
     "oven_refill_feature.py",
+    "reservation_firewood_feature.py",
 )
 REPORT_ADAPTERS = {
     "pigsty_daily_report_status",
     "pigsty_daily_report_enable",
     "pigsty_daily_report_disable",
 }
+COMPAT_ADAPTERS = {"oven_refill_support_compat"}
 
 
 def _source(name: str) -> str:
@@ -67,7 +69,7 @@ def test_only_rich_daily_report_is_registered():
 def test_all_business_command_implementations_claim_the_event():
     main = _source("main.py")
     command_names = {node.name for node in _command_functions(main)}
-    business_names = command_names - REPORT_ADAPTERS
+    business_names = command_names - REPORT_ADAPTERS - COMPAT_ADAPTERS
     assert business_names
 
     implementations: dict[str, tuple[str, ast.AsyncFunctionDef]] = {}
@@ -98,6 +100,17 @@ def test_compact_report_adapters_reuse_claimed_report_implementation():
     report = _async_functions(_source("daily_report_feature.py"))["pigsty_daily_report"]
     report_segment = ast.get_source_segment(_source("daily_report_feature.py"), report) or ""
     assert "self._claim_command_event(event)" in report_segment
+
+
+def test_refill_compat_adapter_reuses_claimed_refill_implementation():
+    main = _source("main.py")
+    commands = {node.name: node for node in _command_functions(main)}
+    segment = ast.get_source_segment(main, commands["oven_refill_support_compat"]) or ""
+    assert "super().oven_refill_support(event)" in segment
+    assert "_claim_command_event" not in segment
+    refill = _async_functions(_source("oven_refill_feature.py"))["oven_refill_support"]
+    refill_segment = ast.get_source_segment(_source("oven_refill_feature.py"), refill) or ""
+    assert "self._claim_command_event(event)" in refill_segment
 
 
 def test_traditional_font_prefers_packaged_cjk_face():
