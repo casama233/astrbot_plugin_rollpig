@@ -232,8 +232,7 @@ class RoastReservationMixin:
             await self._send_with_mention(
                 event,
                 target_id,
-                " 🔥 你今天还没抽猪，但后厨已经替你把锅热上了。等你在本群 /今日小猪，这口埋伏会立刻结算。
-"
+                " 🔥 你今天还没抽猪，但后厨已经替你把锅热上了。等你在本群 /今日小猪，这口埋伏会立刻结算。\n"
                 f"主厨先蹲好，最多 {self.roast_reservation_max_participants} 人能一起 /添柴。"
                 + self._roast_charge_note(charge_status),
             )
@@ -313,8 +312,7 @@ class RoastReservationMixin:
         await self._send_with_mention(
             event,
             target_id,
-            f" 🔥 你刚抽完猪，后厨埋伏立刻掀锅！
-主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。",
+            f" 🔥 你刚抽完猪，后厨埋伏立刻掀锅！\n主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。",
         )
 
         if outcome == "escape":
@@ -358,8 +356,7 @@ class RoastReservationMixin:
             await self._send_with_mention(
                 event,
                 chef_id,
-                " 🔥 埋伏翻车，烤架顺着火舌反咬主厨。
-这次轮到主厨的小猪上桌。",
+                " 🔥 埋伏翻车，烤架顺着火舌反咬主厨。\n这次轮到主厨的小猪上桌。",
             )
             await self._record_group_roast(group_id, chef_id, draw_date)
             await self._send_roast_card(event, chef_pig, chef_id)
