@@ -19,7 +19,7 @@ jobs:
         with:
           ref: feat/piggy-copy-polish
 
-      - name: Align final firewood help baseline
+      - name: Align final copy baselines
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -33,6 +33,11 @@ jobs:
               if old not in text:
                   raise SystemExit(f'mapping baseline not found: {old}')
               text = text.replace(old, new)
+          old_replace = '        text = text.replace(old, new)'
+          new_replace = '        text = text.replace(old, new, 1) if path == "player_copy.py" else text.replace(old, new)'
+          if old_replace not in text:
+              raise SystemExit('replace_many implementation baseline not found')
+          text = text.replace(old_replace, new_replace, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -42,7 +47,7 @@ jobs:
       - name: Commit polished copy
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+casama233@users.noreply.github.com"
           git add player_copy.py oven_refill_feature.py reservation_firewood_feature.py roast_reservation_feature.py services/roast_service.py legacy_main.py permanent_collection_feature.py resource/pig.json
           if git diff --cached --quiet; then
             echo "no copy changes produced"
