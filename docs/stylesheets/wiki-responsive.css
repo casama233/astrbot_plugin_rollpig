@@ -1,0 +1,109 @@
+/* Final responsive containment layer for the Wiki home hero.
+ * Loaded after wiki-v3.css so mobile safety wins over decorative desktop rules.
+ */
+
+.pig-hero--v3,
+.pig-hero--v3 * {
+  box-sizing: border-box;
+}
+
+.pig-hero--v3 > *,
+.pig-hero--v3 .pig-hero__copy,
+.pig-hero--v3 .pig-hero-console,
+.pig-hero--v3 .pig-actions,
+.pig-hero--v3 .pig-badges,
+.pig-hero--v3 .pig-live-strip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pig-hero--v3 .pig-kicker {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.pig-hero--v3 h1,
+.pig-hero--v3 .pig-gradient-text,
+.pig-hero--v3 .pig-lead {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.pig-hero--v3 .pig-button,
+.pig-hero--v3 .pig-badge {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .pig-hero--v3 {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pig-hero--v3 .pig-hero__copy,
+  .pig-hero--v3 .pig-hero-console {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .pig-hero--v3 {
+    padding: 1.4rem 1rem;
+  }
+
+  .pig-hero--v3 h1 {
+    font-size: clamp(2rem, 10.2vw, 2.85rem);
+    line-height: 1.06;
+    text-wrap: pretty;
+  }
+
+  .pig-hero--v3 .pig-kicker {
+    width: fit-content;
+    border-radius: 18px;
+  }
+
+  .pig-hero--v3 .pig-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .pig-hero--v3 .pig-button {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .pig-hero--v3 .pig-badges {
+    width: 100%;
+  }
+
+  .pig-hero--v3 .pig-badge {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .pig-hero--v3 .pig-live-strip {
+    width: 100%;
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .pig-hero--v3 {
+    padding-inline: .85rem;
+  }
+
+  .pig-hero--v3 h1 {
+    font-size: clamp(1.9rem, 10vw, 2.55rem);
+  }
+
+  .pig-hero--v3 .pig-console__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
