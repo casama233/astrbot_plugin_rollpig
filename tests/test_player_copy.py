@@ -68,15 +68,15 @@ def test_dynamic_help_uses_same_model_with_traditional_and_simplified_copy():
     tw = _flatten_help("zh-TW")
     cn = _flatten_help("zh-CN")
 
-    assert "每天一豬" in tw
-    assert "群體補貨" in tw
-    assert "預約烤豬" in tw
+    assert "今日豬事" in tw
+    assert "群體補貨｜烤太猛就一起添柴" in tw
+    assert "預約烤豬｜人沒到，鍋先熱" in tw
     assert "豬圈日報" in tw
     assert "EX 成長" in tw
 
-    assert "每天一猪" in cn
-    assert "群体补货" in cn
-    assert "预约烤猪" in cn
+    assert "今日猪事" in cn
+    assert "群体补货｜烤太猛就一起添柴" in cn
+    assert "预约烤猪｜人没到，锅先热" in cn
     assert "猪圈日报" in cn
     assert "EX 成长" in cn
 
@@ -104,15 +104,11 @@ def test_help_copy_cannot_regress_to_inline_player_facing_literals():
         elif isinstance(node.func, ast.Attribute):
             name = node.func.attr
 
-        # HelpEntry's first argument is the stable command/feature token. The
-        # player-facing detail is the second positional argument and must come
-        # from t()/copy_text().
         if name == "HelpEntry" and len(node.args) >= 2:
             detail = node.args[1]
             if isinstance(detail, ast.Constant) and has_cjk(detail.value):
                 violations.append((detail.lineno, str(detail.value)))
 
-        # Section titles are also shared player copy.
         if name == "_section" and node.args:
             title = node.args[0]
             if isinstance(title, ast.Constant) and has_cjk(title.value):
