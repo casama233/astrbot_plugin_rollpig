@@ -10,6 +10,7 @@ HELPER_FILES = (
     "daily_report_feature.py",
     "ex_variant_feature.py",
     "roast_reservation_feature.py",
+    "reservation_firewood_feature.py",
     "oven_refill_feature.py",
 )
 REPORT_ADAPTERS = {
