@@ -38,6 +38,11 @@ jobs:
           if old_replace not in text:
               raise SystemExit('replace_many implementation baseline not found')
           text = text.replace(old_replace, new_replace, 1)
+          target_line = '    target = ROOT / path'
+          skip_block = '    if path == "reservation_firewood_feature.py":\n        return\n    target = ROOT / path'
+          if target_line not in text:
+              raise SystemExit('replace_many target baseline not found')
+          text = text.replace(target_line, skip_block, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -48,7 +53,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+casama233@users.noreply.github.com"
-          git add player_copy.py oven_refill_feature.py reservation_firewood_feature.py roast_reservation_feature.py services/roast_service.py legacy_main.py permanent_collection_feature.py resource/pig.json
+          git add player_copy.py oven_refill_feature.py roast_reservation_feature.py services/roast_service.py legacy_main.py permanent_collection_feature.py resource/pig.json
           if git diff --cached --quiet; then
             echo "no copy changes produced"
             exit 1
