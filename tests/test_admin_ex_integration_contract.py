@@ -3,40 +3,52 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "pages" / "pig-manager" / "index.html"
+EX_JS = ROOT / "pages" / "pig-manager" / "ex-integration.js"
+EX_CSS = ROOT / "pages" / "pig-manager" / "ex-integration.css"
 
 
 def page_text() -> str:
     return PAGE.read_text(encoding="utf-8")
 
 
+def integration_text() -> str:
+    return EX_JS.read_text(encoding="utf-8")
+
+
 def test_main_manager_ex_entrypoints_are_visible():
-    text = page_text()
-    assert "EX 1–5" in text
-    assert "管理 EX" in text
-    assert "openExManager" in text
-    assert "ex/variants" in text
+    page = page_text()
+    script = integration_text()
+    assert "EX 1–5" in page
+    assert "data-ex-manager" in page
+    assert "openExManager" in script
+    assert "ex/variants" in script
 
 
 def test_main_manager_ex_editor_supports_level_write_reset_and_image_preview():
-    text = page_text()
+    text = integration_text()
     assert "ex/variants/save" in text
     assert "ex/variants/delete" in text
     assert "ex/variants/image" in text
-    assert "EX Lv.${level}" in text
+    assert "EX Lv.${state.level}" in text
     assert "留空＝繼承" in text
 
 
 def test_public_source_preview_has_actions_instead_of_close_only():
-    text = page_text()
-    assert "publicSourceExSummary" in text
-    assert "publicSourceManageEx" in text
-    assert "publicSourceEditLocal" in text
-    assert "管理本地 EX" in text
-    assert "編輯本地資料" in text
+    page = page_text()
+    script = integration_text()
+    assert "publicSourceExSummary" in page
+    assert "publicSourceManageEx" in page
+    assert "publicSourceLocateLocal" in page
+    assert "管理本地 EX" in page
+    assert "在本地图鉴定位" in page
+    assert "renderPublicSourceSummary" in script
 
 
-def test_ex_manager_is_responsive_and_not_a_hidden_standalone_only_flow():
-    text = page_text()
-    assert ".ex-manager-modal" in text
-    assert ".ex-level-tabs" in text
-    assert "@media(max-width:760px)" in text
+def test_ex_manager_assets_are_loaded_and_responsive():
+    page = page_text()
+    css = EX_CSS.read_text(encoding="utf-8")
+    assert './ex-integration.css' in page
+    assert './ex-integration.js' in page
+    assert ".ex-manager-modal" in css
+    assert ".ex-level-tabs" in css
+    assert "@media(max-width:760px)" in css
