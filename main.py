@@ -20,8 +20,10 @@ try:
     from .ex_variant_feature import ExVariantMixin
     from .help_feature import HelpFeatureMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
+    from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
@@ -31,13 +33,16 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_variant_feature import ExVariantMixin
     from help_feature import HelpFeatureMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
+    from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
     from state_persistence import DebouncedSnapshotWriter
 
 
 class RollPigPlugin(
+    ReservationFirewoodMixin,
     OvenRefillMixin,
     HelpFeatureMixin,
     RoastReservationMixin,
@@ -100,6 +105,14 @@ class RollPigPlugin(
     def _run_with_render_slot(self, renderer, *args, **kwargs):
         with self._image_render_slots:
             return renderer(*args, **kwargs)
+
+    async def _send_with_mention(self, event, user_id: str, text: str) -> None:
+        formatted = (
+            mention_body_on_new_line(text)
+            if self._event_group_id(event)
+            else str(text or "")
+        )
+        await super()._send_with_mention(event, user_id, formatted)
 
     def render_pig_image(self, pig_data):
         return self._run_with_render_slot(super().render_pig_image, pig_data)
@@ -180,8 +193,12 @@ class RollPigPlugin(
     async def oven_refill(self, event: AstrMessageEvent):
         return await super().oven_refill(event)
 
-    @filter.command('添柴', alias={'添煤', '加煤', '烤箱添煤', '烤箱添柴'}, priority=1000)
-    async def oven_refill_support(self, event: AstrMessageEvent):
+    @filter.command('添柴', alias={'加柴'}, priority=1000)
+    async def firewood_support(self, event: AstrMessageEvent, args: str=''):
+        return await super().firewood_support(event, args)
+
+    @filter.command('添煤', alias={'加煤', '烤箱添煤', '烤箱添柴'}, priority=1000)
+    async def oven_refill_support_compat(self, event: AstrMessageEvent):
         return await super().oven_refill_support(event)
 
     @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
