@@ -46,6 +46,7 @@ nav:
       - 豬源維護: RESOURCE-SOURCE-MAINTENANCE.md
   - 🛠 開發者與維護者:
       - 架構總覽: ARCHITECTURE.md
+      - 文案風格 · Piggy Voice: COPY-STYLE.md
       - Collection Identity: COLLECTION-IDENTITY.md
       - 參與開發: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md
   - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
