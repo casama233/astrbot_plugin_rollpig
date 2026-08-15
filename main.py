@@ -66,7 +66,9 @@ class RollPigPlugin(
         # tombstones before AstrBot serves Plugin Pages; its Page discovery reads
         # the filesystem dynamically, so removing legacy ex-manager entries here
         # restores pig-manager as the default surface on affected installations.
-        cleanup_legacy_installation_paths(Path(__file__).resolve().parent, logger=logger)
+        cleanup_legacy_installation_paths(
+            Path(__file__).resolve().parent, logger=logger
+        )
 
         config_view = config if hasattr(config, "get") else {}
         try:
@@ -195,7 +197,7 @@ class RollPigPlugin(
     async def eat_random_group_member(self, event: AstrMessageEvent):
         return await super().eat_random_group_member(event)
 
-    @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行點火'}, priority=1000)
+    @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行点火'}, priority=1000)
     async def force_roast_group_member(self, event: AstrMessageEvent, args: str=''):
         return await super().force_roast_group_member(event, args)
 
@@ -227,3 +229,38 @@ class RollPigPlugin(
     async def pigsty_daily_report_disable(self, event: AstrMessageEvent):
         return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
+
+    UI_ASSET_VERSION = "3.2.0"
+
+    def _init_regular_font(self):
+        font_paths = [
+            self.font_dir / "荆南麦圆体.otf",
+            self.font_dir / "SourceHanSansCN-Regular.otf",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+        return self._load_font(font_paths, self.DESC_FONT_SIZE, "常规")
+
+    def _init_bold_font(self):
+        font_paths = [
+            self.font_dir / "荆南麦圆体.otf",
+            self.font_dir / "SourceHanSansCN-Bold.otf",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]
+        return self._load_font(font_paths, self.NAME_FONT_SIZE, "加粗")
+
+    def _init_traditional_font(self):
+        font_paths = [
+            self.font_dir / "荆南麦圆体.otf",
+            self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf",
+            self.font_dir / "SourceHanSansCN-Regular.otf",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "/System/Library/Fonts/PingFang.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
+        return self._load_font(font_paths, self.DESC_FONT_SIZE, "繁体兜底")
