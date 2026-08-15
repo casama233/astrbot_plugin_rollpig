@@ -100,7 +100,8 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     assert "/今日小豬 @某人" in commands
     assert "/豬圈日報狀態" in commands
     assert "/烤箱補貨" in commands
-    assert "/添煤" in commands
+    assert "/添柴" in commands
+    assert "/添煤" not in commands
     assert "/豬圈日報開啟／關閉" in commands
     assert "自動日報總開關" in commands
     assert "預約烤豬" in commands
