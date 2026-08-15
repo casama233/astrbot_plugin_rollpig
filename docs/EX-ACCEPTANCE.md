@@ -54,20 +54,18 @@
 - [ ] 投稿只能帶目前小豬的 Lv.1–5 EX 差分。
 - [ ] EX 圖片固定 `<pig-id>-ex<level>.png`；引用與實際提交集合必須完全一致。
 - [ ] 審核員可在批准前查看 base 圖、base 文案、每級 EX 文案差分與 EX 圖片。
-- [ ] reject 不改動 production catalog 或 `v1` symlink。
-- [ ] approve 把 base + EX 放入同一 candidate catalog，`build_source()` 成功後才原子發布。
-- [ ] `submission_ex` sidecar 不修改舊 `submissions` schema。
+- [ ] reject 不改動 production active resource。
+- [ ] approve 只有在 base + EX 整包驗證成功後才發布一個新 resource version。
 
-自動化證據：`tests/test_public_source_ex_review.py`、既有 `tests/test_public_source_review.py`。
+公開插件倉庫只驗證客戶端／投稿契約與 Resource Protocol 行為；服務端持久化、部署和 production regression tests 在私有服務倉庫維護。
 
-部署 smoke：
+Production smoke：
 
-1. 服務器同版部署 `app.py`、`app_v2.py`、`build_resource_source.py`。
-2. `systemctl restart rollpig-source-review.service` 後 `/healthz` 成功。
-3. 建立一筆 v1 base-only 投稿並拒絕。
-4. 建立一筆 v2 EX 投稿，審核頁可看 EX 圖／文案。
-5. 批准 v2 投稿後確認新 `v1/manifest.json` 同時包含新 pig 與 EX metadata。
-6. 另一台插件同步正式源後能直接顯示該 EX 差分。
+1. 部署支援 envelope v2 的正式 review service，服務健康檢查成功。
+2. 建立一筆 v1 base-only 投稿並拒絕，確認舊相容路徑仍正常。
+3. 建立一筆 v2 EX 投稿，審核頁可查看 EX 圖／文案。
+4. 批准 v2 投稿後，確認正式 manifest 同時包含新 pig 與 EX metadata。
+5. 另一台／乾淨插件實例同步正式源後能直接顯示該 EX 差分。
 
 ## 6. 玩家文案共享層
 
@@ -79,16 +77,17 @@
 
 自動化證據：`tests/test_player_copy.py`、`tests/test_dynamic_help_system.py`。
 
-> 這一 gate 代表「新系統的動態發現文案已建立可強制執行的共享層」，不是宣稱歷史 `legacy_main.py` 裡每一句舊提示都已完成全量 i18n 遷移。歷史文案可繼續逐步搬遷，但不能把已遷移的 help surface 再寫回 inline literal。
+> 這一 gate 代表「新系統的動態發現文案已建立可強制執行的共享層」，不是宣稱歷史 `legacy_main.py` 裡每一句舊提示都已完成全量 i18n 遷移。
 
-## 7. Release / CI gate
+## 7. Release / CI / production gate
 
 宣稱 EX 100% 完成前，必須同時滿足：
 
-- [ ] EX PR 系列按依賴順序全部合併到 `main`，沒有只存在於 stacked branch 的功能。
-- [ ] 合併後 `main` 的 pre-commit／pytest／AstrBot smoke／Marketplace smoke 都通過；若某個 workflow 在倉庫沒有啟用，release note 必須明確說明實際跑了哪些驗證，不能用「CI 全綠」代替。
-- [ ] 公共源 production 主機已部署 EX-aware review service，而不只是倉庫裡存在 `app_v2.py`。
-- [ ] production `v1/manifest.json` 可由新版插件正常同步。
+- [ ] EX 功能系列全部合併到公開插件 `main`，沒有只存在於 stacked branch 的功能。
+- [ ] 公開插件 `main` 的 pre-commit／pytest／AstrBot smoke／Marketplace smoke 通過。
+- [ ] 私有公共源服務的 production release 已通過其獨立 CI，並實際部署到正式主機。
+- [ ] 正式 review service 健康檢查成功，v1 base-only 與 v2 EX 投稿 smoke 都通過。
+- [ ] production Resource Protocol v1 manifest 可由新版插件正常同步。
 - [ ] 從乾淨安裝到「抽中重複豬 → 看到 EX → 本地編輯 → 投稿 → 審核 → 批准 → 第二台同步」完成一次人工 smoke。
 - [ ] `docs/EX-VARIANTS.md`、玩家 Wiki 與 CHANGELOG 和 production 行為一致。
 
@@ -100,4 +99,4 @@
 
 在那之前應使用更精確的描述，例如：
 
-> EX runtime / authoring / public-source workflow 已實作，正在完成合併與 production smoke。
+> EX runtime / authoring / public-source workflow 已實作，正在完成 production deployment / smoke。
