@@ -55,7 +55,7 @@ PLAYER_COPY: dict[str, dict[str, str]] = {
         "help.mechanic.ai_copy": "可請當前會話模型寫菜譜；模型罷工時自動翻回本地菜單",
         "help.mechanic.report_random_eat_title": "日報祭品｜晚報偶爾真會吃人",
         "help.mechanic.report_random_eat": "只可能在自動日報發送時觸發；手動翻報紙不會少人",
-        "help.admin.panel_title": "管理面板｜后厨总控室｜後廚總控室",
+        "help.admin.panel_title": "管理面板｜後廚總控室",
         "help.admin.panel": "同步豬源、改豬、選圖、配 EX、審投稿；按鈕很多，豬還是那些豬",
     },
     "zh-CN": {
@@ -104,7 +104,7 @@ PLAYER_COPY: dict[str, dict[str, str]] = {
         "help.mechanic.ai_copy": "可请当前会话模型写菜谱；模型罢工时自动翻回本地菜单",
         "help.mechanic.report_random_eat_title": "日报祭品｜晚报偶尔真会吃人",
         "help.mechanic.report_random_eat": "只可能在自动日报发送时触发；手动翻报纸不会少人",
-        "help.admin.panel_title": "管理面板",
+        "help.admin.panel_title": "管理面板｜后厨总控室",
         "help.admin.panel": "同步猪源、改猪、选图、配 EX、审投稿；按钮很多，猪还是那些猪",
     },
 }
