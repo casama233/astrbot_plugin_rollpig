@@ -12,6 +12,7 @@ REPORT_ADAPTERS = {
     "pigsty_daily_report_enable": "/豬圈日報開啟／關閉",
     "pigsty_daily_report_disable": "/豬圈日報開啟／關閉",
 }
+COMPAT_ADAPTERS = {"oven_refill_support_compat": "/添柴"}
 
 
 def _commands(state: HelpFeatureState) -> set[str]:
@@ -61,6 +62,7 @@ def test_disabled_features_are_omitted_instead_of_advertised():
         enable_roast=False,
         enable_group_roast=False,
         enable_roast_reservation=False,
+        enable_oven_refill=False,
         enable_group_eat=False,
         enable_roast_protection=False,
         enable_ai_roast_copy=False,
@@ -74,12 +76,13 @@ def test_disabled_features_are_omitted_instead_of_advertised():
     assert "/烤群友 @某人" not in commands
     assert "/隨機烤群友" not in commands
     assert "/打點後廚 @某人" not in commands
+    assert "/添柴" not in commands
     assert "/吃群友 @某人" not in commands
     assert "/隨機吃群友" not in commands
     assert not any(command.startswith("/豬圈日報") for command in commands)
-    assert "新豬保底" not in commands
-    assert "跨日疲勞保底" not in commands
-    assert "預約烤豬" not in commands
+    assert not any("新豬保底" in command for command in commands)
+    assert not any("跨日疲勞" in command for command in commands)
+    assert not any("預約烤豬" in command for command in commands)
 
 
 def test_enabled_features_expose_new_report_and_reservation_capabilities():
@@ -88,6 +91,7 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
         enable_roast=True,
         enable_group_roast=True,
         enable_roast_reservation=True,
+        enable_oven_refill=True,
         enable_group_eat=True,
         enable_roast_protection=True,
         enable_ai_roast_copy=True,
@@ -103,11 +107,24 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     assert "/添柴" in commands
     assert "/添煤" not in commands
     assert "/豬圈日報開啟／關閉" in commands
-    assert "自動日報總開關" in commands
-    assert "預約烤豬" in commands
-    assert "次日保護" in commands
-    assert "AI 烤豬文案" in commands
-    assert "日報隨機祭品" in commands
+    assert any("自動日報" in command for command in commands)
+    assert any("預約烤豬" in command for command in commands)
+    assert any("次日保護" in command for command in commands)
+    assert any("AI 料理文案" in command for command in commands)
+    assert any("日報祭品" in command for command in commands)
+
+
+def test_reservation_only_configuration_still_exposes_contextual_firewood():
+    commands = _commands(
+        HelpFeatureState(
+            enable_roast=True,
+            enable_group_roast=True,
+            enable_roast_reservation=True,
+            enable_oven_refill=False,
+        )
+    )
+    assert "/添柴" in commands
+    assert "/烤箱補貨" not in commands
 
 
 def test_all_registered_commands_have_script_aware_help_coverage_when_enabled():
@@ -126,6 +143,10 @@ def test_all_registered_commands_have_script_aware_help_coverage_when_enabled():
             continue
         if handler in REPORT_ADAPTERS:
             if REPORT_ADAPTERS[handler] not in commands:
+                uncovered.add(handler)
+            continue
+        if handler in COMPAT_ADAPTERS:
+            if COMPAT_ADAPTERS[handler] not in commands:
                 uncovered.add(handler)
             continue
         if not any(
