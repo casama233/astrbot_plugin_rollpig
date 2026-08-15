@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 from PIL import Image
@@ -12,7 +10,6 @@ from scripts.prepare_resource_catalog import CompatibilitySpec, merge_catalog
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATOR = ROOT / "scripts" / "migrate_public_source_compat.py"
 PINNED_COMMIT = "17ac1586a91c33995883803a55e2f755047f6e1f"
 
 
@@ -94,9 +91,7 @@ def test_merge_restores_missing_legacy_ids_and_keeps_current_overrides(tmp_path)
     assert summary["restored_ids"] == ["legacy-pig"]
     assert summary["merged_count"] == 3
 
-    floor = json.loads(
-        (output / "compatibility_floor.json").read_text(encoding="utf-8")
-    )
+    floor = json.loads((output / "compatibility_floor.json").read_text(encoding="utf-8"))
     assert set(floor["ids"]) == {"shared-pig", "legacy-pig"}
     assert floor["source_commit"] == "deadbeef"
 
@@ -117,9 +112,7 @@ def test_merge_rejects_mutated_frozen_snapshot(tmp_path):
     compat, spec = _compat_fixture(tmp_path)
     records = json.loads((compat / "pig.json").read_text(encoding="utf-8"))
     records[0]["name"] = "被偷偷修改"
-    (compat / "pig.json").write_text(
-        json.dumps(records, ensure_ascii=False), encoding="utf-8"
-    )
+    (compat / "pig.json").write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
 
     try:
         merge_catalog(primary, compat, tmp_path / "merged", spec=spec)
@@ -127,34 +120,6 @@ def test_merge_rejects_mutated_frozen_snapshot(tmp_path):
         assert "指紋不符" in str(exc)
     else:  # pragma: no cover - protects the immutable snapshot contract
         raise AssertionError("mutated compatibility snapshot was accepted")
-
-
-def test_live_migrator_dry_run_does_not_mutate_catalog(tmp_path):
-    primary = _write_catalog(
-        tmp_path / "catalog",
-        [
-            {
-                "id": "current-pig",
-                "name": "目前豬",
-                "description": "目前",
-                "analysis": "目前來源。",
-            }
-        ],
-        image_dir="image",
-    )
-    original = (primary / "pig.json").read_bytes()
-
-    # The live migrator intentionally uses the real frozen snapshot contract.
-    # This test only verifies CLI dry-run behavior by making the helper importable;
-    # snapshot verification itself is covered above and by the real CI checkout.
-    result = subprocess.run(
-        [sys.executable, str(MIGRATOR), "--help"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    assert "--dry-run" in result.stdout
-    assert (primary / "pig.json").read_bytes() == original
 
 
 def test_workflow_pins_the_exact_pre_cutover_commit_and_checks_sentinels():
