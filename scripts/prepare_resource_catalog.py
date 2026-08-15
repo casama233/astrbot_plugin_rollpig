@@ -137,6 +137,9 @@ def _copy_primary_extras(primary_root: Path, output: Path) -> None:
     variant_images = primary_root / "ex_variants"
     if variant_images.is_dir():
         shutil.copytree(variant_images, output / "ex_variants")
+    curated_packs = primary_root / "ex_curated"
+    if curated_packs.is_dir():
+        shutil.copytree(curated_packs, output / "ex_curated")
 
 
 def merge_catalog(

@@ -113,26 +113,77 @@ def _load_images(source_root: Path, pig_ids: set[str]) -> dict[str, Path]:
     return images
 
 
+def _read_variant_document(
+    path: Path,
+    pig_ids: set[str],
+    *,
+    allow_foreign_ids: bool = False,
+) -> dict[str, dict[int, dict[str, str]]]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"無法讀取 {path.name}：{exc}") from exc
+    if allow_foreign_ids:
+        if not isinstance(raw, dict):
+            raise ValueError(f"{path.name} 必須是 JSON 物件")
+        raw_pigs = raw.get("pigs", {})
+        if not isinstance(raw_pigs, dict):
+            raise ValueError(f"{path.name} pigs 必須是物件")
+        raw = {
+            "schema_version": raw.get("schema_version", 1),
+            "pigs": {
+                str(pig_id): levels
+                for pig_id, levels in raw_pigs.items()
+                if str(pig_id) in pig_ids
+            },
+        }
+        if not raw["pigs"]:
+            return {}
+    return validate_ex_variants(
+        raw,
+        pig_ids,
+        image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
+    )
+
+
+def _load_explicit_ex_authoring(
+    source_root: Path,
+    pig_ids: set[str],
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Merge the base EX document and optional curated authoring packs."""
+    explicit: dict[str, dict[int, dict[str, str]]] = {}
+    variants_path = source_root / "pig_ex_variants.json"
+    if variants_path.exists():
+        explicit.update(_read_variant_document(variants_path, pig_ids))
+
+    curated_root = source_root / "ex_curated"
+    if curated_root.is_dir():
+        for pack in sorted(curated_root.glob("*.json")):
+            variants = _read_variant_document(
+                pack,
+                pig_ids,
+                allow_foreign_ids=True,
+            )
+            duplicates = set(explicit).intersection(variants)
+            if duplicates:
+                raise ValueError(
+                    f"EX authoring 重复小猪（{pack.name}）："
+                    + ", ".join(sorted(duplicates))
+                )
+            explicit.update(variants)
+    return explicit
+
+
 def _load_ex_variants(
     source_root: Path, records: list[dict]
 ) -> tuple[dict, dict[str, Path]]:
     pig_ids = {str(item["id"]) for item in records}
-    variants_path = source_root / "pig_ex_variants.json"
-    explicit: dict[str, dict[int, dict[str, str]]] = {}
-    if variants_path.exists():
-        try:
-            raw = json.loads(variants_path.read_text(encoding="utf-8-sig"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise ValueError(f"無法讀取 pig_ex_variants.json：{exc}") from exc
-        explicit = validate_ex_variants(
-            raw,
-            pig_ids,
-            image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
-        )
+    explicit = _load_explicit_ex_authoring(source_root, pig_ids)
 
-    # Materialize the complete official EX1-EX5 copy layer at publish time.
-    # Sparse authoring records remain overrides; compatibility-restored pigs and
-    # newly-added catalog pigs receive deterministic visible growth as well.
+    # Materialize one canonical Resource Protocol document. Official releases
+    # are gated separately to require explicit curated EX1-EX5 copy for every
+    # official ID; the deterministic baseline remains only a safety fallback for
+    # generic fixtures, local content and future non-official catalogs.
     effective = build_effective_ex_variants(records, explicit)
     canonical = serialize_ex_variants(effective)
     declared = {
@@ -231,7 +282,7 @@ def build_source(
         canonical, variant_images = ex_bundle
         variant_pig_count = len(canonical.get("pigs", {}))
         if variant_pig_count != len(records):
-            raise AssertionError("EX 五級文案基線未覆蓋完整 catalog")
+            raise AssertionError("EX 五級文案未覆蓋完整 catalog")
         variant_output = staging / "ex_variants"
         variant_output.mkdir()
         ex_path = staging / "pig_ex_variants.json"

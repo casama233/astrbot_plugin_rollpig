@@ -54,6 +54,45 @@ jobs:
         env:
           RESOURCE_VERSION: ${{ github.sha }}
         run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("dist/merged-resource")
+          records = json.loads((root / "pig.json").read_text(encoding="utf-8"))
+          ids = {str(item["id"]) for item in records}
+          documents = [root / "pig_ex_variants.json", *sorted((root / "ex_curated").glob("*.json"))]
+          handcrafted = {}
+          source_by_id = {}
+          for path in documents:
+              payload = json.loads(path.read_text(encoding="utf-8-sig"))
+              pigs = payload.get("pigs", {})
+              if not isinstance(pigs, dict):
+                  raise SystemExit(f"invalid EX authoring document: {path}")
+              duplicates = set(handcrafted).intersection(pigs)
+              if duplicates:
+                  raise SystemExit(f"duplicate handcrafted EX IDs in {path.name}: {sorted(duplicates)}")
+              for pig_id in pigs:
+                  source_by_id[str(pig_id)] = path.name
+              handcrafted.update({str(pig_id): levels for pig_id, levels in pigs.items()})
+
+          if set(handcrafted) != ids:
+              missing = sorted(ids - set(handcrafted))[:20]
+              extra = sorted(set(handcrafted) - ids)[:20]
+              raise SystemExit(f"handcrafted EX coverage mismatch: missing={missing}, extra={extra}")
+          expected_levels = {"1", "2", "3", "4", "5"}
+          for pig_id, levels in handcrafted.items():
+              if set(levels) != expected_levels:
+                  raise SystemExit(f"{pig_id} handcrafted EX is not exactly Lv1-Lv5 ({source_by_id[pig_id]})")
+              descriptions = [str(levels[str(level)].get("description") or "").strip() for level in range(1, 6)]
+              analyses = [str(levels[str(level)].get("analysis") or "").strip() for level in range(1, 6)]
+              if not all(descriptions) or len(set(descriptions)) != 5:
+                  raise SystemExit(f"{pig_id} handcrafted descriptions are incomplete/duplicated")
+              if not all(analyses) or len(set(analyses)) != 5:
+                  raise SystemExit(f"{pig_id} handcrafted analyses are incomplete/duplicated")
+          print(f"handcrafted EX authoring gate: {len(handcrafted)}/{len(ids)} pigs")
+          PY
+
           python scripts/build_resource_source.py \
             --source dist/merged-resource \
             --output dist/astrbot-rollpig-source \

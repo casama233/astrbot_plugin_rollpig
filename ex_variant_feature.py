@@ -42,6 +42,52 @@ class ExVariantMixin:
             self._reload_ex_variants()
         return result
 
+    def _read_bundled_curated_packs(
+        self,
+        pig_ids: set[str],
+        *,
+        image_extensions: set[str],
+    ) -> dict[str, dict[int, dict[str, str]]]:
+        """Load curated authoring packs that apply to the bundled catalog.
+
+        The packs also contain the frozen compatibility-floor pigs that only
+        exist after Resource Source merging. Those IDs are intentionally ignored
+        by a standalone bundled install and validated in full by release CI.
+        """
+        root = self.res_dir / "ex_curated"
+        if not root.is_dir():
+            return {}
+        merged: dict[str, dict[int, dict[str, str]]] = {}
+        for pack in sorted(root.glob("*.json")):
+            payload = json.loads(pack.read_text(encoding="utf-8-sig"))
+            if not isinstance(payload, dict):
+                raise ValueError(f"EX 精品包必须是对象：{pack.name}")
+            raw_pigs = payload.get("pigs", {})
+            if not isinstance(raw_pigs, dict):
+                raise ValueError(f"EX 精品包 pigs 必须是对象：{pack.name}")
+            filtered = {
+                "schema_version": payload.get("schema_version", 1),
+                "pigs": {
+                    str(pig_id): levels
+                    for pig_id, levels in raw_pigs.items()
+                    if str(pig_id) in pig_ids
+                },
+            }
+            if not filtered["pigs"]:
+                continue
+            variants = validate_ex_variants(
+                filtered,
+                pig_ids,
+                image_extensions=image_extensions,
+            )
+            duplicates = set(merged).intersection(variants)
+            if duplicates:
+                raise ValueError(
+                    f"EX 精品包重复小猪：{', '.join(sorted(duplicates))}"
+                )
+            merged.update(variants)
+        return merged
+
     def _read_ex_variant_source(
         self, path: Path, image_root: Path, source: str
     ) -> tuple[dict[str, dict[int, dict[str, str]]], Path, str]:
@@ -52,11 +98,24 @@ class ExVariantMixin:
             if isinstance(item, dict)
         ]
         pig_ids = {str(item.get("id") or "") for item in pigs}
+        image_extensions = set(getattr(self, "IMAGE_EXTENSIONS", ("png",)))
         variants = validate_ex_variants(
             payload,
             pig_ids,
-            image_extensions=set(getattr(self, "IMAGE_EXTENSIONS", ("png",))),
+            image_extensions=image_extensions,
         )
+        if source == "bundled":
+            curated = self._read_bundled_curated_packs(
+                pig_ids,
+                image_extensions=image_extensions,
+            )
+            duplicates = set(variants).intersection(curated)
+            if duplicates:
+                raise ValueError(
+                    "pig_ex_variants.json 与 EX 精品包重复小猪："
+                    + ", ".join(sorted(duplicates))
+                )
+            variants.update(curated)
         for pig_id, levels in variants.items():
             for level, item in levels.items():
                 image = str(item.get("image") or "")
@@ -64,9 +123,9 @@ class ExVariantMixin:
                     raise ValueError(
                         f"{source} EX 差分缺少图片：{pig_id} EX Lv.{level} -> {image}"
                     )
-        # Explicit resources stay sparse authoring layers. The active catalog is
-        # completed underneath them so every current/compatibility pig has
-        # distinct EX1-EX5 copy even when it has no bespoke asset yet.
+        # Explicit curated resources stay authoring layers. The deterministic
+        # baseline remains underneath only as a safety net for non-official or
+        # future local content; official CI requires 100% explicit curation.
         effective = build_effective_ex_variants(pigs, variants)
         return effective, image_root, source
 
@@ -98,7 +157,7 @@ class ExVariantMixin:
             self._ex_variant_image_root = root
             self._ex_variant_source = resolved_source
             logger.info(
-                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪（含官方五级文案基线）"
+                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪（官方目录使用精品五级文案）"
             )
             return
 
@@ -110,7 +169,7 @@ class ExVariantMixin:
         self._ex_variants = build_effective_ex_variants(pigs)
         self._ex_variant_image_root = None
         self._ex_variant_source = "baseline"
-        logger.info(f"已加载官方 EX 五级文案基线：{len(self._ex_variants)} 只小猪")
+        logger.info(f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪")
 
     def _has_local_pig_override(self, pig_id: str) -> bool:
         """Remote/bundled variants never override an administrator's local pig."""
