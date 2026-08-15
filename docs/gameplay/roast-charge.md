@@ -1,6 +1,6 @@
 ---
 title: Roast Charge 與烤箱補貨
-description: 後廚現在有電表。烤太多沒火？叫全群來添煤。
+description: 後廚現在有電表。烤太多沒火？叫全群來添柴。
 ---
 
 # 🔥 Roast Charge：後廚現在真的有能源條
@@ -11,7 +11,7 @@ description: 後廚現在有電表。烤太多沒火？叫全群來添煤。
 > 然後整個人進冷卻。  
 > 八小時後再見。
 
-v3.7.0 的玩法變成了 **可儲存的烤箱 Charge**。
+現在的玩法是 **可儲存的烤箱 Charge**。
 
 <div class="pig-charge-panel" markdown>
 <div class="pig-charge-row">
@@ -61,7 +61,7 @@ v3.7.0 的玩法變成了 **可儲存的烤箱 Charge**。
 
 ## 我不想等 8 小時。
 
-很好。v3.7.0 的群友也不想。
+很好。群友也不想。
 
 ### ⛽ `/烤箱補貨`
 
@@ -82,11 +82,11 @@ v3.7.0 的玩法變成了 **可儲存的烤箱 Charge**。
 
 管理員可以調整這些數值。
 
-### 🪵 `/添煤`
+### 🪵 `/添柴`
 
 補貨輪次已開始後，其他符合條件的活躍豬友可以：
 
-<span class="pig-command">/添煤</span>
+<span class="pig-command">/添柴</span>
 
 每人只計一次。人數到達本輪要求後，補貨會結算。
 
@@ -96,6 +96,21 @@ v3.7.0 的玩法變成了 **可儲存的烤箱 Charge**。
 它只會為符合條件、目前確實缺 Charge 的本群活躍玩家恢復 **+1 格**，而且不會突破自己的最大容量。
 
 換句話說：這是補貨，不是後廚核聚變。
+
+</div>
+
+## `/添柴` 還能給預約添？
+
+能，而且這就是現在把兩套玩法收成同一個入口的原因。
+
+<div class="pig-highlight" markdown>
+
+- **有補貨輪次**：裸 `/添柴` 優先支持補貨；
+- **明確想蹲某位群友的鍋**：`/添柴 @目標`；
+- **沒補貨 + 只有一張待結算預約**：裸 `/添柴` 直接加入那張；
+- **沒補貨 + 多張預約**：Bot 要求你指定 `@目標`。
+
+所以不需要再背另一條主命令。**同一把柴，Bot 先分清楚你想燒哪口鍋。**
 
 </div>
 
@@ -116,8 +131,8 @@ B 輸入 `/烤箱補貨`。如果今天這群共有 10 位活躍豬友，按預�
 
 <div class="pig-step" markdown><span class="pig-step__n">3</span><div>
 
-### C、D 添煤
-C `/添煤`，D `/添煤`。連同發起者 B，進度達標。
+### C、D 添柴
+C `/添柴`，D `/添柴`。連同發起者 B，進度達標。
 </div></div>
 
 <div class="pig-step" markdown><span class="pig-step__n">4</span><div>
@@ -132,10 +147,11 @@ C `/添煤`，D `/添煤`。連同發起者 B，進度達標。
 如果你明確 `/烤群友 @A`，但 A 今天還沒有在這個群抽豬：
 
 1. 第一位主廚建立預約，支付 1 Charge；
-2. 其他人可以對同一預約添柴，不重複扣 Charge；
-3. A 之後在本群抽出今日小豬；
-4. 已存在的預約一次性結算；
-5. 不會因為「A 終於出現」再向主廚收一次電費。
+2. 其他人可以 `/添柴 @A`，不重複扣 Charge；
+3. 再次 `/烤群友 @A` 也保留為相容加入方式；
+4. A 之後在本群抽出今日小豬；
+5. 已存在的預約一次性結算；
+6. 不會因為「A 終於出現」再向主廚收一次電費。
 
 完整預約語義見 **[預約烤豬技術規則](../ROAST-RESERVATIONS.md)**。
 
@@ -151,18 +167,19 @@ C `/添煤`，D `/添煤`。連同發起者 B，進度達標。
 - `oven_refill_min_supporters`：最少支持者
 - `oven_refill_max_base_supporters`：基礎需求上限
 - `oven_refill_extra_supporters_per_success`：當天每成功一次後，下輪額外需要多少支持者
+- `oven_refill_round_timeout_minutes`：一輪補貨能掛多久
 
 精確配置請看 **[完整配置參考](../CONFIGURATION.md)**。
 
 !!! info "舊版升級"
-    v3.7.0 不會粗暴清空舊 `roast_cooldowns`。仍在舊冷卻中的玩家會以 lazy migration 方式換算成 Charge state，保留原 `last_used_at` 作恢復起點，不會因更新突然滿血，也不會被雙倍懲罰。
+    Charge migration 不會粗暴清空舊 `roast_cooldowns`。仍在舊冷卻中的玩家會以 lazy migration 方式換算成 Charge state，保留原 `last_used_at` 作恢復起點，不會因更新突然滿血，也不會被雙倍懲罰。
 
 <div class="pig-highlight" markdown>
 
 ### 🔥 一句話總結
 
 以前：**烤完等。**  
-現在：**存 Charge → 開火 → 沒油 → 全群添煤 → 再開火。**
+現在：**存 Charge → 開火 → 沒油 → 全群添柴 → 再開火。**
 
 後廚終於從「冷卻功能」發展成了一個需要群眾基礎的能源工程。
 

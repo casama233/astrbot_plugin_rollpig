@@ -10,7 +10,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 # 每天抽一隻豬。<br><span class="pig-gradient-text">然後全群開始失控。</span>
 
-<p class="pig-lead">你不需要先學會配置 AstrBot。群裡已經有小豬？那就直接抽。永久圖鑑、EX 成長、Roast Charge、預約烤豬、群友添柴與《豬圈日報》會自己找上門。</p>
+<p class="pig-lead">你不需要先學會配置 AstrBot。群裡已經有小豬？那就直接抽。永久豬籍、EX 成長、Roast Charge、預約烤豬、群友添柴與《豬圈日報》會自己找上門。</p>
 
 <div class="pig-actions">
 <a class="pig-button pig-button--primary" href="getting-started/">⚡ 30 秒開始養豬</a>
@@ -18,7 +18,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 </div>
 
 <div class="pig-badges">
-<span class="pig-badge">📚 永久收藏</span>
+<span class="pig-badge">📚 永久豬籍</span>
 <span class="pig-badge">⭐ EX Lv.</span>
 <span class="pig-badge">🔥 群聊後廚</span>
 <span class="pig-badge">⚡ Roast Charge</span>
@@ -28,8 +28,8 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 <div class="pig-live-strip" aria-label="今日小豬玩法跑馬燈">
 <div class="pig-live-strip__track">
-<span>/今日小豬</span><span>永久收藏</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
-<span>/今日小豬</span><span>永久收藏</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
+<span>/今日小豬</span><span>永久豬籍</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
+<span>/今日小豬</span><span>永久豬籍</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
 </div>
 </div>
 
@@ -70,7 +70,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 <div class="pig-highlight" markdown>
 
-**這不是一個只會回覆隨機圖片的插件。** 你每天抽到的豬會留下來、會重複、會長 EX；群友會把你拖進後廚、提前埋伏、往烤箱裡添柴，甚至在晚上把今天的慘案整理成一張日報。
+**這不是一個只會回覆隨機圖片的插件。** 你每天抽到的豬會留下豬籍、會重複、會長 EX；群友會把你拖進後廚、提前埋伏、往烤箱裡添柴，甚至在晚上把今天的慘案整理成一張日報。
 
 換句話說：**你本來只是想抽一隻豬。現在你們群裡已經有能源系統了。**
 
@@ -181,7 +181,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 ### `/今日小豬` 只是入口
 
 <div class="pig-evolution-flow">
-<span>抽豬</span><span>永久收藏</span><span>EX 成長</span><span>保底</span><span>烤群友</span><span>預約埋伏</span><span>添柴</span><span>60/30/10</span><span>Roast Charge</span><span>全群補貨</span><span>豬圈日報</span>
+<span>抽豬</span><span>永久豬籍</span><span>EX 成長</span><span>保底</span><span>烤群友</span><span>預約埋伏</span><span>添柴</span><span>60/30/10</span><span>Roast Charge</span><span>全群補貨</span><span>豬圈日報</span>
 </div>
 
 **本來只想抽一隻。現在全群圍著烤箱玩一天。**
@@ -200,12 +200,27 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <strong>預設 2 / 2 格</strong>
 </div>
 
-普通 `/烤群友` 或建立一張新的預約會消耗 1 格；能量會自然逐格恢復。沒火了？還能發起 `/烤箱補貨`，叫今天在群裡抽過豬的人一起 `/添煤`。
+普通 `/烤群友` 或建立一張新的預約會消耗 1 格；能量會自然逐格恢復。沒火了？還能發起 `/烤箱補貨`，叫今天在群裡抽過豬的人一起 `/添柴`。
 
 **這不是冷卻條。這是群聊社交壓力條。**
 </div>
 
 [完整 Roast Charge 規則 →](gameplay/roast-charge.md)
+
+## 🪵 `/添柴` 到底是在添哪口鍋？ {.pig-section-title}
+
+<div class="pig-highlight" markdown>
+
+你不用背兩套同名規則：
+
+- **補貨輪次正在進行**：裸 `/添柴` 就是給烤箱補貨；
+- **想支持某張預約**：用 `/添柴 @目標`；
+- **沒有補貨，而且只剩一張待結算預約**：裸 `/添柴` 會自動蹲那口鍋；
+- **沒有補貨，但同時有多張預約**：Bot 會叫你 `@目標`，不替你盲投柴火。
+
+一句話：**柴還是那把柴，Bot 先看看現在到底哪口鍋在冒煙。**
+
+</div>
 
 ## ⭐ 同一隻豬，抽第二次以後就不太一樣了 {.pig-section-title}
 
