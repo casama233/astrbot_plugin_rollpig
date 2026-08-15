@@ -197,7 +197,7 @@ class RollPigPlugin(
     async def eat_random_group_member(self, event: AstrMessageEvent):
         return await super().eat_random_group_member(event)
 
-    @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行点火'}, priority=1000)
+    @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行點火'}, priority=1000)
     async def force_roast_group_member(self, event: AstrMessageEvent, args: str=''):
         return await super().force_roast_group_member(event, args)
 
