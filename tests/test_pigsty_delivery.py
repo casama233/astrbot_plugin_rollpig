@@ -63,7 +63,9 @@ def test_pigsty_handler_separates_render_and_delivery_failures():
 
     assert "is_uncertain_send_timeout(exc)" in handler_source
     assert "消息可能已成功投递" in handler_source
-    assert "图鉴已生成，但图片发送失败" in handler_source
-    assert "图鉴图片生成失败" in handler_source
+    assert "图鉴已经画好" in handler_source
+    assert "图片发送失败" in handler_source
+    assert "收藏还在" in handler_source
+    assert "图片生成失败" in handler_source
     assert "page_count(display_catalog)" in handler_source
     assert "page_count(self.pig_list)" not in handler_source
