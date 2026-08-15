@@ -20,9 +20,22 @@ def test_player_wiki_promotes_canonical_firewood_not_legacy_coal():
         "docs/gameplay/daily-report.md",
     )
     for relative in player_pages:
-        text = _read(relative)
-        assert "/添柴" in text, relative
-        assert "/添煤" not in text, relative
+        assert "/添煤" not in _read(relative), relative
+
+    # Pages that actually teach the player which command to type must surface
+    # the canonical firewood entry. The report page only describes aggregated
+    # event kinds and does not need to repeat command syntax.
+    command_pages = (
+        "docs/index.md",
+        "docs/getting-started/index.md",
+        "docs/gameplay/index.md",
+        "docs/gameplay/roast-charge.md",
+    )
+    for relative in command_pages:
+        assert "/添柴" in _read(relative), relative
+
+    report = _read("docs/gameplay/daily-report.md")
+    assert "支持／添柴" in report
 
     # The legacy spelling remains searchable so old users can still discover
     # the new canonical docs without promoting it as the primary UI surface.
