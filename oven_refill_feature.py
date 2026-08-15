@@ -506,25 +506,25 @@ class OvenRefillMixin:
     async def oven_refill(self, event) -> None:
         self._claim_command_event(event)
         if not self.enable_oven_refill:
-            await event.send(event.plain_result("烤箱补货当前未启用。"))
+            await event.send(event.plain_result("🔒 今天后厨不收柴。管理员把补货玩法关掉了，再塞也只会弄脏地板。"))
             return
         if not self._oven_refill_available():
             await event.send(
-                event.plain_result("烤群友玩法当前未启用，烤箱补货不可用。")
+                event.plain_result("🔒 烤群友这桌已经关火，补货也跟着歇业。先让管理员把后厨主开关打开。")
             )
             return
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
-            await event.send(event.plain_result("烤箱补货只能在群聊中发起。"))
+            await event.send(event.plain_result("🚪 柴车只进群聊。私聊里没有烤箱，也没有群友帮你扛木头。"))
             return
         draw_date = self._today().isoformat()
         members = self._oven_active_group_members(group_id, draw_date)
         if not self._oven_actor_is_active(actor_id, members):
-            await event.send(event.plain_result("先在本群抽一只今日小猪，再来组织烤箱补货。"))
+            await event.send(event.plain_result("🐷 先在本群抽一只 /今日小猪 再来搬柴；后厨不收路过的临时工。"))
             return
         if len(members) < 2:
-            await event.send(event.plain_result("今天本群至少需要 2 位活跃玩家才能组织补货。"))
+            await event.send(event.plain_result("🐷 一个人搬柴不叫补货，叫加班。今天本群至少要有 2 位养过猪的群友。"))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -537,21 +537,21 @@ class OvenRefillMixin:
         )
         state = str(result.get("state") or "")
         if state == "limit":
-            await event.send(event.plain_result("🔥 本群今天的烤箱补货次数已经用完了。"))
+            await event.send(event.plain_result("🔥 今天的柴车班次用完了。后厨宣布收工，剩下的火请靠时间自己长回来。"))
             return
         if state == "busy":
-            await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
+            await event.send(event.plain_result("⛽ 柴刚塞进去，后厨正在数木头。等这轮结算完再敲门。"))
             return
         if state == "active":
             supporters = result.get("supporters", [])
             await event.send(
                 event.plain_result(
-                    f"🪵 补货进行中：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添柴；发送 /添柴 支持。"
+                    f"🪵 柴堆还没满：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添柴；继续 /添柴，别让主厨一个人扛。"
                 )
             )
             return
         if state != "started":
-            await event.send(event.plain_result("烤箱补货暂时无法发起，请稍后再试。"))
+            await event.send(event.plain_result("🧯 补货没发动起来。烤箱今天有点闹脾气，稍后再试。"))
             return
 
         round_no = int(result.get("round", 0) or 0)
@@ -571,9 +571,9 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "🔥 猪圈能源危机！烤箱补货已发起。\n"
-                f"今日活跃：{len(members)} 人 · 需要支持：{required} 人\n"
-                "发起者已自动添柴 1 份；发送 /添柴 继续支援。"
+                "🔥 猪圈能源危机，柴车发车！\n"
+                f"今日活跃：{len(members)} 人 · 需要：{required} 人\n"
+                "发起人已经先塞 1 把；其余群友输入 /添柴，别让柴车空着回去。"
             )
         )
 
@@ -590,12 +590,12 @@ class OvenRefillMixin:
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
-            await event.send(event.plain_result("添柴只能在群聊中使用。"))
+            await event.send(event.plain_result("🪵 柴只能往群里那口烤箱塞。私聊先把木头放下。"))
             return
         draw_date = self._today().isoformat()
         members = self._oven_active_group_members(group_id, draw_date)
         if not self._oven_actor_is_active(actor_id, members):
-            await event.send(event.plain_result("只有今天在本群参与过 RollPig 的群友才能添柴。"))
+            await event.send(event.plain_result("🪵 后厨认人：今天先在本群玩过 RollPig，才有资格往柴堆里塞一把。"))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -609,18 +609,18 @@ class OvenRefillMixin:
         if state == "expired":
             await event.send(
                 event.plain_result(
-                    "⌛ 上一轮补货已超时关闭；请重新发送 /烤箱补货 发起新一轮。"
+                    "⌛ 上一轮柴火等到凉了，已经超时收摊。重新 /烤箱补货 发一车。"
                 )
             )
             return
         if state == "inactive":
-            await event.send(event.plain_result("当前没有进行中的补货；先发送 /烤箱补货 发起。"))
+            await event.send(event.plain_result("🪵 现在没有柴车在等人。先 /烤箱补货 发车，再回来添柴。"))
             return
         if state == "busy":
             await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你已经给这轮补货添过柴了。"))
+            await event.send(event.plain_result("🪵 你这把柴已经算过了。再塞不加进度，只会让后厨怀疑你想把烤箱埋了。"))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
@@ -643,12 +643,12 @@ class OvenRefillMixin:
         if state == "supported":
             await event.send(
                 event.plain_result(
-                    f"🪵 添柴成功！当前进度 {len(supporters)}/{required}。"
+                    f"🪵 这把算数！柴堆进度 {len(supporters)}/{required}。"
                 )
             )
             return
         if state != "complete":
-            await event.send(event.plain_result("添柴状态异常，请稍后再试。"))
+            await event.send(event.plain_result("🧯 这把柴没记进账。补货状态异常，稍后再试。"))
             return
 
         storage_members = self._oven_storage_members(members)
@@ -697,7 +697,7 @@ class OvenRefillMixin:
             await event.send(
                 event.plain_result(
                     "⚠️ 补货结算遇到存储异常；"
-                    f"已确认恢复 {restored} 人。为避免重复发放，本轮已封账并计入今日补货次数。"
+                    f"已确认恢复 {restored} 人。后厨为防重复发火已把本轮封账，并计入今日补货次数。"
                 )
             )
             return
@@ -718,12 +718,12 @@ class OvenRefillMixin:
             )
             await event.send(
                 event.plain_result(
-                    "🧯 添柴刚好达标，但大家的烤箱能量已经自行恢复满了；本轮作废，不计入今日补货次数。"
+                    "🧯 人凑齐了，结果烤箱自己先充满了。这轮柴白搬，但不扣今日补货次数——至少地板上多了一堆木屑。"
                 )
             )
             return
         if finish.get("state") != "succeeded":
-            await event.send(event.plain_result("补货结算状态异常，请稍后再试。"))
+            await event.send(event.plain_result("🧯 柴车到站后账本对不上。补货结算状态异常，请稍后再试。"))
             return
 
         self._record_oven_event(
@@ -742,7 +742,7 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "⛽ 烤箱补货成功！"
-                f"本群今日活跃玩家统一恢复 +1 格能量（实际恢复 {restored} 人）。"
+                "⛽ 柴车到站，后厨重新通电！"
+                f"本群今天有 {restored} 位活跃群友各捡回 1 格 Charge。烤箱又可以干坏事了。"
             )
         )

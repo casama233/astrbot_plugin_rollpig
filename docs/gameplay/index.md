@@ -1,6 +1,6 @@
 ---
 title: 玩家玩法總覽
-description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
+description: 從抽豬、永久豬籍、EX 到烤箱 Charge、補貨與豬圈日報。
 ---
 
 # 🎮 玩家玩法總覽
@@ -23,7 +23,7 @@ description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
 <div class="pig-card" markdown>
 <span class="pig-card__icon">📚</span>
 
-### 永久收藏與保底
+### 永久豬籍與保底
 你解鎖過的小豬會留在永久豬圈；重複抽取會累積次數，並參與新豬保底與跨日疲勞保底。
 
 <span class="pig-command">/我的豬圈</span>
@@ -64,10 +64,10 @@ description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
 <span class="pig-card__icon">🪵</span>
 
 ### 群體烤箱補貨
-沒 Charge 了？發起補貨，叫今天真的在這個群抽過豬的人一起 `/添煤`。成功後為符合條件的活躍玩家恢復有限能量。
+沒 Charge 了？發起補貨，叫今天真的在這個群抽過豬的人一起 `/添柴`。成功後為符合條件的活躍玩家恢復有限能量。
 
 <span class="pig-command">/烤箱補貨</span>
-<span class="pig-command">/添煤</span>
+<span class="pig-command">/添柴</span>
 </div>
 
 <div class="pig-card" markdown>
@@ -90,7 +90,18 @@ description: 從抽豬、收藏、EX 到烤箱 Charge、補貨與豬圈日報。
 </div>
 </div>
 
-## 一條典型的 v3.7.0 群聊時間線
+## `/添柴`：同一把柴，兩個後廚場景
+
+`/添柴` 是現在玩家要記的 canonical 入口：
+
+- 有進行中的烤箱補貨 → 裸 `/添柴` 支持補貨；
+- 想明確加入某張預約 → `/添柴 @目標`；
+- 沒有補貨且本群只剩一張待結算預約 → 裸 `/添柴` 自動加入；
+- 沒有補貨但有多張預約 → 要求 `@目標`。
+
+**你不用猜 Bot 把柴送去哪。Bot 會先看哪口鍋真的在冒煙。**
+
+## 一條典型的現在版群聊時間線
 
 <div class="pig-steps">
 <div class="pig-step" markdown><span class="pig-step__n">1</span><div>
@@ -102,13 +113,13 @@ A、B、C 各自 `/今日小豬`。收藏、EX 與今天的群活躍名單開始
 <div class="pig-step" markdown><span class="pig-step__n">2</span><div>
 
 ### 下午：有人開始手癢
-B 對 A `/烤群友 @A`。如果 A 還沒在本群抽豬，會進預約流程；其他人可以對同一目標添柴。
+B 對 A `/烤群友 @A`。如果 A 還沒在本群抽豬，會進預約流程；其他人可以 `/添柴 @A` 蹲同一口鍋。
 </div></div>
 
 <div class="pig-step" markdown><span class="pig-step__n">3</span><div>
 
 ### 傍晚：烤箱沒油
-連續群烤後，B 的 Charge 見底。這時群裡可以發起 `/烤箱補貨`，活躍豬友用 `/添煤` 推進本輪進度。
+連續群烤後，B 的 Charge 見底。這時群裡可以發起 `/烤箱補貨`，活躍豬友用 `/添柴` 推進本輪進度。
 </div></div>
 
 <div class="pig-step" markdown><span class="pig-step__n">4</span><div>
@@ -119,4 +130,4 @@ B 對 A `/烤群友 @A`。如果 A 還沒在本群抽豬，會進預約流程；
 </div>
 
 !!! tip "只想查一個精確規則？"
-    直接用頂部搜尋。Wiki 搜尋已針對「Roast Charge」「60/30/10」「烤箱補貨」「添煤」「EX 成長」「新豬保底」「跨日疲勞」「豬圈日報」等詞做中文分詞補強。
+    直接用頂部搜尋。Wiki 搜尋已針對「Roast Charge」「60/30/10」「烤箱補貨」「添柴」「EX 成長」「新豬保底」「跨日疲勞」「豬圈日報」等詞做中文分詞補強。

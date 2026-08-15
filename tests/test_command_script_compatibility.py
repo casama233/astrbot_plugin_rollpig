@@ -8,8 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 # Every user-facing Chinese command whose script actually changes must keep a
-# Simplified and Traditional invocation. Commands such as 烤群友/吃群友/添煤 are
-# script-identical and are checked separately below.
+# Simplified and Traditional invocation. Script-identical commands are checked
+# separately below, including the hidden refill compatibility surface.
 SCRIPT_PAIRS = {
     "rollpig_help": ("猪猪帮助", "豬豬幫助"),
     "roll_pig": ("今日小猪", "今日小豬"),
@@ -33,7 +33,8 @@ SCRIPT_PAIRS = {
 SCRIPT_IDENTICAL = {
     "roast_group_member": "烤群友",
     "eat_group_member": "吃群友",
-    "oven_refill_support": "添煤",
+    "firewood_support": "添柴",
+    "oven_refill_support_compat": "添煤",
 }
 
 
