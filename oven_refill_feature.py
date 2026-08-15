@@ -36,6 +36,7 @@ class OvenRefillMixin:
 
     OVEN_REFILL_STATE_VERSION = 1
     OVEN_REFILL_KEEP_DAYS = 3
+    OVEN_REFILL_DEFAULT_TIMEOUT_MINUTES = 120
 
     def __init__(self, context, config):
         super().__init__(context, config)
@@ -86,6 +87,19 @@ class OvenRefillMixin:
         except (TypeError, ValueError):
             extra = 2
         self.oven_refill_extra_supporters_per_success = min(10, max(0, extra))
+        try:
+            timeout_minutes = int(
+                config.get(
+                    "oven_refill_round_timeout_minutes",
+                    self.OVEN_REFILL_DEFAULT_TIMEOUT_MINUTES,
+                )
+            )
+        except (TypeError, ValueError):
+            timeout_minutes = self.OVEN_REFILL_DEFAULT_TIMEOUT_MINUTES
+        self.oven_refill_round_timeout_minutes = min(720, max(5, timeout_minutes))
+        self.oven_refill_round_timeout_seconds = (
+            self.oven_refill_round_timeout_minutes * 60
+        )
         self.oven_refill_service = OvenRefillService()
 
         self.oven_refill_state_path = self.plugin_data_dir / "oven_refill_state.json"
@@ -107,22 +121,48 @@ class OvenRefillMixin:
     def _save_oven_refill_state_locked(self) -> None:
         self.save_json(self.oven_refill_state_path, self.oven_refill_state)
 
+    @staticmethod
+    def _safe_nonnegative_int(value: Any, default: int = 0) -> int:
+        try:
+            return max(0, int(value or 0))
+        except (TypeError, ValueError):
+            return max(0, int(default))
+
     def _recover_interrupted_refills_locked(self) -> bool:
-        """Turn crash-interrupted completion markers into restartable rounds."""
+        """Fail closed when a process died after completion had already started.
+
+        Charge grants are durable domain writes while campaign metadata is a small
+        sidecar document. After a hard process crash there is no safe way to prove
+        which member grant was the final committed one. Replaying the round could
+        therefore grant a second charge. Once settlement has started we consume one
+        daily success slot on recovery and close the round instead of replaying it.
+        """
+
         dates = self.oven_refill_state.get("dates", {})
         if not isinstance(dates, dict):
             self.oven_refill_state["dates"] = {}
             return True
         changed = False
+        recovered_at = time.time()
         for groups in dates.values():
             if not isinstance(groups, dict):
                 continue
             for row in groups.values():
-                if isinstance(row, dict) and bool(row.get("completing")):
-                    row["completing"] = False
-                    row["active"] = False
-                    row["failed_reason"] = "interrupted"
-                    changed = True
+                if not isinstance(row, dict) or not bool(row.get("completing")):
+                    continue
+                successes = self._safe_nonnegative_int(row.get("successes"))
+                row["successes"] = min(
+                    self.oven_refill_daily_limit, successes + 1
+                )
+                row["completing"] = False
+                row["active"] = False
+                row["settlement_state"] = "interrupted"
+                row["failed_reason"] = "interrupted_counted"
+                row["completed_at"] = recovered_at
+                changed = True
+                logger.warning(
+                    "检测到烤箱补货在结算阶段异常中断；已封账并计入一次补货，避免重复发放能量"
+                )
         return changed
 
     def _prune_oven_refills_locked(self) -> bool:
@@ -183,6 +223,13 @@ class OvenRefillMixin:
             )
         )
 
+    def _oven_refill_available(self) -> bool:
+        return bool(
+            self.enable_oven_refill
+            and getattr(self, "enable_roast", False)
+            and getattr(self, "enable_group_roast", False)
+        )
+
     def _refill_requirement(self, active_count: int, successes: int) -> int:
         return self.oven_refill_service.refill_requirement(
             active_count,
@@ -192,6 +239,27 @@ class OvenRefillMixin:
             maximum_base_supporters=self.oven_refill_max_base_supporters,
             extra_per_success=self.oven_refill_extra_supporters_per_success,
         )
+
+    def _expire_refill_round_locked(self, row: dict[str, Any], now: float) -> bool:
+        if not bool(row.get("active")):
+            return False
+        try:
+            started_at = float(row.get("started_at", 0) or 0)
+        except (TypeError, ValueError):
+            started_at = 0.0
+        now_value = float(now)
+        expired = started_at <= 0 or (
+            now_value >= started_at
+            and now_value - started_at >= self.oven_refill_round_timeout_seconds
+        )
+        if not expired:
+            return False
+        row["active"] = False
+        row["completing"] = False
+        row["expired_at"] = now_value
+        row["settlement_state"] = "expired"
+        row["failed_reason"] = "expired"
+        return True
 
     def _start_refill_round(
         self,
@@ -205,11 +273,13 @@ class OvenRefillMixin:
         with self._data_lock:
             self._prune_oven_refills_locked()
             row = self._refill_bucket_locked(draw_date, group_id)
-            successes = int(row.get("successes", 0) or 0)
+            successes = self._safe_nonnegative_int(row.get("successes"))
             if successes >= self.oven_refill_daily_limit:
                 return {"state": "limit", "successes": successes}
             if bool(row.get("completing")):
                 return {"state": "busy"}
+            if self._expire_refill_round_locked(row, now):
+                self._save_oven_refill_state_locked()
             if bool(row.get("active")):
                 supporters = [
                     str(item) for item in row.get("supporters", []) if str(item)
@@ -217,13 +287,13 @@ class OvenRefillMixin:
                 return {
                     "state": "active",
                     "successes": successes,
-                    "round": int(row.get("round", 0) or 0),
-                    "required": int(row.get("required", 0) or 0),
+                    "round": self._safe_nonnegative_int(row.get("round")),
+                    "required": self._safe_nonnegative_int(row.get("required")),
                     "supporters": supporters,
                 }
 
             required = self._refill_requirement(active_count, successes)
-            round_no = int(row.get("round", 0) or 0) + 1
+            round_no = self._safe_nonnegative_int(row.get("round")) + 1
             row.update(
                 {
                     "active": True,
@@ -233,10 +303,20 @@ class OvenRefillMixin:
                     "active_count": int(active_count),
                     "started_by": str(actor_id),
                     "started_at": float(now),
+                    "settlement_state": "collecting",
                     "supporters": [str(actor_id)],
                 }
             )
-            row.pop("failed_reason", None)
+            for key in (
+                "failed_reason",
+                "settlement_error",
+                "expired_at",
+                "completed_at",
+                "completion_started_at",
+                "restored_users",
+                "active_users",
+            ):
+                row.pop(key, None)
             self._save_oven_refill_state_locked()
             return {
                 "state": "started",
@@ -259,13 +339,16 @@ class OvenRefillMixin:
             row = self._refill_bucket_locked(draw_date, group_id)
             if bool(row.get("completing")):
                 return {"state": "busy"}
+            if self._expire_refill_round_locked(row, now):
+                self._save_oven_refill_state_locked()
+                return {"state": "expired"}
             if not bool(row.get("active")):
                 return {"state": "inactive"}
             supporters = [
                 str(item) for item in row.get("supporters", []) if str(item)
             ]
-            required = int(row.get("required", 0) or 0)
-            round_no = int(row.get("round", 0) or 0)
+            required = self._safe_nonnegative_int(row.get("required"))
+            round_no = self._safe_nonnegative_int(row.get("round"))
             if actor_id in supporters:
                 return {
                     "state": "duplicate",
@@ -288,6 +371,7 @@ class OvenRefillMixin:
             # after releasing _data_lock, avoiding cross-thread lock inversion.
             row["active"] = False
             row["completing"] = True
+            row["settlement_state"] = "settling"
             row["completion_started_at"] = float(now)
             self._save_oven_refill_state_locked()
             return {
@@ -306,25 +390,47 @@ class OvenRefillMixin:
         restored_users: int,
         active_users: int,
         now: float,
+        settlement_error: str = "",
     ) -> dict[str, Any]:
         with self._data_lock:
             row = self._refill_bucket_locked(draw_date, group_id)
-            if int(row.get("round", 0) or 0) != int(round_no):
+            if self._safe_nonnegative_int(row.get("round")) != int(round_no):
                 return {"state": "stale"}
             row["active"] = False
             row["completing"] = False
             row["completed_at"] = float(now)
             row["restored_users"] = int(restored_users)
             row["active_users"] = int(active_users)
-            if restored_users > 0:
-                row["successes"] = int(row.get("successes", 0) or 0) + 1
+            successes = self._safe_nonnegative_int(row.get("successes"))
+            if settlement_error:
+                # A storage error after settlement started may be ambiguous: some
+                # grants can already be durable. Fail closed and consume the round
+                # so a retry cannot grant the same members a second charge.
+                row["successes"] = min(
+                    self.oven_refill_daily_limit, successes + 1
+                )
+                row["settlement_state"] = "degraded"
+                row["failed_reason"] = "grant_error"
+                row["settlement_error"] = str(settlement_error)[:300]
+                state = "degraded"
+            elif restored_users > 0:
+                row["successes"] = min(
+                    self.oven_refill_daily_limit, successes + 1
+                )
+                row["settlement_state"] = "succeeded"
                 row.pop("failed_reason", None)
+                row.pop("settlement_error", None)
                 state = "succeeded"
             else:
+                row["settlement_state"] = "failed"
                 row["failed_reason"] = "no_missing_charges"
+                row.pop("settlement_error", None)
                 state = "failed"
             self._save_oven_refill_state_locked()
-            return {"state": state, "successes": int(row.get("successes", 0) or 0)}
+            return {
+                "state": state,
+                "successes": self._safe_nonnegative_int(row.get("successes")),
+            }
 
     async def _grant_one_oven_charge(
         self, group_id: str, storage_actor: str, now: float
@@ -402,6 +508,11 @@ class OvenRefillMixin:
         if not self.enable_oven_refill:
             await event.send(event.plain_result("烤箱补货当前未启用。"))
             return
+        if not self._oven_refill_available():
+            await event.send(
+                event.plain_result("烤群友玩法当前未启用，烤箱补货不可用。")
+            )
+            return
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
@@ -435,7 +546,7 @@ class OvenRefillMixin:
             supporters = result.get("supporters", [])
             await event.send(
                 event.plain_result(
-                    f"🪵 补货进行中：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添煤；发送 /添煤 支持。"
+                    f"🪵 补货进行中：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添柴；发送 /添柴 支持。"
                 )
             )
             return
@@ -462,7 +573,7 @@ class OvenRefillMixin:
             event.plain_result(
                 "🔥 猪圈能源危机！烤箱补货已发起。\n"
                 f"今日活跃：{len(members)} 人 · 需要支持：{required} 人\n"
-                "发起者已自动添煤 1 份；发送 /添煤 继续支援。"
+                "发起者已自动添柴 1 份；发送 /添柴 继续支援。"
             )
         )
 
@@ -471,15 +582,20 @@ class OvenRefillMixin:
         if not self.enable_oven_refill:
             await event.send(event.plain_result("烤箱补货当前未启用。"))
             return
+        if not self._oven_refill_available():
+            await event.send(
+                event.plain_result("烤群友玩法当前未启用，烤箱补货不可用。")
+            )
+            return
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
-            await event.send(event.plain_result("添煤只能在群聊中使用。"))
+            await event.send(event.plain_result("添柴只能在群聊中使用。"))
             return
         draw_date = self._today().isoformat()
         members = self._oven_active_group_members(group_id, draw_date)
         if not self._oven_actor_is_active(actor_id, members):
-            await event.send(event.plain_result("只有今天在本群参与过 RollPig 的群友才能添煤。"))
+            await event.send(event.plain_result("只有今天在本群参与过 RollPig 的群友才能添柴。"))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -490,6 +606,13 @@ class OvenRefillMixin:
             now=time.time(),
         )
         state = str(result.get("state") or "")
+        if state == "expired":
+            await event.send(
+                event.plain_result(
+                    "⌛ 上一轮补货已超时关闭；请重新发送 /烤箱补货 发起新一轮。"
+                )
+            )
+            return
         if state == "inactive":
             await event.send(event.plain_result("当前没有进行中的补货；先发送 /烤箱补货 发起。"))
             return
@@ -497,7 +620,7 @@ class OvenRefillMixin:
             await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你已经给这轮补货添过煤了。"))
+            await event.send(event.plain_result("🪵 你已经给这轮补货添过柴了。"))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
@@ -520,22 +643,32 @@ class OvenRefillMixin:
         if state == "supported":
             await event.send(
                 event.plain_result(
-                    f"🪵 添煤成功！当前进度 {len(supporters)}/{required}。"
+                    f"🪵 添柴成功！当前进度 {len(supporters)}/{required}。"
                 )
             )
             return
         if state != "complete":
-            await event.send(event.plain_result("添煤状态异常，请稍后再试。"))
+            await event.send(event.plain_result("添柴状态异常，请稍后再试。"))
             return
 
         storage_members = self._oven_storage_members(members)
         restored = 0
         completed_at = time.time()
+        settlement_error = ""
         for storage_member in storage_members:
-            if await self._grant_one_oven_charge(
-                group_id, storage_member, completed_at
-            ):
-                restored += 1
+            try:
+                if await self._grant_one_oven_charge(
+                    group_id, storage_member, completed_at
+                ):
+                    restored += 1
+            except Exception as exc:
+                settlement_error = f"{type(exc).__name__}: {exc}"
+                logger.warning(
+                    "烤箱补货能量发放异常，停止本轮剩余写入并封账："
+                    f"group={group_id} round={round_no} member={storage_member} error={exc}"
+                )
+                break
+
         finish = self._finish_refill_round(
             draw_date=draw_date,
             group_id=group_id,
@@ -543,7 +676,31 @@ class OvenRefillMixin:
             restored_users=restored,
             active_users=len(storage_members),
             now=time.time(),
+            settlement_error=settlement_error,
         )
+        if finish.get("state") == "degraded":
+            self._record_oven_event(
+                group_id,
+                EVENT_OVEN_REFILL_FAILED,
+                actor_id=storage_actor,
+                draw_date=draw_date,
+                metadata={
+                    "reason": "grant_error",
+                    "supporters": len(supporters),
+                    "required": required,
+                    "active_users": len(storage_members),
+                    "restored_users": restored,
+                    "round": round_no,
+                },
+                event_id=f"oven-refill-failed:{draw_date}:{group_id}:{round_no}",
+            )
+            await event.send(
+                event.plain_result(
+                    "⚠️ 补货结算遇到存储异常；"
+                    f"已确认恢复 {restored} 人。为避免重复发放，本轮已封账并计入今日补货次数。"
+                )
+            )
+            return
         if finish.get("state") == "failed":
             self._record_oven_event(
                 group_id,
@@ -561,7 +718,7 @@ class OvenRefillMixin:
             )
             await event.send(
                 event.plain_result(
-                    "🧯 添煤刚好达标，但大家的烤箱能量已经自行恢复满了；本轮作废，不计入今日补货次数。"
+                    "🧯 添柴刚好达标，但大家的烤箱能量已经自行恢复满了；本轮作废，不计入今日补货次数。"
                 )
             )
             return

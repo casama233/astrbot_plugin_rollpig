@@ -37,21 +37,34 @@
 | 配置鍵 | 類型 | 預設 | 有效值／範圍 | 說明 |
 | --- | --- | --- | --- | --- |
 | `enable_roast` | bool | `true` | `true` / `false` | 烤豬總開關；關閉後今日烤豬與烤群友相關流程不可用。 |
-| `enable_group_roast` | bool | `true` | `true` / `false` | 群聊烤群友玩法開關，包括普通、預約、隨機與後門口令。 |
+| `enable_group_roast` | bool | `true` | `true` / `false` | 群聊烤群友玩法開關，包括普通、預約、隨機與後門口令；群體烤箱補貨也依賴此開關。 |
 | `enable_roast_reservation` | bool | `true` | `true` / `false` | 明確 `/烤群友 @尚未抽豬目標` 時建立同群當日預約；隨機／後門不建立。 |
-| `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約包含固定主廚在內的最大參與人數；後續添柴不消耗自己的普通冷卻。 |
+| `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約包含固定主廚在內的最大參與人數；後續玩家再次 `/烤群友 @同一目標` 即可免費添柴，不消耗自己的普通冷卻。 |
 | `enable_group_eat` | bool | `true` | `true` / `false` | 吃群友與隨機吃群友開關。 |
 | `eat_success_percent` | int | `15` | `1-80` | 吃群友成功率。失敗時發起者會變成當天的「吃掉了」。 |
 | `eaten_next_day_failure_percent` | int | `20` | `1-80` | 今天被成功吃掉後，次日第一次抽豬失敗的概率。若判定失敗，當天維持無法抽取直到下一日。 |
-| `group_roast_cooldown_hours` | float | `8` | `1-72` | 普通烤群友按「發起者 + 群組」計算冷卻；第一位主廚建立預約時消耗一次，添柴與預約觸發不重複扣除。後門可繞過。 |
+| `group_roast_cooldown_hours` | float | `8` | `1-72` | 普通烤群友按「發起者 + 群組」計算冷卻；第一位主廚建立預約時消耗一次，後續添柴與預約觸發不重複扣除。後門可繞過。 |
 | `enable_roast_protection` | bool | `true` | `true` / `false` | 啟用「昨日被烤過多 → 今日保護」機制。 |
 | `roast_protection_threshold` | int | `3` | `1-20` | 同一群中，昨日實際被烤次數達到此值後，今日普通烤群友會被阻擋；吃群友選目標時也尊重保護。 |
 | `enable_ai_roast_copy` | bool | `false` | `true` / `false` | 嘗試用當前會話模型生成料理文案；不可用、超時或失敗時回退本地模板。 |
 | `ai_generation_timeout_seconds` | float | `45` | `5-120` | AI 文案調用超時。超時不會阻塞整個烤豬流程，而是回退本地文案。 |
+| `enable_oven_refill` | bool | `true` | `true` / `false` | 啟用群體烤箱補貨；只有 `enable_roast` 與 `enable_group_roast` 同時開啟時可用。 |
+| `oven_refill_daily_limit` | int | `2` | `1-5` | 每群每天可封帳的成功補貨次數。全員已滿的作廢輪次不計入；若結算已開始後遇到存儲異常／進程中斷，會封帳並計入一次以避免重複發放。 |
+| `oven_refill_support_ratio_percent` | int | `30` | `1-100` | 發起 `/烤箱補貨` 時按當刻今日活躍人數計算本輪添柴門檻；本輪進行中新增活躍玩家不會重算門檻。 |
+| `oven_refill_min_supporters` | int | `3` | `2-20` | 最低添柴人數；2 人小群固定需要 2 人。 |
+| `oven_refill_max_base_supporters` | int | `8` | `3-50` | 基礎添柴人數上限；後續成功輪次仍可按設定增加難度。 |
+| `oven_refill_extra_supporters_per_success` | int | `2` | `0-10` | 同群同日每成功一輪後，下一輪額外需要的添柴人數。 |
+| `oven_refill_round_timeout_minutes` | int | `120` | `5-720` | 單輪補貨有效時間；超時仍未達標會自動關閉，需重新 `/烤箱補貨`。 |
 
 ### 預約烤豬建議
 
-預約只在明確指定未抽豬目標時建立。主廚先支付普通冷卻，目標在同群顯示自己的今日小豬時才結算；添柴不增加成功率。詳細行為見 [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md)。
+預約只在明確指定未抽豬目標時建立。主廚先支付普通冷卻，目標在同群顯示自己的今日小豬時才結算。後續群友也叫「添柴」，但操作方式是**再次 `/烤群友 @同一目標`**；它不是群體補貨的 `/添柴` 指令。添柴人數目前不增加成功率。詳細行為見 [`ROAST-RESERVATIONS.md`](ROAST-RESERVATIONS.md)。
+
+### 群體烤箱補貨
+
+`/烤箱補貨` 負責建立本群當輪補貨，發起者自動添第一把柴；其餘今日活躍玩家使用 `/添柴` 支持。同一玩家每輪只計一次。門檻在**發起當刻**固定，因此後來新增的活躍玩家不會改變本輪已公示的所需人數；達標結算時則仍會按當刻活躍玩家恢復能量。
+
+若補貨結算已開始後出現存儲錯誤，系統採「封帳而不重播」策略：停止剩餘寫入並把該輪計入每日次數，避免少數已成功寫入的玩家在重試時再次獲得能量。若進程在結算中硬中斷，重啟恢復同樣按此策略處理。
 
 ### AI 文案成本與節流
 
@@ -145,6 +158,8 @@ v3.4.0+ 預設使用 `https://curryudon.top/astrbot-rollpig/v1/manifest.json`。
   "enable_roast_protection": true,
   "roast_protection_threshold": 3,
   "enable_ai_roast_copy": false,
+  "enable_oven_refill": true,
+  "oven_refill_round_timeout_minutes": 120,
   "image_theme": "auto",
   "timezone": "local",
   "storage_backend": "auto"

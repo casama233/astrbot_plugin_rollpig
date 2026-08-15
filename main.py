@@ -180,7 +180,7 @@ class RollPigPlugin(
     async def oven_refill(self, event: AstrMessageEvent):
         return await super().oven_refill(event)
 
-    @filter.command('添煤', alias={'加煤', '烤箱添煤'}, priority=1000)
+    @filter.command('添柴', alias={'添煤', '加煤', '烤箱添煤', '烤箱添柴'}, priority=1000)
     async def oven_refill_support(self, event: AstrMessageEvent):
         return await super().oven_refill_support(event)
 

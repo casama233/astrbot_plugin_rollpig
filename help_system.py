@@ -110,7 +110,7 @@ def build_help_sections(
             group_entries.extend(
                 [
                     HelpEntry("/烤箱補貨", t("help.group.oven_refill")),
-                    HelpEntry("/添煤", t("help.group.oven_support")),
+                    HelpEntry("/添柴", t("help.group.oven_support")),
                 ]
             )
 
