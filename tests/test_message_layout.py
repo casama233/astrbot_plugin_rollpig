@@ -27,4 +27,4 @@ def test_main_applies_layout_only_for_group_mentions():
     assert "async def _send_with_mention(" in source
     assert "if self._event_group_id(event)" in source
     assert "mention_body_on_new_line(text)" in source
-    assert "super()._send_with_mention(event, user_id, body)" in source
+    assert "super()._send_with_mention(event, user_id, formatted)" in source
