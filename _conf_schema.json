@@ -1,7 +1,7 @@
 {
     "at_view_pig": {
         "description": "开启艾特他人查看今日小猪功能",
-        "hint": "是否允许通过艾特他人来查看对方的今日小猪，默认为关闭",
+        "hint": "是否允许通过艾特他人查看对方的今日小猪，默认为关闭",
         "type": "bool",
         "default": false
     },
@@ -55,13 +55,13 @@
     },
     "enable_roast_reservation": {
         "description": "开启预约烤猪",
-        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友再次 /烤群友 @同一目标 可免费加入蹲守，目标在本群抽猪后自动按 60/30/10 结算",
+        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友可添柴，操作方式是再次 /烤群友 @同一目标；目标在本群抽猪后自动按 60/30/10 结算",
         "type": "bool",
         "default": true
     },
     "roast_reservation_max_participants": {
         "description": "预约烤猪最多参与人数",
-        "hint": "包含第一位主厨；范围 2-20，默认 12。达到上限后不能继续加入蹲守",
+        "hint": "包含第一位主厨；范围 2-20，默认 12。达到上限后不能继续添柴",
         "type": "int",
         "default": 12
     },
@@ -91,7 +91,7 @@
     },
     "group_roast_max_charges": {
         "description": "烤箱最大能量格数",
-        "hint": "按发起者 × 群组独立储存，范围 1-5，默认 2；普通烤群友与创建预约各消耗 1 格，后续加入蹲守和预约触发不重复消耗",
+        "hint": "按发起者 × 群组独立储存，范围 1-5，默认 2；普通烤群友与创建预约各消耗 1 格，后续添柴和预约触发不重复消耗",
         "type": "int",
         "default": 2
     },
@@ -241,7 +241,7 @@
     },
     "enable_oven_refill": {
         "description": "开启群体烤箱补货",
-        "hint": "仅在烤群友玩法开启时生效；允许今日在本群参与过 RollPig 的群友发起 /烤箱补货 并通过 /添煤 协作恢复烤箱能量",
+        "hint": "仅在烤群友玩法开启时生效；允许今日在本群参与过 RollPig 的群友发起 /烤箱补货 并通过 /添柴 协作恢复烤箱能量",
         "type": "bool",
         "default": true
     },
@@ -253,25 +253,25 @@
     },
     "oven_refill_support_ratio_percent": {
         "description": "补货基础参与比例（百分比）",
-        "hint": "按发起补货时的今日活跃人数计算本轮支持门槛，默认 30%；本轮进行中新增活跃玩家不会重算门槛",
+        "hint": "按发起补货时的今日活跃人数计算本轮添柴门槛，默认 30%；本轮进行中新增活跃玩家不会重算门槛",
         "type": "int",
         "default": 30
     },
     "oven_refill_min_supporters": {
-        "description": "补货最低支持人数",
+        "description": "补货最低添柴人数",
         "hint": "范围 2-20，默认 3；2 人小群固定需要 2 人",
         "type": "int",
         "default": 3
     },
     "oven_refill_max_base_supporters": {
-        "description": "首轮基础支持人数上限",
+        "description": "首轮基础添柴人数上限",
         "hint": "范围 3-50，默认 8；后续成功轮次仍会继续增加难度",
         "type": "int",
         "default": 8
     },
     "oven_refill_extra_supporters_per_success": {
-        "description": "每次成功后额外支持人数",
-        "hint": "同群同日每成功一次，下一轮额外需要的人数；默认 +2",
+        "description": "每次成功后额外添柴人数",
+        "hint": "同群同日每成功一次，下一轮额外需要的添柴人数；默认 +2",
         "type": "int",
         "default": 2
     },
