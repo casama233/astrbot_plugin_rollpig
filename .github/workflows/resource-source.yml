@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "resource/**"
+      - "ex_variants.py"
       - "scripts/build_resource_source.py"
       - "scripts/prepare_resource_catalog.py"
       - ".github/workflows/resource-source.yml"
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "resource/**"
+      - "ex_variants.py"
       - "scripts/build_resource_source.py"
       - "scripts/prepare_resource_catalog.py"
       - ".github/workflows/resource-source.yml"
@@ -58,12 +60,14 @@ jobs:
             --version "git-${RESOURCE_VERSION:0:12}"
           python -m json.tool dist/astrbot-rollpig-source/manifest.json >/dev/null
           test -f dist/astrbot-rollpig-source/health.json
+          test -f dist/astrbot-rollpig-source/pig_ex_variants.json
           test -d dist/astrbot-rollpig-source/images
           python - <<'PY'
           import json
           from pathlib import Path
 
-          records = json.loads(Path("dist/astrbot-rollpig-source/pig.json").read_text(encoding="utf-8"))
+          root = Path("dist/astrbot-rollpig-source")
+          records = json.loads((root / "pig.json").read_text(encoding="utf-8"))
           ids = {item["id"] for item in records}
           required = {"miku-pig", "wechat-pig", "duke-pig"}
           missing = required - ids
@@ -73,7 +77,31 @@ jobs:
           floor_ids = set(floor["ids"])
           if not floor_ids <= ids:
               raise SystemExit("official source shrank below the frozen compatibility floor")
-          print(f"compatibility floor: {len(floor_ids)} ids; published: {len(ids)} ids")
+
+          variants = json.loads((root / "pig_ex_variants.json").read_text(encoding="utf-8"))
+          ex_pigs = variants.get("pigs", {})
+          if set(ex_pigs) != ids:
+              missing_ex = sorted(ids - set(ex_pigs))[:10]
+              extra_ex = sorted(set(ex_pigs) - ids)[:10]
+              raise SystemExit(f"EX coverage mismatch: missing={missing_ex}, extra={extra_ex}")
+          expected_levels = {"1", "2", "3", "4", "5"}
+          for pig_id, levels in ex_pigs.items():
+              if set(levels) != expected_levels:
+                  raise SystemExit(f"{pig_id} does not have complete EX1-EX5 materialization")
+              descriptions = [str(levels[str(level)].get("description") or "") for level in range(1, 6)]
+              analyses = [str(levels[str(level)].get("analysis") or "") for level in range(1, 6)]
+              if not all(descriptions) or len(set(descriptions)) != 5:
+                  raise SystemExit(f"{pig_id} EX descriptions are not five distinct values")
+              if not all(analyses) or len(set(analyses)) != 5:
+                  raise SystemExit(f"{pig_id} EX analyses are not five distinct values")
+
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          health = json.loads((root / "health.json").read_text(encoding="utf-8"))
+          if manifest.get("ex_variant_pig_count") != len(ids):
+              raise SystemExit("manifest EX count does not match pig count")
+          if health.get("ex_variant_pig_count") != len(ids):
+              raise SystemExit("health EX count does not match pig count")
+          print(f"compatibility floor: {len(floor_ids)} ids; published: {len(ids)} ids; EX: {len(ex_pigs)} ids")
           PY
 
       - name: Upload deployable source artifact

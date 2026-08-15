@@ -19,7 +19,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ex_variants import serialize_ex_variants, validate_ex_variants
+from ex_variants import (
+    build_effective_ex_variants,
+    serialize_ex_variants,
+    validate_ex_variants,
+)
 
 
 CLIENT_ID = "astrbot_plugin_rollpig_plus"
@@ -110,24 +114,30 @@ def _load_images(source_root: Path, pig_ids: set[str]) -> dict[str, Path]:
 
 
 def _load_ex_variants(
-    source_root: Path, pig_ids: set[str]
-) -> tuple[dict, dict[str, Path]] | None:
+    source_root: Path, records: list[dict]
+) -> tuple[dict, dict[str, Path]]:
+    pig_ids = {str(item["id"]) for item in records}
     variants_path = source_root / "pig_ex_variants.json"
-    if not variants_path.exists():
-        return None
-    try:
-        raw = json.loads(variants_path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValueError(f"無法讀取 pig_ex_variants.json：{exc}") from exc
-    normalized = validate_ex_variants(
-        raw,
-        pig_ids,
-        image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
-    )
-    canonical = serialize_ex_variants(normalized)
+    explicit: dict[str, dict[int, dict[str, str]]] = {}
+    if variants_path.exists():
+        try:
+            raw = json.loads(variants_path.read_text(encoding="utf-8-sig"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"無法讀取 pig_ex_variants.json：{exc}") from exc
+        explicit = validate_ex_variants(
+            raw,
+            pig_ids,
+            image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
+        )
+
+    # Materialize the complete official EX1-EX5 copy layer at publish time.
+    # Sparse authoring records remain overrides; compatibility-restored pigs and
+    # newly-added catalog pigs receive deterministic visible growth as well.
+    effective = build_effective_ex_variants(records, explicit)
+    canonical = serialize_ex_variants(effective)
     declared = {
         str(item.get("image") or "")
-        for levels in normalized.values()
+        for levels in effective.values()
         for item in levels.values()
         if str(item.get("image") or "")
     }
@@ -180,7 +190,7 @@ def build_source(
     records = _load_catalog(source_root)
     pig_ids = {item["id"] for item in records}
     images = _load_images(source_root, pig_ids)
-    ex_bundle = _load_ex_variants(source_root, pig_ids)
+    ex_bundle = _load_ex_variants(source_root, records)
     stamp = (
         generated_at
         or dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -218,37 +228,35 @@ def build_source(
             "images": image_entries,
         }
 
-        variant_pig_count = 0
-        variant_image_count = 0
-        if ex_bundle is not None:
-            canonical, variant_images = ex_bundle
-            variant_pig_count = len(canonical.get("pigs", {}))
-            variant_output = staging / "ex_variants"
-            variant_output.mkdir()
-            ex_path = staging / "pig_ex_variants.json"
-            ex_path.write_text(
-                json.dumps(canonical, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            total_bytes += ex_path.stat().st_size
-            variant_entries: list[dict] = []
-            for filename in sorted(variant_images):
-                source = variant_images[filename]
-                target = variant_output / filename
-                shutil.copyfile(source, target)
-                total_bytes += target.stat().st_size
-                variant_entries.append(
-                    _file_entry(
-                        target,
-                        f"ex_variants/{filename}",
-                        filename=filename,
-                    )
+        canonical, variant_images = ex_bundle
+        variant_pig_count = len(canonical.get("pigs", {}))
+        if variant_pig_count != len(records):
+            raise AssertionError("EX 五級文案基線未覆蓋完整 catalog")
+        variant_output = staging / "ex_variants"
+        variant_output.mkdir()
+        ex_path = staging / "pig_ex_variants.json"
+        ex_path.write_text(
+            json.dumps(canonical, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        total_bytes += ex_path.stat().st_size
+        variant_entries: list[dict] = []
+        for filename in sorted(variant_images):
+            source = variant_images[filename]
+            target = variant_output / filename
+            shutil.copyfile(source, target)
+            total_bytes += target.stat().st_size
+            variant_entries.append(
+                _file_entry(
+                    target,
+                    f"ex_variants/{filename}",
+                    filename=filename,
                 )
-            variant_image_count = len(variant_entries)
-            manifest["ex_variants"] = _file_entry(
-                ex_path, "pig_ex_variants.json"
             )
-            manifest["variant_images"] = variant_entries
+        variant_image_count = len(variant_entries)
+        manifest["ex_variants"] = _file_entry(ex_path, "pig_ex_variants.json")
+        manifest["variant_images"] = variant_entries
+        manifest["ex_variant_pig_count"] = variant_pig_count
 
         manifest["package_size"] = total_bytes
         (staging / "manifest.json").write_text(
@@ -297,11 +305,7 @@ def main() -> int:
                 "resource_version": manifest["resource_version"],
                 "pig_count": manifest["pig_count"],
                 "package_size": manifest["package_size"],
-                "ex_variant_pig_count": len(
-                    (json.loads((args.source / "pig_ex_variants.json").read_text(encoding="utf-8-sig")).get("pigs", {}))
-                    if (args.source / "pig_ex_variants.json").exists()
-                    else {}
-                ),
+                "ex_variant_pig_count": manifest["ex_variant_pig_count"],
             },
             ensure_ascii=False,
         )
