@@ -1,5 +1,5 @@
 site_name: 今日小豬 Wiki
-site_description: 今日小豬 · 增強版的玩家玩法、指令百科、管理員指南與維護文檔
+site_description: 每天抽一隻，慢慢養成一整座豬圈；玩家玩法、永久豬籍、EX、後廚與管理維護都在這裡
 site_url: https://casama233.github.io/astrbot_plugin_rollpig/
 repo_url: https://github.com/casama233/astrbot_plugin_rollpig
 repo_name: casama233/astrbot_plugin_rollpig
@@ -22,7 +22,7 @@ nav:
   - ⚡ 30 秒開始養豬: getting-started/index.md
   - 🎮 玩家玩法:
       - 玩法總覽: gameplay/index.md
-      - 📚 永久圖鑑與新豬保底: gameplay/collection-pity.md
+      - 📚 永久豬籍與新豬保底: gameplay/collection-pity.md
       - ⭐ EX 成長: gameplay/ex-growth.md
       - 🔥 60/30/10 與次日保護: gameplay/roast-outcomes.md
       - ⚡ Roast Charge: gameplay/roast-charge.md
