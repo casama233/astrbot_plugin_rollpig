@@ -57,7 +57,7 @@ def test_dynamic_help_owns_off_loop_cache_and_uses_shared_render_gate():
     assert 'self.plugin_data_dir / "render_cache" / "help"' in source
     assert "os.link(master, output)" in source
     assert "shutil.copyfile(master, output)" in source
-    assert "HELP_RENDER_CACHE_VERSION = 3" in source
+    assert "HELP_RENDER_CACHE_VERSION = 4" in source
     assert 'gate = getattr(self, "_run_with_render_slot", None)' in source
     assert "rendered = gate(render_help_card" in source
 
