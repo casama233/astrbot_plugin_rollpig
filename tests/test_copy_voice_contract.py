@@ -17,23 +17,26 @@ def test_help_locales_keep_the_same_keys_and_placeholders():
         assert copy_placeholders(traditional[key]) == copy_placeholders(simplified[key]), key
 
 
-def test_help_copy_keeps_locales_separate_and_piggy():
+def test_help_copy_is_short_scan_first_and_still_rollpig():
     traditional = PLAYER_COPY["zh-TW"]
     simplified = PLAYER_COPY["zh-CN"]
 
-    assert traditional["help.admin.panel_title"] == "管理面板｜後廚總控室"
-    assert simplified["help.admin.panel_title"] == "管理面板｜后厨总控室"
-    assert "后厨总控室" not in traditional["help.admin.panel_title"]
-    assert "後廚總控室" not in simplified["help.admin.panel_title"]
+    assert traditional["help.admin.panel_title"] == "管理面板"
+    assert simplified["help.admin.panel_title"] == "管理面板"
+    assert "新豬機率會提高" in traditional["help.mechanic.new_pig_pity"]
+    assert "新猪概率会提高" in simplified["help.mechanic.new_pig_pity"]
+    assert "全群添柴" in traditional["help.group.oven_refill"]
+    assert "全群添柴" in simplified["help.group.oven_refill"]
+    assert "補貨就添柴" in traditional["help.group.firewood_router"]
+    assert "补货就添柴" in simplified["help.group.firewood_router"]
+    assert "EX Lv.1–5" in traditional["help.mechanic.ex_growth"]
+    assert "EX Lv.1–5" in simplified["help.mechanic.ex_growth"]
 
-    assert "豬圈不許一直敷衍你" in traditional["help.mechanic.new_pig_pity_title"]
-    assert "猪圈不许一直敷衍你" in simplified["help.mechanic.new_pig_pity_title"]
-    assert "烤太猛沒火了" in traditional["help.group.oven_refill"]
-    assert "烤太猛没火了" in simplified["help.group.oven_refill"]
-    assert "補貨進行中" in traditional["help.group.firewood_router"]
-    assert "多张预约请 @目标" in simplified["help.group.firewood_router"]
-    assert "同一隻豬，抽熟了會進化" in traditional["help.mechanic.ex_growth_title"]
-    assert "同一只猪，抽熟了会进化" in simplified["help.mechanic.ex_growth_title"]
+    # Quick-help copy must stay short enough to scan inside a chat image.
+    for locale, catalog in PLAYER_COPY.items():
+        for key, value in catalog.items():
+            if key.startswith("help.") and ".section." not in key:
+                assert len(value) <= 34, (locale, key, value)
 
 
 def test_signature_gameplay_copy_keeps_the_rollpig_voice():
