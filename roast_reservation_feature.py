@@ -139,12 +139,28 @@ class RoastReservationMixin:
             )
             return True
 
+        # Creation/join and post-draw settlement share one lock. The target state is
+        # re-read only after acquiring it, closing the window where the target could
+        # draw between the caller's first check and reservation creation.
         async with self._roast_reservation_lock:
             with self._data_lock:
                 existing = get_reservation(
                     self.roast_reservation_state, today, group_id, target_id
                 )
-            if existing and str(existing.get("status") or "") == "pending":
+
+            existing_status = str((existing or {}).get("status") or "")
+            if existing_status == "pending":
+                # If the target has already appeared, the pending trap belongs to
+                # the draw-trigger settlement. Do not fall through to a second
+                # ordinary roast while that settlement is waiting for this lock.
+                if self._get_daily_pig(target_id, self._today()):
+                    await event.send(
+                        event.plain_result(
+                            "🔥 目标刚刚现身，原预约正在结算；这次不再重复加入。"
+                        )
+                    )
+                    return True
+
                 with self._data_lock:
                     result = create_or_join_reservation(
                         self.roast_reservation_state,
@@ -162,7 +178,7 @@ class RoastReservationMixin:
                 if status == "full":
                     await event.send(
                         event.plain_result(
-                            f"🪵 这口烤箱已经挤满了，最多 {self.roast_reservation_max_participants} 人围观添柴。"
+                            f"🪵 这口预约烤箱已经挤满了，最多 {self.roast_reservation_max_participants} 人加入蹲守。"
                         )
                     )
                 elif status == "existing":
@@ -187,9 +203,17 @@ class RoastReservationMixin:
                     await self._send_with_mention(
                         event,
                         target_id,
-                        f" 🪵 又有人悄悄添了一把柴；现在共有 {len(participants)} 人蹲守。",
+                        f" 🪵 又有人加入预约蹲守；现在共有 {len(participants)} 人等待结算。",
                     )
                 return True
+
+            if existing_status == "resolved":
+                # A resolved same-day reservation is terminal. Return to the
+                # ordinary roast path instead of reopening the trap.
+                return False
+
+            if self._get_daily_pig(target_id, self._today()):
+                return False
 
             charge_status = await self._consume_group_roast_charge(group_id, actor_id)
             if not charge_status.get("consumed"):
@@ -233,7 +257,7 @@ class RoastReservationMixin:
                 event,
                 target_id,
                 " 🔥 今天还没抽猪，烤箱已被提前预热；等你在本群现身抽猪后自动结算。"
-                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人添柴。"
+                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人通过再次 /烤群友 @你 加入蹲守。"
                 + self._roast_charge_note(charge_status),
             )
             logger.info(
@@ -268,12 +292,16 @@ class RoastReservationMixin:
             return await super()._roast_group_target(
                 event, target_id, bypass=bypass
             )
-        await self._create_or_join_roast_reservation(
+        handled = await self._create_or_join_roast_reservation(
             event,
             group_id=str(group_id),
             actor_id=str(actor_id),
             target_id=str(target_id),
         )
+        if not handled:
+            return await super()._roast_group_target(
+                event, target_id, bypass=bypass
+            )
 
     async def _settle_roast_reservation(
         self,
@@ -312,7 +340,7 @@ class RoastReservationMixin:
         await self._send_with_mention(
             event,
             target_id,
-            f" 🔥 刚抽完猪，提前埋伏的烤箱立刻点燃！主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。",
+            f" 🔥 刚抽完猪，提前埋伏的烤箱立刻点燃！主厨带着 {max(0, len(participants) - 1)} 位蹲守群友开始结算。",
         )
 
         if outcome == "escape":
@@ -390,11 +418,17 @@ class RoastReservationMixin:
         if not group_id or sender_id != target_id:
             return
         draw_date = self._today().isoformat()
-        pending = self._pending_roast_reservation(draw_date, group_id, target_id)
-        if not pending:
-            return
-        outcome = self.roast_service.choose_group_roast_outcome()
+
+        # The pending check must happen while holding the same lock used by
+        # reservation creation. Otherwise a draw can observe "no reservation"
+        # immediately before a racing request creates one and leaves it stranded.
         async with self._roast_reservation_lock:
+            pending = self._pending_roast_reservation(
+                draw_date, group_id, target_id
+            )
+            if not pending:
+                return
+            outcome = self.roast_service.choose_group_roast_outcome()
             with self._data_lock:
                 resolved = resolve_reservation(
                     self.roast_reservation_state,
