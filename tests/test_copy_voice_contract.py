@@ -32,6 +32,8 @@ def test_help_copy_keeps_locales_separate_and_piggy():
     assert "烤太猛没火了" in simplified["help.group.oven_refill"]
     assert "補貨進行中" in traditional["help.group.firewood_router"]
     assert "多张预约请 @目标" in simplified["help.group.firewood_router"]
+    assert "同一隻豬，抽熟了會進化" in traditional["help.mechanic.ex_growth_title"]
+    assert "同一只猪，抽熟了会进化" in simplified["help.mechanic.ex_growth_title"]
 
 
 def test_signature_gameplay_copy_keeps_the_rollpig_voice():
