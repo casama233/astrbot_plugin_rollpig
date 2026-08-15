@@ -52,7 +52,8 @@ nav:
   - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
 
 # Material 會負責可搜尋、響應式的主體；品牌與特效全部放在額外 CSS / JS，
-# 方便後續升級主題而不 fork 上游模板。
+# 方便後續升級主題而不 fork 上游模板。Wiki 視覺只維護深色 slate，
+# 避免亮色 Material shell 與深色 Piggy 元件混搭成兩套互相衝突的主題。
 theme:
   name: material
   language: zh
@@ -76,16 +77,7 @@ theme:
     - content.tabs.link
     - announce.dismiss
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      toggle:
-        icon: material/weather-night
-        name: 進入夜間豬圈
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      toggle:
-        icon: material/weather-sunny
-        name: 打開豬圈燈
+    scheme: slate
 
 plugins:
   - search:
