@@ -107,11 +107,12 @@ def build_help_sections(
             ]
         )
         if state.enable_oven_refill:
-            group_entries.extend(
-                [
-                    HelpEntry("/烤箱補貨", t("help.group.oven_refill")),
-                    HelpEntry("/添柴", t("help.group.oven_support")),
-                ]
+            group_entries.append(
+                HelpEntry("/烤箱補貨", t("help.group.oven_refill"))
+            )
+        if state.enable_oven_refill or state.enable_roast_reservation:
+            group_entries.append(
+                HelpEntry("/添柴", t("help.group.firewood_router"))
             )
 
     if state.enable_group_eat:
