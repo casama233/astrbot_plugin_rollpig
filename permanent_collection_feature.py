@@ -101,14 +101,14 @@ class PermanentCollectionMixin:
             try:
                 page = int(raw.split()[0])
             except ValueError:
-                await event.send(event.plain_result("页码格式不正确，例如：/我的猪圈 2"))
+                await event.send(event.plain_result("📚 猪圈管理员看不懂这页码。请用数字，例如：/我的猪圈 2。"))
                 return
 
         user_id = self._event_sender_id(event)
         user, unlocked, display_catalog = self._pigsty_display_state(user_id)
         total_pages = self.catalog_service.page_count(display_catalog)
         if page < 1 or page > total_pages:
-            await event.send(event.plain_result(f"页码范围为 1-{total_pages}。"))
+            await event.send(event.plain_result(f"📚 这本猪圈图鉴只有 1-{total_pages} 页；你翻得太用力，已经翻出封底了。"))
             return
 
         output = None
@@ -123,7 +123,7 @@ class PermanentCollectionMixin:
                 await event.send(
                     event.plain_result(
                         f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
-                        "图鉴图片生成失败，请查看后台日志。"
+                        "收藏还在，图鉴画师先罢工了。图片生成失败，请查看后台日志。"
                     )
                 )
                 return
@@ -145,7 +145,7 @@ class PermanentCollectionMixin:
                     await event.send(
                         event.plain_result(
                             f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
-                            "图鉴已生成，但图片发送失败，请稍后重试。"
+                            "图鉴已经画好，但快递猪把包裹送丢了。图片发送失败，请稍后重试。"
                         )
                     )
                 except Exception as fallback_exc:

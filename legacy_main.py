@@ -3331,7 +3331,7 @@ class RollPigPlugin(Star):
             return True
         except Exception as exc:
             logger.error(f"生成烤猪料理卡失败：{exc}", exc_info=True)
-            await event.send(event.plain_result("料理卡生成失败，请稍后再试。"))
+            await event.send(event.plain_result("🧯 菜做好了，但料理卡画师把锅掀了。图片生成失败，请稍后再试。"))
             return False
         finally:
             if output:
@@ -3360,13 +3360,13 @@ class RollPigPlugin(Star):
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("烤群友只能在群聊中使用。"))
+            await event.send(event.plain_result("🔥 烤群友只能在群聊开火。私聊里没有围观群友，气氛不够。"))
             return
         if not target_id:
-            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
+            await event.send(event.plain_result("🔥 想烤自己请走 /今日烤猪；/烤群友 不接受自助餐。"))
             return
         target_pig = self._get_daily_pig(target_id, self._today())
         reason = self._roast_block_reason(target_pig)
@@ -3405,7 +3405,7 @@ class RollPigPlugin(Star):
                 target_id=target_id,
             )
             await event.send(
-                event.plain_result("💨 对方一溜烟逃走了，烤架上只剩一阵风。" + charge_note)
+                event.plain_result("💨 对方一溜烟跑了，烤架上只剩一阵风。后厨连盐都白撒了。" + charge_note)
             )
             return
         if result == "backlash":
@@ -3422,13 +3422,13 @@ class RollPigPlugin(Star):
             if actor_reason:
                 await event.send(
                     event.plain_result(
-                        "🔥 烤架反噬了！但你今天没有可料理的小猪，侥幸躲过一劫。"
+                        "🔥 烤架反噬了！翻面一看你今天没有可料理的小猪——这次不是技术好，是锅里没货。"
                         + charge_note
                     )
                 )
                 return
             await event.send(
-                event.plain_result("🔥 烤架反噬！这次轮到你的今日小猪上桌。" + charge_note)
+                event.plain_result("🔥 烤架反噬！火舌顺着锅沿爬回来，这次轮到你的今日小猪上桌。" + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
@@ -3443,7 +3443,7 @@ class RollPigPlugin(Star):
         )
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
         await event.send(
-            event.plain_result(f"{prefix}对方今天的小猪已被端上料理台。" + charge_note)
+            event.plain_result(f"{prefix}对方今天的小猪已经被后厨端走，围裙都没来得及系。" + charge_note)
         )
         await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
@@ -3455,13 +3455,13 @@ class RollPigPlugin(Star):
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("吃群友只能在群聊中使用。"))
+            await event.send(event.plain_result("🍴 吃群友只能在群聊开席。私聊不供应自助餐。"))
             return
         if not target_id:
-            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("不能吃自己；今天已经够饿了。"))
+            await event.send(event.plain_result("🍴 不能吃自己。后厨还没穷到要做闭环供应链。"))
             return
         actor_pig = self._get_daily_pig(actor_id, self._today())
         actor_reason = self._eat_actor_block_reason(actor_pig)
@@ -3483,7 +3483,7 @@ class RollPigPlugin(Star):
                 target_id, group_id, actor_id, "eat_success"
             )
             if not eaten:
-                await event.send(event.plain_result("吃群友状态写入失败，请稍后再试。"))
+                await event.send(event.plain_result("🧯 嘴已经张开，但猪圈账本没记住这一口。吃群友状态写入失败，请稍后再试。"))
                 return
             await self._send_with_mention(
                 event,
@@ -3496,12 +3496,12 @@ class RollPigPlugin(Star):
             actor_id, group_id, actor_id, "eat_failure"
         )
         if not eaten:
-            await event.send(event.plain_result("吃群友状态写入失败，请稍后再试。"))
+            await event.send(event.plain_result("🧯 嘴已经张开，但猪圈账本没记住这一口。吃群友状态写入失败，请稍后再试。"))
             return
         await self._send_with_mention(
             event,
             actor_id,
-            " 🍴 吃群友失败，反而把自己吃掉了；明天抽猪可能失败。",
+            " 🍴 没吃到别人，反而把自己吃没了。这顿饭主打自产自销；明天抽猪可能失败。",
         )
 
     def find_image_file(
@@ -3977,7 +3977,7 @@ class RollPigPlugin(Star):
             self._event_sender_id(event), self._today() - datetime.timedelta(days=1)
         )
         if not pig:
-            await event.send(event.plain_result("昨天没有找到你的小猪记录。"))
+            await event.send(event.plain_result("📅 昨天的猪圈旧账里没有你。要么没抽，要么昨天很会隐身。"))
             return
         await self.send_rendered_pig(
             event,
@@ -3991,7 +3991,7 @@ class RollPigPlugin(Star):
         """给出每天固定、但不会提前解锁图鉴的明日预测。"""
         self._claim_command_event(event)
         if not self.pig_list:
-            await event.send(event.plain_result("小猪图鉴为空。"))
+            await event.send(event.plain_result("🔮 猪圈连一只可预测的小猪都没有。占卜师宣布今天休假。"))
             return
         tomorrow = self._today() + datetime.timedelta(days=1)
         user_id = self._event_sender_id(event)
@@ -4036,7 +4036,7 @@ class RollPigPlugin(Star):
         except ValueError:
             amount = 0
         if not 1 <= amount <= 9:
-            await event.send(event.plain_result("随机数量范围为 1-9，例如：/随机小猪 5"))
+            await event.send(event.plain_result("🎲 一次最多薅 1-9 只猪，例如：/随机小猪 5。再多图鉴管理员要报警。"))
             return
         pigs = self.catalog_service.sample(self.pig_list, amount)
         output = None
@@ -4057,11 +4057,11 @@ class RollPigPlugin(Star):
         self._claim_command_event(event)
         query = str(keyword or "").strip().lower()
         if not query:
-            await event.send(event.plain_result("请输入关键词，例如：/找猪 玩偶"))
+            await event.send(event.plain_result("🔎 给个关键词再翻猪牌，例如：/找猪 玩偶。只说『找猪』，全圈都会回头。"))
             return
         matches = self.catalog_service.search(self.pig_list, query)
         if not matches:
-            await event.send(event.plain_result(f"没有找到与「{keyword}」相关的小猪。"))
+            await event.send(event.plain_result(f"🔎 翻遍猪圈也没找到「{keyword}」。可能还没出生，也可能名字比你搜的更抽象。"))
             return
         output = None
         try:
@@ -4080,14 +4080,14 @@ class RollPigPlugin(Star):
         """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
         self._claim_command_event(event)
         if not self.enable_roast:
-            await event.send(event.plain_result("今日烤猪功能已在配置中关闭。"))
+            await event.send(event.plain_result("🔒 今日烤猪今天不上班。管理员把这口锅关了。"))
             return
         user_id = self._event_sender_id(event)
         pig = self._get_daily_pig(user_id, self._today())
         reason = self._roast_block_reason(pig, subject="actor")
         if reason:
             if not pig:
-                reason = "请先使用 /今日小猪 抽取今天的小猪。"
+                reason = "🐷 先 /今日小猪 把食材领出来。空锅再热也只是空气炸锅。"
             await event.send(event.plain_result(reason))
             return
         await self._send_roast_card(event, pig, str(user_id))
@@ -4096,7 +4096,7 @@ class RollPigPlugin(Star):
         """在群聊中烧烤 @ 目标或引用消息的发送者。"""
         self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
-            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            await event.send(event.plain_result("🔒 今天后厨不开群友这桌。管理员已经把烤群友的火关了。"))
             return
         target_id = self._extract_roast_target_id(event, args)
         await self._roast_group_target(event, target_id)
@@ -4105,11 +4105,11 @@ class RollPigPlugin(Star):
         """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
         self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
-            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            await event.send(event.plain_result("🔒 今天后厨不开群友这桌。管理员已经把烤群友的火关了。"))
             return
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("随机烤群友只能在群聊中使用。"))
+            await event.send(event.plain_result("🎲 随机烤群友只能在群里转盘。私聊只有你一个，随机得有点侮辱概率学。"))
             return
         actor_id = self._event_sender_id(event)
         today = self._today()
@@ -4124,12 +4124,12 @@ class RollPigPlugin(Star):
                 candidates.append(user_id)
         if not candidates:
             await event.send(
-                event.plain_result("今天本群还没有可被随机烧烤的群友；请先让大家抽取今日小猪。")
+                event.plain_result("🎲 今天本群还没有可随机下锅的群友。先把大家骗来 /今日小猪，后厨才有食材。")
             )
             return
         target_id = random.choice(candidates)
         # 先公布抽中的目标；即使随后逃脱或反噬，群里也知道本次随机点名的是谁。
-        await self._send_with_mention(event, target_id, " 🎲 被随机烤群友抽中了。")
+        await self._send_with_mention(event, target_id, " 🎲 随机转盘停在你头上。后厨说：就你了。")
         await self._roast_group_target(event, target_id)
 
     async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
@@ -4149,7 +4149,7 @@ class RollPigPlugin(Star):
             return
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("随机吃群友只能在群聊中使用。"))
+            await event.send(event.plain_result("随机🍴 吃群友只能在群聊开席。私聊不供应自助餐。"))
             return
         actor_id = self._event_sender_id(event)
         actor_pig = self._get_daily_pig(actor_id, self._today())
@@ -4169,18 +4169,18 @@ class RollPigPlugin(Star):
                 candidates.append(user_id)
         if not candidates:
             await event.send(
-                event.plain_result("今天本群没有可吃的群友：可能尚未抽取、已经被吃、是人类或受保护。")
+                event.plain_result("🍴 今天本群没有可吃的群友：没抽、已吃、人类或有保护的都被菜单剔除了。后厨只能啃筷子。")
             )
             return
         target_id = random.choice(candidates)
-        await self._send_with_mention(event, target_id, " 🎲 被随机吃群友盯上了。")
+        await self._send_with_mention(event, target_id, " 🎲 餐桌抽签抽中了你。这不是荣誉。")
         await self._eat_group_target(event, target_id)
 
     async def _legacy_pigsty_daily_report(self, event: AstrMessageEvent):
         """输出当前群当天的简要猪圈日报，并随机点名一位可怜被吃。"""
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("猪圈日报只能在群聊中查看。"))
+            await event.send(event.plain_result("📰 猪圈日报只印群聊版。私聊没有群众演员，报纸凑不满一版。"))
             return
         today = self._today().isoformat()
         members = self._daily_group_members(group_id, today)
@@ -4202,33 +4202,33 @@ class RollPigPlugin(Star):
         """后门口令：绕过烤群友冷却与概率，但不绕过资格限制。"""
         self._claim_command_event(event)
         if not self.enable_roast or not self.enable_group_roast:
-            await event.send(event.plain_result("烤群友功能已在配置中关闭。"))
+            await event.send(event.plain_result("🔒 今天后厨不开群友这桌。管理员已经把烤群友的火关了。"))
             return
         raw = str(getattr(event, "message_str", "") or "")
         is_super_phrase = "强行点火" in raw or "強行點火" in raw
         actor_id = self._event_sender_id(event)
         if is_super_phrase:
             if not self._is_admin_id(event, actor_id):
-                await event.send(event.plain_result("「强行点火」仅限 AstrBot 超级管理员使用。"))
+                await event.send(event.plain_result("🔐 「强行点火」是超管后门。普通主厨拿这把钥匙，只会插错锁。"))
                 return
         target_id = self._extract_roast_target_id(event, args)
         group_id = self._event_group_id(event)
         target_pig = self._get_daily_pig(target_id, self._today()) if target_id else None
         if not group_id:
-            await event.send(event.plain_result("烤群友只能在群聊中使用。"))
+            await event.send(event.plain_result("🔥 烤群友只能在群聊开火。私聊里没有围观群友，气氛不够。"))
             return
         if not target_id:
-            await event.send(event.plain_result("请 @ 一位群友，或回复对方的消息后再使用。"))
+            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("不能对自己使用烤群友；请用 /今日烤猪。"))
+            await event.send(event.plain_result("🔥 想烤自己请走 /今日烤猪；/烤群友 不接受自助餐。"))
             return
         reason = self._roast_block_reason(target_pig)
         if reason:
             await event.send(event.plain_result(reason))
             return
         if not is_super_phrase and not await self._consume_daily_backdoor(actor_id):
-            await event.send(event.plain_result("普通后门每天只能使用一次，请明天再来。"))
+            await event.send(event.plain_result("🚪 今天的后门已经踹过一次了。明天再来，门也要喘口气。"))
             return
         await self._roast_group_target(event, target_id, bypass=True)
 
