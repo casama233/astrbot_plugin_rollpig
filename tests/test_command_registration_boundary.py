@@ -4,20 +4,28 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py']
+HELPERS = [
+    "legacy_main.py",
+    "daily_report_feature.py",
+    "ex_variant_feature.py",
+    "roast_reservation_feature.py",
+    "reservation_firewood_feature.py",
+]
 REPORT_ADAPTERS = {
     "pigsty_daily_report_status": "狀態",
     "pigsty_daily_report_enable": "開啟",
     "pigsty_daily_report_disable": "關閉",
 }
+COMPAT_ADAPTERS = {"oven_refill_support_compat": "oven_refill_support"}
 EXPECTED = {
     "eat_group_member",
     "eat_random_group_member",
     "find_pigs",
+    "firewood_support",
     "force_roast_group_member",
     "my_pigsty",
     "oven_refill",
-    "oven_refill_support",
+    *COMPAT_ADAPTERS,
     "pigsty_daily_report",
     *REPORT_ADAPTERS,
     "random_pigs",
@@ -77,8 +85,9 @@ def test_main_owns_complete_command_surface_with_explicit_priority():
 
 def test_main_command_wrappers_delegate_to_inherited_implementation():
     commands = _commands(ROOT / "main.py")
+    adapters = set(REPORT_ADAPTERS) | set(COMPAT_ADAPTERS)
     for name, fn in commands.items():
-        if name in REPORT_ADAPTERS:
+        if name in adapters:
             continue
         calls = [node for node in ast.walk(fn) if isinstance(node, ast.Call)]
         delegated = False
@@ -103,6 +112,16 @@ def test_compact_report_adapters_delegate_to_one_existing_report_handler():
         assert repr(action) in segment or f"'{action}'" in segment or f'"{action}"' in segment
         assert "event.send" not in segment
         assert "_set_daily_report_group_auto" not in segment
+
+
+def test_refill_compat_adapter_delegates_to_claimed_refill_handler():
+    commands = _commands(ROOT / "main.py")
+    source = (ROOT / "main.py").read_text(encoding="utf-8")
+    fn = commands["oven_refill_support_compat"]
+    segment = ast.get_source_segment(source, fn) or ""
+    assert "super().oven_refill_support(event)" in segment
+    assert "event.send" not in segment
+    assert "_claim_command_event" not in segment
 
 
 def test_runtime_rebind_workaround_is_removed():
