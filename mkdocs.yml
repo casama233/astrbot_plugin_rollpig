@@ -112,6 +112,7 @@ extra_css:
   - stylesheets/wiki-v2.css
   - stylesheets/brand-icons.css
   - stylesheets/wiki-v3.css
+  - stylesheets/wiki-responsive.css
 
 extra_javascript:
   - javascripts/pigsty.js
