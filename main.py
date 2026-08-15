@@ -9,6 +9,7 @@ priority and unload semantics bound to the real Star entry point.
 
 import asyncio
 import threading
+from pathlib import Path
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -19,6 +20,7 @@ try:
     from .ex_public_source_feature import ExPublicSourceMixin
     from .ex_variant_feature import ExVariantMixin
     from .help_feature import HelpFeatureMixin
+    from .installation_migrations import cleanup_legacy_installation_paths
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
@@ -32,6 +34,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_public_source_feature import ExPublicSourceMixin
     from ex_variant_feature import ExVariantMixin
     from help_feature import HelpFeatureMixin
+    from installation_migrations import cleanup_legacy_installation_paths
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
@@ -58,6 +61,13 @@ class RollPigPlugin(
     DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS = 2.0
 
     def __init__(self, context, config):
+        # Historical self-updates were overlay installs, so paths removed from a
+        # newer release could survive indefinitely. Reconcile explicit
+        # tombstones before AstrBot serves Plugin Pages; its Page discovery reads
+        # the filesystem dynamically, so removing legacy ex-manager entries here
+        # restores pig-manager as the default surface on affected installations.
+        cleanup_legacy_installation_paths(Path(__file__).resolve().parent, logger=logger)
+
         config_view = config if hasattr(config, "get") else {}
         try:
             render_concurrency = int(config_view.get("image_render_concurrency", 2))
@@ -217,38 +227,3 @@ class RollPigPlugin(
     async def pigsty_daily_report_disable(self, event: AstrMessageEvent):
         return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
-
-    UI_ASSET_VERSION = "3.2.0"
-
-    def _init_regular_font(self):
-        font_paths = [
-            self.font_dir / "荆南麦圆体.otf",
-            self.font_dir / "SourceHanSansCN-Regular.otf",
-            "C:/Windows/Fonts/msyh.ttc",
-            "C:/Windows/Fonts/simhei.ttf",
-            "/System/Library/Fonts/PingFang.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        ]
-        return self._load_font(font_paths, self.DESC_FONT_SIZE, "常规")
-
-    def _init_bold_font(self):
-        font_paths = [
-            self.font_dir / "荆南麦圆体.otf",
-            self.font_dir / "SourceHanSansCN-Bold.otf",
-            "C:/Windows/Fonts/msyhbd.ttc",
-            "/System/Library/Fonts/PingFang.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        ]
-        return self._load_font(font_paths, self.NAME_FONT_SIZE, "加粗")
-
-    def _init_traditional_font(self):
-        font_paths = [
-            self.font_dir / "荆南麦圆体.otf",
-            self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf",
-            self.font_dir / "SourceHanSansCN-Regular.otf",
-            "C:/Windows/Fonts/msyh.ttc",
-            "C:/Windows/Fonts/simhei.ttf",
-            "/System/Library/Fonts/PingFang.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        ]
-        return self._load_font(font_paths, self.DESC_FONT_SIZE, "繁体兜底")
