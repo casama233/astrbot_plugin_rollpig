@@ -9,6 +9,7 @@ priority and unload semantics bound to the real Star entry point.
 
 import asyncio
 import threading
+from pathlib import Path
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -19,6 +20,7 @@ try:
     from .ex_public_source_feature import ExPublicSourceMixin
     from .ex_variant_feature import ExVariantMixin
     from .help_feature import HelpFeatureMixin
+    from .installation_migrations import cleanup_legacy_installation_paths
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
@@ -32,6 +34,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_public_source_feature import ExPublicSourceMixin
     from ex_variant_feature import ExVariantMixin
     from help_feature import HelpFeatureMixin
+    from installation_migrations import cleanup_legacy_installation_paths
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
@@ -58,6 +61,15 @@ class RollPigPlugin(
     DAILY_REPORT_STATE_FLUSH_DELAY_SECONDS = 2.0
 
     def __init__(self, context, config):
+        # Historical self-updates were overlay installs, so paths removed from a
+        # newer release could survive indefinitely. Reconcile explicit
+        # tombstones before AstrBot serves Plugin Pages; its Page discovery reads
+        # the filesystem dynamically, so removing legacy ex-manager entries here
+        # restores pig-manager as the default surface on affected installations.
+        cleanup_legacy_installation_paths(
+            Path(__file__).resolve().parent, logger=logger
+        )
+
         config_view = config if hasattr(config, "get") else {}
         try:
             render_concurrency = int(config_view.get("image_render_concurrency", 2))
