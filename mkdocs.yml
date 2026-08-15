@@ -19,7 +19,7 @@ hooks:
 
 nav:
   - 🐷 Wiki 首頁: index.md
-  - 🚀 5 分鐘開始養豬: getting-started/index.md
+  - ⚡ 30 秒開始養豬: getting-started/index.md
   - 🎮 玩家玩法:
       - 玩法總覽: gameplay/index.md
       - 📚 永久圖鑑與新豬保底: gameplay/collection-pity.md
@@ -48,7 +48,7 @@ nav:
       - 參與開發: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md
   - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
 
-# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在 extra.css / pigsty.js，
+# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在額外 CSS / JS，
 # 方便後續升級主題而不 fork 上游模板。
 theme:
   name: material
@@ -109,6 +109,7 @@ extra_css:
   - stylesheets/extra.css
   - stylesheets/wiki-v2.css
   - stylesheets/brand-icons.css
+  - stylesheets/wiki-v3.css
 
 extra_javascript:
   - javascripts/pigsty.js
