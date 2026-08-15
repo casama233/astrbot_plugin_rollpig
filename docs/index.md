@@ -3,18 +3,18 @@ title: 今日小豬 Wiki
 description: 每天抽一隻豬，然後事情逐漸失控。
 ---
 
-<div class="pig-hero" markdown>
-<div>
+<div class="pig-hero pig-hero--v3" markdown>
+<div class="pig-hero__copy">
 
-<span class="pig-kicker">🐷 ASTRBOT · 今日小豬增強版 · STABLE</span>
+<span class="pig-kicker">🐷 今日小豬 · 玩家 Wiki · 群聊正在失控</span>
 
-# 每天抽一隻豬。<br><span class="pig-gradient-text">然後事情逐漸失控。</span>
+# 每天抽一隻豬。<br><span class="pig-gradient-text">然後全群開始失控。</span>
 
-<p class="pig-lead">從第一隻今日小豬，到永久圖鑑、EX 成長、Roast Charge、預約烤豬、群友添柴、烤箱補貨與《豬圈日報》——這裡收錄整座豬圈的玩法、規則與維護指南。</p>
+<p class="pig-lead">你不需要先學會配置 AstrBot。群裡已經有小豬？那就直接抽。永久圖鑑、EX 成長、Roast Charge、預約烤豬、群友添柴與《豬圈日報》會自己找上門。</p>
 
 <div class="pig-actions">
-<a class="pig-button pig-button--primary" href="getting-started/">🚀 5 分鐘開始養豬</a>
-<a class="pig-button pig-button--ghost" href="gameplay/">🔥 看看現在能搞什麼事</a>
+<a class="pig-button pig-button--primary" href="getting-started/">⚡ 30 秒開始養豬</a>
+<a class="pig-button pig-button--ghost" href="gameplay/">🔥 直接看能搞什麼事</a>
 </div>
 
 <div class="pig-badges">
@@ -26,11 +26,45 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <span class="pig-badge">☁️ 公共豬源</span>
 </div>
 
+<div class="pig-live-strip" aria-label="今日小豬玩法跑馬燈">
+<div class="pig-live-strip__track">
+<span>/今日小豬</span><span>永久收藏</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
+<span>/今日小豬</span><span>永久收藏</span><span>EX 成長</span><span>預約烤豬</span><span>群友添柴</span><span>豬圈日報</span>
+</div>
 </div>
 
+</div>
+
+<div class="pig-hero-console">
+<div class="pig-console__top">
+<span class="pig-console__live">PIGSTY LIVE</span>
+<span>PLAYER MODE</span>
+</div>
+
+<div class="pig-console__center">
+<div class="pig-console__mascot">
 <div class="pig-mascot-wrap">
 <div class="pig-mascot">🐷</div>
-<span class="pig-mascot-hint">可以戳。後果自負。</span>
+</div>
+</div>
+
+<div class="pig-console__stats">
+<div class="pig-console-stat">
+<span>DAILY DRAW</span><strong>READY</strong><em style="--meter:100%"></em>
+</div>
+<div class="pig-console-stat">
+<span>COLLECTION</span><strong>永久</strong><em style="--meter:82%"></em>
+</div>
+<div class="pig-console-stat">
+<span>ROAST CHARGE</span><strong>2 / 2</strong><em style="--meter:100%"></em>
+</div>
+<div class="pig-console-stat">
+<span>DAILY REPORT</span><strong>OPT-IN</strong><em style="--meter:64%"></em>
+</div>
+</div>
+</div>
+
+<div class="pig-console__footer">↳ 可以戳豬。後果自負。</div>
 </div>
 </div>
 
@@ -50,9 +84,9 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <span class="pig-card__icon">🐣</span>
 
 ### 我是第一次來
-先裝好插件，輸入 `/今日小豬`。剩下的事情，小豬會慢慢把你拖下水。
+只要群裡的 Bot 已經有今日小豬，直接輸入 `/今日小豬`。不用先懂 AstrBot，也不用先看安裝文檔。
 
-[開始養豬 →](getting-started/)
+[30 秒開始養豬 →](getting-started/)
 </div>
 
 <div class="pig-card" markdown>
@@ -126,8 +160,8 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 ## OLD → NEW：這插件到底長歪成什麼樣了？ {.pig-section-title}
 
-<div class="pig-versus">
-<div class="pig-versus__side" markdown>
+<div class="pig-versus pig-versus--v3">
+<div class="pig-versus__side pig-versus__side--old" markdown>
 <span class="pig-versus__label">OLD · 以前</span>
 
 ### `/今日小豬`
@@ -144,9 +178,11 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 <div class="pig-versus__side pig-versus__side--new" markdown>
 <span class="pig-versus__label">NEW · 現在</span>
 
-### `/今日小豬`
+### `/今日小豬` 只是入口
 
-抽豬 → 收藏 → EX 成長 → 保底 → 烤群友 → 預約埋伏 → 添柴 → 成功／逃脫／反噬 → Charge 用完 → 全群補貨 → 晚上登上《豬圈日報》。
+<div class="pig-evolution-flow">
+<span>抽豬</span><span>永久收藏</span><span>EX 成長</span><span>保底</span><span>烤群友</span><span>預約埋伏</span><span>添柴</span><span>60/30/10</span><span>Roast Charge</span><span>全群補貨</span><span>豬圈日報</span>
+</div>
 
 **本來只想抽一隻。現在全群圍著烤箱玩一天。**
 </div>
@@ -204,7 +240,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 
 ## Wiki 之外，還有精確到不講人話的東西 {.pig-section-title}
 
-如果你是管理員、豬源維護者或開發者，別擔心，我們沒有把硬核部分扔掉：
+如果你是管理員、豬源維護者或開發者，硬核部分仍然都在，只是不再擋在普通群友面前：
 
 - [📖 完整指令與別名](COMMANDS.md)
 - [⚙️ 全配置參考](CONFIGURATION.md)
@@ -214,7 +250,7 @@ description: 每天抽一隻豬，然後事情逐漸失控。
 - [🧯 運維、備份、更新與恢復](OPERATIONS.md)
 
 !!! tip "不知道先看哪一頁？"
-    先去 **[5 分鐘開始養豬](getting-started/)**。如果你已經會 `/今日小豬`，那就直接去 **[玩家玩法](gameplay/)** 看看你還漏了多少離譜功能。
+    第一次來就去 **[30 秒開始養豬](getting-started/)**。如果你已經會 `/今日小豬`，直接去 **[玩家玩法](gameplay/)** 看看你還漏了多少離譜功能。
 
 ---
 
