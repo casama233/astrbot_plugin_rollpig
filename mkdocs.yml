@@ -32,7 +32,9 @@ nav:
       - 預約烤豬: ROAST-RESERVATIONS.md
       - 日報技術規則: DAILY-REPORT.md
   - 🎨 做一隻小豬: creators/index.md
-  - 🧯 常見故障: troubleshooting/index.md
+  - 🧯 常見故障:
+      - 排障總覽: troubleshooting/index.md
+      - 管理面板定向排障: troubleshooting/admin.md
   - 📖 指令百科: COMMANDS.md
   - ⚙️ 管理員指南:
       - 完整配置: CONFIGURATION.md

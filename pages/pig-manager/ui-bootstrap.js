@@ -3,6 +3,14 @@
 
   const VERSION = '3.2.0';
   const STATE_KEY = '__rollpigUiBootstrapState';
+  const WIKI_BASE_URL = 'https://casama233.github.io/astrbot_plugin_rollpig/';
+  const WIKI_LINKS = Object.freeze({
+    player: new URL('gameplay/', WIKI_BASE_URL).href,
+    admin: new URL('CONFIGURATION/', WIKI_BASE_URL).href,
+    creator: new URL('creators/', WIKI_BASE_URL).href,
+    resourceSync: new URL('troubleshooting/admin/#resource-sync', WIKI_BASE_URL).href,
+    adminUi: new URL('troubleshooting/admin/#admin-ui', WIKI_BASE_URL).href,
+  });
   const ALLOWED = new Map([
     ['analytics-theme', 'style'],
     ['ui-analytics', 'script'],
@@ -26,6 +34,7 @@
     errors: [],
     abortController,
     reportModuleError: null,
+    setResourceSyncFeedback: null,
   };
   window[STATE_KEY] = state;
 
@@ -77,6 +86,99 @@
     }
   };
 
+  const installWikiStyles = () => {
+    if (document.querySelector('style[data-rollpig-wiki-bridge]')) return;
+    const style = document.createElement('style');
+    style.dataset.rollpigWikiBridge = '1';
+    style.textContent = `
+      .rollpig-doc-menu{position:relative}
+      .rollpig-doc-menu>summary{list-style:none;display:flex;align-items:center;gap:6px;white-space:nowrap}
+      .rollpig-doc-menu>summary::-webkit-details-marker{display:none}
+      .rollpig-doc-popover{position:absolute;z-index:40;right:0;top:calc(100% + 9px);width:min(310px,calc(100vw - 36px));padding:8px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface-strong) 96%,transparent);box-shadow:var(--shadow);backdrop-filter:blur(24px) saturate(145%)}
+      .rollpig-doc-link{display:grid;grid-template-columns:34px 1fr;gap:9px;align-items:center;padding:10px;border-radius:12px;color:var(--ink);text-decoration:none;transition:background .2s var(--ease),transform .2s var(--spring)}
+      .rollpig-doc-link:hover{background:var(--pink-soft);transform:translateX(2px)}
+      .rollpig-doc-link>span:first-child{font-size:20px;text-align:center}
+      .rollpig-doc-link strong{display:block;font-size:12px}.rollpig-doc-link small{display:block;margin-top:2px;color:var(--muted);font-size:10px;line-height:1.35}
+      .rollpig-context-doc{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 9px;border:1px solid color-mix(in srgb,var(--orange) 28%,var(--line));border-radius:999px;color:var(--orange);font-size:10px;font-weight:750;text-decoration:none;background:color-mix(in srgb,var(--orange) 7%,transparent)}
+      .rollpig-context-doc:hover{background:color-mix(in srgb,var(--orange) 13%,transparent)}
+      @media(max-width:760px){.rollpig-doc-menu>summary{width:42px;height:42px;justify-content:center;padding:0;font-size:0}.rollpig-doc-menu>summary::before{content:'📚';font-size:18px}.rollpig-doc-popover{position:fixed;right:18px;top:76px}}
+    `;
+    document.head.appendChild(style);
+  };
+
+  const makeDocLink = (icon, title, detail, href) => {
+    const link = document.createElement('a');
+    link.className = 'rollpig-doc-link';
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    const iconNode = document.createElement('span');
+    iconNode.textContent = icon;
+    const copy = document.createElement('span');
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    const small = document.createElement('small');
+    small.textContent = detail;
+    copy.append(strong, small);
+    link.append(iconNode, copy);
+    return link;
+  };
+
+  const topActions = pageRoot.querySelector('.top-actions');
+  if (!topActions) return;
+
+  const installWikiMenu = () => {
+    if (pageRoot.querySelector('#rollpigDocMenu')) return;
+    const details = document.createElement('details');
+    details.id = 'rollpigDocMenu';
+    details.className = 'rollpig-doc-menu';
+    const summary = document.createElement('summary');
+    summary.className = 'btn ghost';
+    summary.textContent = '📚 文档';
+    summary.title = '打开今日小猪 Wiki';
+    const popover = document.createElement('div');
+    popover.className = 'rollpig-doc-popover';
+    popover.append(
+      makeDocLink('📖', '玩家 Wiki', '玩法、EX、烤箱、日报与保底', WIKI_LINKS.player),
+      makeDocLink('⚙️', '管理员手册', '完整配置、资源、存储与运维', WIKI_LINKS.admin),
+      makeDocLink('🎨', '投稿指南', '做一只自己的小猪，再交给管理员', WIKI_LINKS.creator),
+    );
+    details.append(summary, popover);
+    const refreshButton = pageRoot.querySelector('#refreshBtn');
+    topActions.insertBefore(details, refreshButton || null);
+  };
+
+  const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i;
+
+  const setContextDoc = (host, key, show, label, href) => {
+    if (!host) return;
+    const selector = `[data-rollpig-context-doc="${key}"]`;
+    const existing = host.querySelector(selector);
+    if (!show) {
+      existing?.remove();
+      return;
+    }
+    if (existing) return;
+    const link = document.createElement('a');
+    link.dataset.rollpigContextDoc = key;
+    link.className = 'rollpig-context-doc';
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = `🧯 ${label}`;
+    host.appendChild(link);
+  };
+
+  state.setResourceSyncFeedback = (host, message) => {
+    setContextDoc(
+      host,
+      'resource-sync',
+      ERROR_PATTERN.test(String(message || '')),
+      '查看猪源同步排障',
+      WIKI_LINKS.resourceSync,
+    );
+  };
+
   const statusHost = () => {
     let host = pageRoot.querySelector('#analyticsLoadStatus');
     if (host) return host;
@@ -98,6 +200,13 @@
     host.querySelector('strong').textContent =
       kind === 'loading' ? '正在载入深度分析' : '深度分析未载入';
     host.querySelector('.panel-desc').textContent = message;
+    setContextDoc(
+      host,
+      'admin-ui',
+      kind === 'error',
+      '查看管理页定向排障',
+      WIKI_LINKS.adminUi,
+    );
   };
 
   const hideStatus = () => {
@@ -143,8 +252,10 @@
     new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), milliseconds)),
   ]);
 
-  const topActions = pageRoot.querySelector('.top-actions');
-  if (!topActions) return;
+  installWikiStyles();
+  installWikiMenu();
+  const initialSync = pageRoot.querySelector('#syncFeedback');
+  if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.textContent || '');
 
   let button = pageRoot.querySelector('#analyticsLoadBtn');
   if (!button) {
