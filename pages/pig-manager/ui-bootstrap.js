@@ -106,12 +106,28 @@
     document.head.appendChild(style);
   };
 
+  const EMBEDDED_PAGE = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+
+  const configureExternalLink = link => {
+    // AstrBot Plugin Pages run inside a sandboxed iframe without allow-popups.
+    // New-tab anchors are therefore blocked. Keep the nicer new-tab behavior
+    // when opened standalone, but navigate the iframe itself under AstrBot.
+    link.target = EMBEDDED_PAGE ? '_self' : '_blank';
+    if (EMBEDDED_PAGE) link.removeAttribute('rel');
+    else link.rel = 'noopener noreferrer';
+  };
+
   const makeDocLink = (icon, title, detail, href) => {
     const link = document.createElement('a');
     link.className = 'rollpig-doc-link';
     link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    configureExternalLink(link);
     const iconNode = document.createElement('span');
     iconNode.textContent = icon;
     const copy = document.createElement('span');
@@ -163,8 +179,7 @@
     link.dataset.rollpigContextDoc = key;
     link.className = 'rollpig-context-doc';
     link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    configureExternalLink(link);
     link.textContent = `🧯 ${label}`;
     host.appendChild(link);
   };
@@ -244,7 +259,7 @@
     script.dataset.version = VERSION;
     script.textContent = `try {\n${asset.source}\n} catch (error) { window.${STATE_KEY}?.reportModuleError(${JSON.stringify(asset.name)}, error); }\n//# sourceURL=rollpig-${asset.name}-${VERSION}.js`;
     document.body.appendChild(script);
-    if (!state.errors.some(item => item.name === asset.name)) state.assets[asset.name] = 'ready';
+    if (!state.errors.some(item => item.name === asset.name)) state.assets[name] = 'ready';
   };
 
   const withTimeout = (promise, milliseconds, message) => Promise.race([
