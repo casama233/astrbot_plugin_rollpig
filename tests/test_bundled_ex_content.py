@@ -139,4 +139,4 @@ def test_curated_pig_keeps_expected_signature_copy_and_lv5_plus_fallback():
     assert ex9["_ex_level"] == 9
     assert ex9["_ex_variant_level"] == 5
     assert ex9["description"] == "默认款？现在是资深标准猪"
-    assert "标准答案" in ex9["analysis"]
+    assert "拿你当参照物" in ex9["analysis"]
