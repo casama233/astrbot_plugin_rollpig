@@ -18,6 +18,27 @@ description: 先抽一隻，再按需要查玩法。
 </div>
 
 </div>
+
+<div class="pig-hero-console">
+<div class="pig-console__top">
+<span class="pig-console__live">PIGSTY READY</span>
+<span>PLAYER</span>
+</div>
+<div class="pig-console__center">
+<div class="pig-console__mascot">
+<div class="pig-mascot-wrap"><div class="pig-mascot">🐷</div></div>
+</div>
+<div class="pig-console__stats">
+<div class="pig-console-stat">
+<span>FIRST COMMAND</span><strong>/今日小豬</strong><em style="--meter:100%"></em>
+</div>
+<div class="pig-console-stat">
+<span>NEED HELP?</span><strong>/豬豬幫助</strong><em style="--meter:100%"></em>
+</div>
+</div>
+</div>
+<div class="pig-console__footer">↳ 先抽，再按需要看規則。</div>
+</div>
 </div>
 
 ## 第一次來，只要記三件事 {.pig-section-title}
