@@ -178,7 +178,7 @@ class PermanentCollectionMixin:
             if favorite_id
             else None
         )
-        favorite_name = str(favorite.get("name")) if favorite else "暂无"
+        favorite_name = str(favorite.get("name")) if favorite else "还没选出"
 
         return render_pigsty(
             catalog=self.pig_list,
