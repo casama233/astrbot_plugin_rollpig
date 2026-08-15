@@ -1,0 +1,58 @@
+name: Temporary admin trend patch
+
+on:
+  push:
+    branches:
+      - fix/admin-trend-pulse
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out patch branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-trend-pulse
+          fetch-depth: 0
+
+      - name: Apply focused admin trend patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('pages/pig-manager/index.html')
+          text = path.read_text(encoding='utf-8')
+
+          if '.trend-panel{align-self:start' not in text:
+              css_marker = '    .insight-stack{'
+              css_at = text.index(css_marker)
+              css = '''    .trend-panel{align-self:start;display:flex;flex-direction:column;min-width:0}\n    .trend-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}\n    .trend-summary-item{min-width:0;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--surface-strong) 54%,transparent)}\n    .trend-summary-item span{display:block;color:var(--muted);font-size:10px;font-weight:700}\n    .trend-summary-item strong{display:block;margin-top:3px;font-size:18px;line-height:1.15;font-weight:850;letter-spacing:-.03em}\n    .trend-summary-item small{display:block;margin-top:4px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n    @media(max-width:760px){.trend-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}\n'''
+              text = text[:css_at] + css + text[css_at:]
+
+          line_start = text.index('function linePath(values')
+          line_end = text.index('function animateSvgPaths', line_start)
+          smooth = '''function smoothLinePath(values,w,h,padX,padY,max,curve=.42){\n  const span=Math.max(1,values.length-1),pts=values.map((v,i)=>[padX+i*(w-padX*2)/span,h-padY-(Number(v)||0)/max*(h-padY*2)]);\n  if(!pts.length)return '';\n  let path=`M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;\n  for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i],dx=(x1-x0)*curve;path+=` C ${(x0+dx).toFixed(1)} ${y0.toFixed(1)}, ${(x1-dx).toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`}\n  return path\n}\n'''
+          text = text[:line_start] + smooth + text[line_end:]
+
+          trend_start = text.index('function renderTrend(data){')
+          trend_end = text.index('function bindTrendPointer', trend_start)
+          trend = '''function renderTrend(data){\n  const root=$('trendChart'),panel=root.closest('.panel'),w=840,h=300,padX=42,padY=34;\n  panel?.classList.add('trend-panel');\n  let summary=$('trendSummary');\n  if(!data.length){root.innerHTML='<div class="empty">暂无历史趋势数据</div>';summary?.remove();return}\n  const users=data.map(x=>Number(x.users)||0),draws=data.map(x=>Number(x.draws)||0),unlocks=data.map(x=>Number(x.new_unlocks)||0);\n  const max=Math.max(1,...users,...draws,...unlocks),userLine=smoothLinePath(users,w,h,padX,padY,max),unlockLine=smoothLinePath(unlocks,w,h,padX,padY,max),base=h-padY,userArea=`${userLine} L ${w-padX} ${base} L ${padX} ${base} Z`,step=(w-padX*2)/Math.max(1,data.length-1),barWidth=Math.max(8,Math.min(24,step*.34));\n  let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="近十四日使用人数、抽取次数与新解锁趋势"><defs><linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--pink)" stop-opacity=".38"/><stop offset="1" stop-color="var(--pink)" stop-opacity="0"/></linearGradient><linearGradient id="drawBars" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--blue)" stop-opacity=".42"/><stop offset="1" stop-color="var(--blue)" stop-opacity=".08"/></linearGradient></defs>`;\n  for(let i=0;i<5;i++){const y=padY+i*(h-padY*2)/4;svg+=`<line class="gridline" x1="${padX}" y1="${y}" x2="${w-padX}" y2="${y}"/><text class="chart-label" x="5" y="${y+4}">${Math.round(max*(1-i/4))}</text>`}\n  data.forEach((entry,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1),value=draws[i],barHeight=value/max*(h-padY*2);svg+=`<rect class="chart-draw-bar" x="${px-barWidth/2}" y="${base-barHeight}" width="${barWidth}" height="${barHeight}" rx="${Math.min(6,barWidth/2)}" fill="url(#drawBars)" style="--delay:${i*28}ms"/>`});\n  svg+=`<path class="chart-area" d="${userArea}" fill="url(#trendArea)"/><path class="chart-path" d="${userLine}" stroke="var(--pink)" stroke-width="4"/><path class="chart-path" d="${unlockLine}" stroke="var(--violet)" stroke-width="3"/>`;\n  data.forEach((x,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1);svg+=`<text class="chart-label" text-anchor="middle" x="${px}" y="${h-7}">${esc(x.date)}</text>`});\n  root.innerHTML=svg+'</svg><div class="chart-tooltip" id="trendTip"></div>';\n  const peakIndex=users.reduce((best,value,index)=>value>users[best]?index:best,0),average=users.reduce((sum,value)=>sum+value,0)/Math.max(1,users.length),totalDraws=draws.reduce((sum,value)=>sum+value,0),totalUnlocks=unlocks.reduce((sum,value)=>sum+value,0);\n  if(!summary){summary=document.createElement('div');summary.id='trendSummary';summary.className='trend-summary';summary.setAttribute('aria-label','近 14 日摘要');summary.setAttribute('aria-live','polite');root.insertAdjacentElement('afterend',summary)}\n  summary.innerHTML=`<div class="trend-summary-item"><span>活跃峰值</span><strong>${users[peakIndex]} 人</strong><small>${esc(data[peakIndex]?.date||'—')}</small></div><div class="trend-summary-item"><span>日均活跃</span><strong>${average.toFixed(1).replace(/\\.0$/,'')} 人</strong><small>近 14 日均值</small></div><div class="trend-summary-item"><span>14 日抽取</span><strong>${totalDraws.toLocaleString()} 次</strong><small>趋势窗口累计</small></div><div class="trend-summary-item"><span>14 日新解锁</span><strong>${totalUnlocks.toLocaleString()} 次</strong><small>趋势窗口累计</small></div>`;\n  animateSvgPaths(root);bindTrendPointer(root,data,{w,h,padX,padY,max})\n}\n'''
+          text = text[:trend_start] + trend + text[trend_end:]
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          python -m pytest -q tests/test_admin_trend_ui_contract.py
+
+      - name: Commit final patch and remove temporary workflow
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/_temp_admin_trend_patch.yml
+          git add pages/pig-manager/index.html tests/test_admin_trend_ui_contract.py
+          git commit -m "fix: smooth admin trend and use summary strip"
+          git push origin HEAD:fix/admin-trend-pulse
