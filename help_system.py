@@ -164,6 +164,13 @@ def build_help_sections(
                 kind="feature",
             )
         )
+    mechanics.append(
+        HelpEntry(
+            t("help.mechanic.ex_growth_title"),
+            t("help.mechanic.ex_growth"),
+            kind="feature",
+        )
+    )
     if group_roast_enabled:
         mechanics.append(
             HelpEntry(
