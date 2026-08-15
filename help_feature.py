@@ -30,7 +30,7 @@ _HELP_CACHE_LOCK = threading.Lock()
 class HelpFeatureMixin:
     """Configuration-aware RollPig help model, rendering and caching."""
 
-    HELP_RENDER_CACHE_VERSION = 3
+    HELP_RENDER_CACHE_VERSION = 4
     HELP_RENDER_CACHE_KEEP = 8
 
     def _help_feature_state(self) -> HelpFeatureState:
