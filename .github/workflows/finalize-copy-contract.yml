@@ -1,0 +1,70 @@
+name: Finalize Piggy Copy Contracts
+
+on:
+  push:
+    branches:
+      - feat/piggy-copy-polish-mainline
+    paths:
+      - .github/workflows/finalize-copy-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/piggy-copy-polish-mainline
+
+      - name: Align hidden aliases and reservation compatibility copy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def one(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected one baseline: {old!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          one(
+              'player_copy.py',
+              '目標沒抽豬可先埋伏，最多 {participants} 人蹲鍋；可 /添柴 @目標 加入，沒有補貨且只有一張預約時裸 /添柴 也能進場',
+              '目標沒抽豬可先埋伏，最多 {participants} 人蹲鍋；可 /添柴 @目標 加入，再次 /烤群友 @同一目標 也兼容',
+          )
+          one(
+              'player_copy.py',
+              '目标没抽猪可先埋伏，最多 {participants} 人蹲锅；可 /添柴 @目标 加入，没有补货且只有一张预约时裸 /添柴 也能进场',
+              '目标没抽猪可先埋伏，最多 {participants} 人蹲锅；可 /添柴 @目标 加入，再次 /烤群友 @同一目标 也兼容',
+          )
+          one(
+              'docs/ROAST-RESERVATIONS.md',
+              '> 舊 `/添煤`、`/加煤`、`/烤箱添煤`、`/烤箱添柴` 只作補貨相容入口，不在玩家幫助中主推。\n\n',
+              '',
+          )
+          style = Path('docs/COPY-STYLE.md')
+          text = style.read_text(encoding='utf-8')
+          marker = '- Roast Charge：`火`、`Charge`、`柴車`、`搬柴`、`添柴`\n'
+          addition = (
+              marker
+              + '- `/添柴`：補貨輪次中代表補貨；`/添柴 @目標` 明確代表預約添柴。文案必須說清楚是哪一口鍋，不讓玩家猜。\n'
+          )
+          if text.count(marker) != 1:
+              raise SystemExit('COPY-STYLE firewood marker mismatch')
+          style.write_text(text.replace(marker, addition, 1), encoding='utf-8')
+          PY
+
+      - name: Verify player copy compiles
+        run: python -m py_compile player_copy.py
+
+      - name: Commit final copy contracts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add player_copy.py docs/ROAST-RESERVATIONS.md docs/COPY-STYLE.md
+          git commit -m "docs: align contextual firewood copy contracts"
+          git push origin HEAD:feat/piggy-copy-polish-mainline
