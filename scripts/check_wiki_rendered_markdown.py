@@ -118,6 +118,38 @@ def missing_required_anchors(site_dir: Path) -> list[str]:
     return failures
 
 
+def homepage_layout_failures(site_dir: Path) -> list[str]:
+    path = site_dir / "index.html"
+    if not path.is_file():
+        return ["missing rendered Wiki homepage: index.html"]
+
+    html = path.read_text(encoding="utf-8")
+    failures: list[str] = []
+    if 'class="pig-hero pig-hero--v3"' not in html:
+        failures.append("index.html: pig-hero--v3 landing Hero is missing")
+
+    # The primary navigation must still be rendered so mobile users keep the
+    # Material drawer. Desktop-only sidebar suppression belongs in CSS.
+    if 'class="md-sidebar md-sidebar--primary"' not in html:
+        failures.append("index.html: primary navigation must remain rendered")
+
+    responsive = site_dir / "stylesheets" / "wiki-responsive.css"
+    if not responsive.is_file():
+        failures.append("missing rendered responsive stylesheet")
+        return failures
+
+    css = responsive.read_text(encoding="utf-8")
+    required_css = (
+        "@media screen and (min-width: 76.25em)",
+        ".md-main__inner.md-grid:has(.pig-hero--v3) > .md-sidebar",
+        "container: pig-content / inline-size",
+    )
+    for marker in required_css:
+        if marker not in css:
+            failures.append(f"wiki-responsive.css: missing layout contract: {marker}")
+    return failures
+
+
 def main() -> int:
     site_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "site")
     if not site_dir.is_dir():
@@ -126,10 +158,11 @@ def main() -> int:
 
     leaks = scan(site_dir)
     anchor_failures = missing_required_anchors(site_dir)
-    if not leaks and not anchor_failures:
+    layout_failures = homepage_layout_failures(site_dir)
+    if not leaks and not anchor_failures and not layout_failures:
         print(
             "wiki render check: no raw Markdown leaked inside pig-* UI containers; "
-            "required deep-link anchors are present"
+            "required deep-link anchors are present; responsive landing contract is present"
         )
         return 0
 
@@ -143,6 +176,11 @@ def main() -> int:
     if anchor_failures:
         print("wiki render check: required deep-link anchors are missing:", file=sys.stderr)
         for failure in anchor_failures:
+            print(f"- {failure}", file=sys.stderr)
+
+    if layout_failures:
+        print("wiki render check: homepage layout contract failed:", file=sys.stderr)
+        for failure in layout_failures:
             print(f"- {failure}", file=sys.stderr)
     return 1
 
