@@ -1,0 +1,114 @@
+name: Apply Mainline Piggy Copy
+
+on:
+  push:
+    branches:
+      - feat/piggy-copy-polish-mainline
+    paths:
+      - .github/workflows/apply-mainline-piggy-copy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/piggy-copy-polish-mainline
+
+      - name: Apply exact copy-only patches
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, *, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              found = text.count(old)
+              if found < count:
+                  raise SystemExit(f'{path}: expected {count} copy baseline(s), found {found}: {old!r}')
+              text = text.replace(old, new, count)
+              p.write_text(text, encoding='utf-8')
+
+          replace(
+              'help_system.py',
+              '''        if state.enable_oven_refill:\n            group_entries.extend(\n                [\n                    HelpEntry("/烤箱補貨", t("help.group.oven_refill")),\n                    HelpEntry("/添柴", t("help.group.oven_support")),\n                ]\n            )\n''',
+              '''        if state.enable_oven_refill:\n            group_entries.append(\n                HelpEntry("/烤箱補貨", t("help.group.oven_refill"))\n            )\n        if state.enable_oven_refill or state.enable_roast_reservation:\n            group_entries.append(\n                HelpEntry("/添柴", t("help.group.firewood_router"))\n            )\n''',
+          )
+
+          oven = [
+              ('烤箱补货当前未启用。', '🔒 今天后厨不收柴。管理员把补货玩法关掉了，再塞也只会弄脏地板。'),
+              ('烤群友玩法当前未启用，烤箱补货不可用。', '🔒 烤群友这桌已经关火，补货也跟着歇业。先让管理员把后厨主开关打开。'),
+              ('烤箱补货只能在群聊中发起。', '🚪 柴车只进群聊。私聊里没有烤箱，也没有群友帮你扛木头。'),
+              ('先在本群抽一只今日小猪，再来组织烤箱补货。', '🐷 先在本群抽一只 /今日小猪 再来搬柴；后厨不收路过的临时工。'),
+              ('今天本群至少需要 2 位活跃玩家才能组织补货。', '🐷 一个人搬柴不叫补货，叫加班。今天本群至少要有 2 位养过猪的群友。'),
+              ('🔥 本群今天的烤箱补货次数已经用完了。', '🔥 今天的柴车班次用完了。后厨宣布收工，剩下的火请靠时间自己长回来。'),
+              ('⛽ 本轮补货正在结算，请稍后再试。', '⛽ 柴刚塞进去，后厨正在数木头。等这轮结算完再敲门。'),
+              ('🪵 补货进行中：', '🪵 柴堆还没满：'),
+              (' 人已添柴；发送 /添柴 支持。', ' 人已添柴；继续 /添柴，别让主厨一个人扛。'),
+              ('烤箱补货暂时无法发起，请稍后再试。', '🧯 补货没发动起来。烤箱今天有点闹脾气，稍后再试。'),
+              ('🔥 猪圈能源危机！烤箱补货已发起。', '🔥 猪圈能源危机，柴车发车！'),
+              (' 人 · 需要支持：', ' 人 · 需要：'),
+              ('发起者已自动添柴 1 份；发送 /添柴 继续支援。', '发起人已经先塞 1 把；其余群友输入 /添柴，别让柴车空着回去。'),
+              ('添柴只能在群聊中使用。', '🪵 柴只能往群里那口烤箱塞。私聊先把木头放下。'),
+              ('只有今天在本群参与过 RollPig 的群友才能添柴。', '🪵 后厨认人：今天先在本群玩过 RollPig，才有资格往柴堆里塞一把。'),
+              ('⌛ 上一轮补货已超时关闭；请重新发送 /烤箱补货 发起新一轮。', '⌛ 上一轮柴火等到凉了，已经超时收摊。重新 /烤箱补货 发一车。'),
+              ('当前没有进行中的补货；先发送 /烤箱补货 发起。', '🪵 现在没有柴车在等人。先 /烤箱补货 发车，再回来添柴。'),
+              ('🪵 你已经给这轮补货添过柴了。', '🪵 你这把柴已经算过了。再塞不加进度，只会让后厨怀疑你想把烤箱埋了。'),
+              ('🪵 添柴成功！当前进度 ', '🪵 这把算数！柴堆进度 '),
+              ('添柴状态异常，请稍后再试。', '🧯 这把柴没记进账。补货状态异常，稍后再试。'),
+              ('⚠️ 补货结算遇到存储异常；', '⚠️ 补货结算遇到存储异常；'),
+              ('已确认恢复 {restored} 人。为避免重复发放，本轮已封账并计入今日补货次数。', '已确认恢复 {restored} 人。后厨为防重复发火已把本轮封账，并计入今日补货次数。'),
+              ('🧯 添柴刚好达标，但大家的烤箱能量已经自行恢复满了；本轮作废，不计入今日补货次数。', '🧯 人凑齐了，结果烤箱自己先充满了。这轮柴白搬，但不扣今日补货次数——至少地板上多了一堆木屑。'),
+              ('补货结算状态异常，请稍后再试。', '🧯 柴车到站后账本对不上。补货结算状态异常，请稍后再试。'),
+              ('⛽ 烤箱补货成功！', '⛽ 柴车到站，后厨重新通电！'),
+              ('本群今日活跃玩家统一恢复 +1 格能量（实际恢复 {restored} 人）。', '本群今天有 {restored} 位活跃群友各捡回 1 格 Charge。烤箱又可以干坏事了。'),
+          ]
+          for old, new in oven:
+              if old == new:
+                  continue
+              replace('oven_refill_feature.py', old, new)
+
+          reservation = [
+              ('想埋伏别人前，请先抽取自己今天可料理的小猪。', '🔥 想埋伏别人，先证明自己今天也是一只可上桌的小猪。先 /今日小猪。'),
+              ('🔥 目标刚刚现身，原预约正在结算；这次不再重复添柴。', '🔥 目标刚露头，原来的埋伏锅已经在掀盖。别往正在结算的锅里再塞第二把柴。'),
+              ('🪵 这口预约烤箱已经塞满柴了，最多 {self.roast_reservation_max_participants} 人一起蹲守。', '🪵 这口锅旁边已经挤满 {self.roast_reservation_max_participants} 人。再来一个只能站窗外闻味。'),
+              ('🪵 你已经给这口预约烤箱添过柴了。', '🪵 你早就在这口锅旁边蹲着了。重复签到不送第二把椅子。'),
+              (' 🪵 又有人悄悄添了一把柴；现在共有 {len(participants)} 人蹲守。', ' 🪵 又一根柴悄悄塞进来；现在共有 {len(participants)} 人蹲锅。'),
+              ('🔥 烤箱能量已耗尽（', '🔥 烤箱一格火都不剩（'),
+              (' 后恢复，暂时不能创建预约。', ' 后自己长回来。现在埋伏，只会得到一口冷锅。'),
+              (' 🔥 今天还没抽猪，烤箱已被提前预热；等你在本群现身抽猪后自动结算。', ' 🔥 你今天还没抽猪，但后厨已经替你把锅热上了。等你在本群 /今日小猪，这口埋伏会立刻结算。\\n'),
+              ('主厨已就位，最多可有 {self.roast_reservation_max_participants} 人一起添柴；想加入就再次 /烤群友 @你。', '主厨先蹲好，最多 {self.roast_reservation_max_participants} 人能围锅；可 /添柴 @你 加入，继续 /烤群友 @你 也兼容。'),
+              (' 🔥 刚抽完猪，提前埋伏的烤箱立刻点燃！主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。', ' 🔥 你刚抽完猪，后厨埋伏立刻掀锅！\\n主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。'),
+              ('💨 预约烤箱扑了个空，对方刚落地就一溜烟逃走了。', '💨 埋伏锅扑了个空，对方刚落地就一溜烟跑了。后厨连盐都白撒。'),
+              ('🔥 预约烤箱反噬主厨，但主厨此刻没有可料理的小猪，侥幸躲过。', '🔥 烤架想反噬主厨，翻面一看：主厨今天没可料理的小猪。这一口算他命硬。'),
+              (' 🔥 埋伏翻车，烤架反噬主厨；这次轮到主厨的小猪上桌。', ' 🔥 埋伏翻车，烤架顺着火舌反咬主厨。\\n这次轮到主厨的小猪上桌。'),
+              ('🔥 预约烧烤成功，对方今天的小猪刚出现就被端上料理台。', '🔥 埋伏命中！对方今天的小猪刚露头就被后厨端走，连围裙都没来得及系。'),
+          ]
+          for old, new in reservation:
+              replace('roast_reservation_feature.py', old, new)
+
+          style = [
+              ('後廚、烤架、主廚、食材、煤車、柴火、豬圈保安', '後廚、烤架、主廚、食材、柴車、柴火、豬圈保安'),
+              ('一個人搬煤不叫補貨，叫加班', '一個人搬柴不叫補貨，叫加班'),
+              ('`火`、`Charge`、`煤車`、`搬煤`、`添煤`', '`火`、`Charge`、`柴車`、`搬柴`、`添柴`'),
+              ('**群體補貨｜烤太猛就一起搬煤**', '**群體補貨｜烤太猛就一起添柴**'),
+              ('支持人數達標後，今天活躍群友各恢復 1 格 Charge。', '大家添柴達標後，今天活躍群友各恢復 1 格 Charge。'),
+          ]
+          for old, new in style:
+              replace('docs/COPY-STYLE.md', old, new)
+          PY
+
+      - name: Verify touched Python compiles
+        run: python -m py_compile help_system.py oven_refill_feature.py roast_reservation_feature.py
+
+      - name: Commit exact copy patches
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add help_system.py oven_refill_feature.py roast_reservation_feature.py docs/COPY-STYLE.md
+          git commit -m "content: polish latest refill and reservation copy"
+          git push origin HEAD:feat/piggy-copy-polish-mainline
