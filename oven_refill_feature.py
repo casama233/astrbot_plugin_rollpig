@@ -400,20 +400,20 @@ class OvenRefillMixin:
     async def oven_refill(self, event) -> None:
         self._claim_command_event(event)
         if not self.enable_oven_refill:
-            await event.send(event.plain_result("烤箱补货当前未启用。"))
+            await event.send(event.plain_result("🔒 今天后厨不收煤。管理员把补货玩法关掉了，再塞也只会弄脏地板。"))
             return
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
-            await event.send(event.plain_result("烤箱补货只能在群聊中发起。"))
+            await event.send(event.plain_result("🚪 煤车只进群聊。私聊里没有烤箱，也没有群友帮你搬煤。"))
             return
         draw_date = self._today().isoformat()
         members = self._oven_active_group_members(group_id, draw_date)
         if not self._oven_actor_is_active(actor_id, members):
-            await event.send(event.plain_result("先在本群抽一只今日小猪，再来组织烤箱补货。"))
+            await event.send(event.plain_result("🐷 先在本群抽一只 /今日小猪 再来搬煤；后厨不收路过的临时工。"))
             return
         if len(members) < 2:
-            await event.send(event.plain_result("今天本群至少需要 2 位活跃玩家才能组织补货。"))
+            await event.send(event.plain_result("🐷 一个人搬煤不叫补货，叫加班。今天本群至少要有 2 位养过猪的群友。"))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -426,21 +426,21 @@ class OvenRefillMixin:
         )
         state = str(result.get("state") or "")
         if state == "limit":
-            await event.send(event.plain_result("🔥 本群今天的烤箱补货次数已经用完了。"))
+            await event.send(event.plain_result("🔥 今天的煤车班次用完了。后厨宣布收工，剩下的火请靠时间自己长回来。"))
             return
         if state == "busy":
-            await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
+            await event.send(event.plain_result("⛽ 煤刚倒进去，后厨正在数铲子。等这轮结算完再敲门。"))
             return
         if state == "active":
             supporters = result.get("supporters", [])
             await event.send(
                 event.plain_result(
-                    f"🪵 补货进行中：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添煤；发送 /添煤 支持。"
+                    f"🪵 煤车还没装满：{len(supporters)}/{int(result.get('required', 0) or 0)} 人已添煤。再叫群友 /添煤，别让主厨一个人扛。"
                 )
             )
             return
         if state != "started":
-            await event.send(event.plain_result("烤箱补货暂时无法发起，请稍后再试。"))
+            await event.send(event.plain_result("🧯 补货没发动起来。烤箱今天有点闹脾气，稍后再试。"))
             return
 
         round_no = int(result.get("round", 0) or 0)
@@ -460,26 +460,26 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "🔥 猪圈能源危机！烤箱补货已发起。\n"
-                f"今日活跃：{len(members)} 人 · 需要支持：{required} 人\n"
-                "发起者已自动添煤 1 份；发送 /添煤 继续支援。"
+                "🔥 猪圈能源危机，煤车发车！\n"
+                f"今日活跃：{len(members)} 人 · 需要：{required} 人\n"
+                "发起人已经先铲 1 份；其余群友输入 /添煤，别让煤车空着回去。"
             )
         )
 
     async def oven_refill_support(self, event) -> None:
         self._claim_command_event(event)
         if not self.enable_oven_refill:
-            await event.send(event.plain_result("烤箱补货当前未启用。"))
+            await event.send(event.plain_result("🔒 今天后厨不收煤。管理员把补货玩法关掉了，再塞也只会弄脏地板。"))
             return
         group_id = str(self._event_group_id(event) or "")
         actor_id = str(self._event_sender_id(event) or "")
         if not group_id:
-            await event.send(event.plain_result("添煤只能在群聊中使用。"))
+            await event.send(event.plain_result("🪵 煤只能往群里那口烤箱塞。私聊先把铲子放下。"))
             return
         draw_date = self._today().isoformat()
         members = self._oven_active_group_members(group_id, draw_date)
         if not self._oven_actor_is_active(actor_id, members):
-            await event.send(event.plain_result("只有今天在本群参与过 RollPig 的群友才能添煤。"))
+            await event.send(event.plain_result("🪵 后厨认人：今天先在本群玩过 RollPig，才有资格往煤车里铲一份。"))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -491,13 +491,13 @@ class OvenRefillMixin:
         )
         state = str(result.get("state") or "")
         if state == "inactive":
-            await event.send(event.plain_result("当前没有进行中的补货；先发送 /烤箱补货 发起。"))
+            await event.send(event.plain_result("🪵 现在没有煤车在等人。先 /烤箱补货 发车，再回来添煤。"))
             return
         if state == "busy":
-            await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
+            await event.send(event.plain_result("⛽ 煤刚倒进去，后厨正在数铲子。等这轮结算完再敲门。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你已经给这轮补货添过煤了。"))
+            await event.send(event.plain_result("🪵 你这铲煤已经算过了。再铲不加进度，只会让后厨怀疑你想把烤箱埋了。"))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
@@ -520,12 +520,12 @@ class OvenRefillMixin:
         if state == "supported":
             await event.send(
                 event.plain_result(
-                    f"🪵 添煤成功！当前进度 {len(supporters)}/{required}。"
+                    f"🪵 这铲算数！煤车进度 {len(supporters)}/{required}。"
                 )
             )
             return
         if state != "complete":
-            await event.send(event.plain_result("添煤状态异常，请稍后再试。"))
+            await event.send(event.plain_result("🧯 这铲煤没记进账。补货状态异常，稍后再试。"))
             return
 
         storage_members = self._oven_storage_members(members)
@@ -561,12 +561,12 @@ class OvenRefillMixin:
             )
             await event.send(
                 event.plain_result(
-                    "🧯 添煤刚好达标，但大家的烤箱能量已经自行恢复满了；本轮作废，不计入今日补货次数。"
+                    "🧯 人凑齐了，结果烤箱自己先充满了。这轮煤白搬，但不扣今日补货次数——至少地板更黑了。"
                 )
             )
             return
         if finish.get("state") != "succeeded":
-            await event.send(event.plain_result("补货结算状态异常，请稍后再试。"))
+            await event.send(event.plain_result("🧯 煤车到站后账本对不上。补货结算状态异常，稍后再试。"))
             return
 
         self._record_oven_event(
@@ -585,7 +585,7 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "⛽ 烤箱补货成功！"
-                f"本群今日活跃玩家统一恢复 +1 格能量（实际恢复 {restored} 人）。"
+                "⛽ 煤车到站，后厨重新通电！"
+                f"本群今天有 {restored} 位活跃群友各捡回 1 格 Charge。烤箱又可以干坏事了。"
             )
         )
