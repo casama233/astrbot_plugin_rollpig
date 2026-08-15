@@ -153,7 +153,6 @@ def test_interrupted_settlement_is_closed_and_counted_once():
     assert row["settlement_state"] == "interrupted"
     assert row["failed_reason"] == "interrupted_counted"
 
-    # Recovery is idempotent after the completing marker has been cleared.
     assert target._recover_interrupted_refills_locked() is False
     assert row["successes"] == 1
 
@@ -259,15 +258,38 @@ def test_reservation_draw_check_and_trigger_share_lock_order():
     assert trigger_lock < pending_check
 
 
-def test_reservation_copy_does_not_advertise_a_fake_tinder_command():
+def test_wood_is_the_only_player_facing_refill_term():
+    # Old spellings are permitted only as hidden compatibility aliases in main.py.
+    for relative in (
+        "player_copy.py",
+        "oven_refill_feature.py",
+        "roast_reservation_feature.py",
+        "help_system.py",
+        "_conf_schema.json",
+        "docs/ROAST-RESERVATIONS.md",
+        "docs/CONFIGURATION.md",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "添煤" not in text, relative
+        assert "添柴" in text, relative
+
+    main = (ROOT / "main.py").read_text(encoding="utf-8")
+    assert "@filter.command('添柴'" in main
+    assert "'添煤'" in main  # compatibility only
+    assert "'烤箱添煤'" in main  # compatibility only
+
+    help_source = (ROOT / "help_system.py").read_text(encoding="utf-8")
+    assert 'HelpEntry("/添柴"' in help_source
+    assert 'HelpEntry("/添煤"' not in help_source
+
+
+def test_reservation_copy_explains_how_its_wood_action_is_performed():
     for relative in (
         "player_copy.py",
         "roast_reservation_feature.py",
-        "_conf_schema.json",
+        "docs/ROAST-RESERVATIONS.md",
+        "docs/CONFIGURATION.md",
     ):
-        assert "添柴" not in (ROOT / relative).read_text(encoding="utf-8"), relative
-
-    for relative in ("docs/ROAST-RESERVATIONS.md", "docs/CONFIGURATION.md"):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert text.count("添柴") == 1, relative
-        assert "不存在 `/添柴` 指令" in text, relative
+        assert "添柴" in text, relative
+        assert "/烤群友" in text, relative
