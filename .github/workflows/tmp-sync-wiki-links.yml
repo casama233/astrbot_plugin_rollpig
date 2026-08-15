@@ -1,16 +1,16 @@
 name: Temporary Pig Manager Bootstrap Sync
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/wiki-links-in-sandbox
+      - main
 
 permissions:
   contents: write
 
 jobs:
   sync:
-    if: github.actor != 'github-actions[bot]'
+    if: github.head_ref == 'fix/wiki-links-in-sandbox'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -31,5 +31,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pages/pig-manager/index.html
-          git commit -m "chore: sync pig-manager bootstrap [skip sync]"
+          git commit -m "chore: sync pig-manager bootstrap"
           git push origin HEAD:fix/wiki-links-in-sandbox
