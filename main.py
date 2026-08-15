@@ -20,6 +20,7 @@ try:
     from .ex_variant_feature import ExVariantMixin
     from .help_feature import HelpFeatureMixin
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .reservation_firewood_feature import ReservationFirewoodMixin
@@ -32,6 +33,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_variant_feature import ExVariantMixin
     from help_feature import HelpFeatureMixin
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
+    from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
     from reservation_firewood_feature import ReservationFirewoodMixin
@@ -121,6 +123,16 @@ class RollPigPlugin(
 
     def render_daily_report_image(self, report):
         return self._run_with_render_slot(super().render_daily_report_image, report)
+
+    async def _send_with_mention(
+        self, event: AstrMessageEvent, user_id: str, text: str
+    ) -> None:
+        body = (
+            mention_body_on_new_line(text)
+            if self._event_group_id(event)
+            else text
+        )
+        return await super()._send_with_mention(event, user_id, body)
 
     # BEGIN MAIN COMMAND REGISTRATION
     @filter.command('猪猪帮助', alias={'豬豬幫助', '小猪帮助', '小豬幫助', 'rollpig帮助', 'rollpig幫助'}, priority=1000)
