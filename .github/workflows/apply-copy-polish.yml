@@ -19,6 +19,23 @@ jobs:
         with:
           ref: feat/piggy-copy-polish
 
+      - name: Align final firewood help baseline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_piggy_copy_polish.py')
+          text = path.read_text(encoding='utf-8')
+          pairs = [
+              ('給待結算預約添柴；單一預約可直接用，多個預約請 @目標', '加入本群待結算預約；只有一張時直接添柴，多張時請 @目標；主廚已算 1 人'),
+              ('给待结算预约添柴；单一预约可直接用，多个预约请 @目标', '加入本群待结算预约；只有一张时直接添柴，多张时请 @目标；主厨已算 1 人'),
+          ]
+          for old, new in pairs:
+              if old not in text:
+                  raise SystemExit(f'mapping baseline not found: {old}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Apply copy polish
         run: python scripts/apply_piggy_copy_polish.py
 
