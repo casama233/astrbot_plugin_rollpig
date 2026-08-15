@@ -22,7 +22,8 @@ def test_main_registers_refill_commands_on_real_star_entry():
     source = Path("main.py").read_text(encoding="utf-8")
     assert "OvenRefillMixin" in source
     assert "@filter.command('烤箱补货'" in source
-    assert "@filter.command('添煤'" in source
+    assert "@filter.command('添柴'" in source
+    assert "'添煤'" in source  # legacy compatibility alias
     assert "return await super().oven_refill(event)" in source
     assert "return await super().oven_refill_support(event)" in source
 
