@@ -41,10 +41,12 @@ def create_or_join_reservation(
     max_participants: int = 12,
     now: int | None = None,
 ) -> dict[str, Any]:
-    """Create one reservation or join its free tinder list.
+    """Create one reservation or join its free support list.
 
     The caller decides whether a newly-created reservation consumes gameplay
-    resources. Existing participants are idempotent and never consume again.
+    resources. Existing participants are idempotent and never consume again. A
+    resolved reservation is terminal for its date/group/target key and cannot be
+    reopened by a racing request.
     """
     ensure_reservation_state(state)
     date_key = str(draw_date or "").strip()
@@ -67,6 +69,14 @@ def create_or_join_reservation(
         groups[group_key] = targets
     row = targets.get(target_key)
     timestamp = int(time.time() if now is None else now)
+
+    if isinstance(row, dict):
+        status = str(row.get("status") or "")
+        if status == RESERVATION_RESOLVED:
+            return {"status": "resolved", "reservation": dict(row)}
+        if status not in {"", RESERVATION_PENDING}:
+            return {"status": "closed", "reservation": dict(row)}
+
     if not isinstance(row, dict) or str(row.get("status") or "") != RESERVATION_PENDING:
         row = {
             "id": uuid.uuid4().hex,
