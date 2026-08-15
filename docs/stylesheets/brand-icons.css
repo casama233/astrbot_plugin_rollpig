@@ -10,7 +10,12 @@
   filter: drop-shadow(0 2px 7px rgba(239, 93, 130, .28));
 }
 
-.pig-mascot > .pig-brand-icon {
+/*
+ * md_in_html renders the mascot glyph as .pig-mascot > p > img. Keep the
+ * direct-child selector for non-Markdown embeds and support the rendered DOM.
+ */
+.pig-mascot > .pig-brand-icon,
+.pig-mascot > p > .pig-brand-icon {
   width: 72%;
   height: 72%;
   margin: 0;
@@ -22,7 +27,8 @@
   transition: transform .22s ease, filter .22s ease;
 }
 
-.pig-mascot:hover > .pig-brand-icon {
+.pig-mascot:hover > .pig-brand-icon,
+.pig-mascot:hover > p > .pig-brand-icon {
   transform: scale(1.055) rotate(-2deg);
   filter:
     drop-shadow(0 20px 32px rgba(0, 0, 0, .25))
@@ -50,14 +56,16 @@
 }
 
 @media (max-width: 760px) {
-  .pig-mascot > .pig-brand-icon {
+  .pig-mascot > .pig-brand-icon,
+  .pig-mascot > p > .pig-brand-icon {
     width: 68%;
     height: 68%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pig-mascot > .pig-brand-icon {
+  .pig-mascot > .pig-brand-icon,
+  .pig-mascot > p > .pig-brand-icon {
     transition: none;
   }
 }
