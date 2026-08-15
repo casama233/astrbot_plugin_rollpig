@@ -20,6 +20,11 @@ jobs:
           ref: release/private-source-cutover-integration
           fetch-depth: 0
 
+      - name: Configure integration committer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Fetch source cutover branch
         run: git fetch origin agent/private-source-service-cutover
 
