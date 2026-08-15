@@ -97,8 +97,9 @@ def test_locked_catalog_thumbnail_grays_and_darkens_only_artwork(tmp_path: Path)
     locked_subject = locked.getpixel((50, 50))
     assert max(locked_subject[:3]) - min(locked_subject[:3]) <= 1
     assert sum(locked_subject[:3]) < sum(unlocked_subject[:3])
-    # Transparent artwork margins still expose the same themed surface.
-    assert locked.getpixel((20, 20)) == unlocked.getpixel((20, 20))
+    # x=8 is outside the contained artwork (which starts at x=12) but remains
+    # safely inside the rounded surface at the vertical center.
+    assert locked.getpixel((8, 50)) == unlocked.getpixel((8, 50))
 
 
 def test_catalog_renderers_share_the_alpha_safe_thumbnail_helper():
