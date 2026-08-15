@@ -31,6 +31,34 @@ def get_reservation(
     return dict(row) if isinstance(row, Mapping) else None
 
 
+def list_pending_reservations(
+    state: Mapping[str, Any], draw_date: str, group_id: str
+) -> list[dict[str, Any]]:
+    """Return pending reservations for one natural-day group scope.
+
+    Rows are shallow copies so callers can inspect them without accidentally
+    mutating persisted state. The target id is normalized from the mapping key
+    when an older row omitted it.
+    """
+    dates = state.get("reservations", {}) if isinstance(state, Mapping) else {}
+    groups = dates.get(str(draw_date), {}) if isinstance(dates, Mapping) else {}
+    targets = groups.get(str(group_id), {}) if isinstance(groups, Mapping) else {}
+    if not isinstance(targets, Mapping):
+        return []
+
+    pending: list[dict[str, Any]] = []
+    for target_id, raw in targets.items():
+        if not isinstance(raw, Mapping):
+            continue
+        if str(raw.get("status") or "") != RESERVATION_PENDING:
+            continue
+        row = dict(raw)
+        row["target_id"] = str(row.get("target_id") or target_id)
+        pending.append(row)
+    pending.sort(key=lambda row: (int(row.get("created_at", 0) or 0), str(row["target_id"])))
+    return pending
+
+
 def create_or_join_reservation(
     state: dict[str, Any],
     *,
