@@ -22,6 +22,7 @@ try:
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
+    from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
@@ -33,6 +34,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
+    from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
     from state_persistence import DebouncedSnapshotWriter
 
@@ -40,6 +42,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 class RollPigPlugin(
     OvenRefillMixin,
     HelpFeatureMixin,
+    ReservationFirewoodMixin,
     RoastReservationMixin,
     DailyReportMixin,
     ExPublicSourceMixin,
@@ -159,6 +162,10 @@ class RollPigPlugin(
     @filter.command('烤群友', alias={'烤群友'}, priority=1000)
     async def roast_group_member(self, event: AstrMessageEvent, args: str=''):
         return await super().roast_group_member(event, args)
+
+    @filter.command('添柴', alias={'加柴', '烤箱添柴'}, priority=1000)
+    async def roast_reservation_add_firewood(self, event: AstrMessageEvent, args: str=''):
+        return await super().roast_reservation_add_firewood(event, args)
 
     @filter.command('随机烤群友', alias={'隨機烤群友'}, priority=1000)
     async def roast_random_group_member(self, event: AstrMessageEvent):

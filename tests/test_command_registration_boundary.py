@@ -4,7 +4,13 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPERS = ['legacy_main.py', 'daily_report_feature.py', 'ex_variant_feature.py', 'roast_reservation_feature.py']
+HELPERS = [
+    'legacy_main.py',
+    'daily_report_feature.py',
+    'ex_variant_feature.py',
+    'roast_reservation_feature.py',
+    'reservation_firewood_feature.py',
+]
 REPORT_ADAPTERS = {
     "pigsty_daily_report_status": "狀態",
     "pigsty_daily_report_enable": "開啟",
@@ -23,6 +29,7 @@ EXPECTED = {
     "random_pigs",
     "roast_group_member",
     "roast_random_group_member",
+    "roast_reservation_add_firewood",
     "roast_today_pig",
     "roll_pig",
     "rollpig_help",

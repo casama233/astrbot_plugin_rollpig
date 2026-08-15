@@ -106,6 +106,10 @@ def build_help_sections(
                 HelpEntry("/打點後廚 @某人", t("help.group.force_roast")),
             ]
         )
+        if state.enable_roast_reservation:
+            group_entries.append(
+                HelpEntry("/添柴 [@某人]", t("help.group.reservation_firewood"))
+            )
         if state.enable_oven_refill:
             group_entries.extend(
                 [
