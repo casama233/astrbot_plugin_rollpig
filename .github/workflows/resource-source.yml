@@ -7,7 +7,6 @@ on:
       - "resource/**"
       - "scripts/build_resource_source.py"
       - "scripts/prepare_resource_catalog.py"
-      - "scripts/migrate_public_source_compat.py"
       - ".github/workflows/resource-source.yml"
   pull_request:
     branches: [main]
@@ -15,7 +14,6 @@ on:
       - "resource/**"
       - "scripts/build_resource_source.py"
       - "scripts/prepare_resource_catalog.py"
-      - "scripts/migrate_public_source_compat.py"
       - ".github/workflows/resource-source.yml"
   workflow_dispatch:
 
