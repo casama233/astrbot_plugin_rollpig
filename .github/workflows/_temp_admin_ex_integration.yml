@@ -1,0 +1,83 @@
+name: Temporary admin EX integration patch
+
+on:
+  push:
+    branches:
+      - fix/admin-ex-public-source-actions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out patch branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-ex-public-source-actions
+          fetch-depth: 0
+
+      - name: Patch main pig manager entry points
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('pages/pig-manager/index.html')
+          text = path.read_text(encoding='utf-8')
+
+          if './ex-integration.css' not in text:
+              marker = '</head>'
+              assert marker in text
+              text = text.replace(marker, '  <link rel="stylesheet" href="./ex-integration.css">\n</head>', 1)
+
+          if './ex-integration.js' not in text:
+              marker = '<script type="module">\nconst bridge=window.AstrBotPluginPage;'
+              assert marker in text
+              text = text.replace(marker, '<script type="module" src="./ex-integration.js"></script>\n' + marker, 1)
+
+          old = '<div class="pig-actions"><button class="btn ghost" data-edit="${i}">编辑</button><button class="btn ghost" data-delete="${i}">删除</button></div>'
+          new = '<div class="pig-actions"><button class="btn ghost" data-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" data-delete="${i}">删除</button></div>'
+          if 'data-ex-manager="${esc(p.id)}"' not in text:
+              assert text.count(old) == 1, text.count(old)
+              text = text.replace(old, new, 1)
+
+          old_layer = '<button class="btn ghost" data-layer-edit="${i}">编辑</button><button class="btn ghost" type="button" data-submit="${i}">投稿公共源</button>'
+          new_layer = '<button class="btn ghost" data-layer-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" type="button" data-submit="${i}">投稿公共源</button>'
+          if 'data-layer-edit="${i}">编辑</button><button class="btn ghost ex-entry"' not in text:
+              assert text.count(old_layer) == 1, text.count(old_layer)
+              text = text.replace(old_layer, new_layer, 1)
+
+          old_detail = '''  <div class="review-analysis" id="publicSourceDetailAnalysis" style="height:auto;max-height:260px;margin-top:16px"></div>\n  <div class="dialog-actions"><button class="btn ghost" type="button" id="publicSourceDetailDone">关闭</button></div>'''
+          new_detail = '''  <div class="review-analysis" id="publicSourceDetailAnalysis" style="height:auto;max-height:260px;margin-top:16px"></div>\n  <div id="publicSourceExSummary" class="public-source-ex-summary"><strong>当前实例 EX 1–5</strong><small>点开公共小猪后会读取当前实例实际生效阶段。</small></div>\n  <div class="dialog-actions"><button class="btn ghost" type="button" id="publicSourceLocateLocal">在本地图鉴定位</button><button class="btn ghost" type="button" id="publicSourceManageEx">管理本地 EX</button><button class="btn ghost" type="button" id="publicSourceDetailDone">关闭</button></div>'''
+          if 'id="publicSourceManageEx"' not in text:
+              assert text.count(old_detail) == 1, text.count(old_detail)
+              text = text.replace(old_detail, new_detail, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          js = Path('pages/pig-manager/ex-integration.js').read_text(encoding='utf-8')
+          css = Path('pages/pig-manager/ex-integration.css').read_text(encoding='utf-8')
+          assert './ex-integration.css' in page
+          assert './ex-integration.js' in page
+          assert page.count('data-ex-manager="${esc(p.id)}"') >= 2
+          assert 'id="publicSourceExSummary"' in page
+          assert 'id="publicSourceManageEx"' in page
+          assert 'id="publicSourceLocateLocal"' in page
+          assert 'ex/variants/save' in js and 'ex/variants/delete' in js and 'ex/variants/image' in js
+          assert '.ex-manager-modal' in css and '@media(max-width:760px)' in css
+          PY
+
+      - name: Commit final patch and remove temporary workflow
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/_temp_admin_ex_integration.yml
+          git add pages/pig-manager/index.html pages/pig-manager/ex-integration.js pages/pig-manager/ex-integration.css tests/test_admin_ex_integration_contract.py
+          git commit -m "feat: integrate EX management into main admin page"
+          git push origin HEAD:fix/admin-ex-public-source-actions
