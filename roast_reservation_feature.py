@@ -156,7 +156,7 @@ class RoastReservationMixin:
                 if self._get_daily_pig(target_id, self._today()):
                     await event.send(
                         event.plain_result(
-                            "🔥 目标刚刚现身，原预约正在结算；这次不再重复加入。"
+                            "🔥 目标刚刚现身，原预约正在结算；这次不再重复添柴。"
                         )
                     )
                     return True
@@ -178,12 +178,12 @@ class RoastReservationMixin:
                 if status == "full":
                     await event.send(
                         event.plain_result(
-                            f"🪵 这口预约烤箱已经挤满了，最多 {self.roast_reservation_max_participants} 人加入蹲守。"
+                            f"🪵 这口预约烤箱已经塞满柴了，最多 {self.roast_reservation_max_participants} 人一起蹲守。"
                         )
                     )
                 elif status == "existing":
                     await event.send(
-                        event.plain_result("🪵 你已经在这口预约烤箱旁蹲着了。")
+                        event.plain_result("🪵 你已经给这口预约烤箱添过柴了。")
                     )
                 else:
                     writer = getattr(self, "_record_gameplay_event", None)
@@ -203,7 +203,7 @@ class RoastReservationMixin:
                     await self._send_with_mention(
                         event,
                         target_id,
-                        f" 🪵 又有人加入预约蹲守；现在共有 {len(participants)} 人等待结算。",
+                        f" 🪵 又有人悄悄添了一把柴；现在共有 {len(participants)} 人蹲守。",
                     )
                 return True
 
@@ -257,7 +257,7 @@ class RoastReservationMixin:
                 event,
                 target_id,
                 " 🔥 今天还没抽猪，烤箱已被提前预热；等你在本群现身抽猪后自动结算。"
-                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人通过再次 /烤群友 @你 加入蹲守。"
+                f"主厨已就位，最多可有 {self.roast_reservation_max_participants} 人一起添柴；想加入就再次 /烤群友 @你。"
                 + self._roast_charge_note(charge_status),
             )
             logger.info(
@@ -340,7 +340,7 @@ class RoastReservationMixin:
         await self._send_with_mention(
             event,
             target_id,
-            f" 🔥 刚抽完猪，提前埋伏的烤箱立刻点燃！主厨带着 {max(0, len(participants) - 1)} 位蹲守群友开始结算。",
+            f" 🔥 刚抽完猪，提前埋伏的烤箱立刻点燃！主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。",
         )
 
         if outcome == "escape":
