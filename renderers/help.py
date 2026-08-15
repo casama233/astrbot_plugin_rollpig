@@ -9,21 +9,22 @@ from PIL import ImageDraw, ImageFont
 
 try:
     from ..help_system import HelpEntry, HelpSection
-    from ..wiki_links import WIKI_HOME_URL
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from help_system import HelpEntry, HelpSection
-    from wiki_links import WIKI_HOME_URL
 
 
 CARD_WIDTH = 1040
-OUTER_MARGIN = 28
-COLUMN_GAP = 18
-HEADER_HEIGHT = 176
-FOOTER_HEIGHT = 96
-SECTION_GAP = 18
-SECTION_HEADER_HEIGHT = 54
-ROW_GAP = 8
-DETAIL_LINE_HEIGHT = 24
+OUTER_MARGIN = 26
+COLUMN_GAP = 16
+HEADER_HEIGHT = 138
+FOOTER_HEIGHT = 62
+SECTION_GAP = 12
+SECTION_HEADER_HEIGHT = 38
+ROW_GAP = 3
+COMMAND_ROW_HEIGHT = 44
+FEATURE_ROW_HEIGHT = 36
+SECTION_BOTTOM_PADDING = 12
+COMMAND_COLUMN_WIDTH = 190
 PNG_COMPRESS_LEVEL = 1
 
 
@@ -39,6 +40,13 @@ class PreparedSection:
     section: HelpSection
     entries: tuple[PreparedEntry, ...]
     height: int
+
+
+@dataclass(frozen=True)
+class PlacedSection:
+    prepared: PreparedSection
+    column: int
+    top: int
 
 
 def _font_variant(font: ImageFont.ImageFont, size: int) -> ImageFont.ImageFont:
@@ -59,35 +67,28 @@ def _text_width(text: str, font: ImageFont.ImageFont) -> int:
         return max(0, int(getattr(font, "getlength", lambda value: len(value) * 10)(text)))
 
 
-def _wrap_text(text: str, font: ImageFont.ImageFont, max_width: int) -> tuple[str, ...]:
-    """Width-wrap CJK-friendly text with logarithmic prefix probes."""
+def _ellipsize_text(text: str, font: ImageFont.ImageFont, max_width: int) -> str:
+    """Keep help summaries to one visual line without overflowing the card."""
 
     text = str(text or "").strip()
     if not text:
-        return ("",)
+        return ""
     max_width = max(1, int(max_width))
     if _text_width(text, font) <= max_width:
-        return (text,)
+        return text
 
-    lines: list[str] = []
-    start = 0
-    while start < len(text):
-        remaining = text[start:]
-        if _text_width(remaining, font) <= max_width:
-            lines.append(remaining)
-            break
-        low, high = 1, len(remaining)
-        best = 1
-        while low <= high:
-            mid = (low + high) // 2
-            if _text_width(remaining[:mid], font) <= max_width:
-                best = mid
-                low = mid + 1
-            else:
-                high = mid - 1
-        lines.append(remaining[:best])
-        start += best
-    return tuple(lines)
+    suffix = "…"
+    low, high = 0, len(text)
+    best = ""
+    while low <= high:
+        mid = (low + high) // 2
+        candidate = text[:mid].rstrip() + suffix
+        if _text_width(candidate, font) <= max_width:
+            best = candidate
+            low = mid + 1
+        else:
+            high = mid - 1
+    return best or suffix
 
 
 def prepare_help_sections(
@@ -96,16 +97,21 @@ def prepare_help_sections(
     detail_font: ImageFont.ImageFont,
     column_width: int,
 ) -> tuple[PreparedSection, ...]:
-    """Pre-compute wrapping and heights once before allocating the canvas."""
+    """Pre-compute one-line summaries and compact section heights."""
 
-    detail_width = max(80, column_width - 44)
+    detail_width = max(
+        80,
+        column_width - 28 - COMMAND_COLUMN_WIDTH - 28,
+    )
     prepared: list[PreparedSection] = []
     for section in sections:
         rows: list[PreparedEntry] = []
         for entry in section.entries:
-            lines = _wrap_text(entry.detail, detail_font, detail_width)
-            row_height = 34 + max(1, len(lines)) * DETAIL_LINE_HEIGHT + 14
-            rows.append(PreparedEntry(entry, lines, row_height))
+            detail = _ellipsize_text(entry.detail, detail_font, detail_width)
+            row_height = (
+                COMMAND_ROW_HEIGHT if entry.kind == "command" else FEATURE_ROW_HEIGHT
+            )
+            rows.append(PreparedEntry(entry, (detail,), row_height))
         content_height = sum(row.height for row in rows)
         if rows:
             content_height += ROW_GAP * (len(rows) - 1)
@@ -113,20 +119,43 @@ def prepare_help_sections(
             PreparedSection(
                 section=section,
                 entries=tuple(rows),
-                height=SECTION_HEADER_HEIGHT + content_height + 18,
+                height=(
+                    SECTION_HEADER_HEIGHT
+                    + content_height
+                    + SECTION_BOTTOM_PADDING
+                ),
             )
         )
     return tuple(prepared)
 
 
-def help_card_height(prepared: tuple[PreparedSection, ...]) -> int:
-    """Return the compact two-column card height for the visible sections."""
+def _place_sections(
+    prepared: tuple[PreparedSection, ...],
+) -> tuple[tuple[PlacedSection, ...], int]:
+    """Balance independent-height sections across two columns.
 
-    height = HEADER_HEIGHT + 18
-    for index in range(0, len(prepared), 2):
-        pair = prepared[index : index + 2]
-        height += max(section.height for section in pair) + SECTION_GAP
-    return max(640, height + FOOTER_HEIGHT - SECTION_GAP)
+    The old renderer forced each left/right pair to the taller height, producing
+    large empty slabs whenever a short section was paired with a long one. A
+    tiny masonry layout preserves reading order while removing that dead space.
+    """
+
+    column_tops = [HEADER_HEIGHT + 6, HEADER_HEIGHT + 6]
+    placed: list[PlacedSection] = []
+    for section in prepared:
+        column = 0 if column_tops[0] <= column_tops[1] else 1
+        top = column_tops[column]
+        placed.append(PlacedSection(section, column, top))
+        column_tops[column] += section.height + SECTION_GAP
+
+    bottom = max(column_tops) - (SECTION_GAP if prepared else 0)
+    return tuple(placed), bottom
+
+
+def help_card_height(prepared: tuple[PreparedSection, ...]) -> int:
+    """Return compact masonry card height for the visible sections."""
+
+    _placed, bottom = _place_sections(prepared)
+    return max(560, bottom + FOOTER_HEIGHT)
 
 
 def _draw_entry(
@@ -144,30 +173,37 @@ def _draw_entry(
     accent = palette["accent"]
     title = palette["title"]
     secondary = palette["secondary"]
-    muted_surface = palette["surface_muted"]
 
-    draw.rounded_rectangle(
-        (left, top, right, top + prepared.height),
-        18,
-        fill=muted_surface,
-    )
+    center_y = top + prepared.height // 2
+    bar_height = 20 if entry.kind == "command" else 16
     bar_fill = accent if entry.kind != "status" else palette.get("muted", accent)
-    draw.rounded_rectangle((left + 13, top + 13, left + 18, top + 42), 3, fill=bar_fill)
+    draw.rounded_rectangle(
+        (left, center_y - bar_height // 2, left + 4, center_y + bar_height // 2),
+        2,
+        fill=bar_fill,
+    )
+
+    command_x = left + 14
+    detail_x = command_x + COMMAND_COLUMN_WIDTH
+    command_fill = title if entry.kind == "command" else accent
     draw.text(
-        (left + 29, top + 11),
+        (command_x, top + (10 if entry.kind == "command" else 7)),
         entry.command,
         font=command_font,
-        fill=title,
+        fill=command_fill,
     )
-    detail_y = top + 43
-    for line in prepared.detail_lines:
-        draw.text(
-            (left + 29, detail_y),
-            line,
-            font=detail_font,
-            fill=secondary,
-        )
-        detail_y += DETAIL_LINE_HEIGHT
+    draw.text(
+        (detail_x, top + (11 if entry.kind == "command" else 8)),
+        prepared.detail_lines[0],
+        font=detail_font,
+        fill=secondary,
+    )
+
+    draw.line(
+        (left + 14, top + prepared.height - 1, right, top + prepared.height - 1),
+        fill=palette["surface_muted"],
+        width=1,
+    )
 
 
 def _draw_section(
@@ -180,10 +216,10 @@ def _draw_section(
     detail_font: ImageFont.ImageFont,
     palette: dict,
 ) -> None:
-    left, top, right, bottom = box
-    draw.rounded_rectangle(box, 24, fill=palette["surface"])
+    left, top, right, _bottom = box
+    draw.rounded_rectangle(box, 22, fill=palette["surface"])
     draw.text(
-        (left + 22, top + 16),
+        (left + 20, top + 9),
         prepared.section.title,
         font=section_font,
         fill=palette["accent"],
@@ -194,9 +230,9 @@ def _draw_section(
         _draw_entry(
             draw,
             row,
-            left=left + 14,
+            left=left + 16,
             top=row_top,
-            right=right - 14,
+            right=right - 16,
             command_font=command_font,
             detail_font=detail_font,
             palette=palette,
@@ -212,16 +248,14 @@ def render_help_card(
     palette: dict,
     font_bold: ImageFont.ImageFont,
 ) -> Path:
-    """Render a responsive, compact help image for the currently enabled features."""
+    """Render a short, scan-first help image for the currently enabled features."""
 
-    title_font = _font_variant(font_bold, 50)
-    subtitle_font = _font_variant(font_bold, 20)
-    section_font = _font_variant(font_bold, 25)
-    command_font = _font_variant(font_bold, 20)
-    detail_font = _font_variant(font_bold, 17)
-    badge_font = _font_variant(font_bold, 16)
-    footer_font = _font_variant(font_bold, 16)
-    footer_url_font = _font_variant(font_bold, 14)
+    title_font = _font_variant(font_bold, 44)
+    subtitle_font = _font_variant(font_bold, 17)
+    section_font = _font_variant(font_bold, 21)
+    command_font = _font_variant(font_bold, 17)
+    detail_font = _font_variant(font_bold, 15)
+    footer_font = _font_variant(font_bold, 15)
 
     column_width = (CARD_WIDTH - OUTER_MARGIN * 2 - COLUMN_GAP) // 2
     prepared = prepare_help_sections(
@@ -229,76 +263,51 @@ def render_help_card(
         detail_font=detail_font,
         column_width=column_width,
     )
+    placed, _bottom = _place_sections(prepared)
     height = help_card_height(prepared)
 
     canvas = PILImage.new("RGB", (CARD_WIDTH, height), palette["canvas"])
     draw = ImageDraw.Draw(canvas)
 
-    header_bottom = HEADER_HEIGHT - 12
     draw.rounded_rectangle(
-        (OUTER_MARGIN, 22, CARD_WIDTH - OUTER_MARGIN, header_bottom),
-        28,
+        (OUTER_MARGIN, 20, CARD_WIDTH - OUTER_MARGIN, 124),
+        26,
         fill=palette["surface"],
     )
     draw.text(
-        (OUTER_MARGIN + 30, 43),
-        "今日小猪 · 指令帮助",
+        (OUTER_MARGIN + 26, 34),
+        "今日小豬 · 快速指令",
         font=title_font,
         fill=palette["title"],
     )
     draw.text(
-        (OUTER_MARGIN + 32, 108),
-        "只显示当前已启用功能 · 繁体／简体别名均可使用",
+        (OUTER_MARGIN + 28, 91),
+        "只列已啟用功能 · 每條只說一件事 · 繁／簡別名都可用",
         font=subtitle_font,
         fill=palette["secondary"],
     )
-    badge = "DYNAMIC HELP"
-    badge_width = _text_width(badge, badge_font) + 34
-    badge_left = CARD_WIDTH - OUTER_MARGIN - badge_width - 24
-    draw.rounded_rectangle(
-        (badge_left, 58, CARD_WIDTH - OUTER_MARGIN - 24, 94),
-        18,
-        fill=palette["surface_muted"],
-    )
-    draw.text(
-        (badge_left + 17, 66),
-        badge,
-        font=badge_font,
-        fill=palette["accent"],
-    )
 
-    y = HEADER_HEIGHT + 6
-    for index in range(0, len(prepared), 2):
-        pair = prepared[index : index + 2]
-        row_height = max(section.height for section in pair)
-        for offset, section in enumerate(pair):
-            left = OUTER_MARGIN + offset * (column_width + COLUMN_GAP)
-            right = left + column_width
-            _draw_section(
-                draw,
-                section,
-                box=(left, y, right, y + row_height),
-                section_font=section_font,
-                command_font=command_font,
-                detail_font=detail_font,
-                palette=palette,
-            )
-        y += row_height + SECTION_GAP
+    for item in placed:
+        left = OUTER_MARGIN + item.column * (column_width + COLUMN_GAP)
+        right = left + column_width
+        section = item.prepared
+        _draw_section(
+            draw,
+            section,
+            box=(left, item.top, right, item.top + section.height),
+            section_font=section_font,
+            command_font=command_font,
+            detail_font=detail_font,
+            palette=palette,
+        )
 
-    footer = "完整玩法 · 管理 · 投稿 · 排障，请前往 今日小猪 Wiki"
+    footer = "完整規則 · 管理 · 投稿 · 排障 → 今日小豬 Wiki（下方有連結）"
     footer_width = _text_width(footer, footer_font)
     draw.text(
-        ((CARD_WIDTH - footer_width) // 2, height - 68),
+        ((CARD_WIDTH - footer_width) // 2, height - 39),
         footer,
         font=footer_font,
         fill=palette["accent"],
-    )
-    url_width = _text_width(WIKI_HOME_URL, footer_url_font)
-    draw.text(
-        ((CARD_WIDTH - url_width) // 2, height - 40),
-        WIKI_HOME_URL,
-        font=footer_url_font,
-        fill=palette["muted"],
     )
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
