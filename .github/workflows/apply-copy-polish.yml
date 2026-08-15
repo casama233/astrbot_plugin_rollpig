@@ -33,6 +33,11 @@ jobs:
               if old not in text:
                   raise SystemExit(f'mapping baseline not found: {old}')
               text = text.replace(old, new)
+          old_loop = '    for old, new in replacements:'
+          new_loop = '    for old, new in sorted(replacements, key=lambda pair: len(pair[0]), reverse=True):'
+          if old_loop not in text:
+              raise SystemExit('replace_many loop baseline not found')
+          text = text.replace(old_loop, new_loop, 1)
           old_replace = '        text = text.replace(old, new)'
           new_replace = '        text = text.replace(old, new, 1) if path == "player_copy.py" else text.replace(old, new)'
           if old_replace not in text:
