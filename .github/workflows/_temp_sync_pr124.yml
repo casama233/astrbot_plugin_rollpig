@@ -23,6 +23,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git merge -X ours --no-edit origin/main
+      - name: Reconcile traditional-font regression import
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_help_renderer.py')
+          text = path.read_text(encoding='utf-8')
+          marker = 'from renderers.help import ('
+          alias = 'from renderers import help as help_renderer\n'
+          if alias not in text:
+              if marker not in text:
+                  raise SystemExit('renderers.help import marker not found')
+              text = text.replace(marker, alias + marker, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
       - name: Validate combined help implementation
         run: |
           python -m compileall -q help_feature.py player_copy.py renderers/help.py
