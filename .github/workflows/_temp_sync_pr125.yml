@@ -1,0 +1,41 @@
+name: Temporary sync PR 125
+
+on:
+  push:
+    branches:
+      - fix/admin-trend-pulse
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/admin-trend-pulse
+      - name: Merge latest main while preserving trend conflict hunks
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge -X ours --no-edit origin/main
+      - name: Validate combined admin page
+        run: |
+          python -m pip install -q pytest
+          pytest -q tests/test_admin_trend_ui_contract.py tests/test_wiki_product_bridge.py
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          assert 'target="_self"' in text
+          assert 'trend-summary' in text
+          PY
+      - name: Remove temporary workflow and push synchronized branch
+        run: |
+          rm -f .github/workflows/_temp_sync_pr125.yml
+          git add -A
+          git commit -m "chore: reconcile admin trend with latest main" || true
+          git push origin HEAD:fix/admin-trend-pulse
