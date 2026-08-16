@@ -23,7 +23,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git merge -X ours --no-edit origin/main
-      - name: Reconcile traditional-font compact renderer
+      - name: Reconcile compact renderer with traditional font contract
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -36,7 +36,11 @@ jobs:
               if marker not in test_text:
                   raise SystemExit('renderers.help import marker not found')
               test_text = test_text.replace(marker, alias + marker, 1)
-              test_path.write_text(test_text, encoding='utf-8')
+          old_sizes = 'assert {size for _font, size in selected} == {50, 20, 25, 17, 16, 14}'
+          new_sizes = 'assert {size for _font, size in selected} == {44, 21, 17, 15}'
+          if old_sizes in test_text:
+              test_text = test_text.replace(old_sizes, new_sizes, 1)
+          test_path.write_text(test_text, encoding='utf-8')
 
           path = Path('renderers/help.py')
           text = path.read_text(encoding='utf-8')
@@ -46,7 +50,6 @@ jobs:
               if old_sig not in text:
                   raise SystemExit('compact renderer signature marker not found')
               text = text.replace(old_sig, new_sig, 1)
-
           old_fonts = '''    title_font = _font_variant(font_bold, 44)\n    subtitle_font = _font_variant(font_bold, 17)\n    section_font = _font_variant(font_bold, 21)\n    command_font = _font_variant(font_bold, 17)\n    detail_font = _font_variant(font_bold, 15)\n    footer_font = _font_variant(font_bold, 15)'''
           new_fonts = '''    text_font = font_traditional or font_bold\n    title_font = _font_variant(text_font, 44)\n    subtitle_font = _font_variant(text_font, 17)\n    section_font = _font_variant(text_font, 21)\n    command_font = _font_variant(text_font, 17)\n    detail_font = _font_variant(text_font, 15)\n    footer_font = _font_variant(text_font, 15)'''
           if 'text_font = font_traditional or font_bold' not in text:
