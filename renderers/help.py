@@ -211,17 +211,26 @@ def render_help_card(
     *,
     palette: dict,
     font_bold: ImageFont.ImageFont,
+    font_traditional: ImageFont.ImageFont | None = None,
 ) -> Path:
-    """Render a responsive, compact help image for the currently enabled features."""
+    """Render a compact help image with complete Traditional Chinese coverage.
 
-    title_font = _font_variant(font_bold, 50)
-    subtitle_font = _font_variant(font_bold, 20)
-    section_font = _font_variant(font_bold, 25)
-    command_font = _font_variant(font_bold, 20)
-    detail_font = _font_variant(font_bold, 17)
-    badge_font = _font_variant(font_bold, 16)
-    footer_font = _font_variant(font_bold, 16)
-    footer_url_font = _font_variant(font_bold, 14)
+    Pillow does not provide browser-style font fallback for missing glyphs. The
+    bundled display font is intentionally decorative and does not cover every
+    Traditional Chinese code point used by the zh-TW help catalog, so prefer the
+    plugin's full Traditional CJK face when it is available. ``font_bold`` stays
+    as a compatibility fallback for older installations and direct renderer use.
+    """
+
+    text_font = font_traditional or font_bold
+    title_font = _font_variant(text_font, 50)
+    subtitle_font = _font_variant(text_font, 20)
+    section_font = _font_variant(text_font, 25)
+    command_font = _font_variant(text_font, 20)
+    detail_font = _font_variant(text_font, 17)
+    badge_font = _font_variant(text_font, 16)
+    footer_font = _font_variant(text_font, 16)
+    footer_url_font = _font_variant(text_font, 14)
 
     column_width = (CARD_WIDTH - OUTER_MARGIN * 2 - COLUMN_GAP) // 2
     prepared = prepare_help_sections(
@@ -242,13 +251,13 @@ def render_help_card(
     )
     draw.text(
         (OUTER_MARGIN + 30, 43),
-        "今日小猪 · 指令帮助",
+        "今日小豬 · 指令幫助",
         font=title_font,
         fill=palette["title"],
     )
     draw.text(
         (OUTER_MARGIN + 32, 108),
-        "只显示当前已启用功能 · 繁体／简体别名均可使用",
+        "只顯示目前已啟用功能 · 繁體／簡體別名均可使用",
         font=subtitle_font,
         fill=palette["secondary"],
     )
@@ -285,7 +294,7 @@ def render_help_card(
             )
         y += row_height + SECTION_GAP
 
-    footer = "完整玩法 · 管理 · 投稿 · 排障，请前往 今日小猪 Wiki"
+    footer = "完整玩法 · 管理 · 投稿 · 排障，請前往 今日小豬 Wiki"
     footer_width = _text_width(footer, footer_font)
     draw.text(
         ((CARD_WIDTH - footer_width) // 2, height - 68),
