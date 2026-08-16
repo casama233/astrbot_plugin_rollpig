@@ -43,16 +43,18 @@ def test_help_cache_identity_comes_from_actual_visible_sections():
     assert "help_sections_fingerprint" in source
 
 
-def test_help_cache_tracks_traditional_font_and_invalidates_old_bitmaps():
+def test_help_cache_uses_standard_cn_font_and_invalidates_old_bitmaps():
     cls = _class("help_feature.py", "HelpFeatureMixin")
     class_source = ast.unparse(cls)
     font_source = ast.unparse(_method(cls, "_help_font_identity"))
     ensure_source = ast.unparse(_method(cls, "_ensure_help_master"))
+    sections_source = ast.unparse(_method(cls, "_help_sections"))
 
-    assert "HELP_RENDER_CACHE_VERSION = 4" in class_source
-    assert "font_traditional" in font_source
-    assert "font_traditional" in ensure_source
-    assert "getattr(self, 'font_traditional', None)" in ensure_source
+    assert "HELP_RENDER_CACHE_VERSION = 5" in class_source
+    assert "font_bold" in font_source
+    assert "font_traditional" not in font_source
+    assert "font_traditional" not in ensure_source
+    assert "locale='zh-CN'" in sections_source
 
 
 def test_help_cache_keeps_master_and_returns_disposable_output():
