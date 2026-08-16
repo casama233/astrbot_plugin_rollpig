@@ -30,7 +30,7 @@ _HELP_CACHE_LOCK = threading.Lock()
 class HelpFeatureMixin:
     """Configuration-aware RollPig help model, rendering and caching."""
 
-    HELP_RENDER_CACHE_VERSION = 3
+    HELP_RENDER_CACHE_VERSION = 4
     HELP_RENDER_CACHE_KEEP = 8
 
     def _help_feature_state(self) -> HelpFeatureState:
@@ -74,14 +74,25 @@ class HelpFeatureMixin:
     def _help_sections(self):
         return build_help_sections(self._help_feature_state())
 
-    def _help_font_identity(self) -> str:
-        font = self.font_bold
+    @staticmethod
+    def _font_identity(font) -> str:
+        if font is None:
+            return "none"
         path = str(getattr(font, "path", "") or "")
         try:
             family = "/".join(str(item) for item in font.getname())
         except Exception:
             family = font.__class__.__name__
         return f"{path}|{family}"
+
+    def _help_font_identity(self) -> str:
+        """Fingerprint every font that can affect the cached help bitmap."""
+
+        traditional = getattr(self, "font_traditional", None)
+        return (
+            f"bold={self._font_identity(self.font_bold)}|"
+            f"traditional={self._font_identity(traditional)}"
+        )
 
     def _help_cache_identity(self) -> str:
         """Hash actual visible content and visual inputs to prevent stale masters."""
@@ -141,6 +152,7 @@ class HelpFeatureMixin:
             kwargs = {
                 "palette": self._image_palette(),
                 "font_bold": self.font_bold,
+                "font_traditional": getattr(self, "font_traditional", None),
             }
             gate = getattr(self, "_run_with_render_slot", None)
             if callable(gate):
