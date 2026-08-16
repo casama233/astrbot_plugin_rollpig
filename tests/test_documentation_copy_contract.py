@@ -22,11 +22,11 @@ def test_player_wiki_promotes_canonical_firewood_not_legacy_coal():
     for relative in player_pages:
         assert "/添煤" not in _read(relative), relative
 
-    # Pages that actually teach the player which command to type must surface
-    # the canonical firewood entry. The report page only describes aggregated
-    # event kinds and does not need to repeat command syntax.
+    # Only pages that actually teach the player which command to type must
+    # surface the canonical firewood entry. The player-first landing page is a
+    # navigation surface and deliberately avoids duplicating volatile rules;
+    # the report page only describes aggregated event kinds.
     command_pages = (
-        "docs/index.md",
         "docs/getting-started/index.md",
         "docs/gameplay/index.md",
         "docs/gameplay/roast-charge.md",
