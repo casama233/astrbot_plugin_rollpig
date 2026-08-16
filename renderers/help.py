@@ -251,7 +251,9 @@ def render_help_card(
 ) -> Path:
     """Render a short, scan-first help image for the currently enabled features."""
 
-    text_font = font_traditional or font_bold
+    # The generated quick-command card is intentionally Simplified Chinese.
+    # Keep the compatibility parameter, but never switch to the Traditional-only fallback.
+    text_font = font_bold
     title_font = _font_variant(text_font, 44)
     subtitle_font = _font_variant(text_font, 17)
     section_font = _font_variant(text_font, 21)
@@ -278,13 +280,13 @@ def render_help_card(
     )
     draw.text(
         (OUTER_MARGIN + 26, 34),
-        "今日小豬 · 快速指令",
+        "今日小猪 · 快速指令",
         font=title_font,
         fill=palette["title"],
     )
     draw.text(
         (OUTER_MARGIN + 28, 91),
-        "只列已啟用功能 · 每條只說一件事 · 繁／簡別名都可用",
+        "只列已启用功能 · 每条只说一件事 · 简繁别名都可用",
         font=subtitle_font,
         fill=palette["secondary"],
     )
@@ -303,7 +305,7 @@ def render_help_card(
             palette=palette,
         )
 
-    footer = "完整規則 · 管理 · 投稿 · 排障 → 今日小豬 Wiki（下方有連結）"
+    footer = "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）"
     footer_width = _text_width(footer, footer_font)
     draw.text(
         ((CARD_WIDTH - footer_width) // 2, height - 39),

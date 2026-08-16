@@ -80,9 +80,22 @@ def test_dynamic_help_uses_same_model_with_traditional_and_simplified_copy():
     assert "猪圈日报" in cn
     assert "EX 成长" in cn
 
-    # Commands are stable protocol/UI tokens; only copy is localized.
+    # Displayed command labels follow locale; both spellings remain registered aliases.
     assert "/今日小豬" in tw
-    assert "/今日小豬" in cn
+    assert "/今日小猪" in cn
+    assert "/今日小豬" not in cn
+
+
+def test_dynamic_help_defaults_to_simplified_chinese_for_generated_card():
+    rows = []
+    for section in build_help_sections(HelpFeatureState(at_view_pig=True)):
+        rows.append(section.title)
+        rows.extend(f"{entry.command} {entry.detail}" for entry in section.entries)
+    text = "\n".join(rows)
+    assert "每天抽猪" in text
+    assert "/今日小猪" in text
+    assert "/猪圈日报" in text
+    assert "/烤箱补货" in text
 
 
 def test_help_copy_cannot_regress_to_inline_player_facing_literals():

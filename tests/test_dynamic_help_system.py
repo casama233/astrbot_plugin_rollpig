@@ -8,9 +8,9 @@ from help_system import HelpFeatureState, build_help_sections, help_sections_fin
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_ADAPTERS = {
-    "pigsty_daily_report_status": "/豬圈日報狀態",
-    "pigsty_daily_report_enable": "/豬圈日報開啟／關閉",
-    "pigsty_daily_report_disable": "/豬圈日報開啟／關閉",
+    "pigsty_daily_report_status": "/猪圈日报状态",
+    "pigsty_daily_report_enable": "/猪圈日报开启／关闭",
+    "pigsty_daily_report_disable": "/猪圈日报开启／关闭",
 }
 COMPAT_ADAPTERS = {"oven_refill_support_compat": "/添柴"}
 
@@ -71,18 +71,18 @@ def test_disabled_features_are_omitted_instead_of_advertised():
     )
     commands = _commands(state)
 
-    assert "/今日小豬 @某人" not in commands
-    assert "/今日烤豬" not in commands
+    assert "/今日小猪 @某人" not in commands
+    assert "/今日烤猪" not in commands
     assert "/烤群友 @某人" not in commands
-    assert "/隨機烤群友" not in commands
-    assert "/打點後廚 @某人" not in commands
+    assert "/随机烤群友" not in commands
+    assert "/打点后厨 @某人" not in commands
     assert "/添柴" not in commands
     assert "/吃群友 @某人" not in commands
-    assert "/隨機吃群友" not in commands
-    assert not any(command.startswith("/豬圈日報") for command in commands)
+    assert "/随机吃群友" not in commands
+    assert not any(command.startswith("/猪圈日报") for command in commands)
     assert not any("新豬保底" in command for command in commands)
     assert not any("跨日疲勞" in command for command in commands)
-    assert not any("預約烤豬" in command for command in commands)
+    assert not any("预约烤猪" in command for command in commands)
 
 
 def test_enabled_features_expose_new_report_and_reservation_capabilities():
@@ -101,17 +101,17 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     )
     commands = _commands(state)
 
-    assert "/今日小豬 @某人" in commands
-    assert "/豬圈日報狀態" in commands
-    assert "/烤箱補貨" in commands
+    assert "/今日小猪 @某人" in commands
+    assert "/猪圈日报状态" in commands
+    assert "/烤箱补货" in commands
     assert "/添柴" in commands
     assert "/添煤" not in commands
-    assert "/豬圈日報開啟／關閉" in commands
-    assert any("自動日報" in command for command in commands)
-    assert any("預約烤豬" in command for command in commands)
-    assert any("次日保護" in command for command in commands)
+    assert "/猪圈日报开启／关闭" in commands
+    assert any("自动日报" in command for command in commands)
+    assert any("预约烤猪" in command for command in commands)
+    assert any("次日保护" in command for command in commands)
     assert any("AI 料理文案" in command for command in commands)
-    assert any("日報祭品" in command for command in commands)
+    assert any("日报祭品" in command for command in commands)
 
 
 def test_reservation_only_configuration_still_exposes_contextual_firewood():
@@ -124,7 +124,7 @@ def test_reservation_only_configuration_still_exposes_contextual_firewood():
         )
     )
     assert "/添柴" in commands
-    assert "/烤箱補貨" not in commands
+    assert "/烤箱补货" not in commands
 
 
 def test_all_registered_commands_have_script_aware_help_coverage_when_enabled():
