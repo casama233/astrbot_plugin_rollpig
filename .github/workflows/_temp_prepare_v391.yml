@@ -1,0 +1,162 @@
+name: Temporary prepare v3.9.1
+
+on:
+  push:
+    branches:
+      - release/v3.9.1-maintenance
+    paths:
+      - .github/workflows/_temp_prepare_v391.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare release metadata, notes and changelog
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+
+          root = Path('.')
+          version = '3.9.1'
+          release_date = '2026-08-17'
+
+          metadata_path = root / 'metadata.yaml'
+          metadata = metadata_path.read_text(encoding='utf-8')
+          metadata, count = re.subn(
+              r'^version:\s*["\x27]?3\.9\.0["\x27]?\s*$',
+              'version: "3.9.1"',
+              metadata,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit('expected exactly one current v3.9.0 metadata version')
+          metadata_path.write_text(metadata, encoding='utf-8')
+
+          release_notes = '''# 今日小豬 · 增強版 v3.9.1
+
+v3.9.1 是 v3.9.0 的維護版本，集中修正 **管理面板迷你趨勢圖失真** 與 **動態幫助卡繁簡混排／字型問題**，不改遊戲規則、資料格式或資源協議。
+
+## 管理面板
+
+- 修正頂部 KPI mini sparkline 仍以 0 作固定 Y 軸基線，令全部為正值的時間序列被壓扁；現在按實際局部 min/max 自適應縮放，並為平坦／非平坦資料加入安全留白。
+- sparkline 幾何統一由實際 `width / height / padding` 計算，移除硬編碼 area baseline；SVG stroke 使用 `non-scaling-stroke`，卡片尺寸變化時不再把線寬一起拉伸。
+- 這些變更只影響管理頁視覺呈現，不修改任何統計值或分析口徑。
+
+## 動態幫助卡
+
+- `/豬豬幫助` 生成的快速指令卡固定使用 **簡體中文 `zh-CN`**：標題、分類、說明、頁尾與顯示命令全部統一為簡體。
+- 顯示命令改用已註冊的簡體 canonical 命令，例如 `/今日小猪`、`/我的猪圈`、`/猪圈日报`、`/烤箱补货`。
+- renderer 不再優先使用 `font_traditional`，幫助卡統一使用標準中文 `font_bold`，避免繁體專用字型造成缺字、錯字形或繁簡混排。
+- 幫助圖片 cache version 升級，舊的繁體 bitmap 不會繼續命中。
+- 繁體指令 alias 仍完整保留；玩家仍可輸入 `/今日小豬`、`/豬豬幫助` 等舊指令，只是不再顯示於生成圖片。
+
+## Changelog 維護
+
+- 修復 `CHANGELOG.md` 在 v3.6.5 之後的歷史斷檔：重新以已發佈的 `.github/release-v*.md` 為來源回填 v3.7.0～v3.9.0 正式版本紀錄。
+- 「未發佈」區重新清空，避免已經上線的功能長期留在未發佈章節造成版本語義錯亂。
+
+## 本版合入 PR
+
+- #131 — 修正管理面板 KPI mini sparkline 的局部縮放與 SVG 幾何。
+- #132 — 快速指令幫助卡固定簡體中文並移除繁體字型依賴。
+
+## 相容性
+
+可由 v3.9.0 直接升級。本版不改變：
+
+- SQLite schema 與永久豬籍 authority
+- Resource Protocol v1
+- 抽豬概率、新豬保底與跨日疲勞保底
+- EX 等級計算
+- Roast Charge、60/30/10、`/添柴` 與預約結算規則
+
+## 驗證
+
+- Python 3.10 / 3.12 全量 CI
+- Marketplace Package
+- AstrBot Market Smoke
+- 管理趨勢 UI contract
+- 動態幫助、字體、cache 與 Wiki bridge contract
+'''
+          (root / '.github' / 'release-v3.9.1.md').write_text(release_notes, encoding='utf-8')
+
+          old_test = '''from pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[1]\n\n\ndef test_v390_release_notes_remain_available_as_history():\n    notes = ROOT / ".github" / "release-v3.9.0.md"\n    assert notes.is_file()\n    text = notes.read_text(encoding="utf-8")\n    assert "v3.9.0" in text\n    assert "EX 1–5" in text\n    assert "#127" in text\n    assert "#128" in text\n    assert "#124" in text\n    assert "Wiki" in text\n'''
+          (root / 'tests' / 'test_v390_release_metadata.py').write_text(old_test, encoding='utf-8')
+
+          new_test = '''from pathlib import Path\nimport re\n\n\nROOT = Path(__file__).resolve().parents[1]\n\n\ndef test_v391_metadata_declares_current_stable_version():\n    metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")\n    assert re.search(r'^version:\\s*"3\\.9\\.1"\\s*$', metadata, re.MULTILINE)\n\n\ndef test_v391_release_notes_cover_maintenance_fixes():\n    notes = ROOT / ".github" / "release-v3.9.1.md"\n    assert notes.is_file()\n    text = notes.read_text(encoding="utf-8")\n    assert "v3.9.1" in text\n    assert "#131" in text\n    assert "#132" in text\n    assert "簡體中文" in text\n    assert "sparkline" in text\n    assert "CHANGELOG.md" in text\n\n\ndef test_v391_changelog_is_current_and_unreleased_is_clean():\n    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")\n    assert "## v3.9.1 (2026-08-17)" in changelog\n    assert "## v3.9.0" in changelog\n    assert "## v3.8.1" in changelog\n    assert "## v3.7.0" in changelog\n    head = changelog.split("## v3.9.1", 1)[0]\n    assert "## 未發佈" in head\n    assert "- 暫無。" in head\n'''
+          (root / 'tests' / 'test_v391_release_metadata.py').write_text(new_test, encoding='utf-8')
+
+          changelog_path = root / 'CHANGELOG.md'
+          changelog = changelog_path.read_text(encoding='utf-8')
+          marker = '## v3.6.5 '
+          pos = changelog.find(marker)
+          if pos < 0:
+              raise SystemExit('CHANGELOG.md missing v3.6.5 history boundary')
+          legacy_tail = changelog[pos:].lstrip()
+
+          def tag_date(ver: str) -> str:
+              try:
+                  value = subprocess.check_output(
+                      ['git', 'show', '-s', '--format=%cs', f'v{ver}'],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  ).strip()
+                  if re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+                      return value
+              except subprocess.CalledProcessError:
+                  pass
+              return release_date
+
+          def release_body(ver: str) -> str:
+              path = root / '.github' / f'release-v{ver}.md'
+              if not path.is_file():
+                  raise SystemExit(f'missing historical release notes: {path}')
+              lines = path.read_text(encoding='utf-8').splitlines()
+              if lines and lines[0].startswith('# '):
+                  lines = lines[1:]
+              while lines and not lines[0].strip():
+                  lines.pop(0)
+              out = []
+              for line in lines:
+                  m = re.match(r'^(#{2,5})(\s+.*)$', line)
+                  if m:
+                      line = '#' + m.group(1) + m.group(2)
+                  out.append(line)
+              return '\n'.join(out).strip()
+
+          history_versions = ['3.9.0', '3.8.1', '3.8.0', '3.7.3', '3.7.2', '3.7.1', '3.7.0']
+          history = []
+          for ver in history_versions:
+              history.append(f'## v{ver} ({tag_date(ver)})\n\n{release_body(ver)}')
+
+          v391_body = release_notes.split('\n', 1)[1].strip()
+          rebuilt = (
+              '# 更新\n\n'
+              '## 未發佈\n\n'
+              '- 暫無。\n\n'
+              f'## v{version} ({release_date})\n\n{v391_body}\n\n'
+              + '\n\n'.join(history)
+              + '\n\n'
+              + legacy_tail
+          )
+          changelog_path.write_text(rebuilt.rstrip() + '\n', encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/_temp_prepare_v391.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add metadata.yaml CHANGELOG.md .github/release-v3.9.1.md \
+            tests/test_v390_release_metadata.py tests/test_v391_release_metadata.py \
+            .github/workflows/_temp_prepare_v391.yml
+          git commit -m "release: prepare v3.9.1 maintenance release"
+          git push origin HEAD:release/v3.9.1-maintenance
