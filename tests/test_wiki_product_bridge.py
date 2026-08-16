@@ -44,6 +44,23 @@ def test_mkdocs_and_admin_ui_use_the_same_wiki_origin():
         assert anchor in bootstrap
 
 
+def test_admin_wiki_links_navigate_inside_the_sandboxed_plugin_page():
+    bootstrap = (ROOT / "pages" / "pig-manager" / "ui-bootstrap.js").read_text(
+        encoding="utf-8"
+    )
+    page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
+        encoding="utf-8"
+    )
+
+    # AstrBot Plugin Pages do not grant allow-popups, so target=_blank is
+    # silently blocked by the browser. Wiki and contextual troubleshooting links
+    # must navigate the plugin iframe itself instead.
+    assert "sandboxed without allow-popups" in bootstrap
+    assert bootstrap.count("link.target = '_self';") == 2
+    assert "link.target = '_blank';" not in bootstrap
+    assert page.count("link.target = '_self';") >= 2
+
+
 def test_contextual_admin_docs_are_event_driven_without_continuous_watchers():
     bootstrap = (ROOT / "pages" / "pig-manager" / "ui-bootstrap.js").read_text(
         encoding="utf-8"
