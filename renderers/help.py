@@ -251,12 +251,13 @@ def render_help_card(
 ) -> Path:
     """Render a short, scan-first help image for the currently enabled features."""
 
-    title_font = _font_variant(font_bold, 44)
-    subtitle_font = _font_variant(font_bold, 17)
-    section_font = _font_variant(font_bold, 21)
-    command_font = _font_variant(font_bold, 17)
-    detail_font = _font_variant(font_bold, 15)
-    footer_font = _font_variant(font_bold, 15)
+    text_font = font_traditional or font_bold
+    title_font = _font_variant(text_font, 44)
+    subtitle_font = _font_variant(text_font, 17)
+    section_font = _font_variant(text_font, 21)
+    command_font = _font_variant(text_font, 17)
+    detail_font = _font_variant(text_font, 15)
+    footer_font = _font_variant(text_font, 15)
 
     column_width = (CARD_WIDTH - OUTER_MARGIN * 2 - COLUMN_GAP) // 2
     prepared = prepare_help_sections(
