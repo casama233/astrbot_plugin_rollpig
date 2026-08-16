@@ -92,5 +92,5 @@ def test_dynamic_help_links_to_wiki_and_invalidates_old_cached_card():
     assert "HELP_RENDER_CACHE_VERSION = 4" in feature
     assert "WIKI_HOME_URL" in feature
     assert "WIKI_TROUBLESHOOTING_URL" in feature
-    assert "WIKI_HOME_URL" in renderer
-    assert "完整玩法 · 管理 · 投稿 · 排障" in renderer
+    assert "完整規則 · 管理 · 投稿 · 排障" in renderer
+    assert "下方有連結" in renderer
