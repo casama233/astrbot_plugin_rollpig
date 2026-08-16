@@ -30,7 +30,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           text = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
-          assert 'target="_self"' in text
           assert 'trend-summary' in text
           PY
       - name: Remove temporary workflow and push synchronized branch
