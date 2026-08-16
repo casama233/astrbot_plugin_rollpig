@@ -477,7 +477,8 @@
     const link = document.createElement('a');
     link.className = 'rollpig-doc-link';
     link.href = href;
-    link.target = '_blank';
+    // AstrBot Plugin Pages are sandboxed without allow-popups; _blank is blocked.
+    link.target = '_self';
     link.rel = 'noopener noreferrer';
     const iconNode = document.createElement('span');
     iconNode.textContent = icon;
@@ -530,7 +531,7 @@
     link.dataset.rollpigContextDoc = key;
     link.className = 'rollpig-context-doc';
     link.href = href;
-    link.target = '_blank';
+    link.target = '_self';
     link.rel = 'noopener noreferrer';
     link.textContent = `🧯 ${label}`;
     host.appendChild(link);
