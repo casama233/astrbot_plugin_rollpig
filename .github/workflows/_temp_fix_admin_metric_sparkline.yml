@@ -1,0 +1,75 @@
+name: Temporary fix admin metric sparkline
+
+on:
+  push:
+    branches:
+      - fix/admin-metric-sparkline-scale
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/admin-metric-sparkline-scale
+          fetch-depth: 0
+      - name: Repair metric sparkline scaling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('pages/pig-manager/index.html')
+          page = page_path.read_text(encoding='utf-8')
+
+          old_points = "function points(values,w=180,h=38,pad=2){const max=Math.max(1,...values),min=Math.min(0,...values),span=Math.max(1,max-min);return values.map((v,i)=>[pad+i*(w-pad*2)/Math.max(1,values.length-1),h-pad-(v-min)/span*(h-pad*2)])}"
+          new_points = """function metricSparkRange(values){
+  const nums=values.map(value=>Number(value)).filter(Number.isFinite);
+  if(!nums.length)return {min:0,max:1};
+  let min=Math.min(...nums),max=Math.max(...nums);
+  if(max===min){const cushion=Math.max(1,Math.abs(max)*.08);return {min:min-cushion,max:max+cushion}}
+  const span=max-min,scale=Math.max(Math.abs(max),Math.abs(min),1),cushion=Math.max(span*.14,scale*.015,.5);
+  return {min:min-cushion,max:max+cushion}
+}
+function points(values,w=180,h=38,pad=3){const nums=(values.length?values:[0]).map(value=>{const number=Number(value);return Number.isFinite(number)?number:0}),range=metricSparkRange(nums),span=Math.max(Number.EPSILON,range.max-range.min),steps=Math.max(1,nums.length-1);return nums.map((v,i)=>[pad+i*(w-pad*2)/steps,h-pad-(v-range.min)/span*(h-pad*2)])}"""
+
+          old_render = "function renderSpark(id,values,index){const root=$(id),pts=points(values.length?values:[0]),line=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),area=`${line} L 178 38 L 2 38 Z`,gradient=`spark-${index}`;root.innerHTML=`<svg viewBox=\"0 0 180 38\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><defs><linearGradient id=\"${gradient}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"var(--tone)\" stop-opacity=\".28\"/><stop offset=\"1\" stop-color=\"var(--tone)\" stop-opacity=\"0\"/></linearGradient></defs><path d=\"${area}\" fill=\"url(#${gradient})\"/><path class=\"spark-path\" d=\"${line}\"/></svg>`;animateSvgPaths(root)}"
+          new_render = """function renderSpark(id,values,index){const root=$(id),w=180,h=38,pad=3,pts=points(values.length?values:[0],w,h,pad),line=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),baseline=h-pad,area=`${line} L ${(w-pad).toFixed(1)} ${baseline.toFixed(1)} L ${pad.toFixed(1)} ${baseline.toFixed(1)} Z`,gradient=`spark-${index}`;root.innerHTML=`<svg viewBox=\"0 0 ${w} ${h}\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><defs><linearGradient id=\"${gradient}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"var(--tone)\" stop-opacity=\".28\"/><stop offset=\"1\" stop-color=\"var(--tone)\" stop-opacity=\"0\"/></linearGradient></defs><path d=\"${area}\" fill=\"url(#${gradient})\"/><path class=\"spark-path\" vector-effect=\"non-scaling-stroke\" d=\"${line}\"/></svg>`;animateSvgPaths(root)}"""
+
+          if old_points not in page:
+              raise SystemExit('old points() implementation not found')
+          if old_render not in page:
+              raise SystemExit('old renderSpark() implementation not found')
+          page = page.replace(old_points, new_points, 1).replace(old_render, new_render, 1)
+          page_path.write_text(page, encoding='utf-8')
+
+          test_path = Path('tests/test_admin_trend_ui_contract.py')
+          tests = test_path.read_text(encoding='utf-8')
+          addition = '''\n\ndef test_metric_sparklines_use_local_data_range_and_stable_svg_geometry():\n    page = _page()\n    assert "function metricSparkRange" in page\n    assert "Math.min(0,...values)" not in page\n    assert "range=metricSparkRange(nums)" in page\n    assert "const root=$(id),w=180,h=38,pad=3" in page\n    assert "baseline=h-pad" in page\n    assert 'vector-effect="non-scaling-stroke"' in page\n'''
+          if 'test_metric_sparklines_use_local_data_range_and_stable_svg_geometry' not in tests:
+              test_path.write_text(tests.rstrip() + addition + '\n', encoding='utf-8')
+          PY
+      - name: Validate repair
+        run: |
+          python -m pip install -q pytest
+          pytest -q tests/test_admin_trend_ui_contract.py tests/test_admin_ex_integration_contract.py
+          node --check <(python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', text, re.S)
+          print('\n'.join(scripts))
+          PY
+          )
+        shell: bash
+      - name: Commit repair
+        run: |
+          rm -f .github/workflows/_temp_fix_admin_metric_sparkline.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pages/pig-manager/index.html tests/test_admin_trend_ui_contract.py .github/workflows/_temp_fix_admin_metric_sparkline.yml
+          git commit -m "fix: repair admin metric sparkline scaling"
+          git push origin HEAD:fix/admin-metric-sparkline-scale
