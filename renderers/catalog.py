@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont, ImageOps
+from PIL import ImageDraw, ImageFont
 
-from .common import ImageResolver, fit_card_image, get_text_size
+from .common import ImageResolver, get_text_size, render_catalog_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -127,16 +127,15 @@ def render_pigsty(
 
         if image_path:
             try:
-                thumb = fit_card_image(image_path, (130, 130))
-                if not is_unlocked:
-                    thumb = ImageOps.grayscale(thumb).convert("RGBA")
-                    shade = PILImage.new("RGBA", thumb.size, (20, 16, 23, 120))
-                    thumb = PILImage.alpha_composite(thumb, shade)
-                mask = PILImage.new("L", thumb.size, 0)
-                ImageDraw.Draw(mask).rounded_rectangle(
-                    (0, 0, 129, 129), 22, fill=255
+                thumb = render_catalog_thumbnail(
+                    image_path,
+                    (130, 130),
+                    palette=palette,
+                    locked=not is_unlocked,
+                    radius=22,
+                    padding=9,
                 )
-                canvas.paste(thumb.convert("RGB"), (x + 65, y + 16), mask)
+                canvas.paste(thumb, (x + 65, y + 16), thumb)
             except Exception as exc:
                 logger.warning("渲染图鉴小猪 %s 失败：%s", pig_id, exc)
         elif is_retired:
@@ -232,12 +231,14 @@ def render_catalog_grid(
         )
         if path:
             try:
-                thumb = fit_card_image(path, (140, 140))
-                mask = PILImage.new("L", thumb.size, 0)
-                ImageDraw.Draw(mask).rounded_rectangle(
-                    (0, 0, 139, 139), 20, fill=255
+                thumb = render_catalog_thumbnail(
+                    path,
+                    (140, 140),
+                    palette=palette,
+                    radius=20,
+                    padding=9,
                 )
-                canvas.paste(thumb.convert("RGB"), (x + 60, y + 12), mask)
+                canvas.paste(thumb, (x + 60, y + 12), thumb)
             except Exception as exc:
                 logger.warning("渲染小猪列表图片失败：%s", exc)
         name = str(pig.get("name") or "无名小猪")
