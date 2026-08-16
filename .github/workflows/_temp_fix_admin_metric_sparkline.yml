@@ -19,57 +19,24 @@ jobs:
           fetch-depth: 0
       - name: Repair metric sparkline scaling
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          page_path = Path('pages/pig-manager/index.html')
-          page = page_path.read_text(encoding='utf-8')
-
-          old_points = "function points(values,w=180,h=38,pad=2){const max=Math.max(1,...values),min=Math.min(0,...values),span=Math.max(1,max-min);return values.map((v,i)=>[pad+i*(w-pad*2)/Math.max(1,values.length-1),h-pad-(v-min)/span*(h-pad*2)])}"
-          new_points = """function metricSparkRange(values){
-  const nums=values.map(value=>Number(value)).filter(Number.isFinite);
-  if(!nums.length)return {min:0,max:1};
-  let min=Math.min(...nums),max=Math.max(...nums);
-  if(max===min){const cushion=Math.max(1,Math.abs(max)*.08);return {min:min-cushion,max:max+cushion}}
-  const span=max-min,scale=Math.max(Math.abs(max),Math.abs(min),1),cushion=Math.max(span*.14,scale*.015,.5);
-  return {min:min-cushion,max:max+cushion}
-}
-function points(values,w=180,h=38,pad=3){const nums=(values.length?values:[0]).map(value=>{const number=Number(value);return Number.isFinite(number)?number:0}),range=metricSparkRange(nums),span=Math.max(Number.EPSILON,range.max-range.min),steps=Math.max(1,nums.length-1);return nums.map((v,i)=>[pad+i*(w-pad*2)/steps,h-pad-(v-range.min)/span*(h-pad*2)])}"""
-
-          old_render = "function renderSpark(id,values,index){const root=$(id),pts=points(values.length?values:[0]),line=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),area=`${line} L 178 38 L 2 38 Z`,gradient=`spark-${index}`;root.innerHTML=`<svg viewBox=\"0 0 180 38\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><defs><linearGradient id=\"${gradient}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"var(--tone)\" stop-opacity=\".28\"/><stop offset=\"1\" stop-color=\"var(--tone)\" stop-opacity=\"0\"/></linearGradient></defs><path d=\"${area}\" fill=\"url(#${gradient})\"/><path class=\"spark-path\" d=\"${line}\"/></svg>`;animateSvgPaths(root)}"
-          new_render = """function renderSpark(id,values,index){const root=$(id),w=180,h=38,pad=3,pts=points(values.length?values:[0],w,h,pad),line=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '),baseline=h-pad,area=`${line} L ${(w-pad).toFixed(1)} ${baseline.toFixed(1)} L ${pad.toFixed(1)} ${baseline.toFixed(1)} Z`,gradient=`spark-${index}`;root.innerHTML=`<svg viewBox=\"0 0 ${w} ${h}\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><defs><linearGradient id=\"${gradient}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"var(--tone)\" stop-opacity=\".28\"/><stop offset=\"1\" stop-color=\"var(--tone)\" stop-opacity=\"0\"/></linearGradient></defs><path d=\"${area}\" fill=\"url(#${gradient})\"/><path class=\"spark-path\" vector-effect=\"non-scaling-stroke\" d=\"${line}\"/></svg>`;animateSvgPaths(root)}"""
-
-          if old_points not in page:
-              raise SystemExit('old points() implementation not found')
-          if old_render not in page:
-              raise SystemExit('old renderSpark() implementation not found')
-          page = page.replace(old_points, new_points, 1).replace(old_render, new_render, 1)
-          page_path.write_text(page, encoding='utf-8')
-
-          test_path = Path('tests/test_admin_trend_ui_contract.py')
-          tests = test_path.read_text(encoding='utf-8')
-          addition = '''\n\ndef test_metric_sparklines_use_local_data_range_and_stable_svg_geometry():\n    page = _page()\n    assert "function metricSparkRange" in page\n    assert "Math.min(0,...values)" not in page\n    assert "range=metricSparkRange(nums)" in page\n    assert "const root=$(id),w=180,h=38,pad=3" in page\n    assert "baseline=h-pad" in page\n    assert 'vector-effect="non-scaling-stroke"' in page\n'''
-          if 'test_metric_sparklines_use_local_data_range_and_stable_svg_geometry' not in tests:
-              test_path.write_text(tests.rstrip() + addition + '\n', encoding='utf-8')
-          PY
+          echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKcGFnZV9wYXRoID0gUGF0aCgicGFnZXMvcGlnLW1hbmFnZXIvaW5kZXguaHRtbCIpCnBhZ2UgPSBwYWdlX3BhdGgucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgpvbGRfcG9pbnRzID0gImZ1bmN0aW9uIHBvaW50cyh2YWx1ZXMsdz0xODAsaD0zOCxwYWQ9Mil7Y29uc3QgbWF4PU1hdGgubWF4KDEsLi4udmFsdWVzKSxtaW49TWF0aC5taW4oMCwuLi52YWx1ZXMpLHNwYW49TWF0aC5tYXgoMSxtYXgtbWluKTtyZXR1cm4gdmFsdWVzLm1hcCgodixpKT0+W3BhZCtpKih3LXBhZCoyKS9NYXRoLm1heCgxLHZhbHVlcy5sZW5ndGgtMSksaC1wYWQtKHYtbWluKS9zcGFuKihoLXBhZCoyKV0pfSIKbmV3X3BvaW50cyA9ICIiImZ1bmN0aW9uIG1ldHJpY1NwYXJrUmFuZ2UodmFsdWVzKXsKICBjb25zdCBudW1zPXZhbHVlcy5tYXAodmFsdWU9Pk51bWJlcih2YWx1ZSkpLmZpbHRlcihOdW1iZXIuaXNGaW5pdGUpOwogIGlmKCFudW1zLmxlbmd0aClyZXR1cm4ge21pbjowLG1heDoxfTsKICBsZXQgbWluPU1hdGgubWluKC4uLm51bXMpLG1heD1NYXRoLm1heCguLi5udW1zKTsKICBpZihtYXg9PT1taW4pe2NvbnN0IGN1c2hpb249TWF0aC5tYXgoMSxNYXRoLmFicyhtYXgpKi4wOCk7cmV0dXJuIHttaW46bWluLWN1c2hpb24sbWF4Om1heCtjdXNoaW9ufX0KICBjb25zdCBzcGFuPW1heC1taW4sc2NhbGU9TWF0aC5tYXgoTWF0aC5hYnMobWF4KSxNYXRoLmFicyhtaW4pLDEpLGN1c2hpb249TWF0aC5tYXgoc3BhbiouMTQsc2NhbGUqLjAxNSwuNSk7CiAgcmV0dXJuIHttaW46bWluLWN1c2hpb24sbWF4Om1heCtjdXNoaW9ufQp9CmZ1bmN0aW9uIHBvaW50cyh2YWx1ZXMsdz0xODAsaD0zOCxwYWQ9Myl7Y29uc3QgbnVtcz0odmFsdWVzLmxlbmd0aD92YWx1ZXM6WzBdKS5tYXAodmFsdWU9Pntjb25zdCBudW1iZXI9TnVtYmVyKHZhbHVlKTtyZXR1cm4gTnVtYmVyLmlzRmluaXRlKG51bWJlcik/bnVtYmVyOjB9KSxyYW5nZT1tZXRyaWNTcGFya1JhbmdlKG51bXMpLHNwYW49TWF0aC5tYXgoTnVtYmVyLkVQU0lMT04scmFuZ2UubWF4LXJhbmdlLm1pbiksc3RlcHM9TWF0aC5tYXgoMSxudW1zLmxlbmd0aC0xKTtyZXR1cm4gbnVtcy5tYXAoKHYsaSk9PltwYWQraSoody1wYWQqMikvc3RlcHMsaC1wYWQtKHYtcmFuZ2UubWluKS9zcGFuKihoLXBhZCoyKV0pfSIiIgoKb2xkX3JlbmRlciA9ICJmdW5jdGlvbiByZW5kZXJTcGFyayhpZCx2YWx1ZXMsaW5kZXgpe2NvbnN0IHJvb3Q9JChpZCkscHRzPXBvaW50cyh2YWx1ZXMubGVuZ3RoP3ZhbHVlczpbMF0pLGxpbmU9cHRzLm1hcCgocCxpKT0+YCR7aT8nTCc6J00nfSAke3BbMF0udG9GaXhlZCgxKX0gJHtwWzFdLnRvRml4ZWQoMSl9YCkuam9pbignICcpLGFyZWE9YCR7bGluZX0gTCAxNzggMzggTCAyIDM4IFpgLGdyYWRpZW50PWBzcGFyay0ke2luZGV4fWA7cm9vdC5pbm5lckhUTUw9YDxzdmcgdmlld0JveD1cIjAgMCAxODAgMzhcIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPVwibm9uZVwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD1cIiR7Z3JhZGllbnR9XCIgeDE9XCIwXCIgeTE9XCIwXCIgeDI9XCIwXCIgeTI9XCIxXCI+PHN0b3Agc3RvcC1jb2xvcj1cInZhcigtLXRvbmUpXCIgc3RvcC1vcGFjaXR5PVwiLjI4XCIvPjxzdG9wIG9mZnNldD1cIjFcIiBzdG9wLWNvbG9yPVwidmFyKC0tdG9uZSlcIiBzdG9wLW9wYWNpdHk9XCIwXCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxwYXRoIGQ9XCIke2FyZWF9XCIgZmlsbD1cInVybCgjJHtncmFkaWVudH0pXCIvPjxwYXRoIGNsYXNzPVwic3BhcmstcGF0aFwiIGQ9XCIke2xpbmV9XCIvPjwvc3ZnPmA7YW5pbWF0ZVN2Z1BhdGhzKHJvb3QpfSIKbmV3X3JlbmRlciA9ICIiImZ1bmN0aW9uIHJlbmRlclNwYXJrKGlkLHZhbHVlcyxpbmRleCl7Y29uc3Qgcm9vdD0kKGlkKSx3PTE4MCxoPTM4LHBhZD0zLHB0cz1wb2ludHModmFsdWVzLmxlbmd0aD92YWx1ZXM6WzBdLHcsaCxwYWQpLGxpbmU9cHRzLm1hcCgocCxpKT0+YCR7aT8nTCc6J00nfSAke3BbMF0udG9GaXhlZCgxKX0gJHtwWzFdLnRvRml4ZWQoMSl9YCkuam9pbignICcpLGJhc2VsaW5lPWgtcGFkLGFyZWE9YCR7bGluZX0gTCAkeyh3LXBhZCkudG9GaXhlZCgxKX0gJHtiYXNlbGluZS50b0ZpeGVkKDEpfSBMICR7cGFkLnRvRml4ZWQoMSl9ICR7YmFzZWxpbmUudG9GaXhlZCgxKX0gWmAsZ3JhZGllbnQ9YHNwYXJrLSR7aW5kZXh9YDtyb290LmlubmVySFRNTD1gPHN2ZyB2aWV3Qm94PSIwIDAgJHt3fSAke2h9IiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSIke2dyYWRpZW50fSIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIHN0b3AtY29sb3I9InZhcigtLXRvbmUpIiBzdG9wLW9wYWNpdHk9Ii4yOCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0idmFyKC0tdG9uZSkiIHN0b3Atb3BhY2l0eT0iMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxwYXRoIGQ9IiR7YXJlYX0iIGZpbGw9InVybCgjJHtncmFkaWVudH0pIi8+PHBhdGggY2xhc3M9InNwYXJrLXBhdGgiIHZlY3Rvci1lZmZlY3Q9Im5vbi1zY2FsaW5nLXN0cm9rZSIgZD0iJHtsaW5lfSIvPjwvc3ZnPmA7YW5pbWF0ZVN2Z1BhdGhzKHJvb3QpfSIiIgoKaWYgb2xkX3BvaW50cyBub3QgaW4gcGFnZToKICAgIHJhaXNlIFN5c3RlbUV4aXQoIm9sZCBwb2ludHMoKSBpbXBsZW1lbnRhdGlvbiBub3QgZm91bmQiKQppZiBvbGRfcmVuZGVyIG5vdCBpbiBwYWdlOgogICAgcmFpc2UgU3lzdGVtRXhpdCgib2xkIHJlbmRlclNwYXJrKCkgaW1wbGVtZW50YXRpb24gbm90IGZvdW5kIikKCnBhZ2UgPSBwYWdlLnJlcGxhY2Uob2xkX3BvaW50cywgbmV3X3BvaW50cywgMSkucmVwbGFjZShvbGRfcmVuZGVyLCBuZXdfcmVuZGVyLCAxKQpwYWdlX3BhdGgud3JpdGVfdGV4dChwYWdlLCBlbmNvZGluZz0idXRmLTgiKQoKdGVzdF9wYXRoID0gUGF0aCgidGVzdHMvdGVzdF9hZG1pbl90cmVuZF91aV9jb250cmFjdC5weSIpCnRlc3RzID0gdGVzdF9wYXRoLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQphZGRpdGlvbiA9ICIiIgoKZGVmIHRlc3RfbWV0cmljX3NwYXJrbGluZXNfdXNlX2xvY2FsX2RhdGFfcmFuZ2VfYW5kX3N0YWJsZV9zdmdfZ2VvbWV0cnkoKToKICAgIHBhZ2UgPSBfcGFnZSgpCiAgICBhc3NlcnQgImZ1bmN0aW9uIG1ldHJpY1NwYXJrUmFuZ2UiIGluIHBhZ2UKICAgIGFzc2VydCAiTWF0aC5taW4oMCwuLi52YWx1ZXMpIiBub3QgaW4gcGFnZQogICAgYXNzZXJ0ICJyYW5nZT1tZXRyaWNTcGFya1JhbmdlKG51bXMpIiBpbiBwYWdlCiAgICBhc3NlcnQgImNvbnN0IHJvb3Q9JChpZCksdz0xODAsaD0zOCxwYWQ9MyIgaW4gcGFnZQogICAgYXNzZXJ0ICJiYXNlbGluZT1oLXBhZCIgaW4gcGFnZQogICAgYXNzZXJ0ICd2ZWN0b3ItZWZmZWN0PSJub24tc2NhbGluZy1zdHJva2UiJyBpbiBwYWdlCiIiIgppZiAidGVzdF9tZXRyaWNfc3BhcmtsaW5lc191c2VfbG9jYWxfZGF0YV9yYW5nZV9hbmRfc3RhYmxlX3N2Z19nZW9tZXRyeSIgbm90IGluIHRlc3RzOgogICAgdGVzdF9wYXRoLndyaXRlX3RleHQodGVzdHMucnN0cmlwKCkgKyBhZGRpdGlvbiArICJcbiIsIGVuY29kaW5nPSJ1dGYtOCIpCg==' | base64 -d > /tmp/fix_sparkline.py
+          python /tmp/fix_sparkline.py
       - name: Validate repair
         run: |
           python -m pip install -q pytest
           pytest -q tests/test_admin_trend_ui_contract.py tests/test_admin_ex_integration_contract.py
-          node --check <(python - <<'PY'
+          python - <<'PY' > /tmp/admin-inline.js
           from pathlib import Path
           import re
           text = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
-          scripts = re.findall(r'<script[^>]*>(.*?)</script>', text, re.S)
-          print('\n'.join(scripts))
+          print('\n'.join(re.findall(r'<script[^>]*>(.*?)</script>', text, re.S)))
           PY
-          )
-        shell: bash
+          node --check /tmp/admin-inline.js
       - name: Commit repair
         run: |
           rm -f .github/workflows/_temp_fix_admin_metric_sparkline.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pages/pig-manager/index.html tests/test_admin_trend_ui_contract.py .github/workflows/_temp_fix_admin_metric_sparkline.yml
+          git add -A
           git commit -m "fix: repair admin metric sparkline scaling"
           git push origin HEAD:fix/admin-metric-sparkline-scale
