@@ -23,19 +23,37 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git merge -X ours --no-edit origin/main
-      - name: Reconcile traditional-font regression import
+      - name: Reconcile traditional-font compact renderer
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('tests/test_help_renderer.py')
-          text = path.read_text(encoding='utf-8')
+
+          test_path = Path('tests/test_help_renderer.py')
+          test_text = test_path.read_text(encoding='utf-8')
           marker = 'from renderers.help import ('
           alias = 'from renderers import help as help_renderer\n'
-          if alias not in text:
-              if marker not in text:
+          if alias not in test_text:
+              if marker not in test_text:
                   raise SystemExit('renderers.help import marker not found')
-              text = text.replace(marker, alias + marker, 1)
-              path.write_text(text, encoding='utf-8')
+              test_text = test_text.replace(marker, alias + marker, 1)
+              test_path.write_text(test_text, encoding='utf-8')
+
+          path = Path('renderers/help.py')
+          text = path.read_text(encoding='utf-8')
+          old_sig = '''    palette: dict,\n    font_bold: ImageFont.ImageFont,\n) -> Path:'''
+          new_sig = '''    palette: dict,\n    font_bold: ImageFont.ImageFont,\n    font_traditional: ImageFont.ImageFont | None = None,\n) -> Path:'''
+          if 'font_traditional: ImageFont.ImageFont | None = None' not in text:
+              if old_sig not in text:
+                  raise SystemExit('compact renderer signature marker not found')
+              text = text.replace(old_sig, new_sig, 1)
+
+          old_fonts = '''    title_font = _font_variant(font_bold, 44)\n    subtitle_font = _font_variant(font_bold, 17)\n    section_font = _font_variant(font_bold, 21)\n    command_font = _font_variant(font_bold, 17)\n    detail_font = _font_variant(font_bold, 15)\n    footer_font = _font_variant(font_bold, 15)'''
+          new_fonts = '''    text_font = font_traditional or font_bold\n    title_font = _font_variant(text_font, 44)\n    subtitle_font = _font_variant(text_font, 17)\n    section_font = _font_variant(text_font, 21)\n    command_font = _font_variant(text_font, 17)\n    detail_font = _font_variant(text_font, 15)\n    footer_font = _font_variant(text_font, 15)'''
+          if 'text_font = font_traditional or font_bold' not in text:
+              if old_fonts not in text:
+                  raise SystemExit('compact renderer font block marker not found')
+              text = text.replace(old_fonts, new_fonts, 1)
+          path.write_text(text, encoding='utf-8')
           PY
       - name: Validate combined help implementation
         run: |
