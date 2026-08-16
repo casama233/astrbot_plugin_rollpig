@@ -30,3 +30,13 @@ def test_admin_trend_panel_does_not_stretch_into_dead_space():
     assert ".trend-panel{align-self:start" in page
     assert "grid-template-columns:repeat(4,minmax(0,1fr))" in page
     assert "@media(max-width:760px){.trend-summary" in page
+
+def test_metric_sparklines_use_local_data_range_and_stable_svg_geometry():
+    page = _page()
+    assert "function metricSparkRange" in page
+    assert "Math.min(0,...values)" not in page
+    assert "range=metricSparkRange(nums)" in page
+    assert "const root=$(id),w=180,h=38,pad=3" in page
+    assert "baseline=h-pad" in page
+    assert 'vector-effect="non-scaling-stroke"' in page
+
