@@ -25,6 +25,7 @@ try:
     from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
+    from .renderers.daily_report import render_daily_report_dashboard
     from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
@@ -39,6 +40,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
+    from renderers.daily_report import render_daily_report_dashboard
     from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
     from state_persistence import DebouncedSnapshotWriter
@@ -142,7 +144,7 @@ class RollPigPlugin(
         return self._run_with_render_slot(super().render_roast_image, pig, user_id, ai_copy)
 
     def render_daily_report_image(self, report):
-        return self._run_with_render_slot(super().render_daily_report_image, report)
+        return self._run_with_render_slot(render_daily_report_dashboard, self, report)
 
     # BEGIN MAIN COMMAND REGISTRATION
     @filter.command('猪猪帮助', alias={'豬豬幫助', '小猪帮助', '小豬幫助', 'rollpig帮助', 'rollpig幫助'}, priority=1000)
