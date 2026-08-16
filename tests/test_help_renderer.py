@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PIL import Image, ImageFont
 
 from help_system import (
@@ -115,7 +117,7 @@ def test_help_renderer_matches_precomputed_dynamic_size():
         output.unlink(missing_ok=True)
 
 
-def test_help_renderer_prefers_traditional_font_for_every_text_role(monkeypatch):
+def test_help_renderer_uses_standard_bold_font_for_every_text_role(monkeypatch):
     primary = object()
     traditional = object()
     selected = []
@@ -128,11 +130,11 @@ def test_help_renderer_prefers_traditional_font_for_every_text_role(monkeypatch)
     monkeypatch.setattr(help_renderer, "_font_variant", track_variant)
     sections = (
         HelpSection(
-            "豬圈日報",
+            "猪圈日报",
             (
-                HelpEntry("/豬圈日報", "把今天誰最慘、誰最能烤貼上日報"),
-                HelpEntry("/豬圈日報狀態", "看看晚報醒沒醒"),
-                HelpEntry("/豬圈日報開啟／關閉", "管理員管開關"),
+                HelpEntry("/猪圈日报", "把今天谁最惨、谁最能烤贴上日报"),
+                HelpEntry("/猪圈日报状态", "看看晚报醒没醒"),
+                HelpEntry("/猪圈日报开启／关闭", "管理员管开关"),
             ),
         ),
     )
@@ -145,7 +147,15 @@ def test_help_renderer_prefers_traditional_font_for_every_text_role(monkeypatch)
     )
     try:
         assert selected
-        assert all(font is traditional for font, _size in selected)
+        assert all(font is primary for font, _size in selected)
         assert {size for _font, size in selected} == {44, 21, 17, 15}
     finally:
         output.unlink(missing_ok=True)
+
+
+def test_help_renderer_fixed_copy_is_simplified_chinese():
+    source = Path(help_renderer.__file__).read_text(encoding="utf-8")
+    assert "今日小猪 · 快速指令" in source
+    assert "只列已启用功能 · 每条只说一件事 · 简繁别名都可用" in source
+    assert "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）" in source
+    assert "今日小豬 · 快速指令" not in source

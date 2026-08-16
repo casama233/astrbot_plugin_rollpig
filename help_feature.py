@@ -30,7 +30,7 @@ _HELP_CACHE_LOCK = threading.Lock()
 class HelpFeatureMixin:
     """Configuration-aware RollPig help model, rendering and caching."""
 
-    HELP_RENDER_CACHE_VERSION = 4
+    HELP_RENDER_CACHE_VERSION = 5
     HELP_RENDER_CACHE_KEEP = 8
 
     def _help_feature_state(self) -> HelpFeatureState:
@@ -72,7 +72,7 @@ class HelpFeatureMixin:
         )
 
     def _help_sections(self):
-        return build_help_sections(self._help_feature_state())
+        return build_help_sections(self._help_feature_state(), locale="zh-CN")
 
     @staticmethod
     def _font_identity(font) -> str:
@@ -86,13 +86,9 @@ class HelpFeatureMixin:
         return f"{path}|{family}"
 
     def _help_font_identity(self) -> str:
-        """Fingerprint every font that can affect the cached help bitmap."""
+        """Fingerprint the one font used by the Simplified Chinese help bitmap."""
 
-        traditional = getattr(self, "font_traditional", None)
-        return (
-            f"bold={self._font_identity(self.font_bold)}|"
-            f"traditional={self._font_identity(traditional)}"
-        )
+        return f"bold={self._font_identity(self.font_bold)}"
 
     def _help_cache_identity(self) -> str:
         """Hash actual visible content and visual inputs to prevent stale masters."""
@@ -152,7 +148,6 @@ class HelpFeatureMixin:
             kwargs = {
                 "palette": self._image_palette(),
                 "font_bold": self.font_bold,
-                "font_traditional": getattr(self, "font_traditional", None),
             }
             gate = getattr(self, "_run_with_render_slot", None)
             if callable(gate):
@@ -191,17 +186,17 @@ class HelpFeatureMixin:
             try:
                 await event.send(
                     event.plain_result(
-                        "📖 想看完整玩法、管理、投稿與排障？今日小豬 Wiki：\n"
+                        "📖 想看完整玩法、管理、投稿与排障？今日小猪 Wiki：\n"
                         f"{WIKI_HOME_URL}"
                     )
                 )
             except Exception as link_exc:
-                logger.warning(f"發送今日小豬 Wiki 入口失敗：{link_exc}")
+                logger.warning(f"发送今日小猪 Wiki 入口失败：{link_exc}")
         except Exception as exc:
-            logger.error(f"生成豬豬幫助圖片失敗：{exc}", exc_info=True)
+            logger.error(f"生成猪猪帮助图片失败：{exc}", exc_info=True)
             await event.send(
                 event.plain_result(
-                    "豬豬幫助圖片生成失敗，請查看後台日誌。\n"
+                    "猪猪帮助图片生成失败，请查看后台日志。\n"
                     f"🧯 排障指南：{WIKI_TROUBLESHOOTING_URL}"
                 )
             )
