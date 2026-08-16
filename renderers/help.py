@@ -247,6 +247,7 @@ def render_help_card(
     *,
     palette: dict,
     font_bold: ImageFont.ImageFont,
+    font_traditional: ImageFont.ImageFont | None = None,
 ) -> Path:
     """Render a short, scan-first help image for the currently enabled features."""
 
