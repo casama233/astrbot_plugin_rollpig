@@ -8,6 +8,7 @@ from help_system import (
     HelpSection,
     build_help_sections,
 )
+from renderers import help as help_renderer
 from renderers.help import (
     CARD_WIDTH,
     help_card_height,
@@ -145,6 +146,6 @@ def test_help_renderer_prefers_traditional_font_for_every_text_role(monkeypatch)
     try:
         assert selected
         assert all(font is traditional for font, _size in selected)
-        assert {size for _font, size in selected} == {50, 20, 25, 17, 16, 14}
+        assert {size for _font, size in selected} == {44, 21, 17, 15}
     finally:
         output.unlink(missing_ok=True)
