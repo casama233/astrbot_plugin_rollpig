@@ -112,3 +112,39 @@ def test_help_renderer_matches_precomputed_dynamic_size():
             assert rendered.format == "PNG"
     finally:
         output.unlink(missing_ok=True)
+
+
+def test_help_renderer_prefers_traditional_font_for_every_text_role(monkeypatch):
+    primary = object()
+    traditional = object()
+    selected = []
+    drawable_font = ImageFont.load_default()
+
+    def track_variant(font, size):
+        selected.append((font, size))
+        return drawable_font
+
+    monkeypatch.setattr(help_renderer, "_font_variant", track_variant)
+    sections = (
+        HelpSection(
+            "豬圈日報",
+            (
+                HelpEntry("/豬圈日報", "把今天誰最慘、誰最能烤貼上日報"),
+                HelpEntry("/豬圈日報狀態", "看看晚報醒沒醒"),
+                HelpEntry("/豬圈日報開啟／關閉", "管理員管開關"),
+            ),
+        ),
+    )
+
+    output = render_help_card(
+        sections,
+        palette=PALETTE,
+        font_bold=primary,
+        font_traditional=traditional,
+    )
+    try:
+        assert selected
+        assert all(font is traditional for font, _size in selected)
+        assert {size for _font, size in selected} == {50, 20, 25, 17, 16, 14}
+    finally:
+        output.unlink(missing_ok=True)
