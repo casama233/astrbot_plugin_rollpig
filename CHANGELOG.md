@@ -2,25 +2,616 @@
 
 ## 未發佈
 
-### Dashboard Accuracy & Motion
-- 管理面板統計改為 claim-aware logical-user 口徑：SQLite 與 JSON fallback 都不再把已確認屬於同一人的 legacy fragment 重複計入使用者、收藏、熱門豬與週期活躍；重疊收藏次數沿用 `max` 而非相加，避免遷移副本虛增。
-- 修正核心 KPI 的誤導性迷你趨勢：移除以「新解鎖倒推圖鑑數」、「新解鎖 + 活躍人數」等非指標資料拼出的 sparkline；只保留可證明的累計抽取／日活序列與明確標示的當前快照視覺。
-- 深度分析修正 AI 文案成功率分母（只計已完成 ready + failed，不把 generating 當失敗），並把回訪、平台身份與本期獨有活躍的標籤改為精確口徑。
-- Overview / Analytics 新增本地事實快照與資料口徑提示；14/28 日圖表、熱門榜、收藏覆蓋等繼續只輸出聚合資料，不暴露使用者或群組原始 ID。
-
-### Changed
-- 修復 AstrBot Plugin Page sandbox 下公共豬源「拒絕／批准發布」依賴原生 `window.confirm` / `window.prompt` 而可能無反應；改為頁內審核對話框，保留 300 字備註與明確二次確認。
-- 公共豬源管理新增 PigHub 風格正式源圖鑑：可搜尋 ID、名稱、描述、完整文案，分頁預覽圖片與完整資料；疑似重複提示可直接跳到現有公共豬。
-- 正式公共源圖鑑經 AstrBot 本地同源代理讀取官方 `v1`，圖片不由 sandbox 跨域直連；批准／拒絕補上真實 mutation 回歸測試。
-- 豬圈日報群組自動推送的開啟／關閉權限收緊為僅 AstrBot 管理員；原生群主／群管理員不再具備修改權限。
-- 固化祭品契約：`daily_report_random_eat_enabled` 預設關閉，且只允許定時自動日報流程觸發；手動 `/豬圈日報` 永不改變任何人的祭品狀態。
-
-### Added
-- Phase 3A 烤箱 Charge：普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗可儲存能量，預設 2 格；沿用 `group_roast_cooldown_hours` 作每格恢復週期，新增 `group_roast_max_charges`（1–5，預設 2）。
-- SQLite/JSON 共用同一 token-bucket policy；舊 `roast_cooldowns.last_used_at` lazy 遷移為 charge state，活動中的舊冷卻視為已消耗 1 格，避免升級重置或雙重懲罰。
-- 預約主廚建立預約消耗 1 格，添柴與日後觸發不重複消耗；後門 bypass 與 60/30/10 outcome policy 保持不變。
-
 - 暫無。
+
+## v3.9.1 (2026-08-17)
+
+v3.9.1 是 v3.9.0 的維護版本，集中修正 **管理面板迷你趨勢圖失真** 與 **動態幫助卡繁簡混排／字型問題**，不改遊戲規則、資料格式或資源協議。
+
+## 管理面板
+
+- 修正頂部 KPI mini sparkline 仍以 0 作固定 Y 軸基線，令全部為正值的時間序列被壓扁；現在按實際局部 min/max 自適應縮放，並為平坦／非平坦資料加入安全留白。
+- sparkline 幾何統一由實際 `width / height / padding` 計算，移除硬編碼 area baseline；SVG stroke 使用 `non-scaling-stroke`，卡片尺寸變化時不再把線寬一起拉伸。
+- 這些變更只影響管理頁視覺呈現，不修改任何統計值或分析口徑。
+
+## 動態幫助卡
+
+- `/豬豬幫助` 生成的快速指令卡固定使用 **簡體中文 `zh-CN`**：標題、分類、說明、頁尾與顯示命令全部統一為簡體。
+- 顯示命令改用已註冊的簡體 canonical 命令，例如 `/今日小猪`、`/我的猪圈`、`/猪圈日报`、`/烤箱补货`。
+- renderer 不再優先使用 `font_traditional`，幫助卡統一使用標準中文 `font_bold`，避免繁體專用字型造成缺字、錯字形或繁簡混排。
+- 幫助圖片 cache version 升級，舊的繁體 bitmap 不會繼續命中。
+- 繁體指令 alias 仍完整保留；玩家仍可輸入 `/今日小豬`、`/豬豬幫助` 等舊指令，只是不再顯示於生成圖片。
+
+## Changelog 維護
+
+- 修復 `CHANGELOG.md` 在 v3.6.5 之後的歷史斷檔：重新以已發佈的 `.github/release-v*.md` 為來源回填 v3.7.0～v3.9.0 正式版本紀錄。
+- 「未發佈」區重新清空，避免已經上線的功能長期留在未發佈章節造成版本語義錯亂。
+
+## 本版合入 PR
+
+- #131 — 修正管理面板 KPI mini sparkline 的局部縮放與 SVG 幾何。
+- #132 — 快速指令幫助卡固定簡體中文並移除繁體字型依賴。
+
+## 相容性
+
+可由 v3.9.0 直接升級。本版不改變：
+
+- SQLite schema 與永久豬籍 authority
+- Resource Protocol v1
+- 抽豬概率、新豬保底與跨日疲勞保底
+- EX 等級計算
+- Roast Charge、60/30/10、`/添柴` 與預約結算規則
+
+## 驗證
+
+- Python 3.10 / 3.12 全量 CI
+- Marketplace Package
+- AstrBot Market Smoke
+- 管理趨勢 UI contract
+- 動態幫助、字體、cache 與 Wiki bridge contract
+
+## v3.9.0 (2026-08-16)
+
+v3.9.0 聚焦在 **管理體驗、聊天可讀性、Wiki 與視覺一致性**。本版把原本已存在但分散的 EX 能力真正接回主管理頁，同時重做動態幫助、豬圈日報與管理分析視覺。
+
+### 管理頁：EX 1–5 正式回到主流程
+
+- 每張小豬卡與既有小豬編輯流程都可直接進入 **EX Lv.1–5 管理**。
+- 可分級編輯短描述、完整文案、差分圖片，支援圖片上傳／移除／預覽與單層重設。
+- 保留既有稀疏繼承規則，直接顯示每層「實際生效」結果與來源。
+- 公共豬源詳情不再只有關閉按鈕：新增目前實例 EX 摘要、管理本地 EX、在本地圖鑑定位。
+- 完全復用既有 `ExAdminMixin` / `ex/variants` API，沒有新增第二套 EX 儲存格式，也不改 EX 等級或玩法語義。
+
+### 聊天圖片與字體
+
+- `/豬豬幫助` 改成更短的雙欄瀑布流快速指令卡，移除大量卡中卡與無效留白；最壞完整功能組合也受高度回歸門檻保護。
+- 幫助卡完整保留繁體中文字型路徑，避免罕見繁體字退回缺字／錯字形。
+- 指令描述收斂成一句話，完整機制與數值交由 Wiki 說明。
+- `豬圈日報` 重做為更緊湊的視覺戰報，改善資訊層級與聊天端掃讀效率。
+- 圖鑑縮圖背景與管理面板視覺對齊，減少透明素材在不同頁面的底色落差。
+
+### 管理分析
+
+- 近 14 日豬圈脈搏由硬折線改為不改動真實數據點的平滑 Bézier 曲線。
+- 修正趨勢面板被右欄強制拉高造成的大面積空白。
+- 新增峰值活躍、日均活躍、14 日抽取總數、14 日新解鎖總數摘要帶。
+
+### Wiki
+
+- 玩家首頁、快速開始、玩法與故障排查進一步去重，降低相同規則散落多頁造成的維護漂移。
+- 修復 AstrBot Plugin Page sandbox 內 Wiki 連結無法正常開啟的問題。
+- Wiki 固定為 Slate 深色主題，移除容易造成視覺不一致的亮色切換路徑。
+
+### 本版合入 PR
+
+- #121 — 繁體幫助卡字型完整性
+- #122 — 玩家 Wiki 去重與簡化
+- #123 — 管理頁 Wiki sandbox 導航
+- #124 — 緊湊動態幫助卡
+- #125 — 14 日趨勢平滑與摘要
+- #126 — 圖鑑縮圖背景一致性
+- #127 — 主管理頁 EX 1–5 / 公共豬源操作整合
+- #128 — 緊湊視覺豬圈日報
+- #129 — Wiki 深色 Slate 單主題
+
+### 相容性
+
+可由 v3.8.1 直接升級。本版不改變：
+
+- SQLite schema 與永久豬籍 authority
+- Resource Protocol v1
+- 抽豬概率、新豬保底與跨日疲勞保底
+- EX 等級計算
+- Roast Charge、60/30/10、`/添柴` 與預約結算規則
+
+### 驗證
+
+本批 PR 在合入過程中除各自 CI 外，針對重疊區域額外做了組合回歸：
+
+- 繁體字型 + 緊湊幫助卡共同契約
+- Wiki sandbox 導航 + 14 日趨勢 + EX 主管理頁共同契約
+- EX integration JavaScript `node --check`
+- Python 3.10 / 3.12 CI、Marketplace Package、AstrBot Market Smoke 由 release PR 再做最終整體驗證。
+
+## v3.8.1 (2026-08-16)
+
+這是一個針對 **AstrBot 後台插件首頁／升級殘留** 的修復版本。
+
+### 修復內容
+
+- 修復從舊版本以 overlay/overwrite 方式升級後，`pages/ex-manager/`、`pages/ex-public-source/` 可能殘留，導致 AstrBot 仍把 **EX 成長管理** 當成插件主管理頁的問題。
+- 新增啟動時 installation migration：確認新版替代頁存在後，自動清理 RollPig 明確擁有的 legacy Plugin Page。
+- 若舊 Page 目錄因權限或文件佔用無法完整刪除，會退而停用其 `index.html`，避免 AstrBot 繼續 discover 舊入口。
+- 替代頁缺失時不刪舊頁；未知／使用者自建 Page 不會被 migration 觸碰。
+- 新增真實 overlay-upgrade 回歸測試，直接驗證舊 `ex-manager` 殘留 → migration → `pig-manager` 恢復為第一個 Plugin Page 的完整流程。
+- 將 installation migration module 納入 CI 顯式 compile gate。
+
+### 升級後預期
+
+AstrBot Plugin Page 應只發現：
+
+1. `pig-manager` — 豬圈管理（預設首頁）
+2. `pig-manager-ex` — EX 成長管理
+3. `pig-manager-ex-public-source` — EX 公共源
+
+已受舊版殘留影響的安裝，在載入 v3.8.1 後會自動自愈，不需要手動刪除舊 Page 目錄。
+
+### 相容性
+
+可由 v3.8.0 直接升級。本版不修改：
+
+- SQLite schema
+- Resource Protocol v1
+- 抽豬概率／新豬保底
+- EX 等級計算與官方 EX 文案
+- Roast Charge／`/添柴` 數值與結算
+- 永久豬籍 authority
+
+### 驗證
+
+修復 PR #119 已通過：
+
+- CI（Python 3.10 / 3.12）
+- Marketplace Package
+- AstrBot Market Smoke
+- 官方 AstrBot plugin load worker
+
+## v3.8.0 (2026-08-15)
+
+> **這次不是再補一個小 hotfix，而是把「養熟、添柴、說豬話、看 Wiki」四條線一起收成正式版本。**
+>
+> v3.8.0 集中完成官方 EX 內容、烤箱／預約安全、contextual `/添柴`、玩家文案與文檔統一，以及 Wiki 真正按內容寬度響應的版面系統。
+
+### ⭐ 201 / 201 官方豬全部手寫 EX1–EX5
+
+官方有效圖鑑現在完整覆蓋 **201 隻小豬 × 5 個 EX 等級**：
+
+- 每隻都有明確手寫的 EX Lv.1–5；
+- 五級 `description` 各不相同；
+- 五級 `analysis` 各不相同；
+- compatibility 恢復的舊官方豬也包含在正式 EX corpus；
+- Resource Source 發布前會驗證 handcrafted EX ID 與最終官方豬 ID 完全一致。
+
+通用 EX 生成器仍保留，但只作本地／非官方／未完成內容的安全兜底；正式官方豬不能靠模板混過 release gate。
+
+EX 仍是展示與收藏成長層：**不修改豬 ID、抽取概率、保底、60/30/10 或玩法資格。**
+
+### 🪵 `/添柴` 現在真的只要記一條命令
+
+`/添柴` 成為玩家正式入口，並按群聊上下文自己判斷你在給哪口鍋送柴：
+
+- `/添柴 @目標` → 明確加入該目標的待結算預約；
+- 有烤箱補貨輪次時，裸 `/添柴` → 支持補貨；
+- 沒有補貨且只有一張待結算預約時，裸 `/添柴` → 自動加入那張預約；
+- 同時有多張預約時 → 要求 `@目標`，不替玩家亂猜；
+- 主廚建立預約時已算第一位參與者，不能再把自己重複塞進柴火簿；
+- 已 resolved 的預約保持終態，不會被競態請求重新打開。
+
+舊 `/添煤`、`/加煤`、`/烤箱添煤`、`/烤箱添柴` 只保留為向後兼容入口，不再出現在玩家幫助與主文檔中。
+
+### 🔥 烤箱補貨與預約結算再加一道保險
+
+這版把群體補貨和預約的異常／競態邊界一起收緊：
+
+- 補貨依賴父級烤群友玩法開關；
+- 單輪補貨加入 TTL，預設 120 分鐘，超時殭屍輪會關閉；
+- 補貨進入結算後若遇到 storage error，採 fail-closed 封帳，避免部分玩家已拿到 Charge 後重試再次發放；
+- 若進程在 `completing` 階段中斷，重啟後同樣按已進入結算處理；
+- 建立／添柴與抽豬觸發共用 reservation lock，鎖內再次確認目標狀態；
+- 60% 成功 / 30% 逃脫 / 10% 反噬沒有改動。
+
+### 🐷 整個插件開始說同一種「豬話」
+
+玩家高頻文案、動態 `/豬豬幫助`、預約／補貨提示、錯誤 fallback、永久豬圈和官方基礎豬文案做了一次完整 Piggy Voice 收口。
+
+其中 48 隻過去偏「人格測評模板」的官方基礎豬重新手寫 `analysis`，從抽象形容詞改成具體角色設定、群聊行為和最後補一刀的節奏。
+
+`/我的豬圈` 也不再像後台資料表：
+
+- `我的猪圈 · 猪籍档案`
+- `现役入圈`
+- `老猪留档`
+- `最常返场`
+- `老猪籍`
+- `还没拱进你家`
+
+但收藏 authority、歷史保留、排序、EX、總抽取次數與分頁規則完全不變。
+
+群聊 mention 排版也統一為 `@某人` 單獨一行，再從下一行開始正文，長提示更容易掃讀。
+
+### 📚 README / Wiki / 指令與配置文檔一起更新
+
+這次文檔不是「功能改了順手補兩句」，而是完整審查玩家入口與維護手冊。實際修掉的過期資訊包括：
+
+- 玩家頁仍主推 `/添煤`；
+- `COMMANDS.md` 還把實作固定寫成 v3.6.3；
+- 8 小時仍被描述成整個人的單一 cooldown，而不是每缺一格 Charge 的恢復時間；
+- `CONFIGURATION.md` 漏掉 `group_roast_max_charges`；
+- 預約配置 hint 沒有主推 `/添柴 @目標`。
+
+新增文案／文檔 contract tests，之後這些語義再漂回去會直接讓 CI 變紅。
+
+### 🖥️ Wiki 響應式改成看「真正內容寬度」
+
+v3.7.3 先修了手機 Hero 被切掉；v3.8.0 進一步把整套自製 Wiki UI 改成真正的 responsive system。
+
+MkDocs Material 的左右 navigation / TOC 會先吃掉桌面寬度，所以現在元件不只看 viewport，而是用 content container queries 根據 `.md-content__inner` 真正拿到的寬度變形。
+
+同時修正 `md_in_html` 在最終 HTML 中自動加入 `<p>` wrapper 後，原先 direct-child flex/grid 規則失效的問題，涵蓋 Hero、HUD、按鈕、徽章、跑馬燈、Charge、OLD → NEW、60/30/10、creator pipeline、triage 等自製元件。
+
+首頁桌面版會隱藏文檔 sidebar、讓 landing page 有更多空間；**手機版仍保留 Material navigation drawer**。中等寬度的頂部 tabs 改為安全橫向 scroll，不再硬擠標籤。
+
+### 🧪 發版驗證
+
+功能 PR 合併前已分別通過：
+
+- Python 3.10 / 3.12 full pytest
+- pre-commit
+- Piggy Wiki strict build + rendered Markdown contract
+- Marketplace Package
+- AstrBot Market Smoke
+- 當前官方 AstrBot plugin load worker
+- AstrBot Resource Source（涉及 EX／官方資源的變更）
+
+本發版 PR 會再基於所有 PR 已合併後的最新 `main` 跑一次完整門檻；合併後由既有 Release workflow 自動建立 `v3.8.0` tag、ZIP 與 `SHA256SUMS`。
+
+### ⬆️ 升級
+
+可由 **v3.7.3 直接升級到 v3.8.0**。
+
+本版不修改：
+
+- SQLite schema
+- Resource Protocol v1
+- 新豬保底算法與概率上限
+- 60 / 30 / 10 烤豬 outcome
+- Roast Charge 預設容量與恢復數值
+- 永久收藏 authority / EX 等級計算公式
+
+正常透過 AstrBot 插件更新或 GitHub Release ZIP 升級即可。
+
+## v3.7.3 (2026-08-15)
+
+> **這次不加新玩法，專心把兩個明顯的介面回歸收乾淨。**
+>
+> v3.7.3 是 v3.7.2 的穩定性 hotfix：修回 AstrBot 主管理入口，並修正 Wiki v3 首頁在手機上的裁切問題。
+
+### 🐷 豬圈管理重新成為預設入口
+
+新增 EX 獨立 Plugin Pages 後，AstrBot 會按 Page 目錄名排序，側欄又直接打開第一個 Page；原本的 `ex-manager` 因此排在 `pig-manager` 前面，造成點擊「今日小豬」時先進 EX 成長管理，看起來像原本的數據總覽、豬豬圖鑑與本地資源整頁消失。
+
+本版已把入口順序重新固定為：
+
+1. `pig-manager` — 豬圈管理（預設）
+2. `pig-manager-ex` — EX 成長管理
+3. `pig-manager-ex-public-source` — EX 公共源
+
+原主管理頁的數據統計、豬豬管理、本地／雲端資源與既有管理功能都沒有被刪除；這次只是修正 AstrBot 的預設 Page 選擇結果。
+
+同時加入回歸測試，之後再新增 Plugin Page 時，如果 `pig-manager` 被擠出第一位，CI 會直接失敗。
+
+> 如果你曾經手動收藏舊的 `ex-manager` / `ex-public-source` Plugin Page 深鏈，升級後請改用新的 Page 名稱；從 AstrBot 正常 UI 進入不需要額外操作。
+
+### 📱 Wiki v3 手機版不再被切掉右半邊
+
+修正首頁 Hero 被 intrinsic / min-content 寬度反向撐開、再被 `overflow: hidden` 裁掉的問題。
+
+本版新增最後載入的 mobile containment layer，並針對 900 / 600 / 430px 斷點收斂：
+
+- Hero grid 改用 `minmax(0, 1fr)`；
+- Hero 內容、console、CTA、徽章與 live strip 補上安全的 `min-width: 0` / `max-width: 100%`；
+- kicker、CTA、badge 可以正常換行；
+- 小螢幕 Hero padding、標題字級與 CTA 重新收斂；
+- 430px 以下 HUD stats 收成單欄。
+
+桌面版 Wiki v3 的原視覺與動畫保留不變。
+
+### 🧪 發版驗證
+
+合併前的完整整合 revision 已通過：
+
+- Python 3.10 / 3.12 CI
+- Piggy Wiki strict build / rendered checks
+- Marketplace Package
+- AstrBot Market Smoke
+- 當前官方 AstrBot plugin load worker
+
+發版 PR 會再對最新 `main` 執行完整門檻；合併後由既有 Release workflow 自動建立 `v3.7.3` tag、ZIP 與 `SHA256SUMS`。
+
+### ⬆️ 升級
+
+可由 **v3.7.2 直接升級**。
+
+本版不修改：
+
+- SQLite schema
+- 永久收藏 / EX 成長算法
+- 新豬保底概率
+- 60 / 30 / 10 烤豬概率
+- Roast Charge 核心規則
+- Resource Protocol 公開契約
+
+正常透過 AstrBot 插件更新或 GitHub Release ZIP 升級即可。
+
+## v3.7.2 (2026-08-15)
+
+> **Wiki 不再只是站在門外。這次它真的搬進插件裡了。**
+>
+> v3.7.2 是一個「把整座豬圈接起來」的體驗收口版：插件幫助、管理面板、玩家 Wiki、手機響應式與公共豬源運維邊界全部重新接好。玩法概率沒偷偷動，豬還是那些豬——只是現在更知道該去哪裡找答案了。
+
+### 📖 插件 ↔ Wiki：正式接線
+
+`/豬豬幫助` 不再只是一張孤零零的幫助圖：
+
+- 幫助圖底部新增 **今日小豬 Wiki** CTA；
+- 發圖後再補一條可直接點擊的 Wiki URL；
+- 幫助圖生成失敗時，直接給排障入口；
+- 幫助快取版本升級，舊快取不會繼續把新入口藏起來。
+
+管理面板右上角也新增 `📚 文檔`：
+
+- 📖 玩家 Wiki
+- ⚙️ 管理員手冊
+- 🎨 投稿指南
+
+真正需要排查時，插件會開始把你送到**對的那一頁**：
+
+- 豬源同步失敗 / 403 / 校驗 / timeout → 直接進「豬源同步排障」；
+- 管理頁深度分析 / Plugin Page Bridge 載入失敗 → 直接進「管理頁定向排障」。
+
+兩個深鏈使用固定 anchor，Wiki CI 會檢查最終 HTML 真的存在對應位置，避免某天改個中文標題就把插件裡的連結炸掉。
+
+一句話：
+
+> **不要再把所有錯誤都丟給 README。**
+
+### 🎮 Wiki v3：群友先玩，管理員靠後
+
+這一輪重新校準了 Wiki 的主要讀者：**普通群友。**
+
+原本的「5 分鐘開始養豬」改成 **「30 秒開始養豬」**，把不屬於玩家 onboarding 的「安裝插件」「重啟 AstrBot」拿掉。
+
+現在第一次進 Wiki，只需要知道三件事：
+
+1. `/今日小豬`
+2. `/我的豬圈`
+3. `/烤群友`、補貨、添煤、日報——然後事情開始失控。
+
+安裝、遷移、資源同步、備份與運維全部退回管理員區，不再堵在群友第一步前面。
+
+首頁也進一步「豬化」：
+
+- Pigsty LIVE HUD
+- 玩法跑馬燈
+- 霓虹 / 玻璃層次
+- Roast Charge 能量視覺
+- 更明顯的卡片 hover depth 與按鈕掃光
+- OLD → NEW 改成非強制等高的進化結構
+- 寬屏 Hero 中文標題改按容器寬度縮放，不再在有右側 TOC 時被撐成接近直排
+
+手機響應式與 `prefers-reduced-motion` 仍保留，不拿可讀性換特效。
+
+### 📱 管理面板：手機上終於不互相打架
+
+管理面板補了一輪平板 / 手機 / 小屏手機響應式收口：
+
+- `900px`：topbar、品牌區與導航可以安全收縮，不再把整頁撐出橫向滾動；
+- `680px`：儲存、更新、公共源與 Dialog 操作組重新堆疊，長標籤不再擠成奇怪的按鈕牆；
+- `440px`：圖鑑 / PigHub 網格收成單欄，Dialog 與 toast 留在動態視口內；
+- coarse-pointer 裝置補足 44px 觸控目標。
+
+同時新增 browser regression contract，把 900 / 680 / 440 三個斷點鎖進測試。
+
+### 🔒 公共豬源：插件客戶端公開，服務端運維退到私有
+
+本版也完成公共豬源的倉庫邊界收口。
+
+公開插件倉庫**繼續保留**：
+
+- 插件側投稿 / 審核整合與管理 UI；
+- Resource Protocol v1 公開契約與資源 builder；
+- EX schema / manifest 行為；
+- 相容性基線邏輯與客戶端回歸測試。
+
+但公共源的**服務端實作、systemd / Nginx 生產配置、線上遷移命令與服務端審核回歸**不再留在目前公開插件 tree 中，由服務端運維側獨立維護。
+
+這不是 Git 歷史重寫；以前已公開的 commit 仍然存在。這次只是把「插件應該公開的協議 / 客戶端」和「服務端生產運維面」重新劃清邊界。
+
+對普通插件使用者沒有額外操作要求。
+
+### 🧪 發版門檻
+
+本輪各功能合併前已分別通過：
+
+- Python 3.10 / 3.12 full pytest
+- pre-commit
+- Marketplace Package
+- Piggy Wiki `mkdocs build --strict --clean`
+- Wiki rendered HTML / stable deep-link gate
+- AstrBot Resource Source（涉及資源邊界的變更）
+- AstrBot Market Smoke
+- 當前官方 AstrBot plugin load worker
+
+v3.7.2 發版 PR 會再對**完整最新 main**跑一輪正式驗證，再由倉庫既有 Release workflow 自動產出 tag、ZIP 與 `SHA256SUMS`。
+
+### ⬆️ 升級
+
+可由 **v3.7.1 直接升級**。
+
+本版不修改：
+
+- SQLite schema
+- 永久收藏 / EX 成長算法
+- 新豬保底概率
+- 60 / 30 / 10 烤豬概率
+- Roast Charge 核心規則
+- Resource Protocol 公開契約
+
+正常透過 AstrBot 插件更新或 GitHub Release ZIP 升級即可。
+
+---
+
+**豬圈沒有突然多一套數值。**
+
+只是現在：
+
+> 你抽完豬知道去哪看玩法；出錯知道去哪排查；管理員拿手機也不必和按鈕搏鬥；而服務端的後廚門，也終於不再敞在公共插件倉庫裡。
+
+## v3.7.1 (2026-08-15)
+
+> **豬圈開始有 Wiki 了。**
+>
+> v3.7.1 是 v3.7.0 之後的穩定性、文檔與體驗收口版：不重新改玩法概率，而是把繁簡指令相容、管理面板統計準確性，以及兩輪「今日小豬 Wiki」正式納入穩定發佈。
+
+### 📖 今日小豬 Wiki 正式入圈
+
+本版加入完整的 MkDocs Material Wiki，文檔源直接和插件程式碼放在同一個倉庫、同一套 PR / CI 裡維護，不再另外養一份容易漂移的 Wiki。
+
+第一、第二輪 Wiki 已包含：
+
+- 🐷 5 分鐘開始養豬
+- 🎮 玩家玩法總覽
+- 📚 永久圖鑑、新豬保底、跨日疲勞保底
+- 🧪 可互動的 Pity Lab 保底實驗室
+- ⭐ EX Lv.1–5 成長
+- 🔥 60 / 30 / 10 烤群友 outcome 與次日保護
+- 🎰 前端假烤架演示
+- ⚡ Roast Charge 與群體烤箱補貨
+- 📰 豬圈日報
+- 🎨 做一隻自己的小豬／公共豬源投稿
+- 🧯 症狀式故障排查
+- 📖 指令、配置、資源、架構與維護 Reference
+
+Wiki 有繁／簡中文搜尋詞庫、Light / Night 豬圈主題、卡片 3D hover、Charge 動效、EX shimmer、首頁小豬粒子效果，以及 `prefers-reduced-motion` / 手機降級。
+
+**特效可以騷，正文不能看不清。**
+
+### 🎨 做豬不需要先當運維
+
+創作者指南重新把最簡單的真實路線放到第一位：
+
+> **群內 @ 管理員 → 把圖片、名稱、描述、文案交給他 → 管理員代為新增、試抽、修改、投稿。**
+
+普通群友不需要自己部署 AstrBot、不需要有伺服器，也不需要先學 manifest。
+
+只有本來就在管理 RollPig 實例、或想長期維護大量小豬／私人豬源的進階創作者，才需要使用管理面板、本地 override 與 manifest 流程。
+
+### 🈶 繁簡指令與 AstrBot dispatch 修復
+
+包含 v3.7.0 發佈後合入的指令相容修復：
+
+- 新增 `/豬圈日報狀態`、`/豬圈日報開啟`、`/豬圈日報關閉` compact 指令；
+- 同時保留 `/豬圈日報 狀態|開啟|關閉` 帶空格形式；
+- 簡體、繁體與常見混合字形 alias 一起驗證；
+- adapter 只轉發到既有 Daily Report handler，不複製權限或狀態邏輯；
+- AstrBot Market Smoke 使用當前官方 `CommandFilter` 驗證每個合法輸入只命中正確 handler，防止前綴誤吞或重複 dispatch。
+
+### 📊 管理面板統計口徑校準
+
+包含 v3.7.0 後合入的 Dashboard Accuracy & Motion：
+
+- Overview / Analytics 採 claim-aware logical-user 統計；
+- 已證明屬於同一人的 legacy fragment 不再重複計使用者、抽取與收藏；
+- 重疊收藏次數採 `MAX`，避免 migration copy 虛增 EX；
+- 移除用推導值拼出的假 sparkline，只保留可證明的歷史序列或明確標示的 snapshot；
+- AI 文案成功率改為 `ready / (ready + failed)`，不把仍在 generating 的請求當失敗；
+- 管理面板加入新的 telemetry、hover、halo、trend bar 等沉浸式動效，同樣尊重 reduced-motion。
+
+### 🐷 Wiki 文案與規則校準
+
+建 Wiki 的過程也順手抓出並修正了幾個舊文檔漂移：
+
+- `ROAST-CHARGES.md` 不再把已經上線的 `/烤箱補貨` / `/添煤` 寫成「未來 Phase 3B」；
+- 補貨文檔補齊 2 人群特殊門檻、30% / 最少 3 人 / 基礎上限 8、每成功一輪 +2、每日預設 2 輪、每人最多 +1 Charge 等現行規則；
+- 保底頁明確說明百分比是「初始候選重複時的條件式重抽率」，不是無條件新豬概率；
+- 60/30/10 頁明確區分真正 victim、逃脫、反噬與次日保護；
+- 故障排查強調先判斷玩法阻擋／配置／資源／storage，再碰資料庫。
+
+### 🧪 驗證
+
+Wiki 兩輪合併前均經：
+
+- `mkdocs build --strict --clean`
+- Python 3.10 / 3.12 full pytest
+- pre-commit
+- Marketplace Package
+- AstrBot Market Smoke / official plugin load worker
+
+v3.7.1 發版 PR 會再次對完整最新 `main` 跑同一組發佈門檻。
+
+### 升級
+
+可由 **v3.7.0 直接升級**。
+
+本版不修改：
+
+- SQLite schema
+- 永久收藏／EX 算法
+- 新豬保底概率
+- 60 / 30 / 10 烤豬概率
+- Resource Protocol
+
+正常透過 AstrBot 插件更新或 GitHub Release ZIP 升級即可。
+
+## v3.7.0 (2026-08-15)
+
+v3.7.0 是 v3.6.5 之後的玩法與架構大型更新。本版把「烤群友」從單一硬冷卻升級成可儲存 Charge，加入群體協作烤箱補貨，同時重做動態幫助、渲染與讀取快取、狀態持久化，以及公共豬源審核／瀏覽體驗。
+
+### 🔥 Phase 3：烤箱 Charge
+
+- 普通 `/烤群友` 與建立預約改為按「使用者 × 群組」消耗烤箱能量，預設 **2 格**。
+- 每格沿用原 `group_roast_cooldown_hours` 作自然恢復週期；`group_roast_max_charges` 可配置 1–5 格。
+- SQLite / JSON 共用同一 token-bucket policy，避免兩套後端出現玩法差異。
+- 舊版 `roast_cooldowns.last_used_at` 以 lazy migration 轉成 charge state：仍在舊冷卻中的玩家視為已消耗一格，不會因升級被重置，也不會被雙重懲罰。
+- 預約第一位主廚消耗一格；後續添柴與目標日後觸發不重複消耗。
+- 後門 bypass、烤豬資格判定與既有 **60 / 30 / 10** outcome policy 保持不變。
+
+### ⛽ 群體烤箱補貨
+
+- 新增群體協作補貨玩法，讓當日活躍群友共同恢復烤箱能源，而不是單純等待硬冷卻。
+- 補貨按群組／自然日保存狀態，支援參與者去重、進度、成功輪次與每日限制。
+- 成功補貨只恢復有限 Charge，且受最大能量上限約束，不會形成無限烤豬。
+- 補貨事件接入 Gameplay Event 與豬圈日報，可追蹤補貨成功與添煤參與。
+- SQLite primary write path、JSON 相容路徑與初始化／恢復流程均加入回歸測試。
+
+### 🧭 動態幫助系統
+
+- `/豬豬幫助` 升級為依目前功能、配置與指令面動態生成的幫助內容。
+- 幫助渲染拆到獨立 renderer / feature boundary，避免把命令註冊、業務邏輯與 PIL 繪圖重新混在一起。
+- 新增幫助卡與文字 fallback 測試，確保新功能加入後不再依賴手動維護一張容易過期的靜態說明。
+
+### ⚡ 渲染、讀取與持久化效能
+
+- 新增豬卡渲染快取與 renderer performance contracts，降低重複圖片合成開銷。
+- 加入渲染 backpressure，避免高併發下無限制堆積昂貴的 PIL 任務。
+- Resource read path 增加快取，減少相同 catalog / image resolution 的重複查找。
+- 新增集中式 state persistence 邊界，降低高頻玩法狀態寫入造成的重複 I/O。
+- 相關 cache / persistence 均有失效與回歸測試，資料權威仍由現有 storage/domain write 邊界控制。
+
+### 🐷 公共豬源審核與正式源瀏覽
+
+- 修復 AstrBot Plugin Page sandbox 下，批准／拒絕依賴原生 `window.confirm` / `window.prompt` 而可能完全無反應的問題；改為頁內審核對話框與明確二次確認。
+- 公共豬源管理新增正式源圖鑑瀏覽器：支援搜尋 ID、名稱、描述／完整文案、分頁、圖片預覽與完整資料查看。
+- 疑似重複提示可直接跳到現有正式公共豬，縮短人工審核流程。
+- 正式源資料經 AstrBot 本地同源代理讀取，圖片不要求 sandbox 直接跨域訪問外部來源。
+- 批准／拒絕補上真實 mutation 回歸測試，避免 UI 看似成功、實際沒有提交審核動作。
+
+### 📰 豬圈日報安全收口
+
+- 群組自動日報的開啟／關閉權限進一步收緊為 AstrBot 管理員。
+- 固化祭品契約：`daily_report_random_eat_enabled` 預設關閉，且只有定時自動日報流程可觸發；手動 `/豬圈日報` 永遠只讀，不改變玩家祭品狀態。
+- Charge／補貨事件可進入日報聚合，但日報本身不成為玩法 state authority。
+
+### 🧪 驗證與相容性
+
+- 本輪功能在合併前均經 Python 測試、compile、pre-commit 與 AstrBot / Marketplace 既有 CI 契約驗證。
+- 可由 **v3.6.5 直接升級**。
+- Charge 會對舊 roast cooldown 做惰性兼容遷移；不需要使用者手工改資料。
+- 永久圖鑑、EX、保底與既有 60/30/10 烤豬 outcome 語義不因本次更新重新計算。
+
+### 升級建議
+
+正常透過 AstrBot 插件更新或 GitHub Release ZIP 升級即可。若你自行維護公共源審核服務，請同時同步本版對應的 source review 前後端檔案，以取得完整審核與瀏覽修復。
 
 ## v3.6.5 (2026-08-15)
 
