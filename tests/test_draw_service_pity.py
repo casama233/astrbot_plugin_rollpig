@@ -160,3 +160,27 @@ def test_choose_keeps_duplicate_when_roll_misses_combined_pity():
     )
 
     assert chosen["id"] == "owned"
+
+
+def test_choose_duplicate_only_uses_already_unlocked_active_pigs():
+    owned = {"id": "owned", "name": "Owned"}
+    unseen = {"id": "new", "name": "New"}
+    eaten = {"id": "eaten", "name": "Eaten"}
+    service = DrawService()
+    rng = StubRng(owned, random_value=0.0)
+
+    chosen = service.choose_duplicate(
+        [owned, unseen, eaten],
+        {"pigs": {"owned": {"count": 3}, "eaten": {"count": 1}}},
+        rng=rng,
+    )
+
+    assert chosen == owned
+
+
+def test_choose_duplicate_falls_back_when_player_has_no_active_unlocks():
+    service = DrawService()
+    assert service.choose_duplicate(
+        [{"id": "new", "name": "New"}],
+        {"pigs": {}},
+    ) is None
