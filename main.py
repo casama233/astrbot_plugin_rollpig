@@ -246,7 +246,23 @@ class RollPigPlugin(
         return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
 
-    UI_ASSET_VERSION = "3.2.0"
+    UI_ASSET_VERSION = "3.10.1"
+
+    def _build_analytics_insights(self):
+        """Attach safe feature-state metadata needed by the admin dashboard."""
+        data = super()._build_analytics_insights()
+        if not isinstance(data, dict):
+            return data
+        enabled = bool(getattr(self, "enable_ai_roast_copy", False))
+        feature_flags = data.setdefault("feature_flags", {})
+        if isinstance(feature_flags, dict):
+            feature_flags["ai_roast_copy_enabled"] = enabled
+        operations = data.setdefault("operations", {})
+        if isinstance(operations, dict):
+            ai = operations.setdefault("ai", {})
+            if isinstance(ai, dict):
+                ai["enabled"] = enabled
+        return data
 
     def _init_regular_font(self):
         font_paths = [
