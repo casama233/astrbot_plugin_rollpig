@@ -31,10 +31,9 @@ jobs:
           metadata_path = Path("metadata.yaml")
           metadata = metadata_path.read_text(encoding="utf-8")
           old = 'version: "3.11.1"'
-          new = f'version: "{version}"'
           if old not in metadata:
               raise SystemExit("metadata version marker missing")
-          metadata_path.write_text(metadata.replace(old, new, 1), encoding="utf-8")
+          metadata_path.write_text(metadata.replace(old, f'version: "{version}"', 1), encoding="utf-8")
 
           changelog_path = Path("CHANGELOG.md")
           changelog = changelog_path.read_text(encoding="utf-8")
@@ -42,60 +41,63 @@ jobs:
           if marker not in changelog:
               raise SystemExit("previous release marker missing")
           _, released_tail = changelog.split(marker, 1)
-          release_section = f'''# 更新
+          release_lines = [
+              "# 更新",
+              "",
+              "## 未發佈",
+              "",
+              "- 暫無。",
+              "",
+              f"## v{version}",
+              "",
+              f"發佈日期：{date}",
+              "",
+              f"v{version} 是管理面板 KPI 與趨勢視覺修復版，集中修正總覽卡片的統計語義、資訊密度與 mini sparkline 失真，不修改插件玩法或資料契約。",
+              "",
+              "### 管理面板 KPI",
+              "",
+              "- 頂部 KPI 收斂為「總使用人數／累計抽取／今日活躍／人均解鎖／平均收藏率」五項；「小豬總數」移回圖鑑／覆蓋語境，不再佔用核心 KPI 槽位。",
+              "- 移除「當前快照 · 無歷史序列」等無信息量佔位，改為今日活躍占累計用戶比例、近 14 日抽取增量與日均、昨日比較、人均未探索空間與收藏覆蓋上下文。",
+              "- 「累計抽取」不再復用與「今日活躍」等形的日粒度序列，避免同一資料被包裝成兩條不同趨勢；只有真正有時間序列含義的今日活躍保留 mini sparkline。",
+              "",
+              "### 趨勢視覺",
+              "",
+              "- mini sparkline 由硬折線改為帶斜率限制的單調 cubic Hermite／Bézier 曲線，轉折處限制 tangent，避免尖角與平滑後越過真實資料極值。",
+              "- 加入最小語義視覺跨度，避免 15 → 16 這類小幅波動因局部 min/max 縮放被誇張成滿幅震盪。",
+              "- 保留固定 viewBox、non-scaling stroke、淡面積層與真實末端資料點，提升不同卡片寬度下的可讀性。",
+              "",
+              "### 回歸驗證",
+              "",
+              "- Browser harness 新增非空總覽資料，鎖定五張 KPI 卡、唯一真實 activity sparkline、cubic path、末端點與小波動不得填滿圖高。",
+              "- 修正舊 browser harness 的 bootstrap 版本假設與 responsive stylesheet 契約，避免測試因過時前提失真。",
+              "",
+              "### 相容性",
+              "",
+              "- 可由 v3.11.1 直接升級。",
+              "- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／保底／EX／烤豬規則或後端 analytics contract。",
+              "",
+          ]
+          changelog_path.write_text("\n".join(release_lines) + "\n" + marker + released_tail, encoding="utf-8")
 
-## 未發佈
-
-- 暫無。
-
-## v{version}
-
-發佈日期：{date}
-
-v{version} 是管理面板 KPI 與趨勢視覺修復版，集中修正總覽卡片的統計語義、資訊密度與 mini sparkline 失真，不修改插件玩法或資料契約。
-
-### 管理面板 KPI
-
-- 頂部 KPI 收斂為「總使用人數／累計抽取／今日活躍／人均解鎖／平均收藏率」五項；「小豬總數」移回圖鑑／覆蓋語境，不再佔用核心 KPI 槽位。
-- 移除「當前快照 · 無歷史序列」等無信息量佔位，改為今日活躍占累計用戶比例、近 14 日抽取增量與日均、昨日比較、人均未探索空間與收藏覆蓋上下文。
-- 「累計抽取」不再復用與「今日活躍」等形的日粒度序列，避免同一資料被包裝成兩條不同趨勢；只有真正有時間序列含義的今日活躍保留 mini sparkline。
-
-### 趨勢視覺
-
-- mini sparkline 由硬折線改為帶斜率限制的單調 cubic Hermite／Bézier 曲線，轉折處限制 tangent，避免尖角與平滑後越過真實資料極值。
-- 加入最小語義視覺跨度，避免 15 → 16 這類小幅波動因局部 min/max 縮放被誇張成滿幅震盪。
-- 保留固定 viewBox、non-scaling stroke、淡面積層與真實末端資料點，提升不同卡片寬度下的可讀性。
-
-### 回歸驗證
-
-- Browser harness 新增非空總覽資料，鎖定五張 KPI 卡、唯一真實 activity sparkline、cubic path、末端點與小波動不得填滿圖高。
-- 修正舊 browser harness 的 bootstrap 版本假設與 responsive stylesheet 契約，避免測試因過時前提失真。
-
-### 相容性
-
-- 可由 v3.11.1 直接升級。
-- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／保底／EX／烤豬規則或後端 analytics contract。
-
-'''
-          changelog_path.write_text(release_section + marker + released_tail, encoding="utf-8")
-
-          notes = f'''# 今日小豬 · 增強版 v{version}
-
-這是一個管理面板 KPI 與趨勢視覺修復版，不修改插件玩法或資料契約。
-
-## 修復
-
-- 頂部 KPI 收斂為五個真正有決策價值的指標：總使用人數、累計抽取、今日活躍、人均解鎖、平均收藏率。
-- 移除無歷史序列的裝飾性快照佔位，改為真實的 14 日增量、日均、昨日比較、活躍占比與探索空間資訊。
-- 累計抽取不再與今日活躍共用同形日序列，避免重複趨勢與誤導性視覺。
-- 今日活躍 sparkline 改為不過衝的單調 cubic 曲線，並限制小波動的視覺振幅，修復尖角與誇張縮放。
-- 新增 browser regression，直接驗證五 KPI、唯一 activity sparkline、cubic path 與小幅波動的實際 SVG 幾何。
-
-## 相容性
-
-可由 v3.11.1 直接升級；SQLite schema、Resource Protocol、指令、配置、玩法與後端 analytics contract 均不變。
-'''
-          Path(f".github/release-v{version}.md").write_text(notes, encoding="utf-8")
+          notes_lines = [
+              f"# 今日小豬 · 增強版 v{version}",
+              "",
+              "這是一個管理面板 KPI 與趨勢視覺修復版，不修改插件玩法或資料契約。",
+              "",
+              "## 修復",
+              "",
+              "- 頂部 KPI 收斂為五個真正有決策價值的指標：總使用人數、累計抽取、今日活躍、人均解鎖、平均收藏率。",
+              "- 移除無歷史序列的裝飾性快照佔位，改為真實的 14 日增量、日均、昨日比較、活躍占比與探索空間資訊。",
+              "- 累計抽取不再與今日活躍共用同形日序列，避免重複趨勢與誤導性視覺。",
+              "- 今日活躍 sparkline 改為不過衝的單調 cubic 曲線，並限制小波動的視覺振幅，修復尖角與誇張縮放。",
+              "- 新增 browser regression，直接驗證五 KPI、唯一 activity sparkline、cubic path 與小幅波動的實際 SVG 幾何。",
+              "",
+              "## 相容性",
+              "",
+              "可由 v3.11.1 直接升級；SQLite schema、Resource Protocol、指令、配置、玩法與後端 analytics contract 均不變。",
+              "",
+          ]
+          Path(f".github/release-v{version}.md").write_text("\n".join(notes_lines), encoding="utf-8")
           PY
 
           python scripts/maintenance_contract.py release
