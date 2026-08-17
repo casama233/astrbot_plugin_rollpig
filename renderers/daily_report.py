@@ -14,6 +14,18 @@ REPORT_HEIGHT_WITH_SACRIFICE = 1390
 REPORT_MAX_HEIGHT = 1400
 PNG_COMPRESS_LEVEL = 1
 
+# Compact report layout constants. Keep these explicit so vertical rhythm can be
+# regression-tested instead of relying on magic coordinates scattered around the
+# renderer.
+_METRIC_CARD_HEIGHT = 124
+_METRIC_ROW_STEP = 138
+_METRIC_HINT_TOP_OFFSET = 84
+_METRIC_TRACK_BOTTOM_PADDING = 15
+_SUMMARY_PANEL_TOP = 496
+_SUMMARY_PANEL_BOTTOM = 790
+_EVENT_ROW_TOP_OFFSET = 96
+_EVENT_ROW_STEP = 34
+
 
 _METRIC_META = (
     ("active_users", "活跃猪友", "今天在猪圈露过脸"),
@@ -91,16 +103,21 @@ def _draw_metric(plugin, draw, palette, box, key, label, hint, value, scale) -> 
     value_font = plugin.font_bold.font_variant(size=38)
     label_font = plugin.font_bold.font_variant(size=20)
     hint_font = plugin.font_regular.font_variant(size=16)
-    draw.text((left + 22, top + 15), str(value), font=value_font, fill=palette["title"])
-    draw.text((left + 22, top + 61), label, font=label_font, fill=palette["secondary"])
+    draw.text((left + 22, top + 12), str(value), font=value_font, fill=palette["title"])
+    draw.text((left + 22, top + 57), label, font=label_font, fill=palette["secondary"])
+    hint_text = _fit_text(draw, hint, hint_font, right - left - 44)
+    hint_y = top + _METRIC_HINT_TOP_OFFSET
+    track_left, track_right = left + 22, right - 22
+    track_y = bottom - _METRIC_TRACK_BOTTOM_PADDING
+    # The old 116 px card put the hint baseline almost on top of the progress
+    # track. The taller card plus explicit offsets leave a stable text-safe gap
+    # even with CJK font ascent/descent differences.
     draw.text(
-        (left + 22, top + 91),
-        _fit_text(draw, hint, hint_font, right - left - 44),
+        (left + 22, hint_y),
+        hint_text,
         font=hint_font,
         fill=palette["muted"],
     )
-    track_left, track_right = left + 22, right - 22
-    track_y = bottom - 17
     draw.rounded_rectangle(
         (track_left, track_y, track_right, track_y + 7),
         4,
@@ -137,7 +154,7 @@ def _draw_event_chart(plugin, draw, report, palette, box) -> None:
     maximum = max(1, max(values, default=0))
     bar_left = left + 132
     bar_right = right - 60
-    y = top + 99
+    y = top + _EVENT_ROW_TOP_OFFSET
     for (key, label), value in zip(_EVENT_META, values):
         dot = _metric_color(palette, key)
         draw.ellipse((left + 28, y + 4, left + 40, y + 16), fill=dot)
@@ -165,7 +182,21 @@ def _draw_event_chart(plugin, draw, report, palette, box) -> None:
             font=value_font,
             fill=palette["title"],
         )
-        y += 39
+        y += _EVENT_ROW_STEP
+
+    # Keep refill activity inside the same event panel. It used to sit outside
+    # the rounded card and collide with the fifth event row when font metrics
+    # were slightly taller than expected.
+    refill_text = (
+        f"今日补货 {int(report.get('oven_refills', 0) or 0)} 次 · "
+        f"添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次"
+    )
+    draw.text(
+        (left + 28, bottom - 30),
+        refill_text,
+        font=small_font,
+        fill=palette["secondary"],
+    )
 
 
 def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
@@ -186,8 +217,9 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
         else:
             headline = "暂时没有热门款"
             copy = "大家还没把同一只猪抽到能成立粉丝后援会。"
-        draw.text((left + 28, top + 86), headline, font=name_font, fill=palette["muted"])
-        draw.text((left + 28, top + 127), copy, font=body_font, fill=palette["secondary"])
+        headline_y = top + max(96, (bottom - top) // 2 - 28)
+        draw.text((left + 28, headline_y), headline, font=name_font, fill=palette["muted"])
+        draw.text((left + 28, headline_y + 43), copy, font=body_font, fill=palette["secondary"])
         return
 
     pig = popular[0]
@@ -198,19 +230,19 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
             thumb = plugin._fit_card_image(path, (116, 116))
             mask = PILImage.new("L", (116, 116), 0)
             ImageDraw.Draw(mask).rounded_rectangle((0, 0, 115, 115), 24, fill=255)
-            canvas.paste(thumb.convert("RGB"), (left + 28, top + 78), mask)
+            canvas.paste(thumb.convert("RGB"), (left + 28, top + 92), mask)
         except Exception:
             pass
     name = str(pig.get("name") or pig_id or "未知小猪")
     count = int(pig.get("count", 0) or 0)
     draw.text(
-        (left + 166, top + 84),
+        (left + 166, top + 98),
         _fit_text(draw, name, name_font, right - left - 194),
         font=name_font,
         fill=palette["title"],
     )
     draw.text(
-        (left + 168, top + 126),
+        (left + 168, top + 140),
         f"今天出现 {count} 次",
         font=accent_font,
         fill=palette["accent"],
@@ -220,7 +252,7 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
         if len(popular) <= 1
         else f"另有 {len(popular) - 1} 种并列，今天撞衫是团建。"
     )
-    draw.text((left + 168, top + 158), copy, font=body_font, fill=palette["secondary"])
+    draw.text((left + 168, top + 172), copy, font=body_font, fill=palette["secondary"])
 
 
 def _draw_award(plugin, canvas, draw, report, palette, box, key, title, empty_copy) -> None:
@@ -351,12 +383,12 @@ def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
     for index, ((key, label, hint), value) in enumerate(zip(_METRIC_META, metric_values)):
         row, col = divmod(index, 3)
         x = 44 + col * 378
-        y = 214 + row * 132
+        y = 214 + row * _METRIC_ROW_STEP
         _draw_metric(
             plugin,
             draw,
             palette,
-            (x, y, x + 350, y + 116),
+            (x, y, x + 350, y + _METRIC_CARD_HEIGHT),
             key,
             label,
             hint,
@@ -364,15 +396,18 @@ def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
             metric_scale,
         )
 
-    _draw_event_chart(plugin, draw, report, palette, (44, 486, 674, 744))
-    _draw_popular(plugin, canvas, draw, report, palette, (696, 486, 1156, 744))
-    draw.text(
-        (54, 765),
-        f"今日补货 {int(report.get('oven_refills', 0) or 0)} 次 · 添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次",
-        font=body_font,
-        fill=palette["secondary"],
+    _draw_event_chart(
+        plugin, draw, report, palette, (44, _SUMMARY_PANEL_TOP, 674, _SUMMARY_PANEL_BOTTOM)
     )
-    draw.text((54, 806), "今日猪圈名人堂", font=hero_font, fill=palette["title"])
+    _draw_popular(
+        plugin,
+        canvas,
+        draw,
+        report,
+        palette,
+        (696, _SUMMARY_PANEL_TOP, 1156, _SUMMARY_PANEL_BOTTOM),
+    )
+    draw.text((54, 818), "今日猪圈名人堂", font=hero_font, fill=palette["title"])
     for index, (key, title, empty_copy) in enumerate(_AWARD_META):
         row, col = divmod(index, 2)
         x = 44 + col * 566
