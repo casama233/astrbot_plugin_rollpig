@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import tempfile
 from pathlib import Path
 from typing import Mapping
@@ -17,13 +16,10 @@ from .common import (
 )
 
 
-RECIPES = (
-    ("蜜汁脆皮", "外脆里嫩，甜度刚好，今日烦恼全部烤化。"),
-    ("炭火蒜香", "火候拉满，蒜香扑鼻，猪圈厨神认证出品。"),
-    ("椒盐黄金", "咸香酥脆，一口下去好运值直接加满。"),
-    ("慢烤照烧", "低温慢烤锁住快乐，再刷上一层闪亮好运。"),
-    ("香草熔岩", "表面平静，内心滚烫，是今天最有戏的小猪料理。"),
-)
+_EMERGENCY_LOCAL_COPY = {
+    "dish": "豬圈炭火特餐",
+    "copy": "豬鼻一拱上烤架，今天不是翻身，是後廚很專業地幫你翻面。",
+}
 
 
 def render_roast_card(
@@ -32,18 +28,20 @@ def render_roast_card(
     user_id: str,
     draw_date: str,
     ai_copy: str | None,
+    local_copy: Mapping[str, object] | None = None,
     palette: Mapping[str, object],
     font_bold: ImageFont.FreeTypeFont,
     body_font: ImageFont.FreeTypeFont,
     image_resolver: ImageResolver,
 ) -> Path:
-    """Render the existing roast dish card from explicit view inputs only."""
-    seed = f"{user_id}:{draw_date}:{pig.get('id')}"
-    digest = hashlib.sha256(seed.encode("utf-8")).digest()
-    recipe, copy = RECIPES[digest[0] % len(RECIPES)]
+    """Render one roast card from an already-selected AI or local copy."""
+    del user_id, draw_date  # selection/repeat policy belongs to the caller.
+    selected = local_copy if isinstance(local_copy, Mapping) else _EMERGENCY_LOCAL_COPY
+    recipe = str(selected.get("dish") or _EMERGENCY_LOCAL_COPY["dish"])
+    copy = str(selected.get("copy") or _EMERGENCY_LOCAL_COPY["copy"])
     if ai_copy:
-        recipe = "AI 私房"
-        copy = ai_copy
+        recipe = "AI 豬圈私房"
+        copy = str(ai_copy)
 
     canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
     draw = ImageDraw.Draw(canvas)
@@ -56,7 +54,7 @@ def render_roast_card(
         outline=palette["roast_outline"],
         width=5,
     )
-    source = "AI 料理" if ai_copy else "本地料理"
+    source = "AI 豬話" if ai_copy else "豬圈本地話"
     draw.text(
         (64, 58),
         f"今日烤猪 · {source}",

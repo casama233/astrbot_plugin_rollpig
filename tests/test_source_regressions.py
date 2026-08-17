@@ -361,7 +361,8 @@ def test_v213_runtime_uses_sql_snapshot_and_unique_ai_generation_claim():
     assert "claim_ai_roast_generation" in ai
     assert "complete_ai_roast_generation" in ai
     assert "uuid.uuid4().hex" in ai
-    assert "random.choice(list(recent.values()))" in ai
+    assert "self._select_ai_from_recent(event, recent)" in ai
+    assert "self._select_ai_bundle(event, generated)" in ai
 
 
 
