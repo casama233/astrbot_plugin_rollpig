@@ -46,6 +46,15 @@ try:
     from .ex_variants import validate_ex_variants
     from .rollpig_core import consecutive_duplicate_day_streak
     from .roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from .roast_copy import (
+        ai_candidate_key,
+        decode_ai_candidates,
+        encode_ai_candidates,
+        load_roast_copy_catalog,
+        select_ai_candidate,
+        select_local_roast_copy,
+        validate_roast_copy_catalog,
+    )
     from .services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from .renderers import (
         PigCardLayout,
@@ -71,6 +80,15 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_variants import validate_ex_variants
     from rollpig_core import consecutive_duplicate_day_streak
     from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
+    from roast_copy import (
+        ai_candidate_key,
+        decode_ai_candidates,
+        encode_ai_candidates,
+        load_roast_copy_catalog,
+        select_ai_candidate,
+        select_local_roast_copy,
+        validate_roast_copy_catalog,
+    )
     from services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
     from renderers import (
         PigCardLayout,
@@ -352,6 +370,8 @@ class RollPigPlugin(Star):
         self.history_path = self.plugin_data_dir / "pig_history.json"
         self.roast_state_path = self.plugin_data_dir / "roast_state.json"
         self.ai_roast_copies_path = self.plugin_data_dir / "ai_roast_copies.json"
+        self.roast_copy_builtin_path = self.res_dir / "roast_copy.json"
+        self.roast_copy_usage_path = self.plugin_data_dir / "roast_copy_usage.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
         # This file is provisioned only on the source maintainer's AstrBot.
         # It is never exposed through configuration or returned to the browser.
@@ -449,6 +469,11 @@ class RollPigPlugin(Star):
         self.ai_roast_copies = self._runtime_document(
             "ai_roast_copies", self.ai_roast_copies_path, ai_default
         )
+        self.roast_copy_usage = self.load_json(
+            self.roast_copy_usage_path, {"contexts": {}}
+        )
+        if not isinstance(self.roast_copy_usage, dict):
+            self.roast_copy_usage = {"contexts": {}}
         if not getattr(self.storage, "supports_runtime_snapshot", False):
             self._migrate_today_to_history()
 
@@ -1429,6 +1454,10 @@ class RollPigPlugin(Star):
                                 self.resource_active_dir / "pig_ex_variants.json"
                             ).is_file()
                         )
+                        and (
+                            not isinstance(manifest.get("roast_copy"), dict)
+                            or (self.resource_active_dir / "roast_copy.json").is_file()
+                        )
                     ):
                         self.save_json(
                             self.resource_state_path,
@@ -1442,6 +1471,7 @@ class RollPigPlugin(Star):
                     pig_meta = manifest.get("pig_json")
                     image_metas = manifest.get("images")
                     ex_meta = manifest.get("ex_variants")
+                    roast_copy_meta = manifest.get("roast_copy")
                     variant_image_metas = manifest.get("variant_images", [])
                     if not isinstance(pig_meta, dict):
                         raise ValueError("manifest 缺少 pig_json")
@@ -1451,6 +1481,8 @@ class RollPigPlugin(Star):
                         raise ValueError("云资源图片数量超过 500")
                     if ex_meta is not None and not isinstance(ex_meta, dict):
                         raise ValueError("manifest ex_variants 必须是对象")
+                    if roast_copy_meta is not None and not isinstance(roast_copy_meta, dict):
+                        raise ValueError("manifest roast_copy 必须是对象")
                     if not isinstance(variant_image_metas, list):
                         raise ValueError("manifest variant_images 必须是数组")
                     if ex_meta is None and variant_image_metas:
@@ -1462,6 +1494,8 @@ class RollPigPlugin(Star):
                         for meta in image_metas
                         if isinstance(meta, dict)
                     )
+                    if isinstance(roast_copy_meta, dict):
+                        declared_total += int(roast_copy_meta.get("size") or 0)
                     if isinstance(ex_meta, dict):
                         declared_total += int(ex_meta.get("size") or 0)
                         declared_total += sum(
@@ -1481,6 +1515,17 @@ class RollPigPlugin(Star):
                         json.loads(pig_raw.decode("utf-8-sig"))
                     )
                     pig_ids = {item["id"] for item in pigs}
+                    roast_copy_raw = b""
+                    if isinstance(roast_copy_meta, dict):
+                        roast_copy_raw = await self._download_manifest_item(
+                            client,
+                            self.resource_manifest_url,
+                            roast_copy_meta,
+                            256 * 1024,
+                        )
+                        validate_roast_copy_catalog(
+                            json.loads(roast_copy_raw.decode("utf-8-sig"))
+                        )
                     ex_raw = b""
                     normalized_ex: dict[str, dict[int, dict[str, str]]] = {}
                     if isinstance(ex_meta, dict):
@@ -1498,6 +1543,8 @@ class RollPigPlugin(Star):
                     staging_images = staging / "images"
                     staging_images.mkdir(parents=True, exist_ok=True)
                     (staging / "pig.json").write_bytes(pig_raw)
+                    if roast_copy_raw:
+                        (staging / "roast_copy.json").write_bytes(roast_copy_raw)
                     staging_variants = staging / "ex_variants"
                     if isinstance(ex_meta, dict):
                         staging_variants.mkdir(parents=True, exist_ok=True)
@@ -1505,7 +1552,7 @@ class RollPigPlugin(Star):
                     # 公共包接近两百张图；较低并发对慢速反代和家庭网络更稳定。
                     semaphore = asyncio.Semaphore(4)
                     budget_lock = asyncio.Lock()
-                    package_total = len(pig_raw) + len(ex_raw)
+                    package_total = len(pig_raw) + len(ex_raw) + len(roast_copy_raw)
 
                     async def fetch_base_image(meta):
                         nonlocal package_total
@@ -3113,6 +3160,73 @@ class RollPigPlugin(Star):
         selected = copies_root.get(pig_id, {})
         return (selected if isinstance(selected, dict) else {}), changed
 
+    @staticmethod
+    def _roast_copy_usage_key(event, group_id: str, sender_id: str) -> str:
+        return f"group:{group_id}" if group_id else f"dm:{sender_id}"
+
+    def _recent_roast_copy_keys(self, event: AstrMessageEvent) -> list[str]:
+        context_key = self._roast_copy_usage_key(
+            event, self._event_group_id(event), self._event_sender_id(event)
+        )
+        contexts = self.roast_copy_usage.get("contexts")
+        if not isinstance(contexts, dict):
+            contexts = {}
+            self.roast_copy_usage["contexts"] = contexts
+        values = contexts.get(context_key)
+        return [str(item) for item in values[-24:]] if isinstance(values, list) else []
+
+    def _remember_roast_copy_key(self, event: AstrMessageEvent, key: str) -> None:
+        key = str(key or "").strip()
+        if not key:
+            return
+        context_key = self._roast_copy_usage_key(
+            event, self._event_group_id(event), self._event_sender_id(event)
+        )
+        with self._data_lock:
+            contexts = self.roast_copy_usage.setdefault("contexts", {})
+            if not isinstance(contexts, dict):
+                contexts = {}
+                self.roast_copy_usage["contexts"] = contexts
+            recent = contexts.get(context_key)
+            recent = [str(item) for item in recent] if isinstance(recent, list) else []
+            recent.append(key)
+            contexts[context_key] = recent[-24:]
+            self.save_json(self.roast_copy_usage_path, self.roast_copy_usage)
+
+    def _effective_roast_copy_catalog(self) -> dict[str, object]:
+        remote = self.resource_active_dir / "roast_copy.json"
+        if remote.is_file():
+            try:
+                return load_roast_copy_catalog(remote)
+            except Exception as exc:
+                logger.warning(f"远端烤猪文案包无效，回退内置猪话：{exc}")
+        return load_roast_copy_catalog(self.roast_copy_builtin_path)
+
+    def _select_local_roast_copy_for_event(
+        self, event: AstrMessageEvent, pig: dict
+    ) -> dict[str, str]:
+        return select_local_roast_copy(
+            self._effective_roast_copy_catalog(),
+            pig_name=str(pig.get("name") or "小猪"),
+            recent_keys=self._recent_roast_copy_keys(event),
+        )
+
+    def _select_ai_bundle(self, event: AstrMessageEvent, payload: object) -> str | None:
+        return select_ai_candidate(
+            decode_ai_candidates(payload),
+            recent_keys=self._recent_roast_copy_keys(event),
+        )
+
+    def _select_ai_from_recent(
+        self, event: AstrMessageEvent, recent: dict
+    ) -> str | None:
+        candidates: list[str] = []
+        for payload in recent.values() if isinstance(recent, dict) else ():
+            candidates.extend(decode_ai_candidates(payload))
+        return select_ai_candidate(
+            candidates, recent_keys=self._recent_roast_copy_keys(event)
+        )
+
     def _save_ai_roast_copies(self) -> None:
         self.save_json(self.ai_roast_copies_path, self.ai_roast_copies)
 
@@ -3124,7 +3238,8 @@ class RollPigPlugin(Star):
             return None
         pig_id = str(pig.get("id") or "").strip()
         if not pig_id:
-            return await self._generate_ai_roast_copy(event, pig)
+            generated = await self._generate_ai_roast_copy(event, pig)
+            return self._select_ai_bundle(event, generated)
         today_value = self._today()
         today = today_value.isoformat()
         cutoff = (today_value - datetime.timedelta(days=6)).isoformat()
@@ -3146,9 +3261,9 @@ class RollPigPlugin(Star):
                 recent = claimed.get("copies")
                 recent = recent if isinstance(recent, dict) else {}
                 if str(claimed.get("status")) == "ready" and today in recent:
-                    return random.choice(list(recent.values()))
+                    return self._select_ai_from_recent(event, recent)
                 if not claimed.get("claimed"):
-                    return random.choice(list(recent.values())) if recent else None
+                    return self._select_ai_from_recent(event, recent)
                 generated = await self._generate_ai_roast_copy(event, pig)
                 completed = await asyncio.to_thread(
                     self.storage.complete_ai_roast_generation,
@@ -3164,10 +3279,10 @@ class RollPigPlugin(Star):
                 if isinstance(document, dict):
                     self.ai_roast_copies = document
                 if generated and str(completed.get("status")) == "ready":
-                    return str(completed.get("content") or generated)
+                    return self._select_ai_bundle(event, completed.get("content") or generated)
                 recent = completed.get("copies")
                 recent = recent if isinstance(recent, dict) else {}
-                return random.choice(list(recent.values())) if recent else None
+                return self._select_ai_from_recent(event, recent)
 
             with self._data_lock:
                 recent, changed = self._recent_ai_roast_copies(pig_id)
@@ -3176,11 +3291,11 @@ class RollPigPlugin(Star):
                 if today in recent:
                     if changed:
                         self._save_ai_roast_copies()
-                    return random.choice(list(recent.values()))
+                    return self._select_ai_from_recent(event, recent)
                 if today in attempts:
                     if changed:
                         self._save_ai_roast_copies()
-                    return random.choice(list(recent.values())) if recent else None
+                    return self._select_ai_from_recent(event, recent)
                 attempts[today] = "generating"
                 self._save_ai_roast_copies()
             generated = await self._generate_ai_roast_copy(event, pig)
@@ -3197,25 +3312,28 @@ class RollPigPlugin(Star):
                     attempts[today] = "failed"
                 self._save_ai_roast_copies()
             if generated:
-                return generated
-            return random.choice(list(recent.values())) if recent else None
+                return self._select_ai_bundle(event, generated)
+            return self._select_ai_from_recent(event, recent)
 
     async def _generate_ai_roast_copy(
         self, event: AstrMessageEvent, pig: dict
     ) -> str | None:
-        """可选 AI 文案；模型不可用时静默回退到本地料理文案。"""
+        """Generate one four-candidate piggish bundle; old single-line caches remain readable."""
         if not self.enable_ai_roast_copy:
             return None
         prompt = (
-            "你是‘今日烤猪’栏目最会抖机灵的文案主厨。"
-            "为一张虚构小猪料理卡写一句中文短文案，要有反差、包袱或网络梗，"
-            "优先使用轻度黑色幽默：只调侃虚构小猪、猪圈日常或抽卡命运，"
-            "可以自嘲、阴阳怪气或假装严肃，结尾最好有一个反转。"
+            "你是‘今日小猪’猪圈宇宙的后厨总编，不是普通美食博主。"
+            "一次生成4条彼此明显不同的中文烤猪卡文案，并只输出JSON字符串数组。"
+            "每条18-42个汉字，必须有猪言猪语和反差包袱，自然带入至少一个猪圈世界观元素："
+            "猪圈、猪籍、猪运、返场、EX、Charge、烤架、保底、拱、哼哼、后厨。"
+            "四条分别偏向：猪圈黑话、抽卡命运、后厨判词、哲学反转；不要只是换同义词。"
+            "禁止写成普通美食广告；除非用于反转，不要使用‘外焦里嫩、香气扑鼻、火候刚好、入口即化、肥而不腻’套话。"
             f"小猪名：{str(pig.get('name') or '小猪')[:30]}；"
-            f"描述：{str(pig.get('description') or '')[:80]}。"
-            "禁止针对真实用户、群体或现实事件；禁止仇恨、性内容、自残、血腥或真实暴力细节；"
-            "不写真实烹饪步骤，不复述题目，不要解释笑点。"
-            "只输出一句不超过42个汉字的文案，不加标题、引号、Markdown 或‘文案：’前缀。"
+            f"描述：{str(pig.get('description') or '')[:100]}；"
+            f"图鉴文案：{str(pig.get('analysis') or '')[:180]}。"
+            "只调侃虚构小猪、猪圈日常和抽卡命运；禁止针对真实用户或群体，禁止仇恨、性内容、自残、血腥和真实暴力细节；"
+            "不写真实烹饪步骤，不解释笑点，不加标题或Markdown。"
+            "输出示例格式：[\"第一条\",\"第二条\",\"第三条\",\"第四条\"]"
         )
         try:
             response = None
@@ -3244,12 +3362,31 @@ class RollPigPlugin(Star):
                     ),
                     timeout=self.ai_generation_timeout,
                 )
-            text = str(getattr(response, "completion_text", "") or "").strip()
-            text = re.sub(r"^\s*(?:文案|料理文案|答案)\s*[：:]\s*", "", text)
-            text = re.sub(r"\s+", " ", text).strip("“”\"'` ")
-            return text[:64] or None
+            raw = str(getattr(response, "completion_text", "") or "").strip()
+            raw = re.sub(
+                r"^\s*```(?:json)?\s*|\s*```\s*$", "", raw, flags=re.IGNORECASE
+            )
+            match = re.search(r"\[[\s\S]*\]", raw)
+            if not match:
+                return None
+            try:
+                parsed = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                return None
+            if not isinstance(parsed, list):
+                return None
+            candidates = [
+                item
+                for item in decode_ai_candidates(
+                    json.dumps(parsed, ensure_ascii=False)
+                )
+                if 8 <= len(item) <= 64
+            ]
+            if len(candidates) < 2:
+                return None
+            return encode_ai_candidates(candidates[:4])
         except Exception as exc:
-            logger.warning(f"AI 烤猪文案生成失败，已回退本地文案：{exc}")
+            logger.warning(f"AI 烤猪文案生成失败，已回退本地猪话：{exc}")
             return None
 
     async def _generate_pig_draft(
@@ -3324,10 +3461,19 @@ class RollPigPlugin(Star):
         output = None
         try:
             ai_copy = await self._get_ai_roast_copy(event, pig)
+            local_copy = (
+                None if ai_copy else self._select_local_roast_copy_for_event(event, pig)
+            )
             output = await asyncio.to_thread(
-                self.render_roast_image, pig, user_id, ai_copy
+                self.render_roast_image, pig, user_id, ai_copy, local_copy
             )
             await event.send(event.image_result(str(output.absolute())))
+            used_key = (
+                ai_candidate_key(ai_copy)
+                if ai_copy
+                else str((local_copy or {}).get("key") or "")
+            )
+            self._remember_roast_copy_key(event, used_key)
             return True
         except Exception as exc:
             logger.error(f"生成烤猪料理卡失败：{exc}", exc_info=True)
@@ -3632,9 +3778,13 @@ class RollPigPlugin(Star):
         )
 
     def render_roast_image(
-        self, pig: dict, user_id: str, ai_copy: str | None = None
+        self,
+        pig: dict,
+        user_id: str,
+        ai_copy: str | None = None,
+        local_copy: dict[str, str] | None = None,
     ) -> Path:
-        copy = ai_copy or ""
+        copy = ai_copy or str((local_copy or {}).get("copy") or "")
         body_font = (
             self._ai_copy_font(copy, 26)
             if ai_copy
@@ -3645,6 +3795,7 @@ class RollPigPlugin(Star):
             user_id=str(user_id),
             draw_date=self._today().isoformat(),
             ai_copy=ai_copy,
+            local_copy=local_copy,
             palette=self._image_palette(),
             font_bold=self.font_bold,
             body_font=body_font,
