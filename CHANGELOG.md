@@ -4,6 +4,27 @@
 
 - 暫無。
 
+## v3.11.1
+
+發佈日期：2026-08-17
+
+v3.11.1 是展示與發布規範修復版，不修改插件運行邏輯。
+
+### README / AstrBot Cloud 相容
+
+- README Logo 由倉庫相對路徑改為 `raw.githubusercontent.com` 絕對地址，避免 AstrBot Cloud 等第三方 Markdown 渲染器無法解析 `./logo.png` 而顯示破圖。
+- 首屏文檔導航改為 GitHub 絕對地址，避免第三方渲染器把相對 docs 連結解析到自己的站點路徑。
+- 新增 Minecraft 主題動態訪問量組件，使用獨立 key `astrbot_plugin_rollpig_plus`。
+
+### 發布規範
+
+- `CONTRIBUTING.md` 明確版本策略：沒有重大變更時只發 patch（`+0.0.1`）；只有大型、向後兼容的里程碑能力才升 minor，破壞性兼容變更才升 major。
+
+### 相容性
+
+- 可由 v3.11.0 直接升級。
+- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／EX／烤豬規則或管理 API。
+
 ## v3.11.0
 
 發佈日期：2026-08-17

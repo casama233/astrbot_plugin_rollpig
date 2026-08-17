@@ -148,6 +148,16 @@ npm run test:browser-perf
 - 對使用者可見的錯誤訊息應能提示下一步，而不是只輸出底層例外。
 - 不要在 PR 中提交本地資料庫、使用者資料、Cookie、Token 或管理頁認證資訊。
 
+## 版本號與發布規則
+
+本倉庫採用保守的 Semantic Versioning。**沒有重大變更時，一律只增加 patch 版本（`+0.0.1`）**，不要因為累積了多個一般修復、文檔或 UI 調整就跳 minor。
+
+- **Patch `x.y.Z`**：bug fix、文檔／README、樣式、管理頁可用性、測試、非破壞性安全收緊與其他不改公開兼容契約的變更。默認發布類型。
+- **Minor `x.Y.0`**：只有明確的大型新功能集合、重要但向後兼容的產品能力或架構升級，且維護者確認值得作為里程碑版本時才使用。
+- **Major `X.0.0`**：公開 API／資源協議／資料 schema／插件身份／配置契約等存在需要使用者處理的破壞性變更時才使用。
+- README／市場展示修復若需要重新發布才能讓 AstrBot Cloud／Marketplace 取得新快照，也仍只發 patch。
+- 發布前保持 `metadata.yaml`、`CHANGELOG.md`、`.github/release-v*.md` 與 tag 版本完全一致。
+
 ## Commit 與 PR
 
 建議 commit 聚焦單一目的，例如：
