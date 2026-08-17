@@ -15,6 +15,8 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 
 try:
+    from .animated_image_feature import AnimatedImageMixin
+    from .command_actor_feature import CommandActorMentionMixin
     from .daily_report_feature import DailyReportMixin
     from .ex_admin_feature import ExAdminMixin
     from .ex_public_source_feature import ExPublicSourceMixin
@@ -25,11 +27,15 @@ try:
     from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
+    from .pig_studio_admin import PigStudioAdminMixin
+    from .pig_studio_feature import PigStudioMixin
     from .renderers.daily_report import render_daily_report_dashboard
     from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from animated_image_feature import AnimatedImageMixin
+    from command_actor_feature import CommandActorMentionMixin
     from daily_report_feature import DailyReportMixin
     from ex_admin_feature import ExAdminMixin
     from ex_public_source_feature import ExPublicSourceMixin
@@ -40,6 +46,8 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
+    from pig_studio_admin import PigStudioAdminMixin
+    from pig_studio_feature import PigStudioMixin
     from renderers.daily_report import render_daily_report_dashboard
     from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
@@ -47,11 +55,15 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class RollPigPlugin(
+    CommandActorMentionMixin,
+    AnimatedImageMixin,
     ReservationFirewoodMixin,
     OvenRefillMixin,
     HelpFeatureMixin,
     RoastReservationMixin,
     DailyReportMixin,
+    PigStudioAdminMixin,
+    PigStudioMixin,
     ExPublicSourceMixin,
     ExAdminMixin,
     ExVariantMixin,
