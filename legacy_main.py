@@ -260,7 +260,7 @@ class RollPigPlugin(Star):
             )
         except (TypeError, ValueError):
             eaten_penalty_percent = 20
-        self.eaten_next_day_failure_percent = min(80, max(1, eaten_penalty_percent))
+        self.eaten_next_day_duplicate_percent = min(80, max(1, eaten_penalty_percent))
         try:
             cooldown_hours = float(
                 self.config.get(
@@ -2228,7 +2228,7 @@ class RollPigPlugin(Star):
         pig = self.catalog_service.find(self.pig_list, pig_id)
         return pig if isinstance(pig, dict) else None
 
-    def _choose_daily_pig(self, user_id: str) -> dict:
+    def _choose_daily_pig(self, user_id: str, *, force_duplicate: bool = False) -> dict:
         """Delegate pure pity/selection policy to DrawService."""
         collection = self._get_user_collection(user_id)
         draw_context = dict(collection) if isinstance(collection, dict) else {}
@@ -2238,6 +2238,15 @@ class RollPigPlugin(Star):
             self._storage_user_key(str(user_id)),
             self._today(),
         )
+        storage_id = self._storage_user_key(str(user_id))
+        pending = getattr(self, "_pending_eaten_duplicate_users", None)
+        if isinstance(pending, set) and storage_id in pending:
+            pending.discard(storage_id)
+            force_duplicate = True
+        if force_duplicate:
+            duplicate = self.draw_service.choose_duplicate(self.pig_list, draw_context)
+            if duplicate is not None:
+                return duplicate
         return self.draw_service.choose(self.pig_list, draw_context)
 
     def _get_daily_pig(self, user_id: str, date_value: datetime.date) -> dict | None:
@@ -3027,7 +3036,13 @@ class RollPigPlugin(Star):
         return dict(eaten)
 
     def _consume_eaten_penalty(self, user_id: str, today: str) -> bool:
-        """在次日首次抽猪时判定吃掉惩罚；失败后锁定到当天结束。"""
+        """Consume next-day eaten risk without ever blocking today's draw.
+
+        The legacy ``failed`` flag is treated as a forced duplicate so players who
+        were already locked by an older runtime are immediately recoverable after
+        upgrading. The boolean return remains False for the historical caller,
+        while a per-user pending marker is consumed by ``_choose_daily_pig``.
+        """
         with self._data_lock:
             penalties = self.roast_state.setdefault("eaten_penalties", {})
             if not isinstance(penalties, dict):
@@ -3044,16 +3059,19 @@ class RollPigPlugin(Star):
                 return False
             if due_date != today:
                 return False
-            if bool(entry.get("failed")):
-                return True
-            if random.randrange(100) < self.eaten_next_day_failure_percent:
-                entry["failed"] = True
-                penalties[storage_id] = entry
-                self._save_roast_state()
-                return True
+
+            force_duplicate = bool(entry.get("failed")) or (
+                random.randrange(100) < self.eaten_next_day_duplicate_percent
+            )
             penalties.pop(storage_id, None)
+            pending = getattr(self, "_pending_eaten_duplicate_users", None)
+            if not isinstance(pending, set):
+                pending = set()
+                self._pending_eaten_duplicate_users = pending
+            if force_duplicate:
+                pending.add(storage_id)
             self._save_roast_state()
-        return False
+            return False
 
     def _daily_eaten_victims(self, group_id: str, draw_date: str) -> list[str]:
         """Read daily eaten victims from SQL when available."""
@@ -3994,20 +4012,18 @@ class RollPigPlugin(Star):
                     pig=None,
                     group_id=group_id,
                     penalty_should_fail=(
-                        random.randrange(100) < self.eaten_next_day_failure_percent
+                        random.randrange(100) < self.eaten_next_day_duplicate_percent
                     ),
                 )
                 self._apply_domain_write_result(probe)
                 status = str(probe.get("status") or "")
-                if status == "penalty-blocked":
-                    response_text = (
-                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
-                    )
-                elif status == "needs-pig":
+                if status in {"needs-pig", "penalty-duplicate"}:
                     if not self.pig_list:
                         response_text = "小猪信息加载失败，请检查后台报错！"
                     else:
-                        proposed = self._choose_daily_pig(storage_id)
+                        proposed = self._choose_daily_pig(
+                            storage_id, force_duplicate=(status == "penalty-duplicate")
+                        )
                         result = await asyncio.to_thread(
                             self.storage.create_daily_draw,
                             draw_date=today_str,
@@ -4020,10 +4036,8 @@ class RollPigPlugin(Star):
                         self._apply_domain_write_result(result)
                         if result.get("status") in {"created", "existing"}:
                             pig_to_send = result.get("pig") or proposed
-                        elif result.get("status") == "penalty-blocked":
-                            response_text = (
-                                "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
-                            )
+                        elif result.get("status") == "penalty-duplicate":
+                            response_text = "今日小猪写入冲突，请稍后再试。"
                         else:
                             response_text = "今日小猪写入失败，请稍后再试。"
                 elif status == "existing":
