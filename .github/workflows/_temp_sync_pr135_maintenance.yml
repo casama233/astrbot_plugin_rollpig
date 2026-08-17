@@ -1,0 +1,60 @@
+name: Temp Sync PR 135 Maintenance
+
+on:
+  push:
+    branches:
+      - fix/command-actor-mention-header
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/command-actor-mention-header
+          fetch-depth: 0
+
+      - name: Merge current main and maintain docs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin main
+          git merge --no-edit origin/main
+          python - <<'PY'
+          from pathlib import Path
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          bullet = '- 群聊中的 RollPig 指令首條機器人回覆統一在最上方單獨一行 `@指令發起者`；原有玩法目標 `@` 繼續保留，私聊不新增多餘提及（#135）。\n'
+          marker = '## 未發佈\n\n'
+          if bullet not in text:
+              if marker not in text:
+                  raise SystemExit('unreleased changelog heading not found')
+              text = text.replace(marker, marker + bullet, 1)
+              changelog.write_text(text, encoding='utf-8')
+
+          commands = Path('docs/COMMANDS.md')
+          text = commands.read_text(encoding='utf-8')
+          section = (
+              '## 👤 群聊回覆署名\n\n'
+              '所有 RollPig 群聊指令的**第一條機器人回覆**都會在最上方單獨一行 `@指令發起者`，讓多人同時操作時能看出結果屬於誰。\n\n'
+              '- 發起者 `@` 與原本結果分行顯示，不會黏在文字或圖片說明前。\n'
+              '- `/烤群友`、`/吃群友` 等玩法若還需要 `@目標`，目標提及仍保留在後續原始回覆中，不會被發起者署名取代。\n'
+              '- 原回覆若本來就以同一位發起者的 `@` 開頭，不會重複提及。\n'
+              '- 私聊不增加 `@` 署名。\n\n'
+              '---\n\n'
+          )
+          anchor = '> `/豬豬幫助` 是玩家第一入口：它會依目前真的開啟的功能和數值生成，不會把被管理員關掉的玩法硬塞進卡片。\n\n'
+          if section not in text:
+              if anchor not in text:
+                  raise SystemExit('commands Wiki insertion anchor not found')
+              text = text.replace(anchor, anchor + section, 1)
+              commands.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/_temp_sync_pr135_maintenance.yml
+          git add CHANGELOG.md docs/COMMANDS.md .github/workflows/_temp_sync_pr135_maintenance.yml
+          git commit -m "docs: maintain requester mention behavior"
+          git push origin HEAD:fix/command-actor-mention-header
