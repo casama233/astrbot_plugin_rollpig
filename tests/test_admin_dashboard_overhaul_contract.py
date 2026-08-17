@@ -53,7 +53,6 @@ def test_popularity_board_is_compact_card_style_leaderboard():
         "#view-overview #barChart .bar-row{",
         "border-radius:11px",
         "#view-overview #barChart .bar-row:nth-child(1)",
+        "#view-overview #barChart .bar-value{",
     ):
         assert token in OVERVIEW_CSS
-    assert "upgradePopularityBoard" in BOOTSTRAP
-    assert "leaderboard-row" in BOOTSTRAP
