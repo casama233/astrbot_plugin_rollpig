@@ -77,3 +77,13 @@ def test_actor_header_uses_native_mentions_with_cross_platform_fallbacks():
     assert 'platform_type == "telegram"' in source
     assert "Comp.At(qq=mention_id, name=telegram_name)" in source
     assert 'Comp.Plain("\\n")' in source
+
+
+def test_requester_header_behavior_is_covered_by_changelog_and_wiki():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    commands = (ROOT / "docs" / "COMMANDS.md").read_text(encoding="utf-8")
+
+    assert "@指令發起者" in changelog
+    assert "## 👤 群聊回覆署名" in commands
+    assert "第一條機器人回覆" in commands
+    assert "私聊不增加 `@` 署名" in commands
