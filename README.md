@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./logo.png" width="168" alt="今日小豬 · 增強版 Logo">
+<img src="https://raw.githubusercontent.com/casama233/astrbot_plugin_rollpig/main/logo.png" width="168" alt="今日小豬 · 增強版 Logo">
 
 # 今日小豬 · 增強版
 
@@ -14,7 +14,9 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
 
-[30 秒開始](docs/getting-started/index.md) · [玩家玩法](docs/gameplay/index.md) · [指令百科](docs/COMMANDS.md) · [管理面板](#管理面板) · [完整 Wiki](docs/index.md)
+![動態訪問量](https://count.kjchmc.cn/get/@astrbot_plugin_rollpig_plus?theme=minecraft)
+
+[30 秒開始](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/getting-started/index.md) · [玩家玩法](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/gameplay/index.md) · [指令百科](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/COMMANDS.md) · [管理面板](#管理面板) · [完整 Wiki](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/index.md)
 
 </div>
 
