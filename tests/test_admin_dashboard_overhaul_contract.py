@@ -12,6 +12,7 @@ BOOTSTRAP = (ROOT / "pages" / "pig-manager" / "ui-bootstrap.js").read_text(
 OVERVIEW_CSS = (ROOT / "pages" / "pig-manager" / "ex-integration.css").read_text(
     encoding="utf-8"
 )
+PAGE = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")
 
 
 def test_admin_asset_protocol_version_stays_compatible_with_inline_page_bootstrap():
@@ -41,10 +42,15 @@ def test_ai_copy_dashboard_distinguishes_disabled_idle_running_and_samples():
     assert "此区块不会显示 0% 成功率或 0 / 0 样本" in ANALYTICS
 
 
-def test_overview_does_not_repeat_daily_draws_sparkline_as_a_second_trend():
-    assert "#view-overview #vDraws svg{display:none!important}" in OVERVIEW_CSS
-    assert "短期变化请看 14 日趋势" in OVERVIEW_CSS
-    assert "近 14 日每日活跃" in OVERVIEW_CSS
+def test_overview_kpi_strip_is_five_information_dense_cards():
+    labels = ("总使用人数", "累计抽取", "今日活跃", "人均解锁", "平均收藏率")
+    for label in labels:
+        assert f'<span class="label">{label}</span>' in PAGE
+    assert '<span class="label">小猪总数</span>' not in PAGE
+    assert "renderSpark('vDraws'" not in PAGE
+    assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in PAGE
+    assert "metric-snapshot-viz" not in PAGE
+    assert "#view-overview #vDraws" not in OVERVIEW_CSS
 
 
 def test_popularity_board_is_compact_card_style_leaderboard():
