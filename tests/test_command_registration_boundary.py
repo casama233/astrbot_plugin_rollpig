@@ -10,6 +10,7 @@ HELPERS = [
     "ex_variant_feature.py",
     "roast_reservation_feature.py",
     "reservation_firewood_feature.py",
+    "random_roast_feature.py",
 ]
 REPORT_ADAPTERS = {
     "pigsty_daily_report_status": "狀態",
