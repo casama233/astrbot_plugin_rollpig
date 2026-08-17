@@ -14,6 +14,6 @@ def test_market_smoke_validates_checked_out_revision_not_default_branch():
     assert "official-worker-current-checkout" in text
 
     # The top-level official validator normalizes repo URLs and clones the
-    # repository default branch. PR smoke must therefore use its official
+    # repository default branch. Each smoke run must therefore use its official
     # worker mode directly against the archived checkout instead.
     assert "--plugins-json .cache/rollpig-market-smoke.json" not in text
