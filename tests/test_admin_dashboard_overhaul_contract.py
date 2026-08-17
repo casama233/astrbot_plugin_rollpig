@@ -50,6 +50,7 @@ def test_overview_kpi_strip_is_five_information_dense_cards():
     assert "renderSpark('vDraws'" not in PAGE
     assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in PAGE
     assert "metric-snapshot-viz" not in PAGE
+    assert "metric-scope" not in PAGE
     assert "#view-overview #vDraws" not in OVERVIEW_CSS
 
 

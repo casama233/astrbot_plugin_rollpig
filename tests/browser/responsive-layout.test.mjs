@@ -44,8 +44,9 @@ test('small-phone layout becomes single-column and keeps dialogs inside the view
   assert.match(compact, /\.toast\{[^}]*max-width:calc\(100% - 16px\)/);
 });
 
-test('responsive fix stays inline and does not add unauthenticated style requests', () => {
-  assert.doesNotMatch(PAGE, /<link[^>]+rel=["']stylesheet["']/i);
+test('responsive layout only uses the authenticated local EX stylesheet', () => {
+  const links = [...PAGE.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["'][^>]*>/gi)].map(match => match[1]);
+  assert.deepEqual(links, ['./ex-integration.css']);
   assert.doesNotMatch(CSS, /@import\s+/i);
   assert.match(CSS, /@media\(pointer:coarse\)/);
 });
