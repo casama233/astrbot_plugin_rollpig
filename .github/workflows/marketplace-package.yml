@@ -4,6 +4,12 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "metadata.yaml"
+      - "requirements.txt"
+      - "resource/**"
+      - "pages/**"
+      - ".github/workflows/marketplace-package.yml"
   workflow_dispatch:
 
 jobs:
