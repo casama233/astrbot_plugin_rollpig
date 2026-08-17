@@ -2,7 +2,7 @@
 
 ## 未發佈
 
-- 暫無。
+- 修復烤豬料理卡在 EX 成長 mixin 與本地烤豬文案同時生效時的參數簽名漂移：`render_roast_image` 現在完整轉發 `local_copy`，避免 `/随机烤群友` 等流程因 `takes from 3 to 4 positional arguments but 5 were given` 生成圖片失敗。
 
 ## v3.11.3
 
