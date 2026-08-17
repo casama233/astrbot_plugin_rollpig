@@ -90,9 +90,13 @@ class _BaseHarness:
         return payload
 
     def render_roast_image(
-        self, pig: dict, user_id: str, ai_copy: str | None = None
+        self,
+        pig: dict,
+        user_id: str,
+        ai_copy: str | None = None,
+        local_copy: dict[str, str] | None = None,
     ) -> Path:
-        del user_id, ai_copy
+        del user_id, ai_copy, local_copy
         self.last_roast_pig = dict(pig)
         return Path("roast.png")
 
