@@ -1,0 +1,39 @@
+name: Studio Bootstrap Sync
+
+on:
+  push:
+    branches:
+      - feat/ai-pig-studio
+    paths:
+      - .github/workflows/studio-bootstrap-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/ai-pig-studio
+          fetch-depth: 0
+
+      - name: Synchronize maintained bootstrap into Pig Manager
+        shell: bash
+        run: |
+          python scripts/sync_pig_manager_bootstrap.py
+          python scripts/sync_pig_manager_bootstrap.py --check
+          git diff --check
+          git diff --numstat -- pages/pig-manager/index.html
+          test -n "$(git diff -- pages/pig-manager/index.html)"
+
+      - name: Commit synchronized page
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pages/pig-manager/index.html
+          git commit -m "fix: synchronize Pig Studio bootstrap into manager page"
+          git push origin HEAD:feat/ai-pig-studio
