@@ -50,7 +50,10 @@
     .metric,.panel{border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-soft);backdrop-filter:blur(18px) saturate(130%)}
     .metric{position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:184px;border-radius:20px;padding:18px;transition:transform .45s var(--spring),border-color .35s var(--ease),box-shadow .35s var(--ease)}
     .metric:hover{transform:translateY(-5px);border-color:color-mix(in srgb,var(--tone,var(--pink)) 35%,var(--line));box-shadow:var(--shadow)}
-    .metric-top{display:flex;justify-content:flex-start;align-items:center}.metric .label{color:var(--muted);font-size:11px;font-weight:720}.metric .value{font-size:32px;font-weight:860;letter-spacing:-.05em;margin:9px 0 2px}.metric .note{color:var(--muted);font-size:10px}.metric-context{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.45;min-height:25px}.metric-context strong{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}.metric-context .metric-up{color:var(--green)}.metric-context .metric-down{color:var(--danger)}.metric-context .metric-flat{color:var(--muted)}.metric-viz{position:relative;height:44px;margin:7px 0 5px;opacity:.92}.metric-viz svg{display:block;width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}.spark-area{pointer-events:none}.spark-endpoint{fill:var(--surface-strong);stroke:var(--tone,var(--pink));stroke-width:2;vector-effect:non-scaling-stroke}.metric--trend .metric-context{margin-top:0;padding-top:7px}
+    .metric-top{display:flex;justify-content:flex-start;align-items:center}.metric .label{color:var(--muted);font-size:11px;font-weight:720}.metric .value{font-size:32px;font-weight:860;letter-spacing:-.05em;margin:9px 0 2px}.metric .note{color:var(--muted);font-size:10px}.metric-context{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.45;min-height:25px}.metric-context strong{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}.metric-context .metric-up{color:var(--green)}.metric-context .metric-down{color:var(--danger)}.metric-context .metric-flat{color:var(--muted)}.metric-viz{position:relative;height:44px;margin:7px 0 5px;opacity:.92}.metric-viz svg{display:block;width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}.spark-area{pointer-events:none}.spark-endpoint{fill:var(--surface-strong);stroke:var(--tone,var(--pink));stroke-width:2;vector-effect:non-scaling-stroke}.metric--trend .metric-context{margin-top:auto;padding-top:7px}
+    .metric-meter,.metric-ruler{width:100%}.metric-meter-track{height:8px;margin-top:9px;border:1px solid color-mix(in srgb,var(--tone,var(--pink)) 18%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--tone,var(--pink)) 8%,var(--surface-strong));overflow:hidden}.metric-meter-fill{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,color-mix(in srgb,var(--tone,var(--pink)) 72%,white),var(--tone,var(--pink)));box-shadow:0 0 14px color-mix(in srgb,var(--tone,var(--pink)) 24%,transparent);transition:width .85s var(--ease)}.metric-viz-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px;color:var(--muted);font-size:9px}.metric-viz-caption strong{color:var(--ink);font-size:10px;font-weight:820;font-variant-numeric:tabular-nums}
+    .metric-ruler-track{position:relative;height:5px;margin:14px 4px 8px;border-radius:999px;background:color-mix(in srgb,var(--tone,var(--blue)) 11%,var(--line));overflow:visible}.metric-ruler-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:inherit;background:linear-gradient(90deg,color-mix(in srgb,var(--tone,var(--blue)) 60%,white),var(--tone,var(--blue)));transition:width .85s var(--ease)}.metric-ruler-marker{position:absolute;top:50%;left:0;width:11px;height:11px;border:2px solid var(--surface-strong);border-radius:50%;background:var(--tone,var(--blue));box-shadow:0 0 0 3px color-mix(in srgb,var(--tone,var(--blue)) 14%,transparent);transform:translate(-50%,-50%);transition:left .85s var(--ease)}
+    .metric-rate{height:44px;display:flex;align-items:center;gap:10px}.metric-rate svg{width:42px;height:42px;flex:0 0 42px}.metric-rate-track,.metric-rate-arc{fill:none;stroke-width:5}.metric-rate-track{stroke:color-mix(in srgb,var(--tone,var(--plum)) 12%,var(--line))}.metric-rate-arc{stroke:var(--tone,var(--plum));stroke-linecap:round;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--tone,var(--plum)) 24%,transparent));transition:stroke-dashoffset .9s var(--ease)}.metric-rate-copy{min-width:0;display:grid;gap:2px}.metric-rate-copy strong{font-size:11px;font-weight:820;color:var(--ink)}.metric-rate-copy span{font-size:9px;color:var(--muted)}.metric-viz-empty{height:44px;display:flex;align-items:center;color:var(--muted);font-size:9px}
     .dashboard-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,.75fr);gap:18px;margin-bottom:18px}.panel{border-radius:24px;padding:22px;overflow:hidden}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}.panel h2{font-size:18px;letter-spacing:-.025em;margin:0}.panel-desc{color:var(--muted);font-size:11px;margin-top:4px}.legend{display:flex;gap:14px;color:var(--muted);font-size:10px}.legend span{display:flex;align-items:center}.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}.chart{height:300px;position:relative}.chart svg{display:block;width:100%;height:100%;overflow:visible}.gridline{stroke:var(--line);stroke-width:1}.chart-label{fill:var(--muted);font-size:10px}.chart-path{fill:none;stroke-linecap:round;stroke-linejoin:round}.chart-area{opacity:.16}.chart-point{stroke:var(--surface-strong);stroke-width:3;transition:r .2s}.chart-guide{stroke:var(--line-strong);stroke-width:1;stroke-dasharray:4 4}.chart-tooltip{position:absolute;z-index:4;min-width:132px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-strong);box-shadow:var(--shadow-soft);pointer-events:none;opacity:0;transform:translate(-50%,-110%) scale(.94);transition:opacity .18s,transform .25s var(--spring);font-size:11px}.chart-tooltip.show{opacity:1;transform:translate(-50%,-110%) scale(1)}.tooltip-date{font-weight:800;margin-bottom:5px}.tooltip-row{display:flex;justify-content:space-between;gap:16px;color:var(--muted)}.tooltip-row b{color:var(--ink)}
     .trend-panel{align-self:start;display:flex;flex-direction:column;min-width:0}
     .trend-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
@@ -240,31 +243,35 @@
       <div class="metric-top"><span class="label">总使用人数</span></div>
       <div class="value" id="mUsers">—</div>
       <div class="note">至少抽取过一次的去重玩家</div>
+      <div class="metric-viz metric-viz--meter" id="vUsers"></div>
       <div class="metric-context" id="cUsers">正在计算今日活跃占比…</div>
     </article>
     <article class="metric" style="--tone:var(--violet)">
       <div class="metric-top"><span class="label">累计抽取</span></div>
       <div class="value" id="mDraws">—</div>
       <div class="note">永久累计抽取次数</div>
+      <div class="metric-viz metric-viz--spark" id="vDraws"></div>
       <div class="metric-context" id="cDraws">正在计算近 14 日抽取…</div>
     </article>
     <article class="metric metric--trend" style="--tone:var(--green)">
       <div class="metric-top"><span class="label">今日活跃</span></div>
       <div class="value" id="mToday">—</div>
       <div class="note">今日抽猪的去重玩家</div>
-      <div class="metric-viz" id="vToday"></div>
+      <div class="metric-viz metric-viz--spark" id="vToday"></div>
       <div class="metric-context" id="cToday">正在计算今日变化…</div>
     </article>
     <article class="metric" style="--tone:var(--blue)">
       <div class="metric-top"><span class="label">人均解锁</span></div>
       <div class="value" id="mAverage">—</div>
       <div class="note">每位玩家平均解锁的不同小猪</div>
+      <div class="metric-viz metric-viz--ruler" id="vAverage"></div>
       <div class="metric-context" id="cAverage">正在计算图鉴探索空间…</div>
     </article>
     <article class="metric" style="--tone:var(--plum)">
       <div class="metric-top"><span class="label">平均收藏率</span></div>
       <div class="value" id="mRate">—</div>
       <div class="note">人均解锁 / 当前图鉴总数</div>
+      <div class="metric-viz metric-viz--rate" id="vRate"></div>
       <div class="metric-context" id="cRate">正在计算收藏覆盖…</div>
     </article>
   </section>
@@ -775,6 +782,16 @@ function renderSpark(id,values,index,label='近 14 日趋势'){
   root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><defs><linearGradient id="${gradient}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--tone)" stop-opacity=".18"/><stop offset="1" stop-color="var(--tone)" stop-opacity="0"/></linearGradient></defs><path class="spark-area" d="${area}" fill="url(#${gradient})"/><path class="spark-path" vector-effect="non-scaling-stroke" d="${line}"/><circle class="spark-endpoint" cx="${last[0].toFixed(2)}" cy="${last[1].toFixed(2)}" r="2.8"/></svg>`;
   animateSvgPaths(root)
 }
+function renderMetricEmptyViz(id,label){const root=$(id);if(!root)return;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-viz-empty">${esc(label)}</div>`}
+function renderMetricMeter(id,value,max,label){
+  const root=$(id);if(!root)return;const numerator=Math.max(0,Number(value)||0),denominator=Math.max(0,Number(max)||0),ratio=denominator>0?Math.max(0,Math.min(100,numerator/denominator*100)):0;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-meter" role="img" aria-label="${esc(label)}"><div class="metric-meter-track"><span class="metric-meter-fill" data-width="${ratio.toFixed(3)}"></span></div><div class="metric-viz-caption"><span>今日活跃占累计用户</span><strong>${metricDecimal(ratio)}%</strong></div></div>`;requestAnimationFrame(()=>{const fill=root.querySelector('.metric-meter-fill');if(fill)fill.style.width=`${fill.dataset.width}%`})
+}
+function renderMetricRuler(id,value,max,label){
+  const root=$(id);if(!root)return;const current=Math.max(0,Number(value)||0),limit=Math.max(0,Number(max)||0),ratio=limit>0?Math.max(0,Math.min(100,current/limit*100)):0;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-ruler" role="img" aria-label="${esc(label)}"><div class="metric-ruler-track"><span class="metric-ruler-fill" data-width="${ratio.toFixed(3)}"></span><i class="metric-ruler-marker" data-left="${ratio.toFixed(3)}"></i></div><div class="metric-viz-caption"><span>0</span><strong>${metricDecimal(current)} / ${limit.toLocaleString()}</strong><span>${limit.toLocaleString()}</span></div></div>`;requestAnimationFrame(()=>{const fill=root.querySelector('.metric-ruler-fill'),marker=root.querySelector('.metric-ruler-marker');if(fill)fill.style.width=`${fill.dataset.width}%`;if(marker)marker.style.left=`${marker.dataset.left}%`})
+}
+function renderMetricRate(id,percent,label){
+  const root=$(id);if(!root)return;const value=Math.max(0,Math.min(100,Number(percent)||0)),offset=100-value;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-rate" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="metric-rate-track" cx="24" cy="24" r="18"/><circle class="metric-rate-arc" cx="24" cy="24" r="18" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 24 24)" data-offset="${offset.toFixed(3)}"/></svg><div class="metric-rate-copy"><strong>${metricDecimal(value)}% 已覆盖</strong><span>${metricDecimal(100-value)}% 仍待探索</span></div></div>`;requestAnimationFrame(()=>{const arc=root.querySelector('.metric-rate-arc');if(arc)arc.style.strokeDashoffset=arc.dataset.offset})
+}
 function smoothLinePath(values,w,h,padX,padY,max,curve=.42){
   const span=Math.max(1,values.length-1),pts=values.map((v,i)=>[padX+i*(w-padX*2)/span,h-padY-(Number(v)||0)/max*(h-padY*2)]);
   if(!pts.length)return '';
@@ -806,15 +823,20 @@ function renderBars(data){const root=$('barChart');if(!data.length){root.innerHT
 function metricContext(id,html){const root=$(id);if(root)root.innerHTML=html}
 function metricDecimal(value){const number=Number(value)||0;return number.toFixed(1).replace(/\.0$/,'')}
 function renderMetricVisuals(data){
-  const trend=Array.isArray(data.trend)?data.trend:[],metrics=data.metrics||{},users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),today=Number(metrics.today_users)||0,totalUsers=Number(metrics.total_users)||0,catalog=Number(metrics.catalog_count)||0,averageUnlocked=Number(metrics.average_unlocked)||0,rate=Number(metrics.average_unlock_rate)||0;
+  const trend=Array.isArray(data.trend)?data.trend:[],metrics=data.metrics||{},users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),today=Number(metrics.today_users)||0,totalUsers=Number(metrics.total_users)||0,totalDraws=Number(metrics.total_draws)||0,catalog=Number(metrics.catalog_count)||0,averageUnlocked=Number(metrics.average_unlocked)||0,rate=Number(metrics.average_unlock_rate)||0;
   const activeShare=totalUsers>0?today/totalUsers*100:0,totalDraws14=draws.reduce((sum,value)=>sum+value,0),avgDraws=draws.length?totalDraws14/draws.length:0,avgUsers=users.length?users.reduce((sum,value)=>sum+value,0)/users.length:0,previous=users.length>1?users[users.length-2]:null,delta=previous===null?null:today-previous,deltaPct=previous>0?delta/previous*100:null,remaining=Math.max(0,catalog-averageUnlocked);
+  let runningDraws=Math.max(0,totalDraws-totalDraws14);const cumulativeDraws=draws.map(value=>(runningDraws+=value));
   metricContext('cUsers',`今日活跃 <strong>${today.toLocaleString()} 人</strong> · 占累计 <strong>${metricDecimal(activeShare)}%</strong>`);
   metricContext('cDraws',`近 14 日 <strong>+${totalDraws14.toLocaleString()} 次</strong> · 日均 ${metricDecimal(avgDraws)}`);
   if(delta===null)metricContext('cToday',`近 14 日日均 <strong>${metricDecimal(avgUsers)} 人</strong>`);
   else{const cls=delta>0?'metric-up':delta<0?'metric-down':'metric-flat',sign=delta>0?'+':'';metricContext('cToday',`较昨日 <strong class="${cls}">${sign}${delta} 人${deltaPct===null?'':` · ${sign}${metricDecimal(deltaPct)}%`}</strong> · 14 日均 ${metricDecimal(avgUsers)}`)}
   metricContext('cAverage',`图鉴 <strong>${catalog.toLocaleString()} 只</strong> · 人均尚未探索 ${metricDecimal(remaining)} 只`);
   metricContext('cRate',`人均 <strong>${metricDecimal(averageUnlocked)} / ${catalog.toLocaleString()} 只</strong> · 按当前图鉴计算`);
-  renderSpark('vToday',users,3,'近 14 日每日活跃人数')
+  renderMetricMeter('vUsers',today,totalUsers,'今日活跃占累计用户比例');
+  if(cumulativeDraws.length)renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹');else renderMetricEmptyViz('vDraws','暂无 14 日抽取序列');
+  if(users.length)renderSpark('vToday',users,3,'近 14 日每日活跃人数');else renderMetricEmptyViz('vToday','暂无 14 日活跃序列');
+  renderMetricRuler('vAverage',averageUnlocked,catalog,'人均解锁相对当前图鉴规模');
+  renderMetricRate('vRate',rate,'平均收藏率覆盖进度')
 }
 function installImmersiveMotion(){if(reduceMotion||!window.matchMedia?.('(pointer:fine)')?.matches)return;document.querySelectorAll('#view-overview .hero,#view-overview .metric,#view-overview .panel').forEach(card=>{if(card.dataset.motionBound==='1')return;card.dataset.motionBound='1';let frame=0;card.addEventListener('pointermove',event=>{if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{const rect=card.getBoundingClientRect(),x=Math.max(0,Math.min(rect.width,event.clientX-rect.left)),y=Math.max(0,Math.min(rect.height,event.clientY-rect.top));card.style.setProperty('--mx',`${x}px`);card.style.setProperty('--my',`${y}px`);if(card.classList.contains('metric')){card.style.setProperty('--rx',`${(((y/Math.max(1,rect.height))-.5)*-3).toFixed(2)}deg`);card.style.setProperty('--ry',`${(((x/Math.max(1,rect.width))-.5)*3).toFixed(2)}deg`)}})} ,{passive:true});card.addEventListener('pointerleave',()=>{card.style.setProperty('--rx','0deg');card.style.setProperty('--ry','0deg')},{passive:true})})}
 async function loadOverview(){const d=await get('overview'),m=d.metrics;overviewData=d;publicSourceReviewEnabled=Boolean(d.public_source_review_enabled);syncReviewCapabilityUi();csrfToken=String(d.csrf_token||csrfToken);animateNumber($('mUsers'),m.total_users);animateNumber($('mDraws'),m.total_draws);animateNumber($('mToday'),m.today_users);animateNumber($('mAverage'),m.average_unlocked);animateNumber($('mRate'),m.average_unlock_rate,'%');animateNumber($('heroToday'),m.today_users);$('catalogHeroCount').textContent=Number(m.catalog_count||0).toLocaleString();$('heroInsight').textContent=m.today_users?`今天已有 ${m.today_users} 位群友踏进猪圈。本地事实快照已更新。`:'今天的猪圈还很安静；本地事实快照已更新。';const meta=d.meta||{},source=meta.source==='normalized-sql'?'SQL 规范化事实':'JSON 兼容事实';$('overviewScope').textContent=`${source} · Claim-aware 身份 · ${Number(meta.trend_days||14)} 日窗口 · ${meta.as_of||'当前'}`;$('insightAverage').textContent=`${m.average_unlocked} 只`;$('insightCatalog').textContent=`还有 ${Math.max(0,Number(m.catalog_count)-Number(m.average_unlocked))} 只等待发现`;const rate=Math.max(0,Math.min(100,Number(m.average_unlock_rate)||0));$('ringValue').textContent=`${rate}%`;requestAnimationFrame(()=>$('rateRing').style.strokeDashoffset=339.3*(1-rate/100));renderMetricVisuals(d);renderTrend(d.trend||[]);renderBars(d.top_pigs||[]);installImmersiveMotion()}

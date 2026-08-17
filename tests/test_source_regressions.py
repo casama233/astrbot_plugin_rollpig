@@ -415,3 +415,14 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     assert "新安装直接建立 SQLite" in config
     assert "兼容 JSON" in page
     assert "按需生成" in page
+
+def test_eaten_next_day_penalty_never_locks_daily_draw():
+    consume = ast.get_source_segment(SOURCE, _method("_consume_eaten_penalty")) or ""
+    choose = ast.get_source_segment(SOURCE, _method("_choose_daily_pig")) or ""
+    assert "eaten_next_day_duplicate_percent" in SOURCE
+    assert "penalty-blocked" not in SOURCE
+    assert "return False" in consume
+    assert "_pending_eaten_duplicate_users" in consume
+    assert "choose_duplicate" in choose
+    assert "force_duplicate" in choose
+
