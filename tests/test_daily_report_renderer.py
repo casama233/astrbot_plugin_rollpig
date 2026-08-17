@@ -9,6 +9,15 @@ from renderers.daily_report import (
     REPORT_HEIGHT_WITH_SACRIFICE,
     REPORT_MAX_HEIGHT,
     REPORT_WIDTH,
+    _EVENT_META,
+    _EVENT_ROW_STEP,
+    _EVENT_ROW_TOP_OFFSET,
+    _METRIC_CARD_HEIGHT,
+    _METRIC_HINT_TOP_OFFSET,
+    _METRIC_ROW_STEP,
+    _METRIC_TRACK_BOTTOM_PADDING,
+    _SUMMARY_PANEL_BOTTOM,
+    _SUMMARY_PANEL_TOP,
     _activity_story,
     render_daily_report_dashboard,
 )
@@ -143,3 +152,18 @@ def test_main_keeps_daily_report_under_shared_render_backpressure():
     source = (ROOT / "main.py").read_text(encoding="utf-8")
     assert "from .renderers.daily_report import render_daily_report_dashboard" in source
     assert "self._run_with_render_slot(render_daily_report_dashboard, self, report)" in source
+
+def test_compact_layout_keeps_text_and_fifth_event_row_inside_their_cards():
+    assert _METRIC_CARD_HEIGHT == 124
+    assert _METRIC_ROW_STEP > _METRIC_CARD_HEIGHT
+    track_y = _METRIC_CARD_HEIGHT - _METRIC_TRACK_BOTTOM_PADDING
+    assert track_y - _METRIC_HINT_TOP_OFFSET >= 24
+
+    panel_height = _SUMMARY_PANEL_BOTTOM - _SUMMARY_PANEL_TOP
+    last_row_bar_bottom = (
+        _EVENT_ROW_TOP_OFFSET
+        + (len(_EVENT_META) - 1) * _EVENT_ROW_STEP
+        + 20
+    )
+    # Reserve enough room after the fifth row for the in-panel refill summary.
+    assert last_row_bar_bottom <= panel_height - 38
