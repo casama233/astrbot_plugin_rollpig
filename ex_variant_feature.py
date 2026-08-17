@@ -293,7 +293,11 @@ class ExVariantMixin:
         )
 
     def render_roast_image(
-        self, pig: dict, user_id: str, ai_copy: str | None = None
+        self,
+        pig: dict,
+        user_id: str,
+        ai_copy: str | None = None,
+        local_copy: dict[str, str] | None = None,
     ) -> Path:
         display = self._decorate_ex_variant(pig, str(user_id)) or dict(pig)
-        return super().render_roast_image(display, user_id, ai_copy)
+        return super().render_roast_image(display, user_id, ai_copy, local_copy)
