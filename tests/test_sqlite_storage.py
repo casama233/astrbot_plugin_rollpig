@@ -628,7 +628,7 @@ def test_sql_primary_penalty_and_draw_share_transaction(tmp_path):
     result = storage.create_daily_draw(
         draw_date="2026-08-04",
         user_id="v2|qq|user|1",
-        pig={"id": "pig-a", "name": "A"},
+        pig=None,
         penalty_should_fail=True,
     )
     assert result["status"] == "penalty-duplicate"
