@@ -1,0 +1,62 @@
+name: Integrate v3.10.0 open PRs
+
+on:
+  push:
+    branches:
+      - release/v3.10.0-integration
+    paths:
+      - .github/workflows/_integrate_v310_open_prs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v3.10.0-integration
+          fetch-depth: 0
+      - name: Fetch source branches
+        run: |
+          git fetch origin \
+            agent/animated-gif-pigs \
+            feat/ex-preview-stage2 \
+            feat/ai-pig-studio \
+            fix/command-actor-mention-header \
+            chore/trim-ci-test-pipeline \
+            fix/ex-effective-image-preview
+      - name: Configure committer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Apply reviewed PR deltas
+        shell: bash
+        run: |
+          set -euo pipefail
+          apply_delta() {
+            local base="$1" head="$2" label="$3"
+            echo "==> applying ${label}"
+            git diff --binary "$base" "$head" -- . ':(exclude)CHANGELOG.md' ':(exclude)main.py' > "/tmp/${label}.patch"
+            if [ ! -s "/tmp/${label}.patch" ]; then
+              echo "no non-wiring delta for ${label}"
+              return
+            fi
+            if ! git apply --3way --index "/tmp/${label}.patch"; then
+              echo "CONFLICT while applying ${label}"
+              git status --short
+              exit 1
+            fi
+            git commit -m "integrate: ${label}"
+          }
+
+          # GIF first: it changes the shared EX image handling layer.
+          apply_delta ec91065eb0bd7a03eee50721dd7d12542cf7fba0 2142dfd692b7a7a39ff063a2fcc8ba2b9ece1715 pr142-gif
+          # Stage 2 is the one-commit increment on top of the already-merged #143.
+          apply_delta dbbfa200fb6a4730c53ded6a8b24651219fafc57 88603e354776f016fdcbc99b07e076babc38a777 pr144-ex-preview-stage2
+          apply_delta ec91065eb0bd7a03eee50721dd7d12542cf7fba0 9a41de05cbc59a3272aeca3dd9591df5849d4620 pr140-ai-studio
+          apply_delta a5c2a9830d7d74949d0cfc63651ef09ceda2967e 763219c3e5d05404e669ba992fa0918c25bff105 pr135-actor-header
+          apply_delta a5c2a9830d7d74949d0cfc63651ef09ceda2967e 077c6263db4aca0df48706833867d9689cf3831b pr137-ci-trim
+
+          git push origin HEAD:release/v3.10.0-integration
