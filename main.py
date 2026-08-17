@@ -15,6 +15,7 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 
 try:
+    from .animated_image_feature import AnimatedImageMixin
     from .daily_report_feature import DailyReportMixin
     from .ex_admin_feature import ExAdminMixin
     from .ex_public_source_feature import ExPublicSourceMixin
@@ -30,6 +31,7 @@ try:
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from animated_image_feature import AnimatedImageMixin
     from daily_report_feature import DailyReportMixin
     from ex_admin_feature import ExAdminMixin
     from ex_public_source_feature import ExPublicSourceMixin
@@ -47,6 +49,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class RollPigPlugin(
+    AnimatedImageMixin,
     ReservationFirewoodMixin,
     OvenRefillMixin,
     HelpFeatureMixin,
