@@ -26,21 +26,13 @@ jobs:
           path = Path('storage/sqlite_storage.py')
           text = path.read_text(encoding='utf-8')
           pattern = re.compile(
-              r'''                elif due_date == draw_date and failed:\n                    return \{\n                        "status": "penalty-blocked",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    \}\n                elif due_date == draw_date and penalty_should_fail:\n.*?                    return \{\n                        "status": "penalty-blocked",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    \}\n                elif due_date == draw_date and isinstance\(pig, dict\) and str\(''',
+              r'''                elif due_date == draw_date and failed:\n.*?            if not isinstance\(pig, dict\) or not str\(pig\.get\("id"\) or ""\):''',
               re.S,
           )
-          replacement = '''                elif due_date == draw_date and isinstance(pig, dict) and str('''
+          replacement = '''                elif due_date == draw_date and isinstance(pig, dict) and str(pig.get("id") or ""):\n                    connection.execute(\n                        "DELETE FROM eaten_penalties WHERE user_id = ?",\n                        (penalty_user,),\n                    )\n                    penalties_doc.pop(penalty_user, None)\n                    roast_changed = True\n                elif due_date == draw_date and (failed or penalty_should_fail):\n                    return {\n                        "status": "penalty-duplicate",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    }\n\n            if not isinstance(pig, dict) or not str(pig.get("id") or ""):'''
           updated, count = pattern.subn(replacement, text, count=1)
           if count != 1:
-              raise SystemExit(f'expected one legacy penalty block, got {count}')
-
-          # Insert duplicate request after the valid-pig branch has had a chance to
-          # consume/delete the penalty, matching SQLitePrimary semantics.
-          marker = '''                    roast_changed = True\n\n            if not isinstance(pig, dict) or not str(pig.get("id") or ""):\n'''
-          insertion = '''                    roast_changed = True\n                elif due_date == draw_date and (failed or penalty_should_fail):\n                    return {\n                        "status": "penalty-duplicate",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    }\n\n            if not isinstance(pig, dict) or not str(pig.get("id") or ""):\n'''
-          if marker not in updated:
-              raise SystemExit('legacy valid-pig marker not found')
-          updated = updated.replace(marker, insertion, 1)
+              raise SystemExit(f'expected one legacy penalty region, got {count}')
           if '"status": "penalty-blocked"' in updated:
               raise SystemExit('penalty-blocked still present in sqlite_storage.py')
           path.write_text(updated, encoding='utf-8')
