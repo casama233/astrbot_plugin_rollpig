@@ -1,0 +1,60 @@
+name: Patch eaten duplicate follow-up
+
+on:
+  push:
+    branches:
+      - fix/eaten-next-day-duplicate
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/eaten-next-day-duplicate
+          fetch-depth: 0
+      - name: Tighten runtime and docs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'{path}: expected text not found')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'legacy_main.py',
+              '''        pending = getattr(self, "_pending_eaten_duplicate_users", None)\n        if isinstance(pending, set) and storage_id in pending:\n            pending.discard(storage_id)\n            force_duplicate = True\n''',
+              '''        pending = getattr(self, "_pending_eaten_duplicate_users", None)\n        if isinstance(pending, dict):\n            pending_date = pending.pop(storage_id, None)\n            if pending_date == self._today().isoformat():\n                force_duplicate = True\n''',
+          )
+          replace_once(
+              'legacy_main.py',
+              '''            pending = getattr(self, "_pending_eaten_duplicate_users", None)\n            if not isinstance(pending, set):\n                pending = set()\n                self._pending_eaten_duplicate_users = pending\n            if force_duplicate:\n                pending.add(storage_id)\n''',
+              '''            pending = getattr(self, "_pending_eaten_duplicate_users", None)\n            if not isinstance(pending, dict):\n                pending = {}\n                self._pending_eaten_duplicate_users = pending\n            if force_duplicate:\n                pending[storage_id] = today\n''',
+          )
+          replace_once(
+              'docs/DAILY-REPORT.md',
+              '它复用现有被吃持久化与次日抽猪惩罚语义，并把祭品展示在日报底部。',
+              '它复用现有被吃持久化与次日重复猪风险语义：隔天仍可正常抽猪，只是按配置概率强制抽到已解锁的重复猪；祭品会展示在日报底部。',
+          )
+
+          p = Path('tests/test_source_regressions.py')
+          text = p.read_text(encoding='utf-8')
+          test = '''\n\ndef test_eaten_next_day_penalty_never_locks_daily_draw():\n    consume = ast.get_source_segment(SOURCE, _method("_consume_eaten_penalty")) or ""\n    choose = ast.get_source_segment(SOURCE, _method("_choose_daily_pig")) or ""\n    assert "eaten_next_day_duplicate_percent" in SOURCE\n    assert "penalty-blocked" not in SOURCE\n    assert "return False" in consume\n    assert "_pending_eaten_duplicate_users" in consume\n    assert "choose_duplicate" in choose\n    assert "force_duplicate" in choose\n'''
+          if 'def test_eaten_next_day_penalty_never_locks_daily_draw()' not in text:
+              p.write_text(text.rstrip() + test + '\n', encoding='utf-8')
+          PY
+      - name: Commit follow-up
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add legacy_main.py docs/DAILY-REPORT.md tests/test_source_regressions.py
+          git commit -m 'test: lock eaten duplicate semantics'
+          git push origin HEAD:fix/eaten-next-day-duplicate
