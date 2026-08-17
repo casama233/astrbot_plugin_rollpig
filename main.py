@@ -140,8 +140,10 @@ class RollPigPlugin(
     def render_weekly_summary(self, user_id):
         return self._run_with_render_slot(super().render_weekly_summary, user_id)
 
-    def render_roast_image(self, pig, user_id, ai_copy=None):
-        return self._run_with_render_slot(super().render_roast_image, pig, user_id, ai_copy)
+    def render_roast_image(self, pig, user_id, ai_copy=None, local_copy=None):
+        return self._run_with_render_slot(
+            super().render_roast_image, pig, user_id, ai_copy, local_copy
+        )
 
     def render_daily_report_image(self, report):
         return self._run_with_render_slot(render_daily_report_dashboard, self, report)
