@@ -11,8 +11,18 @@ from astrbot.api import logger
 from astrbot.api.web import request
 
 try:
+    from .animated_images import (
+        image_extension_from_bytes,
+        image_mime_type_from_bytes,
+        normalize_image_bytes,
+    )
     from .ex_variants import resolve_ex_variant, serialize_ex_variants, validate_ex_variants
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from animated_images import (
+        image_extension_from_bytes,
+        image_mime_type_from_bytes,
+        normalize_image_bytes,
+    )
     from ex_variants import resolve_ex_variant, serialize_ex_variants, validate_ex_variants
 
 
@@ -296,12 +306,32 @@ class ExAdminMixin:
             image_extensions=set(getattr(self, "IMAGE_EXTENSIONS", ("png",))),
         )
 
+    def _normalise_local_ex_upload(self, encoded: str) -> bytes:
+        value = str(encoded or "").strip()
+        if not value:
+            raise ValueError("EX 图片内容为空")
+        if "," in value:
+            value = value.split(",", 1)[1]
+        try:
+            raw = base64.b64decode(value, validate=True)
+        except Exception as exc:
+            raise ValueError("EX 图片不是有效 Base64") from exc
+        if not raw or len(raw) > self.LOCAL_EX_IMAGE_MAX_SIZE:
+            raise ValueError("EX 图片为空或超过 10MB")
+        normalized = normalize_image_bytes(raw, (512, 512))
+        if not normalized or len(normalized) > self.LOCAL_EX_IMAGE_MAX_SIZE:
+            raise ValueError("正規化后的 EX 图片超过 10MB")
+        return normalized
+
     def _write_local_ex_image(self, filename: str, data: bytes) -> None:
         root = self.local_ex_variant_image_dir
         if not isinstance(root, Path):
             raise ValueError("本地 EX 图片目录尚未初始化")
         if len(data) > self.LOCAL_EX_IMAGE_MAX_SIZE:
             raise ValueError("EX 图片超过 10MB")
+        extension = image_extension_from_bytes(data)
+        if extension not in {"png", "gif"} or Path(filename).suffix.lower() != f".{extension}":
+            raise ValueError("EX 图片副档名与实际格式不一致")
         root.mkdir(parents=True, exist_ok=True)
         target = root / filename
         with tempfile.NamedTemporaryFile(dir=root, delete=False, suffix=".tmp") as tmp:
@@ -353,10 +383,8 @@ class ExAdminMixin:
             normalized_image = None
             if image_content:
                 normalized_image = await asyncio.to_thread(
-                    self._normalise_uploaded_image, image_content
+                    self._normalise_local_ex_upload, image_content
                 )
-                if len(normalized_image) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-                    raise ValueError("EX 图片超过 10MB")
 
             with self._data_lock:
                 variants = copy.deepcopy(self._local_ex_variants)
@@ -372,11 +400,19 @@ class ExAdminMixin:
                     else:
                         item.pop(field, None)
 
-                filename = f"{pig_id}-ex{level}.png"
+                previous_image = str(item.get("image") or "")
+                image_to_remove = ""
                 if normalized_image is not None:
+                    extension = image_extension_from_bytes(normalized_image)
+                    if extension not in {"png", "gif"}:
+                        raise ValueError("EX 图片格式无效")
+                    filename = f"{pig_id}-ex{level}.{extension}"
                     self._write_local_ex_image(filename, normalized_image)
                     item["image"] = filename
+                    if previous_image and previous_image != filename:
+                        image_to_remove = previous_image
                 elif payload.get("remove_image") is True:
+                    image_to_remove = previous_image
                     item.pop("image", None)
 
                 if item:
@@ -387,11 +423,11 @@ class ExAdminMixin:
                     variants.pop(pig_id, None)
 
                 self._persist_local_ex_state(variants)
-                if payload.get("remove_image") is True and normalized_image is None:
+                if image_to_remove:
                     root = self.local_ex_variant_image_dir
                     if isinstance(root, Path):
                         try:
-                            (root / filename).unlink(missing_ok=True)
+                            (root / image_to_remove).unlink(missing_ok=True)
                         except OSError as exc:
                             logger.warning(f"清理未引用 EX 图片失败：{exc}")
 
@@ -470,13 +506,7 @@ class ExAdminMixin:
             raw = path.read_bytes()
             if len(raw) > self.LOCAL_EX_IMAGE_MAX_SIZE:
                 raise ValueError("EX 图片超过读取上限")
-            ext = path.suffix.lower().lstrip(".")
-            mime_types = getattr(self, "IMAGE_MIME_TYPES", {})
-            mime_type = (
-                str(mime_types.get(ext) or "")
-                if isinstance(mime_types, dict)
-                else ""
-            ) or ("image/png" if ext == "png" else "application/octet-stream")
+            mime_type = image_mime_type_from_bytes(raw)
             return self._jsonify(
                 {
                     "status": "ok",
