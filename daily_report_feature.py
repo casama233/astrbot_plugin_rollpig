@@ -5,7 +5,6 @@ import datetime
 import hashlib
 import io
 import json
-import os
 import random
 import re
 import tempfile
@@ -47,6 +46,11 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         build_gameplay_event,
         read_gameplay_events,
     )
+
+try:
+    from .daily_report_delivery import DailyReportDeliveryClaims
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from daily_report_delivery import DailyReportDeliveryClaims
 
 
 class DailyReportMixin:
@@ -150,13 +154,12 @@ class DailyReportMixin:
 
         self.daily_report_state_path = self.plugin_data_dir / "daily_report_state.json"
         self.daily_report_avatar_dir = self.plugin_data_dir / "daily_report_avatars"
-        self.daily_report_delivery_claim_dir = (
-            self.plugin_data_dir / "daily_report_delivery_claims"
-        )
         self.daily_report_avatar_dir.mkdir(parents=True, exist_ok=True)
-        self.daily_report_delivery_claim_dir.mkdir(parents=True, exist_ok=True)
-        self._daily_report_delivery_owner = uuid.uuid4().hex
-        self._prune_daily_report_delivery_claims()
+        self.daily_report_delivery_claims = DailyReportDeliveryClaims(
+            self.plugin_data_dir / "daily_report_delivery_claims",
+            keep_days=self.DAILY_REPORT_STATE_KEEP_DAYS,
+        )
+        self.daily_report_delivery_claims.prune()
         default_state = {
             "version": self.DAILY_REPORT_STATE_VERSION,
             "groups": {},
@@ -202,90 +205,6 @@ class DailyReportMixin:
             return
         with self._data_lock:
             self.save_json(self.daily_report_state_path, self.daily_report_state)
-
-    def _daily_report_delivery_claim_path(
-        self, group_id: str, draw_date: str
-    ) -> Path:
-        digest = hashlib.sha256(
-            f"{draw_date}\0{group_id}".encode("utf-8")
-        ).hexdigest()[:32]
-        return self.daily_report_delivery_claim_dir / f"{draw_date}-{digest}.json"
-
-    @staticmethod
-    def _read_daily_report_delivery_claim(path: Path) -> dict[str, Any]:
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return {"status": "unknown"}
-        return payload if isinstance(payload, dict) else {"status": "unknown"}
-
-    def _try_acquire_daily_report_delivery(
-        self, group_id: str, draw_date: str
-    ) -> tuple[Path | None, dict[str, Any]]:
-        """Atomically claim one group/date delivery across reloads and instances."""
-        path = self._daily_report_delivery_claim_path(group_id, draw_date)
-        payload = {
-            "schema_version": 1,
-            "status": "claimed",
-            "draw_date": str(draw_date),
-            "group_id": str(group_id),
-            "delivery_id": uuid.uuid4().hex,
-            "owner": str(getattr(self, "_daily_report_delivery_owner", "") or ""),
-            "pid": os.getpid(),
-            "claimed_at": int(time.time()),
-        }
-        try:
-            with path.open("x", encoding="utf-8") as handle:
-                json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-                handle.write("\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-        except FileExistsError:
-            return None, self._read_daily_report_delivery_claim(path)
-        return path, payload
-
-    @staticmethod
-    def _write_daily_report_delivery_claim(
-        path: Path, payload: dict[str, Any]
-    ) -> None:
-        temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-        try:
-            with temp_path.open("w", encoding="utf-8") as handle:
-                json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-                handle.write("\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temp_path, path)
-        finally:
-            temp_path.unlink(missing_ok=True)
-
-    def _finalize_daily_report_delivery_claim(
-        self, path: Path, *, status: str, error: str = ""
-    ) -> dict[str, Any]:
-        payload = self._read_daily_report_delivery_claim(path)
-        payload.update(
-            status=str(status),
-            finalized_at=int(time.time()),
-            error=str(error or "")[:300],
-        )
-        self._write_daily_report_delivery_claim(path, payload)
-        return payload
-
-    @staticmethod
-    def _release_daily_report_delivery_claim(path: Path) -> None:
-        path.unlink(missing_ok=True)
-
-    def _prune_daily_report_delivery_claims(self) -> None:
-        claim_dir = getattr(self, "daily_report_delivery_claim_dir", None)
-        if not isinstance(claim_dir, Path) or not claim_dir.is_dir():
-            return
-        cutoff = time.time() - (self.DAILY_REPORT_STATE_KEEP_DAYS + 2) * 86400
-        for path in claim_dir.glob("*.json"):
-            try:
-                if path.stat().st_mtime < cutoff:
-                    path.unlink(missing_ok=True)
-            except OSError:
-                continue
 
     def _event_sender_id(self, event: AstrMessageEvent) -> str:
         user_id = super()._event_sender_id(event)
@@ -1337,7 +1256,7 @@ class DailyReportMixin:
             delivery_uncertain = False
             try:
                 claim_path, claim = await asyncio.to_thread(
-                    self._try_acquire_daily_report_delivery, group_id, draw_date
+                    self.daily_report_delivery_claims.try_acquire, group_id, draw_date
                 )
                 if claim_path is None:
                     claim_status = str(claim.get("status") or "unknown")
@@ -1379,7 +1298,7 @@ class DailyReportMixin:
                     sent = await self.context.send_message(umo, chain)
                 except asyncio.CancelledError:
                     delivery_uncertain = True
-                    self._finalize_daily_report_delivery_claim(
+                    self.daily_report_delivery_claims.finalize(
                         claim_path,
                         status="uncertain",
                         error="scheduler cancelled while platform delivery was in flight",
@@ -1395,7 +1314,7 @@ class DailyReportMixin:
                 except Exception as exc:
                     delivery_uncertain = True
                     await asyncio.to_thread(
-                        self._finalize_daily_report_delivery_claim,
+                        self.daily_report_delivery_claims.finalize,
                         claim_path,
                         status="uncertain",
                         error=str(exc),
@@ -1421,7 +1340,7 @@ class DailyReportMixin:
                     # the message. This is a known non-delivery, so releasing the
                     # claim and retrying later is safe.
                     await asyncio.to_thread(
-                        self._release_daily_report_delivery_claim, claim_path
+                        self.daily_report_delivery_claims.release, claim_path
                     )
                     claim_path = None
                     self._update_daily_report_job(
@@ -1434,7 +1353,7 @@ class DailyReportMixin:
                     raise RuntimeError("AstrBot 未找到匹配的消息平台")
 
                 await asyncio.to_thread(
-                    self._finalize_daily_report_delivery_claim,
+                    self.daily_report_delivery_claims.finalize,
                     claim_path,
                     status="sent",
                 )
