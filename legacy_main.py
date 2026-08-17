@@ -2240,9 +2240,10 @@ class RollPigPlugin(Star):
         )
         storage_id = self._storage_user_key(str(user_id))
         pending = getattr(self, "_pending_eaten_duplicate_users", None)
-        if isinstance(pending, set) and storage_id in pending:
-            pending.discard(storage_id)
-            force_duplicate = True
+        if isinstance(pending, dict):
+            pending_date = pending.pop(storage_id, None)
+            if pending_date == self._today().isoformat():
+                force_duplicate = True
         if force_duplicate:
             duplicate = self.draw_service.choose_duplicate(self.pig_list, draw_context)
             if duplicate is not None:
@@ -3065,11 +3066,11 @@ class RollPigPlugin(Star):
             )
             penalties.pop(storage_id, None)
             pending = getattr(self, "_pending_eaten_duplicate_users", None)
-            if not isinstance(pending, set):
-                pending = set()
+            if not isinstance(pending, dict):
+                pending = {}
                 self._pending_eaten_duplicate_users = pending
             if force_duplicate:
-                pending.add(storage_id)
+                pending[storage_id] = today
             self._save_roast_state()
             return False
 
