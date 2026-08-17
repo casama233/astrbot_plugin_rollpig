@@ -31,19 +31,23 @@ def test_ai_roast_copy_uses_exact_seven_natural_day_window():
     assert "through_date=today" in method
 
 
-def test_first_successful_copy_is_returned_directly_before_random_reuse():
+def test_first_successful_bundle_selects_from_fresh_candidates_before_pool_reuse():
     method = _method_source("_get_ai_roast_copy")
-    direct_return = 'return str(completed.get("content") or generated)'
-    random_return = "return random.choice(list(recent.values())) if recent else None"
+    direct_return = (
+        'return self._select_ai_bundle(event, completed.get("content") or generated)'
+    )
+    pooled_return = "return self._select_ai_from_recent(event, recent)"
     assert direct_return in method
-    assert random_return in method
-    assert method.index(direct_return) < method.index(random_return, method.index(direct_return))
+    assert pooled_return in method
+    assert method.index(direct_return) < method.index(
+        pooled_return, method.index(direct_return)
+    )
 
 
-def test_same_day_ready_copy_randomizes_across_the_rolling_pool():
+def test_same_day_ready_copy_reuses_the_rolling_pool_with_antirepeat_selector():
     method = _method_source("_get_ai_roast_copy")
     assert 'str(claimed.get("status")) == "ready" and today in recent' in method
-    assert "return random.choice(list(recent.values()))" in method
+    assert "return self._select_ai_from_recent(event, recent)" in method
 
 
 def test_non_owner_never_calls_the_model_again_that_day():
@@ -55,4 +59,10 @@ def test_non_owner_never_calls_the_model_again_that_day():
     guard_position = method.index(claim_guard)
     generator_position = method.index(generator_call, guard_position)
     guarded_block = method[guard_position:generator_position]
-    assert "return random.choice(list(recent.values())) if recent else None" in guarded_block
+    assert "return self._select_ai_from_recent(event, recent)" in guarded_block
+
+
+def test_ai_generation_still_happens_once_per_pig_day_but_returns_a_bundle():
+    method = _method_source("_generate_ai_roast_copy")
+    assert "一次生成4条彼此明显不同" in method
+    assert "encode_ai_candidates(candidates[:4])" in method
