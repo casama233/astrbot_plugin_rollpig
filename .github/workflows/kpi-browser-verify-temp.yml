@@ -1,0 +1,42 @@
+name: Temporary KPI browser verification
+
+on:
+  push:
+    branches: [fix/kpi-strip-v2]
+    paths: [.github/workflows/kpi-browser-verify-temp.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run browser and focused Python regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+          python -m pip install pytest
+          pytest -q tests/test_admin_trend_ui_contract.py tests/test_admin_dashboard_overhaul_contract.py
+      - name: Remove temporary workflow
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/kpi-browser-verify-temp.yml
+          git commit -m "chore: remove KPI browser verification workflow"
+          git push origin HEAD:fix/kpi-strip-v2
