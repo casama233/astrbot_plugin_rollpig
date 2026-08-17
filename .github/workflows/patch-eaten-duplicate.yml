@@ -1,4 +1,4 @@
-name: Patch eaten duplicate penalty
+name: Patch eaten duplicate follow-up
 
 on:
   push:
@@ -18,144 +18,48 @@ jobs:
           ref: fix/eaten-next-day-duplicate
           fetch-depth: 0
 
-      - name: Apply gameplay and documentation patch
+      - name: Tighten runtime and docs
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           def replace_once(path, old, new):
               p = Path(path)
               text = p.read_text(encoding='utf-8')
               if old not in text:
-                  raise SystemExit(f'{path}: expected text not found: {old[:100]!r}')
+                  raise SystemExit(f'{path}: expected text not found: {old[:120]!r}')
               p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          # --- Runtime: reinterpret the legacy config value as duplicate risk. ---
+          # Pending JSON penalties carry their date, so an unusual pre-existing
+          # daily draw cannot leak a forced duplicate into a later day.
           replace_once(
               'legacy_main.py',
-              'self.eaten_next_day_failure_percent = min(80, max(1, eaten_penalty_percent))',
-              'self.eaten_next_day_duplicate_percent = min(80, max(1, eaten_penalty_percent))',
+              '''        pending = getattr(self, "_pending_eaten_duplicate_users", None)\n        if isinstance(pending, set) and storage_id in pending:\n            pending.discard(storage_id)\n            force_duplicate = True\n''',
+              '''        pending = getattr(self, "_pending_eaten_duplicate_users", None)\n        if isinstance(pending, dict):\n            pending_date = pending.pop(storage_id, None)\n            if pending_date == self._today().isoformat():\n                force_duplicate = True\n''',
           )
           replace_once(
               'legacy_main.py',
-              'random.randrange(100) < self.eaten_next_day_failure_percent',
-              'random.randrange(100) < self.eaten_next_day_duplicate_percent',
+              '''            pending = getattr(self, "_pending_eaten_duplicate_users", None)\n            if not isinstance(pending, set):\n                pending = set()\n                self._pending_eaten_duplicate_users = pending\n            if force_duplicate:\n                pending.add(storage_id)\n''',
+              '''            pending = getattr(self, "_pending_eaten_duplicate_users", None)\n            if not isinstance(pending, dict):\n                pending = {}\n                self._pending_eaten_duplicate_users = pending\n            if force_duplicate:\n                pending[storage_id] = today\n''',
           )
 
-          # JSON backend: consume the next-day penalty once, prime a forced duplicate,
-          # and always return False so /今日小猪 is never blocked for the day.
-          p = Path('legacy_main.py')
+          replace_once(
+              'docs/DAILY-REPORT.md',
+              '它复用现有被吃持久化与次日抽猪惩罚语义，并把祭品展示在日报底部。',
+              '它复用现有被吃持久化与次日重复猪风险语义：隔天仍可正常抽猪，只是按配置概率强制抽到已解锁的重复猪；祭品会展示在日报底部。',
+          )
+
+          p = Path('tests/test_source_regressions.py')
           text = p.read_text(encoding='utf-8')
-          pattern = re.compile(
-              r'    def _consume_eaten_penalty\(self, user_id: str, today: str\) -> bool:\n.*?(?=    (?:async )?def )',
-              re.S,
-          )
-          replacement = '''    def _consume_eaten_penalty(self, user_id: str, today: str) -> bool:\n        \"\"\"Consume next-day eaten risk without ever blocking today's draw.\n\n        The legacy ``failed`` flag is treated as a forced duplicate so players who\n        were already locked by an older runtime are immediately recoverable after\n        upgrading. The boolean return remains False for the historical caller,\n        while a per-user pending marker is consumed by ``_choose_daily_pig``.\n        \"\"\"\n        with self._data_lock:\n            penalties = self.roast_state.setdefault(\"eaten_penalties\", {})\n            if not isinstance(penalties, dict):\n                penalties = {}\n                self.roast_state[\"eaten_penalties\"] = penalties\n            storage_id = self._storage_user_key(str(user_id))\n            entry = penalties.get(storage_id)\n            if not isinstance(entry, dict):\n                return False\n            due_date = str(entry.get(\"due_date\") or \"\")\n            if due_date < today:\n                penalties.pop(storage_id, None)\n                self._save_roast_state()\n                return False\n            if due_date != today:\n                return False\n\n            force_duplicate = bool(entry.get(\"failed\")) or (\n                random.randrange(100) < self.eaten_next_day_duplicate_percent\n            )\n            penalties.pop(storage_id, None)\n            pending = getattr(self, \"_pending_eaten_duplicate_users\", None)\n            if not isinstance(pending, set):\n                pending = set()\n                self._pending_eaten_duplicate_users = pending\n            if force_duplicate:\n                pending.add(storage_id)\n            self._save_roast_state()\n            return False\n\n'''
-          text, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'legacy_main.py: expected one _consume_eaten_penalty, got {count}')
-          p.write_text(text, encoding='utf-8')
-
-          # Daily selection can now explicitly or implicitly bypass pity and choose
-          # from active unlocked pigs only.
-          replace_once(
-              'legacy_main.py',
-              'def _choose_daily_pig(self, user_id: str) -> dict:',
-              'def _choose_daily_pig(self, user_id: str, *, force_duplicate: bool = False) -> dict:',
-          )
-          replace_once(
-              'legacy_main.py',
-              '        return self.draw_service.choose(self.pig_list, draw_context)\n',
-              '''        storage_id = self._storage_user_key(str(user_id))\n        pending = getattr(self, \"_pending_eaten_duplicate_users\", None)\n        if isinstance(pending, set) and storage_id in pending:\n            pending.discard(storage_id)\n            force_duplicate = True\n        if force_duplicate:\n            duplicate = self.draw_service.choose_duplicate(self.pig_list, draw_context)\n            if duplicate is not None:\n                return duplicate\n        return self.draw_service.choose(self.pig_list, draw_context)\n''',
-          )
-
-          # SQLite probe reports duplicate-risk instead of a day-long block.
-          replace_once(
-              'legacy_main.py',
-              'random.randrange(100) < self.eaten_next_day_failure_percent',
-              'random.randrange(100) < self.eaten_next_day_duplicate_percent',
-          )
-          replace_once(
-              'legacy_main.py',
-              '''                if status == \"penalty-blocked\":\n                    response_text = (\n                        \"🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。\"\n                    )\n                elif status == \"needs-pig\":\n''',
-              '''                if status in {\"needs-pig\", \"penalty-duplicate\"}:\n''',
-          )
-          replace_once(
-              'legacy_main.py',
-              '                        proposed = self._choose_daily_pig(storage_id)\n                        result = await asyncio.to_thread(\n',
-              '                        proposed = self._choose_daily_pig(\n                            storage_id, force_duplicate=(status == \"penalty-duplicate\")\n                        )\n                        result = await asyncio.to_thread(\n',
-          )
-          replace_once(
-              'legacy_main.py',
-              '''                        elif result.get(\"status\") == \"penalty-blocked\":\n                            response_text = (\n                                \"🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。\"\n                            )\n''',
-              '''                        elif result.get(\"status\") == \"penalty-duplicate\":\n                            response_text = \"今日小猪写入冲突，请稍后再试。\"\n''',
-          )
-
-          # SQLite backend: a due penalty with no pig returns a request for a
-          # duplicate. A valid pig always consumes the penalty, including legacy
-          # failed=1 rows, so upgrades immediately unblock players.
-          p = Path('storage/sqlite_primary.py')
-          text = p.read_text(encoding='utf-8')
-          pattern = re.compile(
-              r'''                elif due_date == draw_date and failed:\n                    return \{\"status\": \"penalty-blocked\", \"created\": False\}\n                elif due_date == draw_date and penalty_should_fail:\n.*?                elif due_date == draw_date and self\._valid_pig\(pig\):\n                    connection\.execute\(\n                        \"DELETE FROM eaten_penalties WHERE user_id = \?\",\n                        \(penalty_user,\),\n                    \)\n''',
-              re.S,
-          )
-          replacement = '''                elif due_date == draw_date and self._valid_pig(pig):\n                    connection.execute(\n                        \"DELETE FROM eaten_penalties WHERE user_id = ?\",\n                        (penalty_user,),\n                    )\n                elif due_date == draw_date and (failed or penalty_should_fail):\n                    return {\"status\": \"penalty-duplicate\", \"created\": False}\n'''
-          text, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'sqlite_primary.py: eaten penalty block replacement count={count}')
-          p.write_text(text, encoding='utf-8')
-
-          # Config UI keeps the legacy key to preserve existing installations, but
-          # its value now controls duplicate risk rather than draw failure.
-          replace_once(
-              '_conf_schema.json',
-              '"description": "被吃后次日抽猪失败率（百分比）",\n        "hint": "范围 1-80，默认 20；次日首次抽猪失败后会锁定到当天结束，成功则正常抽取"',
-              '"description": "被吃后次日重复猪概率（百分比）",\n        "hint": "兼容旧配置键名；范围 1-80，默认 20。命中时仍正常完成今日抽取，但强制从已解锁小猪中抽到一只重复，不再抽取失败或锁定整天"',
-          )
-          replace_once(
-              '_conf_schema.json',
-              '将该日状态改为「吃掉了」并沿用次日惩罚。手动 /猪圈日报 不触发',
-              '将该日状态改为「吃掉了」并沿用次日重复猪风险。手动 /猪圈日报 不触发',
-          )
-
-          # Wiki/config reference.
-          replace_once(
-              'docs/CONFIGURATION.md',
-              '| `eaten_next_day_failure_percent` | int | `20` | `1-80` | 今天被吃後，次日第一次抽豬失敗率 |',
-              '| `eaten_next_day_failure_percent` | int | `20` | `1-80` | **兼容舊鍵名**：今天被吃後，次日抽豬命中此概率時強制從已解鎖池抽一隻重複豬；不再抽取失敗或鎖天 |',
-          )
-
-          p = Path('docs/gameplay/collection-pity.md')
-          text = p.read_text(encoding='utf-8')
-          marker = '## 圖鑑、EX、保底之間的關係\n'
-          section = '''## 🍽️ 昨天被吃掉：今天可能抽到重複豬\n\n被 `/吃群友` 或自動日報祭品吃掉後，**隔天不再有「抽豬失敗並鎖到明天」**。\n\n現在沿用舊配置鍵 `eaten_next_day_failure_percent` 的數值作為「**強制重複豬概率**」；預設仍是 **20%**：\n\n- 沒命中：完全照正常每日抽取與新豬保底走；\n- 命中：今天仍然正常得到一隻豬，但會從你目前已解鎖、仍在有效圖鑑的豬裡抽一隻重複；\n- 強制重複這次不吃新豬保底，因為它本身就是被吃的次日代價；\n- 這隻重複豬仍會正常增加抽取次數、推進 EX，並累積 `duplicate_streak`／跨日疲勞，讓之後的新豬保底自然變高；\n- 如果沒有任何可用的已解鎖豬，會安全退回普通抽取，不會把玩家卡死；\n- 舊版本若已把今天標成 `failed`，升級後會把這次舊鎖定視為一次強制重複，立即恢復可抽。\n\n因此新版的被吃懲罰是「**可能吃一發重複**」，不是「**今天不准玩**」。\n\n'''
-          if marker not in text:
-              raise SystemExit('collection-pity.md: insertion marker missing')
-          p.write_text(text.replace(marker, section + marker, 1), encoding='utf-8')
-
-          # Changelog PR contract.
-          replace_once(
-              'CHANGELOG.md',
-              '## 未發佈\n\n- 暫無。',
-              '## 未發佈\n\n- 調整「被吃掉」次日懲罰：不再概率抽豬失敗並鎖定整天；沿用原 20% 配置值改為概率強制抽到已解鎖的重複豬，舊版當日已鎖玩家升級後亦可立即恢復抽取。',
-          )
-
-          # Focused regression: storage no longer persists a day-long failed lock.
-          p = Path('tests/test_sqlite_storage.py')
-          text = p.read_text(encoding='utf-8')
-          old = '''    assert result[\"status\"] == \"penalty-blocked\"\n    with storage._connection() as connection:\n        assert connection.execute(\"SELECT COUNT(*) FROM daily_draws\").fetchone()[0] == 0\n        assert connection.execute(\n            \"SELECT failed FROM eaten_penalties WHERE user_id = 'v2|qq|user|1'\"\n        ).fetchone()[0] == 1\n'''
-          new = '''    assert result[\"status\"] == \"penalty-duplicate\"\n    with storage._connection() as connection:\n        assert connection.execute(\"SELECT COUNT(*) FROM daily_draws\").fetchone()[0] == 0\n        assert connection.execute(\n            \"SELECT failed FROM eaten_penalties WHERE user_id = 'v2|qq|user|1'\"\n        ).fetchone()[0] == 0\n\n    created = storage.create_daily_draw(\n        draw_date=\"2026-08-04\",\n        user_id=\"v2|qq|user|1\",\n        pig={\"id\": \"pig-a\", \"name\": \"A\"},\n        penalty_should_fail=False,\n    )\n    assert created[\"status\"] == \"created\"\n    with storage._connection() as connection:\n        assert connection.execute(\"SELECT COUNT(*) FROM eaten_penalties\").fetchone()[0] == 0\n'''
-          if old not in text:
-              raise SystemExit('tests/test_sqlite_storage.py: penalty assertion block missing')
-          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          test = '''\n\ndef test_eaten_next_day_penalty_never_locks_daily_draw():\n    consume = ast.get_source_segment(SOURCE, _method("_consume_eaten_penalty")) or ""\n    choose = ast.get_source_segment(SOURCE, _method("_choose_daily_pig")) or ""\n    assert "eaten_next_day_duplicate_percent" in SOURCE\n    assert "penalty-blocked" not in SOURCE\n    assert "return False" in consume\n    assert "_pending_eaten_duplicate_users" in consume\n    assert "choose_duplicate" in choose\n    assert "force_duplicate" in choose\n'''
+          if 'def test_eaten_next_day_penalty_never_locks_daily_draw()' not in text:
+              p.write_text(text.rstrip() + test + '\n', encoding='utf-8')
           PY
 
-      - name: Commit patch
+      - name: Commit follow-up
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add legacy_main.py storage/sqlite_primary.py _conf_schema.json docs/CONFIGURATION.md docs/gameplay/collection-pity.md CHANGELOG.md tests/test_sqlite_storage.py
-          git commit -m 'feat: replace eaten draw lock with duplicate risk'
+          git add legacy_main.py docs/DAILY-REPORT.md tests/test_source_regressions.py
+          git commit -m 'test: lock eaten duplicate semantics'
           git push origin HEAD:fix/eaten-next-day-duplicate
