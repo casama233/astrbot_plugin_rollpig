@@ -112,5 +112,6 @@ def test_ex_editor_previews_effective_and_unsaved_images():
     assert "remove_image:removeImage" in source
     assert "FileReader" in source
     assert "未儲存本地圖片" in source
-    assert ".effective-grid{display:grid" in source
+    assert 'class="chat-card chat-card-ex"' in source
+    assert "data-compare-toggle" in source
     assert "data-preview>預覽目前圖片" not in source
