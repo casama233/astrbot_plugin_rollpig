@@ -1,0 +1,81 @@
+name: Temporary daily report delivery ledger refactor
+
+on:
+  push:
+    branches:
+      - fix/daily-report-at-most-once-delivery
+    paths:
+      - .github/workflows/daily-report-idempotency-refactor-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refactor delivery claim store into pure module
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          delivery = Path('daily_report_delivery.py')
+          delivery.write_text('''from __future__ import annotations\n\nimport hashlib\nimport json\nimport os\nimport time\nimport uuid\nfrom pathlib import Path\nfrom typing import Any\n\n\nclass DailyReportDeliveryClaims:\n    """Filesystem-backed at-most-once claim store for scheduled daily reports.\n\n    Exclusive file creation is the cross-instance arbitration primitive. Claim\n    files intentionally outlive a successful send for the report retention\n    window, so a reload cannot resurrect an already-attempted group/date job.\n    """\n\n    def __init__(\n        self,\n        root: Path | str,\n        *,\n        keep_days: int,\n        owner: str | None = None,\n    ) -> None:\n        self.root = Path(root)\n        self.root.mkdir(parents=True, exist_ok=True)\n        self.keep_days = max(1, int(keep_days))\n        self.owner = str(owner or uuid.uuid4().hex)\n\n    def path_for(self, group_id: str, draw_date: str) -> Path:\n        digest = hashlib.sha256(\n            f"{draw_date}\\0{group_id}".encode("utf-8")\n        ).hexdigest()[:32]\n        return self.root / f"{draw_date}-{digest}.json"\n\n    @staticmethod\n    def read(path: Path) -> dict[str, Any]:\n        try:\n            payload = json.loads(path.read_text(encoding="utf-8"))\n        except (OSError, UnicodeError, json.JSONDecodeError):\n            return {"status": "unknown"}\n        return payload if isinstance(payload, dict) else {"status": "unknown"}\n\n    def try_acquire(\n        self, group_id: str, draw_date: str\n    ) -> tuple[Path | None, dict[str, Any]]:\n        path = self.path_for(group_id, draw_date)\n        payload = {\n            "schema_version": 1,\n            "status": "claimed",\n            "draw_date": str(draw_date),\n            "group_id": str(group_id),\n            "delivery_id": uuid.uuid4().hex,\n            "owner": self.owner,\n            "pid": os.getpid(),\n            "claimed_at": int(time.time()),\n        }\n        try:\n            with path.open("x", encoding="utf-8") as handle:\n                json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))\n                handle.write("\\n")\n                handle.flush()\n                os.fsync(handle.fileno())\n        except FileExistsError:\n            return None, self.read(path)\n        return path, payload\n\n    @staticmethod\n    def _write(path: Path, payload: dict[str, Any]) -> None:\n        temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")\n        try:\n            with temp_path.open("w", encoding="utf-8") as handle:\n                json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))\n                handle.write("\\n")\n                handle.flush()\n                os.fsync(handle.fileno())\n            os.replace(temp_path, path)\n        finally:\n            temp_path.unlink(missing_ok=True)\n\n    def finalize(\n        self, path: Path, *, status: str, error: str = ""\n    ) -> dict[str, Any]:\n        payload = self.read(path)\n        payload.update(\n            status=str(status),\n            finalized_at=int(time.time()),\n            error=str(error or "")[:300],\n        )\n        self._write(path, payload)\n        return payload\n\n    @staticmethod\n    def release(path: Path) -> None:\n        path.unlink(missing_ok=True)\n\n    def prune(self) -> None:\n        cutoff = time.time() - (self.keep_days + 2) * 86400\n        for path in self.root.glob("*.json"):\n            try:\n                if path.stat().st_mtime < cutoff:\n                    path.unlink(missing_ok=True)\n            except OSError:\n                continue\n''', encoding='utf-8')
+
+          feature = Path('daily_report_feature.py')
+          text = feature.read_text(encoding='utf-8')
+          text = text.replace('import json\nimport os\nimport random\n', 'import json\nimport random\n', 1)
+
+          gameplay_anchor = '''except ImportError:  # pragma: no cover - direct module loading compatibility\n    from gameplay_events import (\n        append_gameplay_event,\n        build_gameplay_event,\n        read_gameplay_events,\n    )\n\n\nclass DailyReportMixin:\n'''
+          gameplay_replacement = '''except ImportError:  # pragma: no cover - direct module loading compatibility\n    from gameplay_events import (\n        append_gameplay_event,\n        build_gameplay_event,\n        read_gameplay_events,\n    )\n\ntry:\n    from .daily_report_delivery import DailyReportDeliveryClaims\nexcept ImportError:  # pragma: no cover - direct module loading compatibility\n    from daily_report_delivery import DailyReportDeliveryClaims\n\n\nclass DailyReportMixin:\n'''
+          if gameplay_anchor not in text:
+              raise SystemExit('delivery import anchor not found')
+          text = text.replace(gameplay_anchor, gameplay_replacement, 1)
+
+          old_init = '''        self.daily_report_state_path = self.plugin_data_dir / "daily_report_state.json"\n        self.daily_report_avatar_dir = self.plugin_data_dir / "daily_report_avatars"\n        self.daily_report_delivery_claim_dir = (\n            self.plugin_data_dir / "daily_report_delivery_claims"\n        )\n        self.daily_report_avatar_dir.mkdir(parents=True, exist_ok=True)\n        self.daily_report_delivery_claim_dir.mkdir(parents=True, exist_ok=True)\n        self._daily_report_delivery_owner = uuid.uuid4().hex\n        self._prune_daily_report_delivery_claims()\n'''
+          new_init = '''        self.daily_report_state_path = self.plugin_data_dir / "daily_report_state.json"\n        self.daily_report_avatar_dir = self.plugin_data_dir / "daily_report_avatars"\n        self.daily_report_avatar_dir.mkdir(parents=True, exist_ok=True)\n        self.daily_report_delivery_claims = DailyReportDeliveryClaims(\n            self.plugin_data_dir / "daily_report_delivery_claims",\n            keep_days=self.DAILY_REPORT_STATE_KEEP_DAYS,\n        )\n        self.daily_report_delivery_claims.prune()\n'''
+          if old_init not in text:
+              raise SystemExit('claim init block not found')
+          text = text.replace(old_init, new_init, 1)
+
+          helper_start = text.index('    def _daily_report_delivery_claim_path(')
+          helper_end = text.index('    def _event_sender_id(', helper_start)
+          text = text[:helper_start] + text[helper_end:]
+
+          text = text.replace('self._try_acquire_daily_report_delivery, group_id, draw_date', 'self.daily_report_delivery_claims.try_acquire, group_id, draw_date')
+          text = text.replace('self._finalize_daily_report_delivery_claim,\n                        claim_path,', 'self.daily_report_delivery_claims.finalize,\n                        claim_path,')
+          text = text.replace('self._finalize_daily_report_delivery_claim(\n                        claim_path,', 'self.daily_report_delivery_claims.finalize(\n                        claim_path,')
+          text = text.replace('self._release_daily_report_delivery_claim, claim_path', 'self.daily_report_delivery_claims.release, claim_path')
+          text = text.replace('self._finalize_daily_report_delivery_claim,\n                    claim_path,', 'self.daily_report_delivery_claims.finalize,\n                    claim_path,')
+          feature.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/test_daily_report_delivery_idempotency.py')
+          tests.write_text('''from pathlib import Path\n\nfrom daily_report_delivery import DailyReportDeliveryClaims\n\n\ndef test_delivery_claim_is_exclusive_across_instances(tmp_path):\n    first = DailyReportDeliveryClaims(tmp_path, keep_days=14, owner="first")\n    second = DailyReportDeliveryClaims(tmp_path, keep_days=14, owner="second")\n\n    first_path, first_claim = first.try_acquire("group-1", "2026-08-18")\n    assert first_path is not None\n    assert first_claim["status"] == "claimed"\n\n    second_path, existing = second.try_acquire("group-1", "2026-08-18")\n    assert second_path is None\n    assert existing["delivery_id"] == first_claim["delivery_id"]\n\n    first.finalize(first_path, status="sent")\n    third_path, third_existing = second.try_acquire("group-1", "2026-08-18")\n    assert third_path is None\n    assert third_existing["status"] == "sent"\n\n\ndef test_definite_non_delivery_can_release_claim_for_retry(tmp_path):\n    claims = DailyReportDeliveryClaims(tmp_path, keep_days=14, owner="owner")\n    claim_path, _ = claims.try_acquire("group-2", "2026-08-18")\n    assert claim_path is not None\n    claims.release(claim_path)\n    retry_path, _ = claims.try_acquire("group-2", "2026-08-18")\n    assert retry_path is not None\n\n\ndef test_malformed_existing_claim_fails_closed(tmp_path):\n    claims = DailyReportDeliveryClaims(tmp_path, keep_days=14)\n    path = claims.path_for("group-3", "2026-08-18")\n    path.write_text("not-json", encoding="utf-8")\n    acquired, existing = claims.try_acquire("group-3", "2026-08-18")\n    assert acquired is None\n    assert existing == {"status": "unknown"}\n\n\ndef test_old_claims_are_pruned_without_touching_recent_claims(tmp_path, monkeypatch):\n    claims = DailyReportDeliveryClaims(tmp_path, keep_days=14)\n    old = claims.path_for("old", "2026-07-01")\n    recent = claims.path_for("recent", "2026-08-18")\n    old.write_text("{}", encoding="utf-8")\n    recent.write_text("{}", encoding="utf-8")\n\n    import os\n    import time\n\n    now = time.time()\n    os.utime(old, (now - 20 * 86400, now - 20 * 86400))\n    claims.prune()\n    assert not old.exists()\n    assert recent.exists()\n\n\ndef test_delivery_contract_claims_before_platform_send_and_never_retries_uncertain():\n    root = Path(__file__).resolve().parents[1]\n    feature = (root / "daily_report_feature.py").read_text(encoding="utf-8")\n    start = feature.index("    async def _send_scheduled_daily_report")\n    end = feature.index("    async def _daily_report_tick", start)\n    scheduled = feature[start:end]\n\n    assert scheduled.index("daily_report_delivery_claims.try_acquire") < scheduled.index(\n        "self.context.send_message(umo, chain)"\n    )\n    assert scheduled.index("_flush_daily_report_state_durable") < scheduled.index(\n        "self.context.send_message(umo, chain)"\n    )\n    assert 'status="uncertain"' in scheduled\n\n    tick = feature[end : feature.index("    async def _background_daily_report", end)]\n    assert 'status in {"sent", "uncertain"}' in tick\n    stale_start = tick.index('if status == "sending":')\n    stale_end = tick.index('if now_ts < int(job.get("due_at", 0) or 0):', stale_start)\n    stale = tick[stale_start:stale_end]\n    assert 'status="uncertain"' in stale\n    assert 'status="pending"' not in stale\n''', encoding='utf-8')
+
+          ci = Path('.github/workflows/ci.yml')
+          ci_text = ci.read_text(encoding='utf-8')
+          ci_text = ci_text.replace(
+              'daily_report_core.py daily_report_feature.py gameplay_events.py',
+              'daily_report_core.py daily_report_delivery.py daily_report_feature.py gameplay_events.py',
+              1,
+          )
+          ci.write_text(ci_text, encoding='utf-8')
+          PY
+
+          git rm .github/workflows/daily-report-idempotency-refactor-temp.yml
+          git add daily_report_delivery.py daily_report_feature.py tests/test_daily_report_delivery_idempotency.py .github/workflows/ci.yml
+          python -m compileall -q daily_report_delivery.py daily_report_feature.py
+          python -m pip install -r requirements.txt pytest >/dev/null
+          pytest -q tests/test_daily_report_delivery_idempotency.py tests/test_daily_report.py
+          git diff --cached --check
+          git commit -m "refactor: isolate daily report delivery claim store"
+          git push origin HEAD:fix/daily-report-at-most-once-delivery
