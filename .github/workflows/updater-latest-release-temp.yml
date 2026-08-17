@@ -20,11 +20,18 @@ jobs:
           ref: fix/updater-latest-release
           fetch-depth: 0
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Apply and validate hotfix
         shell: bash
         run: |
           set -euo pipefail
           python scripts/_updater_hotfix_temp.py
+          python -m pip install -r requirements.txt pytest
           python -m pytest -q tests/test_storage_and_updater.py tests/test_updater_latest_release_endpoint.py
           python scripts/maintenance_contract.py release
           git diff --check
