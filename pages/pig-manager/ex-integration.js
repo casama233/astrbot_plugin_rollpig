@@ -49,8 +49,46 @@
     return ({
       local: '本地 EX',
       'local-base-block': '本地基础覆盖（未套公共 EX）',
-      cloud: '云端 EX', bundled: '内置 EX', base: '基础内容'
+      cloud: '云端 EX', bundled: '内置 EX', baseline: '安全基线', base: '基础内容'
     })[source] || source || '基础内容';
+  }
+
+  function imageSourceLabel(source) {
+    return ({
+      local: '本地 EX 图片', cloud: '云端 EX 图片', bundled: '内置 EX 图片',
+      baseline: '安全基线图片', base: '基础图片', pending: '未保存本地图片'
+    })[source] || source || '基础图片';
+  }
+
+  function ensurePreviewLightbox() {
+    let lightbox = $('exPreviewLightbox');
+    if (lightbox) return lightbox;
+    lightbox = document.createElement('div');
+    lightbox.id = 'exPreviewLightbox';
+    lightbox.className = 'ex-preview-lightbox';
+    lightbox.setAttribute('aria-hidden', 'true');
+    lightbox.innerHTML = `<div class="ex-preview-lightbox-card"><button class="ex-preview-lightbox-close" id="exPreviewLightboxClose" type="button" aria-label="关闭">×</button><img id="exPreviewLightboxImage" alt="EX 图片放大预览"><div class="ex-preview-lightbox-caption" id="exPreviewLightboxCaption"></div></div>`;
+    document.body.appendChild(lightbox);
+    $('exPreviewLightboxClose').onclick = closePreviewLightbox;
+    lightbox.addEventListener('click', event => { if (event.target === lightbox) closePreviewLightbox(); });
+    return lightbox;
+  }
+
+  function openPreviewLightbox(src, caption = '') {
+    if (!src) return;
+    ensurePreviewLightbox();
+    $('exPreviewLightboxImage').src = src;
+    $('exPreviewLightboxCaption').textContent = caption;
+    $('exPreviewLightbox').classList.add('show');
+    $('exPreviewLightbox').setAttribute('aria-hidden', 'false');
+  }
+
+  function closePreviewLightbox() {
+    const lightbox = $('exPreviewLightbox');
+    if (!lightbox) return;
+    lightbox.classList.remove('show');
+    lightbox.setAttribute('aria-hidden', 'true');
+    $('exPreviewLightboxImage')?.removeAttribute('src');
   }
 
   function ensureModal() {
@@ -68,12 +106,14 @@
         <div id="exManagerBody"><div class="empty">正在读取 EX 阶段…</div></div>
       </div>`;
     document.body.appendChild(modal);
+    ensurePreviewLightbox();
     $('exManagerClose').onclick = closeExManager;
     modal.addEventListener('click', event => { if (event.target === modal) closeExManager(); });
     return modal;
   }
 
   function closeExManager() {
+    closePreviewLightbox();
     $('exManagerModal')?.classList.remove('open');
   }
 
@@ -122,12 +162,23 @@
         <div class="ex-level-title"><strong>EX Lv.${state.level}</strong><span>${levelHasLocal(pig, state.level) ? '已设置本地差分' : '留空＝继承上一层／官方内容'}</span></div>
         <div class="ex-editor-grid">
           <div class="ex-field"><label>短描述</label><textarea id="exDescription" maxlength="120" placeholder="留空＝繼承">${esc(local.description || '')}</textarea><small>只覆盖这一层的短描述。</small></div>
-          <div class="ex-field"><label>差分图片</label><div class="ex-image-row"><input id="exImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label><input id="exRemoveImage" type="checkbox" ${local.image ? '' : 'disabled'}> 移除当前图片</label>${local.image ? '<button class="btn ghost" type="button" id="exPreviewImage">预览当前图片</button>' : ''}</div><small>${local.image ? `当前：${esc(local.image)}` : '尚未设置本地差分图片；留空会继承有效图片。'}</small><img class="ex-local-image" id="exLocalImage" alt="EX 本地差分图片预览"></div>
+          <div class="ex-field"><label>差分图片</label><div class="ex-image-row"><input id="exImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label><input id="exRemoveImage" type="checkbox" ${local.image ? '' : 'disabled'}> 移除当前图片</label></div><small>${local.image ? `当前：${esc(local.image)}；下方会显示真正生效图片` : '尚未设置本地差分图片；下方会显示继承／基础图片。'}</small></div>
           <div class="ex-field full"><label>完整文案</label><textarea class="ex-analysis" id="exAnalysis" maxlength="800" placeholder="留空＝繼承">${esc(local.analysis || '')}</textarea><small>EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。</small></div>
         </div>
         <div class="ex-effective">
-          <div class="ex-effective-head"><span>实际生效预览</span><span class="ex-effective-source">${esc(sourceLabel(effective.source))} · 差分来源 Lv.${Number(effective.variant_level || 0) || '基础'}</span></div>
-          <div class="ex-effective-copy"><b>描述：</b>${esc(effective.description || '（空）')}<br><b>完整文案：</b>${esc(effective.analysis || '（空）')}${effective.image ? `<br><b>图片：</b>${esc(effective.image)}` : ''}</div>
+          <div class="ex-preview-head"><div><strong>聊天卡效果预览</strong><span>当前实际生效内容；可展开 Base ↔ EX 对比</span></div><button class="ex-preview-toggle" type="button" data-compare-toggle>Base ↔ EX 对比</button></div>
+          <div class="ex-preview-stage" data-preview-stage>
+            <article class="ex-preview-card ex-preview-card-effective">
+              <button class="ex-preview-media" type="button" data-effective-zoom disabled><img data-effective-image alt="实际生效图片"><span class="ex-preview-placeholder" data-effective-placeholder>载入实际图片…</span></button>
+              <div class="ex-preview-meta"><span data-effective-image-meta>图片来源：载入中</span></div>
+              <div class="ex-preview-body"><div class="ex-preview-kicker">今日小猪 · EX Lv.${state.level}</div><h3>${esc(pig.name)}</h3><p class="ex-preview-description">${esc(effective.description || '（空）')}</p><div class="ex-preview-analysis">${esc(effective.analysis || '（空）')}</div><div class="ex-preview-copy-source">文案：${esc(sourceLabel(effective.source))} · 差分来源 Lv.${Number(effective.variant_level || 0) || '基础'}</div></div>
+            </article>
+            <article class="ex-preview-card ex-preview-card-base" data-base-card hidden>
+              <button class="ex-preview-media" type="button" data-base-zoom disabled><img data-base-image alt="基础图片"><span class="ex-preview-placeholder" data-base-placeholder>载入基础图片…</span></button>
+              <div class="ex-preview-meta"><span data-base-image-meta>Base 图片</span></div>
+              <div class="ex-preview-body"><div class="ex-preview-kicker">Base · 未套 EX</div><h3>${esc(pig.name)}</h3><p class="ex-preview-description">${esc(pig.description || '（空）')}</p><div class="ex-preview-analysis">${esc(pig.analysis || '（空）')}</div><div class="ex-preview-base-note">使用当前图鉴基础资料作比较，不修改任何 EX 状态。</div></div>
+            </article>
+          </div>
         </div>
         <div class="ex-level-actions"><button class="btn ghost" type="button" id="exResetLevel">重置此层</button><button class="btn" type="button" id="exSaveLevel">保存 EX Lv.${state.level}</button></div>
       </article>`;
@@ -137,8 +188,32 @@
     });
     $('exSaveLevel').onclick = saveCurrentLevel;
     $('exResetLevel').onclick = resetCurrentLevel;
-    const preview = $('exPreviewImage');
-    if (preview) preview.onclick = previewCurrentImage;
+    const card = body.querySelector('.ex-level-card');
+    if (card) {
+      bindPreviewControls(card, pig);
+      loadEffectiveImage(card, pig);
+      const fileInput = $('exImageFile');
+      const removeInput = $('exRemoveImage');
+      fileInput.onchange = async () => {
+        try {
+          const dataUrl = await fileData(fileInput);
+          if (!dataUrl) {
+            await loadEffectiveImage(card, pig, {removeImage: Boolean(removeInput?.checked)});
+            return;
+          }
+          if (removeInput) removeInput.checked = false;
+          setEffectiveImage(card, {src: dataUrl, source: 'pending', variant_level: state.level, filename: fileInput.files?.[0]?.name || ''});
+        } catch (error) {
+          fileInput.value = '';
+          toast(error.message || String(error));
+          await loadEffectiveImage(card, pig, {removeImage: Boolean(removeInput?.checked)});
+        }
+      };
+      if (removeInput) removeInput.onchange = async () => {
+        if (removeInput.checked) fileInput.value = '';
+        await loadEffectiveImage(card, pig, {removeImage: removeInput.checked, silent: false});
+      };
+    }
   }
 
   async function fileData(input) {
@@ -193,17 +268,89 @@
     }
   }
 
-  async function previewCurrentImage() {
-    const pig = currentPig();
-    if (!pig) return;
-    try {
-      const data = await post('ex/variants/image', {id: pig.id, level: state.level});
-      const image = $('exLocalImage');
-      image.src = `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`;
+  function setEffectiveImage(card, {src = '', source = 'base', variant_level = 0, filename = ''} = {}) {
+    const image = card.querySelector('[data-effective-image]');
+    const placeholder = card.querySelector('[data-effective-placeholder]');
+    const meta = card.querySelector('[data-effective-image-meta]');
+    const zoom = card.querySelector('[data-effective-zoom]');
+    if (src) {
+      image.src = src;
       image.classList.add('show');
+      placeholder.hidden = true;
+      zoom.disabled = false;
+      zoom.dataset.zoomSrc = src;
+    } else {
+      image.removeAttribute('src');
+      image.classList.remove('show');
+      placeholder.hidden = false;
+      placeholder.textContent = '没有可预览的图片';
+      zoom.disabled = true;
+      delete zoom.dataset.zoomSrc;
+    }
+    const level = Number(variant_level || 0);
+    meta.textContent = `图片来源：${imageSourceLabel(source)}${level ? ` · Lv.${level}` : ''}${filename ? ` · ${filename}` : ''}`;
+  }
+
+  function setBaseImage(card, {src = '', filename = ''} = {}) {
+    const image = card.querySelector('[data-base-image]');
+    const placeholder = card.querySelector('[data-base-placeholder]');
+    const meta = card.querySelector('[data-base-image-meta]');
+    const zoom = card.querySelector('[data-base-zoom]');
+    if (src) {
+      image.src = src;
+      image.classList.add('show');
+      placeholder.hidden = true;
+      zoom.disabled = false;
+      zoom.dataset.zoomSrc = src;
+    } else {
+      image.removeAttribute('src');
+      image.classList.remove('show');
+      placeholder.hidden = false;
+      placeholder.textContent = '没有可预览的基础图片';
+      zoom.disabled = true;
+      delete zoom.dataset.zoomSrc;
+    }
+    meta.textContent = `Base 图片${filename ? ` · ${filename}` : ''}`;
+  }
+
+  async function loadEffectiveImage(card, pig, {removeImage = false, silent = true} = {}) {
+    try {
+      const data = await post('ex/variants/image', {id: pig.id, level: state.level, effective: true, remove_image: removeImage});
+      setEffectiveImage(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
     } catch (error) {
+      setEffectiveImage(card, {src: '', source: 'base'});
+      if (!silent) toast(error.message || String(error));
+    }
+  }
+
+  async function loadBaseImage(card, pig) {
+    if (card.dataset.baseLoaded === '1') return;
+    try {
+      const data = await post('ex/variants/image', {id: pig.id, level: state.level, base: true});
+      setBaseImage(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
+      card.dataset.baseLoaded = '1';
+    } catch (error) {
+      setBaseImage(card, {src: ''});
       toast(error.message || String(error));
     }
+  }
+
+  function bindPreviewControls(card, pig) {
+    const toggle = card.querySelector('[data-compare-toggle]');
+    const stage = card.querySelector('[data-preview-stage]');
+    const baseCard = card.querySelector('[data-base-card]');
+    const effectiveZoom = card.querySelector('[data-effective-zoom]');
+    const baseZoom = card.querySelector('[data-base-zoom]');
+    toggle.onclick = async () => {
+      const opening = baseCard.hidden;
+      baseCard.hidden = !opening;
+      stage.classList.toggle('comparing', opening);
+      toggle.classList.toggle('active', opening);
+      toggle.textContent = opening ? '收起 Base 对比' : 'Base ↔ EX 对比';
+      if (opening) await loadBaseImage(card, pig);
+    };
+    effectiveZoom.onclick = () => openPreviewLightbox(effectiveZoom.dataset.zoomSrc || '', `${pig.name} · EX Lv.${state.level}`);
+    baseZoom.onclick = () => openPreviewLightbox(baseZoom.dataset.zoomSrc || '', `${pig.name} · Base`);
   }
 
   async function openExManager(pigId) {
@@ -314,7 +461,12 @@
   });
 
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeExManager();
+    if (event.key !== 'Escape') return;
+    if ($('exPreviewLightbox')?.classList.contains('show')) {
+      closePreviewLightbox();
+      return;
+    }
+    closeExManager();
   });
 
   ensureReady().then(() => bindStaticActions()).catch(error => console.warn('[rollpig] EX integration init failed', error));

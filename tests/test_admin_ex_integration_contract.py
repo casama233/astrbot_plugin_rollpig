@@ -52,3 +52,47 @@ def test_ex_manager_assets_are_loaded_and_responsive():
     assert ".ex-manager-modal" in css
     assert ".ex-level-tabs" in css
     assert "@media(max-width:760px)" in css
+
+
+def test_main_manager_ex_modal_has_stage2_effective_preview_parity():
+    script = integration_text()
+    css = EX_CSS.read_text(encoding="utf-8")
+    for marker in (
+        "data-compare-toggle",
+        "data-effective-image",
+        "data-base-card",
+        "data-effective-zoom",
+        "data-base-zoom",
+        "Base ↔ EX",
+        "function openPreviewLightbox",
+        "function loadEffectiveImage",
+        "function loadBaseImage",
+    ):
+        assert marker in script
+    assert "effective: true" in script
+    assert "base: true" in script
+    assert "remove_image: removeImage" in script
+    assert "source: 'pending'" in script
+    assert "exPreviewImage" not in script
+    assert "exLocalImage" not in script
+    assert ".ex-preview-stage.comparing" in css
+    assert ".ex-preview-lightbox" in css
+
+
+def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
+    main_modal = integration_text()
+    standalone = (ROOT / "pages" / "pig-manager-ex" / "index.html").read_text(encoding="utf-8")
+    for marker in (
+        "Base ↔ EX",
+        "data-compare-toggle",
+        "data-effective-image",
+        "data-base-card",
+        "data-effective-zoom",
+        "data-base-zoom",
+    ):
+        assert marker in main_modal
+        assert marker in standalone
+    assert "effective: true" in main_modal
+    assert "effective:true" in standalone
+    assert "base: true" in main_modal
+    assert "base:true" in standalone

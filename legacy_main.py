@@ -378,6 +378,12 @@ class RollPigPlugin(Star):
         self.public_source_admin_token_path = (
             self.plugin_data_dir / "public_source_admin.token"
         )
+        # Route registration is fixed for this plugin process. Adding a maintainer
+        # token later therefore requires a plugin restart; removing it is detected
+        # dynamically by the overview capability below.
+        self._public_source_review_routes_enabled = bool(
+            self._public_source_admin_token()
+        )
         self._data_lock = threading.RLock()
         self.storage_manager = StorageManager(
             self.plugin_data_dir,
@@ -562,24 +568,28 @@ class RollPigPlugin(Star):
             ["GET"],
             "预览 AstrBot 官方公共豬源图片",
         )
-        context.register_web_api(
-            f"/{self.PLUGIN_NAME}/source/reviews",
-            self.page_public_source_reviews,
-            ["GET"],
-            "查看 AstrBot 公共豬源待审核投稿",
-        )
-        context.register_web_api(
-            f"/{self.PLUGIN_NAME}/source/reviews/image",
-            self.page_public_source_review_image,
-            ["GET"],
-            "查看 AstrBot 公共豬源投稿图片",
-        )
-        context.register_web_api(
-            f"/{self.PLUGIN_NAME}/source/reviews/decision",
-            self.page_public_source_review_decision,
-            ["POST"],
-            "审核 AstrBot 公共豬源投稿",
-        )
+        # Review APIs are maintainer-only capabilities. Ordinary installations do
+        # not register these routes at all, so merely installing the plugin never
+        # exposes a local review proxy surface.
+        if self._public_source_review_routes_enabled:
+            context.register_web_api(
+                f"/{self.PLUGIN_NAME}/source/reviews",
+                self.page_public_source_reviews,
+                ["GET"],
+                "查看 AstrBot 公共豬源待审核投稿",
+            )
+            context.register_web_api(
+                f"/{self.PLUGIN_NAME}/source/reviews/image",
+                self.page_public_source_review_image,
+                ["GET"],
+                "查看 AstrBot 公共豬源投稿图片",
+            )
+            context.register_web_api(
+                f"/{self.PLUGIN_NAME}/source/reviews/decision",
+                self.page_public_source_review_decision,
+                ["POST"],
+                "审核 AstrBot 公共豬源投稿",
+            )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/resources/status",
             self.page_resource_status,
@@ -5057,6 +5067,10 @@ class RollPigPlugin(Star):
         try:
             data = await asyncio.to_thread(self._build_overview_data)
             data["csrf_token"] = self._csrf_token
+            data["public_source_review_enabled"] = bool(
+                self._public_source_review_routes_enabled
+                and self._public_source_admin_token()
+            )
             return self._jsonify({"status": "ok", "data": data})
         except Exception as exc:
             logger.error(f"今日小猪管理页总览失败：{exc}", exc_info=True)
