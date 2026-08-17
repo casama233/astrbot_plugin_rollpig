@@ -1,0 +1,84 @@
+name: Temporary v3.11.1 README patch
+
+on:
+  push:
+    branches:
+      - release/v3.11.1
+    paths:
+      - .github/workflows/v3.11.1-readme-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply README compatibility and version policy patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          old_logo = '<img src="./logo.png" width="168" alt="今日小豬 · 增強版 Logo">'
+          new_logo = '<img src="https://raw.githubusercontent.com/casama233/astrbot_plugin_rollpig/main/logo.png" width="168" alt="今日小豬 · 增強版 Logo">'
+          if old_logo not in text:
+              raise SystemExit('README relative logo marker missing')
+          text = text.replace(old_logo, new_logo, 1)
+
+          badge_anchor = '[![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)\n'
+          counter = '\n![動態訪問量](https://count.kjchmc.cn/get/@astrbot_plugin_rollpig_plus?theme=minecraft)\n'
+          if counter.strip() not in text:
+              if badge_anchor not in text:
+                  raise SystemExit('README badge anchor missing')
+              text = text.replace(badge_anchor, badge_anchor + counter, 1)
+
+          text = text.replace(
+              '[30 秒開始](docs/getting-started/index.md) · [玩家玩法](docs/gameplay/index.md) · [指令百科](docs/COMMANDS.md) · [管理面板](#管理面板) · [完整 Wiki](docs/index.md)',
+              '[30 秒開始](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/getting-started/index.md) · [玩家玩法](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/gameplay/index.md) · [指令百科](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/COMMANDS.md) · [管理面板](#管理面板) · [完整 Wiki](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/docs/index.md)',
+              1,
+          )
+          readme.write_text(text, encoding='utf-8')
+
+          contributing = Path('CONTRIBUTING.md')
+          ctext = contributing.read_text(encoding='utf-8')
+          marker = '## Commit 與 PR\n'
+          policy = '''## 版本號與發布規則\n\n本倉庫採用保守的 Semantic Versioning。**沒有重大變更時，一律只增加 patch 版本（`+0.0.1`）**，不要因為累積了多個一般修復、文檔或 UI 調整就跳 minor。\n\n- **Patch `x.y.Z`**：bug fix、文檔／README、樣式、管理頁可用性、測試、非破壞性安全收緊與其他不改公開兼容契約的變更。默認發布類型。\n- **Minor `x.Y.0`**：只有明確的大型新功能集合、重要但向後兼容的產品能力或架構升級，且維護者確認值得作為里程碑版本時才使用。\n- **Major `X.0.0`**：公開 API／資源協議／資料 schema／插件身份／配置契約等存在需要使用者處理的破壞性變更時才使用。\n- README／市場展示修復若需要重新發布才能讓 AstrBot Cloud／Marketplace 取得新快照，也仍只發 patch。\n- 發布前保持 `metadata.yaml`、`CHANGELOG.md`、`.github/release-v*.md` 與 tag 版本完全一致。\n\n'''
+          if '## 版本號與發布規則\n' not in ctext:
+              if marker not in ctext:
+                  raise SystemExit('CONTRIBUTING commit section marker missing')
+              ctext = ctext.replace(marker, policy + marker, 1)
+          contributing.write_text(ctext, encoding='utf-8')
+
+          metadata = Path('metadata.yaml')
+          mtext = metadata.read_text(encoding='utf-8')
+          mtext, count = re.subn(r'(?m)^version:\s*["\x27]?3\.11\.0["\x27]?\s*$', 'version: "3.11.1"', mtext, count=1)
+          if count != 1:
+              raise SystemExit('metadata version 3.11.0 marker missing')
+          metadata.write_text(mtext, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          ch = changelog.read_text(encoding='utf-8')
+          replacement = '''## 未發佈\n\n- 暫無。\n\n## v3.11.1\n\n發佈日期：2026-08-17\n\nv3.11.1 是展示與發布規範修復版，不修改插件運行邏輯。\n\n### README / AstrBot Cloud 相容\n\n- README Logo 由倉庫相對路徑改為 `raw.githubusercontent.com` 絕對地址，避免 AstrBot Cloud 等第三方 Markdown 渲染器無法解析 `./logo.png` 而顯示破圖。\n- 首屏文檔導航改為 GitHub 絕對地址，避免第三方渲染器把相對 docs 連結解析到自己的站點路徑。\n- 新增 Minecraft 主題動態訪問量組件，使用獨立 key `astrbot_plugin_rollpig_plus`。\n\n### 發布規範\n\n- `CONTRIBUTING.md` 明確版本策略：沒有重大變更時只發 patch（`+0.0.1`）；只有大型、向後兼容的里程碑能力才升 minor，破壞性兼容變更才升 major。\n\n### 相容性\n\n- 可由 v3.11.0 直接升級。\n- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／EX／烤豬規則或管理 API。\n\n'''
+          pattern = re.compile(r'(?ms)^## 未發佈\s*$\n.*?(?=^## v3\.11\.0\s*$)')
+          ch, count = pattern.subn(replacement, ch, count=1)
+          if count != 1:
+              raise SystemExit('CHANGELOG unreleased section before v3.11.0 missing')
+          changelog.write_text(ch, encoding='utf-8')
+
+          Path('.github/release-v3.11.1.md').write_text('''# 今日小豬 · 增強版 v3.11.1\n\n這是一個 README／市場展示相容性 patch，不改插件玩法或資料。\n\n## 修復\n\n- Logo 改用 GitHub Raw 絕對 URL，修復 AstrBot Cloud 等第三方 Markdown 渲染器的相對圖片破圖。\n- 首屏文檔導航改用 GitHub 絕對 URL，避免第三方站點錯誤解析相對路徑。\n- 新增 Minecraft 主題動態訪問量組件。\n- 明確維護規範：沒有重大變更時一律只增加 patch 版本 `+0.0.1`。\n\n## 相容性\n\n可由 v3.11.0 直接升級；運行時、SQLite schema、Resource Protocol、指令、配置與玩法規則均不變。\n''', encoding='utf-8')
+          PY
+
+          git rm .github/workflows/v3.11.1-readme-temp.yml
+          git add README.md CONTRIBUTING.md CHANGELOG.md metadata.yaml .github/release-v3.11.1.md
+          git diff --cached --check
+          git commit -m "release: prepare v3.11.1 README compatibility patch"
+          git push origin HEAD:release/v3.11.1
