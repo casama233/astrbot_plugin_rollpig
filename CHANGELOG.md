@@ -2,6 +2,7 @@
 
 ## 未發佈
 
+- 精簡 PR 驗證流程：移除 AstrBot 已不支援的 Python 3.10 重複全量測試，收窄 Marketplace Package／AstrBot Market Smoke 的 PR 觸發範圍，並移除只驗證舊 Release Notes 存在性的歷史測試。
 - `/豬豬幫助` 新增 `@` 指令輸入提示：請手動輸入指令後再選擇群友，直接複製他人的整條「指令 + @」消息可能無法被 AstrBot 當成結構化 At 指令識別（#134）。
 - 新增 PR／Release 文檔維護門禁：每個 PR 都必須新增 Changelog 記錄並聲明 `Wiki-Impact`；canonical 指令與配置 schema 變更必須同步對應 Wiki，Release 在打包前會再次驗證版本 Changelog、Release Notes 與 Wiki 覆蓋。
 
