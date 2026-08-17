@@ -21,12 +21,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-          import textwrap
           source = Path('.github/workflows/tmp-harden-public-source-review.yml').read_text(encoding='utf-8')
           match = re.search(r"          python - <<'PY'\n(?P<body>.*?)\n          PY\n", source, re.DOTALL)
           if not match:
               raise SystemExit('embedded patch script not found')
-          body = textwrap.dedent(match.group('body'))
+          body = '\n'.join(line[10:] if line.startswith('          ') else line for line in match.group('body').splitlines())
           exec(compile(body, '<review-hardening>', 'exec'), {'__name__': '__main__'})
           PY
       - name: Validate focused contracts
