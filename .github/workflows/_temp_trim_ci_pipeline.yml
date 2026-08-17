@@ -1,0 +1,155 @@
+name: Temp Trim CI Pipeline
+
+on:
+  push:
+    branches:
+      - chore/trim-ci-test-pipeline
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/trim-ci-test-pipeline
+          fetch-depth: 0
+
+      - name: Trim duplicate and low-value checks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+
+          ci = root / '.github/workflows/ci.yml'
+          text = ci.read_text(encoding='utf-8')
+          text = text.replace('      - agent/fix-audit-findings-v2.4.0\n', '')
+          text = text.replace(
+              '    strategy:\n      fail-fast: false\n      matrix:\n        python-version: ["3.10", "3.12"]\n',
+              '',
+          )
+          text = text.replace('  test:\n    runs-on:', '  test:\n    name: test (3.12)\n    runs-on:', 1)
+          text = re.sub(
+              r'      - name: Set up Python .*?\n        uses: actions/setup-python@v5\n        with:\n          python-version: .*?\n          cache: pip\n',
+              '      - name: Set up Python 3.12\n        uses: actions/setup-python@v5\n        with:\n          python-version: "3.12"\n          cache: pip\n',
+              text,
+              count=1,
+          )
+          text = text.replace('          python -m pip install --upgrade pip\n', '')
+          text = text.replace("matrix.python-version == '3.12' && ", '')
+          text = '\n'.join(
+              line for line in text.splitlines()
+              if "if: matrix.python-version == '3.12'" not in line
+          ) + '\n'
+          if 'matrix.python-version' in text or 'python-version: ["3.10"' in text:
+              raise SystemExit('Python matrix cleanup incomplete')
+          ci.write_text(text, encoding='utf-8')
+
+          marketplace = root / '.github/workflows/marketplace-package.yml'
+          text = marketplace.read_text(encoding='utf-8')
+          needle = '  pull_request:\n    branches:\n      - main\n'
+          replacement = '''  pull_request:
+              branches:
+                - main
+              paths:
+                - "metadata.yaml"
+                - "requirements.txt"
+                - "resource/**"
+                - "pages/**"
+                - ".github/workflows/marketplace-package.yml"
+          '''
+          replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
+          if needle not in text:
+              raise SystemExit('marketplace trigger block not found')
+          marketplace.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+
+          smoke = root / '.github/workflows/astrbot-market-smoke.yml'
+          text = smoke.read_text(encoding='utf-8')
+          replacement = '''  pull_request:
+              branches:
+                - main
+              paths:
+                - "main.py"
+                - "metadata.yaml"
+                - "requirements.txt"
+                - "_conf_schema.json"
+                - ".github/workflows/astrbot-market-smoke.yml"
+          '''
+          replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
+          if needle not in text:
+              raise SystemExit('smoke trigger block not found')
+          text = text.replace(needle, replacement, 1)
+          smoke.write_text(text, encoding='utf-8')
+
+          resource = root / '.github/workflows/resource-source.yml'
+          text = resource.read_text(encoding='utf-8')
+          text = text.replace(
+              '      - name: Upload deployable source artifact\n        uses:',
+              "      - name: Upload deployable source artifact\n        if: github.event_name != 'pull_request'\n        uses:",
+              1,
+          )
+          text = text.replace(
+              '      - name: Upload migrated canonical catalog\n        uses:',
+              "      - name: Upload migrated canonical catalog\n        if: github.event_name != 'pull_request'\n        uses:",
+              1,
+          )
+          resource.write_text(text, encoding='utf-8')
+
+          changelog = root / 'CHANGELOG.md'
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          entry = '- 精簡 PR 驗證流程：移除不受 AstrBot 支援的 Python 3.10 重複全量測試，收窄 Marketplace／AstrBot smoke 觸發範圍，資源 PR 不再上傳部署 artifact，並移除只驗證舊 Release Notes 存在性的歷史測試。\n'
+          if marker not in text:
+              raise SystemExit('unreleased changelog section not found')
+          changelog.write_text(text.replace(marker, marker + entry, 1), encoding='utf-8')
+
+          historical_tests = [
+              'tests/test_v371_release_metadata.py',
+              'tests/test_v372_release_metadata.py',
+              'tests/test_v373_release_metadata.py',
+              'tests/test_v380_release_metadata.py',
+              'tests/test_v381_release_metadata.py',
+              'tests/test_v390_release_metadata.py',
+              'tests/test_v391_release_metadata.py',
+          ]
+          for name in historical_tests:
+              path = root / name
+              if not path.is_file():
+                  raise SystemExit(f'missing expected historical test: {name}')
+              path.unlink()
+
+          smoke_test = root / 'tests/test_astrbot_market_smoke_revision_contract.py'
+          text = smoke_test.read_text(encoding='utf-8')
+          text = text.replace(
+              'repository default branch. PR smoke must therefore use its official',
+              'repository default branch. Each smoke run must therefore use its official',
+          )
+          smoke_test.write_text(text, encoding='utf-8')
+
+          temp = root / '.github/workflows/_temp_trim_ci_pipeline.yml'
+          temp.unlink()
+          PY
+
+      - name: Validate workflow files and focused contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          for path in Path('.github/workflows').glob('*.yml'):
+              yaml.safe_load(path.read_text(encoding='utf-8'))
+          print('workflow YAML parsed')
+          PY
+          python -m pip install --disable-pip-version-check pyyaml pytest
+          pytest -q tests/test_maintenance_contract.py tests/test_astrbot_market_smoke_revision_contract.py
+
+      - name: Commit trimmed pipeline
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "ci: trim duplicate and low-value checks"
+          git push origin HEAD:chore/trim-ci-test-pipeline
