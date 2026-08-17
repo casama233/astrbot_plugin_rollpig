@@ -10,9 +10,10 @@ const ROOT = path.resolve(HERE, '../..');
 const PAGE = fs.readFileSync(path.join(ROOT, 'pages/pig-manager/index.html'), 'utf8');
 const BOOTSTRAP = fs.readFileSync(path.join(ROOT, 'pages/pig-manager/ui-bootstrap.js'), 'utf8');
 const CORE = PAGE.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1] || '';
+const BOOTSTRAP_VERSION = BOOTSTRAP.match(/const VERSION = '([^']+)'/)?.[1] || '';
 const BODY = PAGE
   .replace('<script src="/api/plugin/page/bridge-sdk.js"></script>', '')
-  .replace(/<script data-rollpig-bootstrap="3\.1\.1">[\s\S]*?<\/script>/, '')
+  .replace(/<script data-rollpig-bootstrap="[^"]+">[\s\S]*?<\/script>/, '')
   .replace(/<script type="module">[\s\S]*?<\/script>/, '');
 const ASSETS = [
   ['analytics-theme', 'style', 'analytics-theme.css'],
@@ -55,12 +56,12 @@ function createDom({analyticsFailure = false} = {}) {
     ready: async () => {},
     apiGet: async pathName => {
       calls.push(pathName);
-      if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.2', assets: ASSETS}};
+      if (pathName === 'ui/assets') return {status: 'ok', data: {version: BOOTSTRAP_VERSION, assets: ASSETS}};
       if (pathName === 'analytics/insights') {
         if (analyticsFailure) throw new Error('analytics unavailable');
         return {status: 'ok', data: insights};
       }
-      if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 4, total_draws: 7, today_users: 2, catalog_count: 6, average_unlocked: 2, average_unlock_rate: 33.3}, trend: [], top_pigs: []}};
+      if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 62, total_draws: 325, today_users: 16, catalog_count: 218, average_unlocked: 5.1, average_unlock_rate: 2.3}, trend: [{date: '08-14', users: 15, draws: 15, new_unlocks: 1}, {date: '08-15', users: 16, draws: 16, new_unlocks: 2}, {date: '08-16', users: 15, draws: 15, new_unlocks: 1}, {date: '08-17', users: 16, draws: 16, new_unlocks: 2}], top_pigs: []}};
       if (pathName === 'pigs') return {status: 'ok', data: {items: [], page: 1, pages: 1, total: 0}};
       if (pathName === 'resources/status') return {status: 'ok', data: {running: false, source: 'bundled', version: 'test', last_success: 0, last_attempt: 0, local_overrides: 0, deleted_count: 0, last_error: ''}};
       if (pathName === 'updates/status') return {status: 'ok', data: {current_version: '3.1.2', enabled: true, busy: false, storage: {backend: 'sqlite'}}};
@@ -93,6 +94,31 @@ test('default page runs only core and makes no enhancement request', async t => 
   assert.equal(window.document.getElementById('analyticsSuite'), null);
   assert.equal(window.document.querySelectorAll('style[data-rollpig-ui-asset]').length, 0);
   assert.equal(window.sessionStorage.length, 0);
+});
+
+test('overview KPI strip renders five useful cards and a smooth truthful activity sparkline', async t => {
+  const {dom, window} = createDom();
+  t.after(() => dom.window.close());
+  runBootstrap(window);
+  await runCore(window);
+  const labels = [...window.document.querySelectorAll('#view-overview .metric .label')].map(node => node.textContent.trim());
+  assert.deepEqual(labels, ['总使用人数', '累计抽取', '今日活跃', '人均解锁', '平均收藏率']);
+  assert.equal(window.document.getElementById('mPigs'), null);
+  assert.equal(window.document.querySelectorAll('#view-overview .metric').length, 5);
+  assert.match(window.document.getElementById('cUsers').textContent, /占累计/);
+  assert.match(window.document.getElementById('cDraws').textContent, /近 14 日/);
+  assert.match(window.document.getElementById('cToday').textContent, /较昨日/);
+  assert.match(window.document.getElementById('cAverage').textContent, /尚未探索/);
+  const spark = window.document.querySelector('#vToday .spark-path');
+  assert.ok(spark);
+  assert.match(spark.getAttribute('d'), / C /);
+  assert.equal(spark.getAttribute('d').includes(' L '), false);
+  assert.ok(window.document.querySelector('#vToday .spark-endpoint'));
+  assert.equal(window.document.querySelectorAll('.metric-snapshot-viz').length, 0);
+  assert.equal(window.document.querySelectorAll('.metric-scope').length, 0);
+  const pathNumbers = (spark.getAttribute('d').match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+  const yValues = pathNumbers.filter((_, index) => index % 2 === 1);
+  assert.ok(Math.max(...yValues) - Math.min(...yValues) < 18, 'a 15→16 fluctuation must not fill the sparkline height');
 });
 
 test('Analytics loads once on click and later clicks only refresh data', async t => {
