@@ -64,6 +64,12 @@ def test_old_claims_are_pruned_without_touching_recent_claims(tmp_path):
 def test_delivery_contract_claims_before_platform_send_and_never_retries_uncertain():
     root = Path(__file__).resolve().parents[1]
     feature = (root / "daily_report_feature.py").read_text(encoding="utf-8")
+
+    durable_start = feature.index("    def _flush_daily_report_state_durable")
+    durable_end = feature.index("    def _event_sender_id", durable_start)
+    durable = feature[durable_start:durable_end]
+    assert "writer.flush(force=True)" in durable
+
     start = feature.index("    async def _send_scheduled_daily_report")
     end = feature.index("    async def _daily_report_tick", start)
     scheduled = feature[start:end]
