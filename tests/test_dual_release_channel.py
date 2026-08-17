@@ -51,7 +51,10 @@ def test_plus_channel_rejects_wrong_asset_identity_or_version():
         PluginUpdateManager._select_release_payload(releases)
 
 
-def test_release_api_is_list_channel_not_global_latest():
+def test_release_discovery_uses_latest_primary_and_list_fallback():
     source = Path("updater.py").read_text(encoding="utf-8")
+    assert "/releases/latest" in source
     assert "releases?per_page=30" in source
-    assert "/releases/latest" not in source
+    assert "LATEST_RELEASE_API" in source
+    assert "RELEASES_API" in source
+    assert "_fetch_stable_release_payload" in source
