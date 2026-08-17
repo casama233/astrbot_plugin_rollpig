@@ -60,7 +60,7 @@ class ExAdminMixin:
             f"/{self.PLUGIN_NAME}/ex/variants/image",
             self.page_ex_variant_image,
             ["POST"],
-            "预览本地 EX 差分图片",
+            "预览本地或实际生效 EX 图片",
         )
 
     def _reload_catalog_layers(self):
@@ -161,6 +161,93 @@ class ExAdminMixin:
             "image": str(resolved.get("_ex_image") or ""),
             "variant_level": int(resolved.get("_ex_variant_level", 0) or 0),
         }
+
+    @staticmethod
+    def _effective_image_level(
+        levels: dict[int, dict[str, str]], ex_level: int, image_name: str
+    ) -> int:
+        """Return the first sparse level that introduced the effective image."""
+        target = str(image_name or "")
+        if not target:
+            return 0
+        for level in sorted(int(item) for item in levels):
+            if level > int(ex_level):
+                break
+            item = levels.get(level, {})
+            if isinstance(item, dict) and str(item.get("image") or "") == target:
+                return level
+        return 0
+
+    def _effective_ex_image_preview_path(
+        self,
+        pig_id: str,
+        ex_level: int,
+        *,
+        remove_local_image: bool = False,
+    ) -> tuple[Path | None, str, int]:
+        """Resolve the image the runtime would show, without mutating EX state.
+
+        ``remove_local_image`` simulates the editor's pending "remove image"
+        checkbox. This lets the browser preview the exact inheritance/fallback
+        result before the administrator presses Save.
+        """
+        pig_id = str(pig_id)
+        level = max(1, int(ex_level))
+        pig = self._find_catalog_pig(pig_id)
+        if not isinstance(pig, dict):
+            return None, "base", 0
+
+        local_levels = copy.deepcopy(self._local_ex_levels(pig_id))
+        if remove_local_image:
+            current = dict(local_levels.get(level, {}))
+            current.pop("image", None)
+            if current:
+                local_levels[level] = current
+            else:
+                local_levels.pop(level, None)
+
+        local_root = getattr(self, "local_ex_variant_image_dir", None)
+        if local_levels:
+            resolved = resolve_ex_variant(pig, {pig_id: local_levels}, level) or {}
+            image = str(resolved.get("_ex_image") or "")
+            if image and isinstance(local_root, Path):
+                candidate = local_root / image
+                if candidate.is_file():
+                    return (
+                        candidate,
+                        "local",
+                        self._effective_image_level(local_levels, level, image),
+                    )
+            # Any local EX definition blocks public/bundled EX. If its sparse
+            # image chain resolves to nothing, the real runtime falls back to
+            # the pig's base image rather than borrowing a public EX image.
+            base = self.find_image_file(pig_id)
+            return base, "base", 0
+
+        if self._has_local_pig_override(pig_id):
+            return self.find_image_file(pig_id), "base", 0
+
+        upstream_levels = getattr(self, "_ex_variants", {})
+        upstream = (
+            upstream_levels.get(pig_id, {})
+            if isinstance(upstream_levels, dict)
+            else {}
+        )
+        resolved = resolve_ex_variant(pig, upstream_levels, level) or {}
+        image = str(resolved.get("_ex_image") or "")
+        upstream_root = getattr(self, "_ex_variant_image_root", None)
+        if image and isinstance(upstream_root, Path):
+            candidate = upstream_root / image
+            if candidate.is_file():
+                return (
+                    candidate,
+                    str(getattr(self, "_ex_variant_source", "") or "base"),
+                    self._effective_image_level(upstream, level, image)
+                    if isinstance(upstream, dict)
+                    else 0,
+                )
+
+        return self.find_image_file(pig_id), "base", 0
 
     def _admin_ex_snapshot(self) -> dict:
         items = []
@@ -360,27 +447,50 @@ class ExAdminMixin:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
                 return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not isinstance(payload, dict):
+                raise ValueError("请求格式无效")
             pig_id, level = self._parse_ex_target(payload)
-            item = self._local_ex_levels(pig_id).get(level, {})
-            image = str(item.get("image") or "")
-            root = self.local_ex_variant_image_dir
-            path = root / image if image and isinstance(root, Path) else None
+
+            if payload.get("effective") is True:
+                path, source, image_level = self._effective_ex_image_preview_path(
+                    pig_id,
+                    level,
+                    remove_local_image=payload.get("remove_image") is True,
+                )
+            else:
+                item = self._local_ex_levels(pig_id).get(level, {})
+                image = str(item.get("image") or "")
+                root = self.local_ex_variant_image_dir
+                path = root / image if image and isinstance(root, Path) else None
+                source = "local"
+                image_level = level if path and path.is_file() else 0
+
             if not path or not path.is_file():
-                raise ValueError("这一等级没有本地 EX 图片")
+                raise ValueError("这一等级没有可预览的图片")
             raw = path.read_bytes()
             if len(raw) > self.LOCAL_EX_IMAGE_MAX_SIZE:
                 raise ValueError("EX 图片超过读取上限")
+            ext = path.suffix.lower().lstrip(".")
+            mime_types = getattr(self, "IMAGE_MIME_TYPES", {})
+            mime_type = (
+                str(mime_types.get(ext) or "")
+                if isinstance(mime_types, dict)
+                else ""
+            ) or ("image/png" if ext == "png" else "application/octet-stream")
             return self._jsonify(
                 {
                     "status": "ok",
                     "data": {
-                        "mime_type": "image/png",
+                        "mime_type": mime_type,
                         "base64": base64.b64encode(raw).decode("ascii"),
+                        "source": source,
+                        "variant_level": int(image_level or 0),
+                        "filename": path.name,
                     },
                 }
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
-            logger.error(f"读取本地 EX 图片失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "读取本地 EX 图片失败"})
+            logger.error(f"读取 EX 图片失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "读取 EX 图片失败"})
