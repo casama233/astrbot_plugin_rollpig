@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '3.10.1';
+  const VERSION = '3.2.0';
   const STATE_KEY = '__rollpigUiBootstrapState';
   const BOOTSTRAP_URL = document.currentScript?.src || document.baseURI;
   const WIKI_BASE_URL = 'https://casama233.github.io/astrbot_plugin_rollpig/';
@@ -382,7 +382,7 @@
     script.dataset.version = VERSION;
     script.textContent = `try {\n${asset.source}\n} catch (error) { window.${STATE_KEY}?.reportModuleError(${JSON.stringify(asset.name)}, error); }\n//# sourceURL=rollpig-${asset.name}-${VERSION}.js`;
     document.body.appendChild(script);
-    if (!state.errors.some(item => item.name === asset.name)) state.assets[name] = 'ready';
+    if (!state.errors.some(item => item.name === asset.name)) state.assets[asset.name] = 'ready';
   };
 
   const withTimeout = (promise, milliseconds, message) => Promise.race([
