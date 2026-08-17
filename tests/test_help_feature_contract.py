@@ -50,7 +50,7 @@ def test_help_cache_uses_standard_cn_font_and_invalidates_old_bitmaps():
     ensure_source = ast.unparse(_method(cls, "_ensure_help_master"))
     sections_source = ast.unparse(_method(cls, "_help_sections"))
 
-    assert "HELP_RENDER_CACHE_VERSION = 5" in class_source
+    assert "HELP_RENDER_CACHE_VERSION = 6" in class_source
     assert "font_bold" in font_source
     assert "font_traditional" not in font_source
     assert "font_traditional" not in ensure_source

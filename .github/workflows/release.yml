@@ -56,6 +56,9 @@ jobs:
           print(f'archive={plugin_name}-v{version}.zip')
           PY
 
+      - name: Enforce release changelog and Wiki contract
+        run: python scripts/maintenance_contract.py release
+
       - name: Check whether release exists
         id: existing
         env:
