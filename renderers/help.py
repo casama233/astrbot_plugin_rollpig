@@ -286,9 +286,9 @@ def render_help_card(
     )
     draw.text(
         (OUTER_MARGIN + 28, 91),
-        "只列已启用功能 · 每条只说一件事 · 简繁别名都可用",
+        "⚠ 带 @ 的指令请手动输入后再点选群友 · 复制他人整条发送可能无效",
         font=subtitle_font,
-        fill=palette["secondary"],
+        fill=palette["accent"],
     )
 
     for item in placed:
