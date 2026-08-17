@@ -28,6 +28,41 @@ jobs:
           body = '\n'.join(line[10:] if line.startswith('          ') else line for line in match.group('body').splitlines())
           exec(compile(body, '<review-hardening>', 'exec'), {'__name__': '__main__'})
           PY
+      - name: Keep route capability consistent for the running instance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('legacy_main.py')
+          text = path.read_text(encoding='utf-8')
+          marker = '''        self.public_source_admin_token_path = (\n            self.plugin_data_dir / "public_source_admin.token"\n        )\n        self._data_lock = threading.RLock()'''
+          replacement = '''        self.public_source_admin_token_path = (\n            self.plugin_data_dir / "public_source_admin.token"\n        )\n        # Route registration is fixed for this plugin process. Adding a maintainer\n        # token later therefore requires a plugin restart; removing it is detected\n        # dynamically by the overview capability below.\n        self._public_source_review_routes_enabled = bool(\n            self._public_source_admin_token()\n        )\n        self._data_lock = threading.RLock()'''
+          assert text.count(marker) == 1
+          text = text.replace(marker, replacement, 1)
+          old_gate = '''        if self._public_source_admin_token():\n            context.register_web_api(\n                f"/{self.PLUGIN_NAME}/source/reviews",'''
+          new_gate = '''        if self._public_source_review_routes_enabled:\n            context.register_web_api(\n                f"/{self.PLUGIN_NAME}/source/reviews",'''
+          assert text.count(old_gate) == 1
+          text = text.replace(old_gate, new_gate, 1)
+          old_cap = '''            data["public_source_review_enabled"] = bool(\n                self._public_source_admin_token()\n            )'''
+          new_cap = '''            data["public_source_review_enabled"] = bool(\n                self._public_source_review_routes_enabled\n                and self._public_source_admin_token()\n            )'''
+          assert text.count(old_cap) == 1
+          text = text.replace(old_cap, new_cap, 1)
+          path.write_text(text, encoding='utf-8')
+
+          test = Path('tests/test_public_source_review_capability.py')
+          source = test.read_text(encoding='utf-8')
+          source = source.replace(
+              'gate = LEGACY.index("        if self._public_source_admin_token():")',
+              'gate = LEGACY.index("        if self._public_source_review_routes_enabled:")',
+          )
+          source = source.replace(
+              'assert \'data["public_source_review_enabled"] = bool(\' in LEGACY',
+              'assert "self._public_source_review_routes_enabled = bool(" in LEGACY\n    assert \'data["public_source_review_enabled"] = bool(\' in LEGACY\n    assert "and self._public_source_admin_token()" in LEGACY',
+          )
+          test.write_text(source, encoding='utf-8')
+          PY
+      - name: Install focused test runner
+        run: python -m pip install -q pytest
       - name: Validate focused contracts
         run: |
           python -m compileall -q legacy_main.py
