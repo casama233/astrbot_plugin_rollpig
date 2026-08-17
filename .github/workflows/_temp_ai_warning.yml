@@ -1,0 +1,52 @@
+name: Temp AI README Warning
+
+on:
+  push:
+    branches:
+      - docs/ai-generated-code-warning
+    paths:
+      - ".github/workflows/_temp_ai_warning.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/ai-generated-code-warning
+          fetch-depth: 0
+      - name: Add prominent AI code warning
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          warning = '''> [!CAUTION]\n> **本插件代碼由 AI 生成，並經人工審閱。** 即使經過審閱，仍可能存在未發現的缺陷、安全風險或相容性問題。請謹慎使用；在重要帳號、生產環境或敏感場景部署前，建議先自行審查代碼並充分測試。\n\n'''
+          if warning not in text:
+              anchor = '</div>\n\n'
+              if anchor not in text:
+                  raise SystemExit('README header anchor not found')
+              text = text.replace(anchor, anchor + warning, 1)
+              readme.write_text(text, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          body = changelog.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          entry = '- README 首屏新增醒目的 AI 代碼風險提示：說明本插件代碼由 AI 生成並經人工審閱，但仍可能存在未發現缺陷、安全風險或相容性問題，建議重要環境部署前自行審查與測試。\n'
+          if entry not in body:
+              if marker not in body:
+                  raise SystemExit('CHANGELOG unreleased section not found')
+              body = body.replace(marker, marker + entry, 1)
+              changelog.write_text(body, encoding='utf-8')
+          PY
+      - name: Commit documentation change and remove temp workflow
+        run: |
+          rm .github/workflows/_temp_ai_warning.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add README.md CHANGELOG.md .github/workflows/_temp_ai_warning.yml
+          git commit -m "docs: warn that plugin code is AI-generated"
+          git push origin HEAD:docs/ai-generated-code-warning
