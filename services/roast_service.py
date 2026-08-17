@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 try:
     from ..rollpig_core import special_pig_state
@@ -15,6 +15,13 @@ class RoastService:
 
     GROUP_ROAST_OUTCOMES = ("success", "escape", "backlash")
     GROUP_ROAST_WEIGHTS = (60, 30, 10)
+
+    def __init__(self, rng=None):
+        # Keep roast randomness isolated from Python's process-global ``random``
+        # state. AstrBot hosts multiple plugins in one interpreter and another
+        # plugin calling ``random.seed(...)`` must not make roast outcomes or
+        # random roast targeting predictable/repeating.
+        self._rng = rng or random.SystemRandom()
 
     @staticmethod
     def _name(pig: Mapping[str, Any] | None) -> str:
@@ -118,11 +125,21 @@ class RoastService:
             "明天抽猪可能会翻车。"
         )
 
+    def choose_group_roast_target(
+        self, candidates: Sequence[str], *, rng=None
+    ) -> str:
+        """Choose one eligible target without using process-global RNG state."""
+        pool = tuple(str(item) for item in candidates if str(item))
+        if not pool:
+            raise ValueError("roast target candidates must not be empty")
+        chooser = rng or self._rng
+        return str(chooser.choice(pool))
+
     def choose_group_roast_outcome(self, *, bypass: bool = False, rng=None) -> str:
         """Return the existing 60/30/10 roast outcome from one policy source."""
         if bypass:
             return "success"
-        chooser = rng or random
+        chooser = rng or self._rng
         return str(
             chooser.choices(
                 self.GROUP_ROAST_OUTCOMES,
