@@ -6,7 +6,7 @@ from services import RoastService
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MAIN_SOURCE = (ROOT / "main.py").read_text(encoding="utf-8")
+FEATURE_SOURCE = (ROOT / "random_roast_feature.py").read_text(encoding="utf-8")
 SERVICE_SOURCE = (ROOT / "services" / "roast_service.py").read_text(encoding="utf-8")
 
 
@@ -31,16 +31,16 @@ class FakeRoastRng(FakeChoices):
         return self.target
 
 
-def _main_method(name: str):
-    tree = ast.parse(MAIN_SOURCE)
-    plugin = next(
+def _feature_method(name: str):
+    tree = ast.parse(FEATURE_SOURCE)
+    feature = next(
         node
         for node in tree.body
-        if isinstance(node, ast.ClassDef) and node.name == "RollPigPlugin"
+        if isinstance(node, ast.ClassDef) and node.name == "RandomRoastMixin"
     )
     return next(
         node
-        for node in plugin.body
+        for node in feature.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name == name
     )
@@ -99,7 +99,7 @@ def test_empty_random_roast_target_pool_is_rejected():
 
 def test_random_roast_filters_protection_before_target_selection():
     method = ast.get_source_segment(
-        MAIN_SOURCE, _main_method("roast_random_group_member")
+        FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
     assert "self._roast_protection_status" in method
     assert "if not protected" in method
@@ -109,7 +109,7 @@ def test_random_roast_filters_protection_before_target_selection():
 
 def test_random_roast_spends_charge_before_mentioning_target():
     method = ast.get_source_segment(
-        MAIN_SOURCE, _main_method("roast_random_group_member")
+        FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
     assert method.index("self._consume_group_roast_charge") < method.index(
         "self._send_with_mention"
@@ -119,7 +119,7 @@ def test_random_roast_spends_charge_before_mentioning_target():
 
 def test_random_roast_keeps_shared_outcome_and_event_pipeline():
     method = ast.get_source_segment(
-        MAIN_SOURCE, _main_method("roast_random_group_member")
+        FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
     assert "self.roast_service.choose_group_roast_outcome" in method
     assert '"roast_escape"' in method
