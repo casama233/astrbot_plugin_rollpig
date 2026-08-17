@@ -1,0 +1,42 @@
+name: Re-run v3.10.0 integration
+
+on:
+  push:
+    branches:
+      - release/v3.10.0-integration
+    paths:
+      - .github/workflows/_rerun_v310_integration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v3.10.0-integration
+          fetch-depth: 0
+      - name: Configure committer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Replay reviewed integration script
+        run: |
+          python -m pip install pyyaml
+          python - <<'PY'
+          import subprocess, yaml
+          from pathlib import Path
+          data = yaml.safe_load(Path('.github/workflows/_integrate_v310_open_prs.yml').read_text(encoding='utf-8'))
+          step = next(s for s in data['jobs']['integrate']['steps'] if s.get('name') == 'Integrate reviewed PR deltas')
+          subprocess.run(['bash', '-euo', 'pipefail', '-c', step['run']], check=True)
+          PY
+      - name: Validate integrated tree
+        run: |
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m py_compile main.py animated_image_feature.py animated_images.py ex_admin_feature.py ex_public_source_feature.py pig_studio_feature.py pig_studio_admin.py command_actor_feature.py
+          pytest -q
+          pre-commit run --all-files
+      - name: Push integrated tree
+        run: git push origin HEAD:release/v3.10.0-integration
