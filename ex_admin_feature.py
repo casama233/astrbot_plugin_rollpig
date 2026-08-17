@@ -487,7 +487,11 @@ class ExAdminMixin:
                 raise ValueError("请求格式无效")
             pig_id, level = self._parse_ex_target(payload)
 
-            if payload.get("effective") is True:
+            if payload.get("base") is True:
+                path = self.find_image_file(pig_id)
+                source = "base"
+                image_level = 0
+            elif payload.get("effective") is True:
                 path, source, image_level = self._effective_ex_image_preview_path(
                     pig_id,
                     level,
