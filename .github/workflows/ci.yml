@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - agent/fix-audit-findings-v2.4.0
   pull_request:
     branches:
       - main
@@ -18,34 +17,22 @@ concurrency:
 
 jobs:
   test:
+    name: test (3.12)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.12"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           cache: pip
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pytest pre-commit
-          python -m pip check
-
-      - name: Compile source
-        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services scripts/maintenance_contract.py
-
       - name: Enforce PR changelog and Wiki contract
-        if: matrix.python-version == '3.12' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: >-
           python scripts/maintenance_contract.py pr
           --base "${{ github.event.pull_request.base.sha }}"
@@ -53,12 +40,18 @@ jobs:
           --event "$GITHUB_EVENT_PATH"
 
       - name: Verify current Wiki command and configuration coverage
-        if: matrix.python-version == '3.12'
         run: python scripts/maintenance_contract.py coverage
+
+      - name: Compile source
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services scripts/maintenance_contract.py
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip check
 
       - name: Run tests
         run: pytest -q
 
       - name: Run pre-commit checks
-        if: matrix.python-version == '3.12'
         run: pre-commit run --all-files --show-diff-on-failure
