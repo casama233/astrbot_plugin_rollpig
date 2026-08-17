@@ -1,0 +1,52 @@
+name: Studio Changelog Fix
+
+on:
+  push:
+    branches:
+      - feat/ai-pig-studio
+    paths:
+      - .github/workflows/studio-changelog-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/ai-pig-studio
+          fetch-depth: 0
+
+      - name: Insert exactly one unreleased bullet
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("CHANGELOG.md")
+          marker = "## 未發佈\n\n"
+          bullet = "- Pig Manager 新增「AI 小豬工坊」：復用 AstrBot AI Provider 批量策劃，支援以現有圖鑑小豬作參考生圖、服務端短期草稿、微調重畫與確認後本地入庫；生圖 API Key 不回傳前端，遠端圖片下載限制為同源 HTTPS。\n"
+          text = path.read_text(encoding="utf-8")
+          if bullet not in text:
+              if text.count(marker) != 1:
+                  raise SystemExit("unexpected unreleased marker count")
+              text = text.replace(marker, marker + bullet, 1)
+              path.write_text(text, encoding="utf-8", newline="")
+          PY
+
+          expected=$'1\t0\tCHANGELOG.md'
+          actual="$(git diff --numstat -- CHANGELOG.md)"
+          printf 'CHANGELOG numstat: %q\n' "$actual"
+          test "$actual" = "$expected"
+
+      - name: Commit the surgical patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: record AI Pig Studio in unreleased changelog"
+          git push origin HEAD:feat/ai-pig-studio
