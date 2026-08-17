@@ -43,7 +43,7 @@ jobs:
         run: python scripts/maintenance_contract.py coverage
 
       - name: Compile source
-        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services scripts/maintenance_contract.py
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services scripts/maintenance_contract.py
 
       - name: Install dependencies
         run: |
