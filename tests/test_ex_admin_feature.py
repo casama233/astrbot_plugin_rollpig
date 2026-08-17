@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
 import sys
 import threading
 import types
 from pathlib import Path
+
+from PIL import Image as PILImage
 
 try:  # Unit tests do not need a running AstrBot web server.
     import astrbot.api  # type: ignore  # noqa: F401
@@ -193,3 +197,41 @@ def test_local_ex_persistence_is_canonical_and_snapshot_reports_effective_levels
     assert len(item["effective"]) == 5
     assert item["effective"][4]["description"] == "EX3"
     assert item["effective"][4]["analysis"] == "EX1 文案"
+
+
+
+def _animated_gif_bytes() -> bytes:
+    frames = [
+        PILImage.new("RGBA", (24, 16), (255, 0, 0, 255)),
+        PILImage.new("RGBA", (24, 16), (0, 0, 255, 255)),
+    ]
+    output = io.BytesIO()
+    frames[0].save(
+        output,
+        "GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[80, 140],
+        loop=2,
+        disposal=2,
+    )
+    return output.getvalue()
+
+
+def test_local_ex_upload_preserves_animated_gif_and_dynamic_mime(tmp_path):
+    harness = _make(tmp_path)
+    encoded = base64.b64encode(_animated_gif_bytes()).decode("ascii")
+    normalized = harness._normalise_local_ex_upload(encoded)
+    image_root = harness.local_ex_variant_image_dir
+    assert image_root is not None
+    harness._write_local_ex_image("pig-ex2.gif", normalized)
+    harness._persist_local_ex_state({"pig": {2: {"image": "pig-ex2.gif"}}})
+
+    target = image_root / "pig-ex2.gif"
+    assert target.is_file()
+    with PILImage.open(target) as image:
+        assert image.is_animated
+        assert image.n_frames == 2
+        assert image.size == (512, 512)
+        assert image.info.get("loop") == 2
+    assert harness._ex_variant_image_path("pig", 2) == target

@@ -10,8 +10,10 @@ from astrbot.api import logger
 from astrbot.api.web import request
 
 try:
+    from .animated_images import image_mime_type_from_bytes
     from .ex_variants import serialize_ex_variants
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from animated_images import image_mime_type_from_bytes
     from ex_variants import serialize_ex_variants
 
 
@@ -56,10 +58,13 @@ class ExPublicSourceMixin:
             image = str(item.get("image") or "")
             if not image:
                 continue
-            expected = f"{pig_id}-ex{int(level)}.png"
-            if image != expected:
+            expected = {
+                f"{pig_id}-ex{int(level)}.png",
+                f"{pig_id}-ex{int(level)}.gif",
+            }
+            if image not in expected:
                 raise ValueError(
-                    f"EX Lv.{level} 图片文件名不是标准投稿格式：应为 {expected}"
+                    f"EX Lv.{level} 图片文件名不是标准投稿格式：应为 PNG 或 GIF canonical 文件名"
                 )
             if not isinstance(image_root, Path):
                 raise ValueError("本地 EX 图片目录尚未初始化")
@@ -134,7 +139,7 @@ class ExPublicSourceMixin:
     ) -> dict:
         if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
             raise ValueError("投稿 ID 无效")
-        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}-ex[1-5]\.png", filename):
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}-ex[1-5]\.(?:png|gif)", filename):
             raise ValueError("EX 图片文件名无效")
         url = (
             self.PUBLIC_SOURCE_API_URL
@@ -152,7 +157,7 @@ class ExPublicSourceMixin:
                 if response.status_code < 200 or response.status_code >= 300:
                     raise ValueError("公共豬源 EX 投稿图片读取失败")
         return {
-            "mime_type": "image/png",
+            "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),
         }
 
