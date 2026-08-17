@@ -38,7 +38,7 @@ def test_pig_studio_keeps_full_generated_images_server_side_until_import():
     assert '"draft_id": draft_id' in source
     assert '"preview": preview' in source
     assert "_studio_preview" in source
-    assert "_persist_catalog_override(record, normalized)" in source
+    assert "asyncio.to_thread(self._persist_catalog_override, record, normalized)" in source
     assert "该小猪 ID 已存在；AI 工坊只允许新增" in source
 
 
