@@ -31,7 +31,9 @@ nav:
       - 精確烤箱 Charge 規則: ROAST-CHARGES.md
       - 預約烤豬: ROAST-RESERVATIONS.md
       - 日報技術規則: DAILY-REPORT.md
-  - 🎨 做一隻小豬: creators/index.md
+  - 🎨 做一隻小豬:
+      - 投稿與格式: creators/index.md
+      - 🤖 AI 小豬工坊: creators/ai-pig-studio.md
   - 🧯 常見故障:
       - 排障總覽: troubleshooting/index.md
       - 管理面板定向排障: troubleshooting/admin.md
@@ -118,4 +120,3 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/casama233/astrbot_plugin_rollpig
       name: GitHub
-  generator: false
