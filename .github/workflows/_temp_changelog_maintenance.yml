@@ -24,11 +24,11 @@ jobs:
           path = Path('CHANGELOG.md')
           text = path.read_text(encoding='utf-8')
           old = '## 未發佈\n\n- 暫無。\n'
-          new = '''## 未發佈
-
-- `/豬豬幫助` 新增 `@` 指令輸入提示：請手動輸入指令後再選擇群友，直接複製他人的整條「指令 + @」消息可能無法被 AstrBot 當成結構化 At 指令識別（#134）。
-- 新增 PR／Release 文檔維護門禁：每個 PR 都必須新增 Changelog 記錄並聲明 `Wiki-Impact`；canonical 指令與配置 schema 變更必須同步對應 Wiki，Release 在打包前會再次驗證版本 Changelog、Release Notes 與 Wiki 覆蓋。
-'''
+          new = (
+              '## 未發佈\n\n'
+              '- `/豬豬幫助` 新增 `@` 指令輸入提示：請手動輸入指令後再選擇群友，直接複製他人的整條「指令 + @」消息可能無法被 AstrBot 當成結構化 At 指令識別（#134）。\n'
+              '- 新增 PR／Release 文檔維護門禁：每個 PR 都必須新增 Changelog 記錄並聲明 `Wiki-Impact`；canonical 指令與配置 schema 變更必須同步對應 Wiki，Release 在打包前會再次驗證版本 Changelog、Release Notes 與 Wiki 覆蓋。\n'
+          )
           if old not in text:
               raise SystemExit('expected unreleased placeholder not found')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
