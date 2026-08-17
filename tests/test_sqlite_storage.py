@@ -631,12 +631,22 @@ def test_sql_primary_penalty_and_draw_share_transaction(tmp_path):
         pig={"id": "pig-a", "name": "A"},
         penalty_should_fail=True,
     )
-    assert result["status"] == "penalty-blocked"
+    assert result["status"] == "penalty-duplicate"
     with storage._connection() as connection:
         assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 0
         assert connection.execute(
             "SELECT failed FROM eaten_penalties WHERE user_id = 'v2|qq|user|1'"
-        ).fetchone()[0] == 1
+        ).fetchone()[0] == 0
+
+    created = storage.create_daily_draw(
+        draw_date="2026-08-04",
+        user_id="v2|qq|user|1",
+        pig={"id": "pig-a", "name": "A"},
+        penalty_should_fail=False,
+    )
+    assert created["status"] == "created"
+    with storage._connection() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM eaten_penalties").fetchone()[0] == 0
 
 
 def test_sql_primary_eat_rolls_back_all_tables_and_documents(tmp_path, monkeypatch):
