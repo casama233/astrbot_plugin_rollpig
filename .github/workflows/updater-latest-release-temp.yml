@@ -20,106 +20,22 @@ jobs:
           ref: fix/updater-latest-release
           fetch-depth: 0
 
-      - name: Patch updater and release metadata
+      - name: Apply and validate hotfix
         shell: bash
         run: |
           set -euo pipefail
-          python -c "import base64; exec(base64.b64decode('ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnVwZGF0ZXIgPSBQYXRoKCJ1cGRhdGVyLnB5IikKdGV4dCA9IHVwZGF0ZXIucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCm9sZF9jb25zdGFudHMgPSAnICAgIFJFTEVBU0VTX0FQSSA9IChcbiAgICAgICAgImh0dHBzOi8vYXBpLmdpdGh1Yi5jb20vcmVwb3MvY2FzYW1hMjMzL2FzdHJib3RfcGx1Z2luX3JvbGxwaWcvcmVsZWFzZXM/cGVyX3BhZ2U9MzAiXG4gICAgKVxuJwpuZXdfY29uc3RhbnRzID0gJyAgICBMQVRFU1RfUkVMRUFTRV9BUEkgPSAoXG4gICAgICAgICJodHRwczovL2FwaS5naXRodWIuY29tL3JlcG9zL2Nhc2FtYTIzMy9hc3RyYm90X3BsdWdpbl9yb2xscGlnL3JlbGVhc2VzL2xhdGVzdCJcbiAgICApXG4gICAgUkVMRUFTRVNfQVBJID0gKFxuICAgICAgICAiaHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9jYXNhbWEyMzMvYXN0cmJvdF9wbHVnaW5fcm9sbHBpZy9yZWxlYXNlcz9wZXJfcGFnZT0zMCJcbiAgICApXG4nCmlmIG9sZF9jb25zdGFudHMgbm90IGluIHRleHQ6IHJhaXNlIFN5c3RlbUV4aXQoInVwZGF0ZXIgcmVsZWFzZSBjb25zdGFudCBibG9jayBub3QgZm91bmQiKQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZF9jb25zdGFudHMsIG5ld19jb25zdGFudHMsIDEpCm9sZF9jaGVjayA9ICcgICAgYXN5bmMgZGVmIF9jaGVja191bmxvY2tlZChzZWxmKSAtPiBkaWN0W3N0ciwgQW55XTpcbiAgICAgICAgcmVsZWFzZXMgPSBhd2FpdCBzZWxmLl9yZXF1ZXN0X2pzb25fbGlzdChzZWxmLlJFTEVBU0VTX0FQSSlcbiAgICAgICAgcGF5bG9hZCA9IHNlbGYuX3NlbGVjdF9yZWxlYXNlX3BheWxvYWQocmVsZWFzZXMpXG5cbiAgICAgICAgdGFnID0gc3RyKHBheWxvYWQuZ2V0KCJ0YWdfbmFtZSIpIG9yICIiKVxuJwpuZXdfY2hlY2sgPSAnICAgIGFzeW5jIGRlZiBfZmV0Y2hfc3RhYmxlX3JlbGVhc2VfcGF5bG9hZChzZWxmKSAtPiBkaWN0W3N0ciwgQW55XTpcbiAgICAgICAgIyBQcmVmZXIgR2l0SHViXCdTIGRlZGljYXRlZCBsYXRlc3QtcmVsZWFzZSBlbmRwb2ludCBzbyBhIHN0YWxlIG9yIGVtcHR5XG4gICAgICAgICMgY29sbGVjdGlvbiByZXNwb25zZSBjYW5ub3QgaGlkZSBhIHZhbGlkIHN0YWJsZSBSZWxlYXNlLlxuICAgICAgICBsYXRlc3RfZXJyb3IgPSAiIlxuICAgICAgICB0cnk6XG4gICAgICAgICAgICBsYXRlc3RfcGF5bG9hZCA9IGF3YWl0IHNlbGYuX3JlcXVlc3RfanNvbihzZWxmLkxBVEVTVF9SRUxFQVNFX0FQSSlcbiAgICAgICAgICAgIHJldHVybiBzZWxmLl9zZWxlY3RfcmVsZWFzZV9wYXlsb2FkKFtsYXRlc3RfcGF5bG9hZF0pXG4gICAgICAgIGV4Y2VwdCBVcGRhdGVFcnJvciBhcyBleGM6XG4gICAgICAgICAgICBsYXRlc3RfZXJyb3IgPSBzdHIoZXhjKVxuICAgICAgICAgICAgaWYgc2VsZi5sb2dnZXIgaXMgbm90IE5vbmU6XG4gICAgICAgICAgICAgICAgdHJ5OlxuICAgICAgICAgICAgICAgICAgICBzZWxmLmxvZ2dlci53YXJuaW5nKFxuICAgICAgICAgICAgICAgICAgICAgICAgIlJvbGxQaWcgdXBkYXRlciBsYXRlc3QtcmVsZWFzZSBsb29rdXAgZmFpbGVkOyBmYWxsaW5nIGJhY2sgdG8gcmVsZWFzZSBsaXN0OiAlcyIsXG4gICAgICAgICAgICAgICAgICAgICAgICBleGMsXG4gICAgICAgICAgICAgICAgICAgIClcbiAgICAgICAgICAgICAgICBleGNlcHQgRXhjZXB0aW9uOlxuICAgICAgICAgICAgICAgICAgICBwYXNzXG5cbiAgICAgICAgdHJ5OlxuICAgICAgICAgICAgcmVsZWFzZXMgPSBhd2FpdCBzZWxmLl9yZXF1ZXN0X2pzb25fbGlzdChzZWxmLlJFTEVBU0VTX0FQSSlcbiAgICAgICAgICAgIHJldHVybiBzZWxmLl9zZWxlY3RfcmVsZWFzZV9wYXlsb2FkKHJlbGVhc2VzKVxuICAgICAgICBleGNlcHQgVXBkYXRlRXJyb3IgYXMgZXhjOlxuICAgICAgICAgICAgZGV0YWlsID0gZiJsYXRlc3Q9e2xhdGVzdF9lcnJvciBvciAnVW5rbm93bid9OyBsaXN0PXtleGN9IlxuICAgICAgICAgICAgcmFpc2UgVXBkYXRlRXJyb3IoXG4gICAgICAgICAgICAgICAgZiLmnKrmib7liLDlj6/pqozor4HnmoQgUm9sbFBpZyBQbHVzIOept+WumuS4gOS4qumXtOaMgeS4gOS4queahCBSZWxlYXNl77yIe2RldGFpbH3vvIkiXG4gICAgICAgICAgICApIGZyb20gZXhjXG5cbiAgICBhc3luYyBkZWYgX2NoZWNrX3VubG9ja2VkKHNlbGYpIC0+IGRpY3Rbc3RyLCBBbnldOlxuICAgICAgICBwYXlsb2FkID0gYXdhaXQgc2VsZi5fZmV0Y2hfc3RhYmxlX3JlbGVhc2VfcGF5bG9hZCgpXG5cbiAgICAgICAgdGFnID0gc3RyKHBheWxvYWQuZ2V0KCJ0YWdfbmFtZSIpIG9yICIiKVxuJwppZiBvbGRfY2hlY2sgbm90IGluIHRleHQ6IHJhaXNlIFN5c3RlbUV4aXQoInVwZGF0ZXIgX2NoZWNrX3VubG9ja2VkIGJsb2NrIG5vdCBmb3VuZCIpCnRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkX2NoZWNrLCBuZXdfY2hlY2ssIDEpCm9sZF9oZWFkZXJzID0gJyAgICAgICAgaGVhZGVycyA9IHtcbiAgICAgICAgICAgICJBY2NlcHQiOiBhY2NlcHQsXG4gICAgICAgICAgICAiVXNlci1BZ2VudCI6ICJBc3RyQm90LVJvbGxQaWctU2FmZS1VcGRhdGVyLzMuNi41IixcbiAgICAgICAgICAgICJYLUdpdEh1Yi1BcGktVmVyc2lvbiI6ICIyMDIyLTExLTI4IixcbiAgICAgICAgfVxuJwpuZXdfaGVhZGVycyA9ICcgICAgICAgIGhlYWRlcnMgPSB7XG4gICAgICAgICAgICAiQWNjZXB0IjogYWNjZXB0LFxuICAgICAgICAgICAgIlVzZXItQWdlbnQiOiAiQXN0ckJvdC1Sb2xsUGlnLVNhZmUtVXBkYXRlci8zLjExLjMiLFxuICAgICAgICAgICAgIlgtR2l0SHViLUFwaS1WZXJzaW9uIjogIjIwMjItMTEtMjgiLFxuICAgICAgICAgICAgIkNhY2hlLUNvbnRyb2wiOiAibm8tY2FjaGUiLFxuICAgICAgICAgICAgIlByYWdtYSI6ICJuby1jYWNoZSIsXG4gICAgICAgIH1cbicKaWYgb2xkX2hlYWRlcnMgbm90IGluIHRleHQ6IHJhaXNlIFN5c3RlbUV4aXQoInVwZGF0ZXIgcmVxdWVzdCBoZWFkZXIgYmxvY2sgbm90IGZvdW5kIikKdGV4dCA9IHRleHQucmVwbGFjZShvbGRfaGVhZGVycywgbmV3X2hlYWRlcnMsIDEpCnVwZGF0ZXIud3JpdGVfdGV4dCh0ZXh0LCBlbmNvZGluZz0idXRmLTgiKQpQYXRoKCJ0ZXN0cy90ZXN0X3VwZGF0ZXJfbGF0ZXN0X3JlbGVhc2VfZW5kcG9pbnQucHkiKS53cml0ZV90ZXh0KCdpbXBvcnQgYXN5bmNpb1xuZnJvbSBwYXRobGliIGltcG9ydCBQYXRoXG5cbmltcG9ydCBweXRlc3RcblxuZnJvbSB1cGRhdGVyIGltcG9ydCBQbHVnaW5VcGRhdGVNYW5hZ2VyLCBVcGRhdGVFcnJvclxuXG5cbmRlZiBfbWFuYWdlcih0bXBfcGF0aDogUGF0aCkgLT4gUGx1Z2luVXBkYXRlTWFuYWdlcjpcbiAgICBwbHVnaW4gPSB0bXBfcGF0aCAvICJwbHVnaW4iXG4gICAgZGF0YSA9IHRtcF9wYXRoIC8gImRhdGEiXG4gICAgcGx1Z2luLm1rZGlyKClcbiAgICBkYXRhLm1rZGlyKClcbiAgICAocGx1Z2luIC8gIm1ldGFkYXRhLnlhbWwiKS53cml0ZV90ZXh0KFxuICAgICAgICBcJ25hbWU6ICJhc3RyYm90X3BsdWdpbl9yb2xscGlnX3BsdXMiXFxudmVyc2lvbjogIjMuMTEuMiJcXG5cJyxcbiAgICAgICAgZW5jb2Rpbmc9InV0Zi04IixcbiAgICApXG4gICAgcmV0dXJuIFBsdWdpblVwZGF0ZU1hbmFnZXIocGx1Z2luLCBkYXRhKVxuXG5cbmRlZiBfcmVsZWFzZSh2ZXJzaW9uOiBzdHIgPSAiMy4xMS4zIikgLT4gZGljdDpcbiAgICBhcmNoaXZlID0gZiJhc3RyYm90X3BsdWdpbl9yb2xscGlnX3BsdXMtdnt2ZXJzaW9ufS56aXAiXG4gICAgYmFzZSA9ICJodHRwczovL2dpdGh1Yi5jb20vY2FzYW1hMjMzL2FzdHJib3RfcGx1Z2luX3JvbGxwaWciXG4gICAgcmV0dXJuIHtcbiAgICAgICAgImRyYWZ0IjogRmFsc2UsXG4gICAgICAgICJwcmVyZWxlYXNlIjogRmFsc2UsXG4gICAgICAgICJ0YWdfbmFtZSI6IGYidi{version}",
-        "html_url": f"{base}/releases/tag/v{version}",
-        "assets": [
-            {
-                "name": archive,
-                "browser_download_url": f"{base}/releases/download/v{version}/{archive}",
-            }
-        ],
-    }
-
-
-def test_updater_uses_latest_endpoint_when_release_list_would_be_empty(tmp_path, monkeypatch):
-    manager = _manager(tmp_path)
-    calls = []
-
-    async def fake_json(url):
-        calls.append(("json", url))
-        return _release()
-
-    async def fake_list(url):
-        calls.append(("list", url))
-        return []
-
-    monkeypatch.setattr(manager, "_request_json", fake_json)
-    monkeypatch.setattr(manager, "_request_json_list", fake_list)
-
-    payload = asyncio.run(manager._fetch_stable_release_payload())
-    assert payload["tag_name"] == "v3.11.3"
-    assert calls == [("json", manager.LATEST_RELEASE_API)]
-
-
-def test_updater_falls_back_to_release_list_when_latest_is_not_verifiable(tmp_path, monkeypatch):
-    manager = _manager(tmp_path)
-    calls = []
-
-    async def fake_json(url):
-        calls.append(("json", url))
-        return {"tag_name": "v3.11.3", "draft": False, "prerelease": False, "assets": []}
-
-    async def fake_list(url):
-        calls.append(("list", url))
-        return [_release("3.11.2")]
-
-    monkeypatch.setattr(manager, "_request_json", fake_json)
-    monkeypatch.setattr(manager, "_request_json_list", fake_list)
-
-    payload = asyncio.run(manager._fetch_stable_release_payload())
-    assert payload["tag_name"] == "v3.11.2"
-    assert calls == [
-        ("json", manager.LATEST_RELEASE_API),
-        ("list", manager.RELEASES_API),
-    ]
-
-
-def test_updater_reports_both_release_channels_when_neither_is_usable(tmp_path, monkeypatch):
-    manager = _manager(tmp_path)
-
-    async def fake_json(_url):
-        return {"tag_name": "v3.11.3", "draft": False, "prerelease": False, "assets": []}
-
-    async def fake_list(_url):
-        return []
-
-    monkeypatch.setattr(manager, "_request_json", fake_json)
-    monkeypatch.setattr(manager, "_request_json_list", fake_list)
-
-    with pytest.raises(UpdateError, match="latest=.*list="):
-        asyncio.run(manager._fetch_stable_release_payload())
-
-
-def test_latest_release_endpoint_is_the_primary_channel():
-    assert PluginUpdateManager.LATEST_RELEASE_API.endswith("/releases/latest")
-    assert PluginUpdateManager.RELEASES_API.endswith("/releases?per_page=30")
-', encoding="utf-8")
-metadata = Path("metadata.yaml")
-m = metadata.read_text(encoding="utf-8")
-if 'version: "3.11.2"' not in m: raise SystemExit("expected metadata version 3.11.2 not found")
-metadata.write_text(m.replace('version: "3.11.2"', 'version: "3.11.3"', 1), encoding="utf-8")
-changelog = Path("CHANGELOG.md")
-c = changelog.read_text(encoding="utf-8")
-marker = "## v3.11.2"
-if marker not in c: raise SystemExit("v3.11.2 changelog marker missing")
-_, tail = c.split(marker, 1)
-changelog.write_text('# 更新\n\n## 未發佈\n\n- 暫無。\n\n## v3.11.3\n\n發佈日期：2026-08-17\n\nv3.11.3 是管理面板安全更新器修復版。它修正「GitHub 已有有效穩定 Release，但更新面板誤報未找到可驗證 Release」的發布發現故障，不修改玩法或資料契約。\n\n### 安全更新器\n\n- 更新檢查改以 GitHub 官方 `releases/latest` 作為主通道，仍保留 Release collection 作相容 fallback；不再因 collection 回傳空列表或陳舊結果而把有效 Latest Release 判定為不存在。\n- `latest` 回應仍必須通過既有嚴格驗證：stable SemVer、非 draft／prerelease、官方倉庫 Release URL、精確的 `astrbot_plugin_rollpig_plus-vX.Y.Z.zip` 名稱與官方下載 URL；安全邊界沒有放寬。\n- GitHub 請求加入 `Cache-Control: no-cache`／`Pragma: no-cache`，降低中間快取讓更新檢查讀到過期 Release metadata 的風險。\n- 當 latest 與列表兩個通道都不可用時，錯誤訊息會同時保留兩邊的失敗原因，方便定位網路／Release 資料問題。\n- 新增回歸測試，直接覆蓋「latest 有效但 releases list 為空」這次實際故障型態，以及 latest 無效時的 fallback 行為。\n\n### 升級提示\n\n- v3.11.0–v3.11.2 的舊更新器本身依賴出問題的 Release collection；如果面板已出現「未找到可驗證的 RollPig Plus 穩定 Release」，需要先透過 AstrBot 插件市場／重新安裝或手動覆蓋 v3.11.3 完成一次引導升級。升到 v3.11.3 後，面板安全更新通道即可恢復正常。\n\n### 相容性\n\n- 可由 v3.11.0、v3.11.1、v3.11.2 直接升級。\n- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／保底／EX／烤豬規則或管理 API。\n\n' + marker + tail, encoding="utf-8")
-Path(".github/release-v3.11.3.md").write_text('# 今日小豬 · 增強版 v3.11.3\n\n這是一個管理面板安全更新器修復版，不修改插件玩法或資料契約。\n\n## 修復\n\n- 更新檢查改以 GitHub `releases/latest` 為主通道，Release collection 僅作 fallback，修復 GitHub 已存在有效 Release 時仍誤報「未找到可驗證的 RollPig Plus 穩定 Release」。\n- 保留完整 Release 身份／SemVer／資產名稱／官方下載地址／SHA-256 驗證，不降低安全更新邊界。\n- GitHub metadata 請求加入 no-cache headers，降低中間快取造成的陳舊 Release 判定。\n- 新增 latest 有效但列表為空、latest 無效回退列表、雙通道診斷等回歸測試。\n\n## 重要升級提示\n\n如果 v3.11.0–v3.11.2 已經出現「未找到可驗證的 RollPig Plus 穩定 Release」，舊更新器無法靠自己取得這個修復；請先透過 AstrBot 插件市場／重新安裝或手動覆蓋 v3.11.3 完成一次引導升級。之後面板安全更新會恢復正常。\n\n## 相容性\n\n可由 v3.11.0–v3.11.2 直接升級；SQLite schema、Resource Protocol、指令、配置、玩法與管理 API 均不變。\n', encoding="utf-8")'))"
+          python scripts/_updater_hotfix_temp.py
           python -m pytest -q tests/test_storage_and_updater.py tests/test_updater_latest_release_endpoint.py
           python scripts/maintenance_contract.py release
           git diff --check
 
-      - name: Commit hotfix and remove temporary workflow
+      - name: Commit hotfix and remove temporary staging files
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/updater-latest-release-temp.yml
+          git rm .github/workflows/updater-latest-release-temp.yml scripts/_updater_hotfix_temp.py
           git add updater.py tests/test_updater_latest_release_endpoint.py metadata.yaml CHANGELOG.md .github/release-v3.11.3.md
           git commit -m "fix: repair stable release discovery for panel updater"
           git push origin HEAD:fix/updater-latest-release
