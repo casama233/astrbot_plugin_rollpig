@@ -33,7 +33,7 @@
 | `roast_protection_threshold` | int | `3` | `1-20` | 昨日同群被成功烤到多少次後觸發今日保護 |
 | `enable_group_eat` | bool | `true` | bool | 吃群友／隨機吃群友 |
 | `eat_success_percent` | int | `15` | `1-80` | 吃群友成功率；失敗時發起者自己變「吃掉了」 |
-| `eaten_next_day_failure_percent` | int | `20` | `1-80` | 今天被吃後，次日第一次抽豬失敗率 |
+| `eaten_next_day_failure_percent` | int | `20` | `1-80` | **兼容舊鍵名**：今天被吃後，次日抽豬命中此概率時強制從已解鎖池抽一隻重複豬；不再抽取失敗或鎖天 |
 | `enable_ai_roast_copy` | bool | `false` | bool | 嘗試請當前會話模型生成料理文案 |
 | `ai_generation_timeout_seconds` | float | `45` | `5-120` | AI 文案超時；失敗／超時回退本地模板 |
 

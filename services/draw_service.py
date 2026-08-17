@@ -55,6 +55,30 @@ class DrawService:
         )
         return total_percent / 100
 
+    def choose_duplicate(
+        self,
+        pigs: Sequence[Mapping[str, Any]],
+        collection: Mapping[str, Any] | None,
+        *,
+        rng: Any = random,
+    ) -> dict[str, Any] | None:
+        """Choose one already-unlocked pig without applying new-pig pity.
+
+        The synthetic ``eaten`` state is never a draw candidate. ``None`` means
+        the player has no active unlocked pig and callers should fall back to a
+        normal daily draw.
+        """
+        user = collection if isinstance(collection, Mapping) else {}
+        unlocked_raw = user.get("pigs")
+        unlocked = set(unlocked_raw) if isinstance(unlocked_raw, Mapping) else set()
+        candidates = [
+            pig
+            for pig in pigs
+            if str(pig.get("id") or "") in unlocked
+            and str(pig.get("id") or "") != "eaten"
+        ]
+        return dict(rng.choice(candidates)) if candidates else None
+
     def choose(
         self,
         pigs: Sequence[Mapping[str, Any]],
