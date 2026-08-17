@@ -60,7 +60,7 @@ function createDom({analyticsFailure = false} = {}) {
         if (analyticsFailure) throw new Error('analytics unavailable');
         return {status: 'ok', data: insights};
       }
-      if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 4, total_draws: 7, today_users: 2, catalog_count: 6, average_unlocked: 2, average_unlock_rate: 33.3}, trend: [], top_pigs: []}};
+      if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 12, total_draws: 40, today_users: 4, catalog_count: 20, average_unlocked: 5, average_unlock_rate: 25}, trend: [{date: '08-14', users: 2, draws: 2, new_unlocks: 1}, {date: '08-15', users: 5, draws: 5, new_unlocks: 2}, {date: '08-16', users: 3, draws: 3, new_unlocks: 1}, {date: '08-17', users: 4, draws: 4, new_unlocks: 2}], top_pigs: []}};
       if (pathName === 'pigs') return {status: 'ok', data: {items: [], page: 1, pages: 1, total: 0}};
       if (pathName === 'resources/status') return {status: 'ok', data: {running: false, source: 'bundled', version: 'test', last_success: 0, last_attempt: 0, local_overrides: 0, deleted_count: 0, last_error: ''}};
       if (pathName === 'updates/status') return {status: 'ok', data: {current_version: '3.1.2', enabled: true, busy: false, storage: {backend: 'sqlite'}}};
@@ -93,6 +93,27 @@ test('default page runs only core and makes no enhancement request', async t => 
   assert.equal(window.document.getElementById('analyticsSuite'), null);
   assert.equal(window.document.querySelectorAll('style[data-rollpig-ui-asset]').length, 0);
   assert.equal(window.sessionStorage.length, 0);
+});
+
+test('overview KPI strip renders five useful cards and a smooth truthful activity sparkline', async t => {
+  const {dom, window} = createDom();
+  t.after(() => dom.window.close());
+  runBootstrap(window);
+  await runCore(window);
+  const labels = [...window.document.querySelectorAll('#view-overview .metric .label')].map(node => node.textContent.trim());
+  assert.deepEqual(labels, ['总使用人数', '累计抽取', '今日活跃', '人均解锁', '平均收藏率']);
+  assert.equal(window.document.getElementById('mPigs'), null);
+  assert.equal(window.document.querySelectorAll('#view-overview .metric').length, 5);
+  assert.match(window.document.getElementById('cUsers').textContent, /占累计/);
+  assert.match(window.document.getElementById('cDraws').textContent, /近 14 日/);
+  assert.match(window.document.getElementById('cToday').textContent, /较昨日/);
+  assert.match(window.document.getElementById('cAverage').textContent, /尚未探索/);
+  const spark = window.document.querySelector('#vToday .spark-path');
+  assert.ok(spark);
+  assert.match(spark.getAttribute('d'), / C /);
+  assert.equal(spark.getAttribute('d').includes(' L '), false);
+  assert.ok(window.document.querySelector('#vToday .spark-endpoint'));
+  assert.equal(window.document.querySelectorAll('.metric-snapshot-viz').length, 0);
 });
 
 test('Analytics loads once on click and later clicks only refresh data', async t => {
