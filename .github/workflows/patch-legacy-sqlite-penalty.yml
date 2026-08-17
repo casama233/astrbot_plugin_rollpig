@@ -25,14 +25,13 @@ jobs:
 
           path = Path('storage/sqlite_storage.py')
           text = path.read_text(encoding='utf-8')
-          pattern = re.compile(
-              r'''                elif due_date == draw_date and failed:\n.*?            if not isinstance\(pig, dict\) or not str\(pig\.get\("id"\) or ""\):''',
-              re.S,
-          )
-          replacement = '''                elif due_date == draw_date and isinstance(pig, dict) and str(pig.get("id") or ""):\n                    connection.execute(\n                        "DELETE FROM eaten_penalties WHERE user_id = ?",\n                        (penalty_user,),\n                    )\n                    penalties_doc.pop(penalty_user, None)\n                    roast_changed = True\n                elif due_date == draw_date and (failed or penalty_should_fail):\n                    return {\n                        "status": "penalty-duplicate",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    }\n\n            if not isinstance(pig, dict) or not str(pig.get("id") or ""):'''
-          updated, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'expected one legacy penalty region, got {count}')
+          start = text.find('                elif due_date == draw_date and failed:\n')
+          end_marker = '            if not isinstance(pig, dict) or not str(pig.get("id") or "").strip():\n'
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit(f'legacy penalty region not found: start={start}, end={end}')
+          replacement = '''                elif due_date == draw_date and isinstance(pig, dict) and str(\n                    pig.get("id") or ""\n                ).strip():\n                    # A triggered next-day penalty still permits today's draw.\n                    # Supplying the forced duplicate consumes the penalty atomically.\n                    connection.execute(\n                        "DELETE FROM eaten_penalties WHERE user_id = ?",\n                        (penalty_user,),\n                    )\n                    penalties_doc.pop(penalty_user, None)\n                    roast_changed = True\n                elif due_date == draw_date and (failed or penalty_should_fail):\n                    return {\n                        "status": "penalty-duplicate",\n                        "created": False,\n                        "history": history,\n                        "roast_state": roast,\n                    }\n\n'''
+          updated = text[:start] + replacement + text[end:]
           if '"status": "penalty-blocked"' in updated:
               raise SystemExit('penalty-blocked still present in sqlite_storage.py')
           path.write_text(updated, encoding='utf-8')
