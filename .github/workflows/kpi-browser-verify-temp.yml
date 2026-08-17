@@ -22,6 +22,76 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Repair browser harness drift and simplify KPI header
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          page_path = Path('pages/pig-manager/index.html')
+          page = page_path.read_text(encoding='utf-8')
+          page, n = re.subn(
+              r'\.metric-top\{display:flex;justify-content:space-between;align-items:center;gap:10px\}\.metric \.label\{color:var\(--muted\);font-size:11px;font-weight:720\}\.metric-scope\{.*?\}(?=\.metric \.value)',
+              '.metric-top{display:flex;justify-content:flex-start;align-items:center}.metric .label{color:var(--muted);font-size:11px;font-weight:720}',
+              page,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit('metric-scope CSS marker missing')
+          page, n = re.subn(r'<span class="metric-scope">[^<]+</span>', '', page)
+          if n != 5:
+              raise SystemExit(f'expected five metric scope badges, removed {n}')
+          page_path.write_text(page, encoding='utf-8')
+
+          browser_path = Path('tests/browser/admin-ui.test.mjs')
+          browser = browser_path.read_text(encoding='utf-8')
+          browser = browser.replace(
+              "const CORE = PAGE.match(/<script type=\"module\">([\\s\\S]*?)<\\/script>/)?.[1] || '';",
+              "const CORE = PAGE.match(/<script type=\"module\">([\\s\\S]*?)<\\/script>/)?.[1] || '';\nconst BOOTSTRAP_VERSION = BOOTSTRAP.match(/const VERSION = '([^']+)'/)?.[1] || '';",
+              1,
+          )
+          browser = browser.replace(
+              '.replace(/<script data-rollpig-bootstrap="3\\.1\\.1">[\\s\\S]*?<\\/script>/, \'\')',
+              '.replace(/<script data-rollpig-bootstrap="[^"]+">[\\s\\S]*?<\\/script>/, \'\')',
+              1,
+          )
+          browser = browser.replace(
+              "if (pathName === 'ui/assets') return {status: 'ok', data: {version: '3.1.2', assets: ASSETS}};",
+              "if (pathName === 'ui/assets') return {status: 'ok', data: {version: BOOTSTRAP_VERSION, assets: ASSETS}};",
+              1,
+          )
+          old_fixture = "if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 12, total_draws: 40, today_users: 4, catalog_count: 20, average_unlocked: 5, average_unlock_rate: 25}, trend: [{date: '08-14', users: 2, draws: 2, new_unlocks: 1}, {date: '08-15', users: 5, draws: 5, new_unlocks: 2}, {date: '08-16', users: 3, draws: 3, new_unlocks: 1}, {date: '08-17', users: 4, draws: 4, new_unlocks: 2}], top_pigs: []}};"
+          new_fixture = "if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 62, total_draws: 325, today_users: 16, catalog_count: 218, average_unlocked: 5.1, average_unlock_rate: 2.3}, trend: [{date: '08-14', users: 15, draws: 15, new_unlocks: 1}, {date: '08-15', users: 16, draws: 16, new_unlocks: 2}, {date: '08-16', users: 15, draws: 15, new_unlocks: 1}, {date: '08-17', users: 16, draws: 16, new_unlocks: 2}], top_pigs: []}};"
+          if old_fixture not in browser:
+              raise SystemExit('overview browser fixture marker missing')
+          browser = browser.replace(old_fixture, new_fixture, 1)
+          browser = browser.replace(
+              "  assert.equal(window.document.querySelectorAll('.metric-snapshot-viz').length, 0);",
+              "  assert.equal(window.document.querySelectorAll('.metric-snapshot-viz').length, 0);\n  assert.equal(window.document.querySelectorAll('.metric-scope').length, 0);\n  const pathNumbers = (spark.getAttribute('d').match(/-?\\d+(?:\\.\\d+)?/g) || []).map(Number);\n  const yValues = pathNumbers.filter((_, index) => index % 2 === 1);\n  assert.ok(Math.max(...yValues) - Math.min(...yValues) < 18, 'a 15→16 fluctuation must not fill the sparkline height');",
+              1,
+          )
+          browser_path.write_text(browser, encoding='utf-8')
+
+          responsive_path = Path('tests/browser/responsive-layout.test.mjs')
+          responsive = responsive_path.read_text(encoding='utf-8')
+          old = "test('responsive fix stays inline and does not add unauthenticated style requests', () => {\n  assert.doesNotMatch(PAGE, /<link[^>]+rel=[\"']stylesheet[\"']/i);\n  assert.doesNotMatch(CSS, /@import\\s+/i);\n  assert.match(CSS, /@media\\(pointer:coarse\\)/);\n});"
+          new = "test('responsive layout only uses the authenticated local EX stylesheet', () => {\n  const links = [...PAGE.matchAll(/<link[^>]+rel=[\"']stylesheet[\"'][^>]+href=[\"']([^\"']+)[\"'][^>]*>/gi)].map(match => match[1]);\n  assert.deepEqual(links, ['./ex-integration.css']);\n  assert.doesNotMatch(CSS, /@import\\s+/i);\n  assert.match(CSS, /@media\\(pointer:coarse\\)/);\n});"
+          if old not in responsive:
+              raise SystemExit('responsive stale contract marker missing')
+          responsive = responsive.replace(old, new, 1)
+          responsive_path.write_text(responsive, encoding='utf-8')
+
+          for test_path in (Path('tests/test_admin_trend_ui_contract.py'), Path('tests/test_admin_dashboard_overhaul_contract.py')):
+              text = test_path.read_text(encoding='utf-8')
+              if 'metric-scope' not in text:
+                  anchor = '    assert "metric-snapshot-viz" not in page\n' if test_path.name == 'test_admin_trend_ui_contract.py' else '    assert "metric-snapshot-viz" not in PAGE\n'
+                  if anchor in text:
+                      text = text.replace(anchor, anchor + ('    assert "metric-scope" not in page\n' if test_path.name == 'test_admin_trend_ui_contract.py' else '    assert "metric-scope" not in PAGE\n'), 1)
+              test_path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
       - name: Run browser and focused Python regressions
         shell: bash
         run: |
@@ -30,7 +100,7 @@ jobs:
           npm test
           python -m pip install pytest
           pytest -q tests/test_admin_trend_ui_contract.py tests/test_admin_dashboard_overhaul_contract.py
-      - name: Remove temporary workflow
+      - name: Commit verified refinements and remove temporary workflow
         if: success()
         shell: bash
         run: |
@@ -38,5 +108,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/kpi-browser-verify-temp.yml
-          git commit -m "chore: remove KPI browser verification workflow"
+          git add pages/pig-manager/index.html tests/browser/admin-ui.test.mjs tests/browser/responsive-layout.test.mjs tests/test_admin_trend_ui_contract.py tests/test_admin_dashboard_overhaul_contract.py
+          git commit -m "test: verify KPI strip in browser harness"
           git push origin HEAD:fix/kpi-strip-v2
