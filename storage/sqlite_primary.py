@@ -780,22 +780,13 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
                         (penalty_user,),
                     )
                     self._mark_primary_write_tx(connection)
-                elif due_date == draw_date and failed:
-                    return {"status": "penalty-blocked", "created": False}
-                elif due_date == draw_date and penalty_should_fail:
-                    payload = {"due_date": draw_date, "failed": True}
-                    connection.execute(
-                        "UPDATE eaten_penalties SET failed = 1, payload_json = ? "
-                        "WHERE user_id = ?",
-                        (json.dumps(payload, ensure_ascii=False, sort_keys=True), penalty_user),
-                    )
-                    self._mark_primary_write_tx(connection)
-                    return {"status": "penalty-blocked", "created": False}
                 elif due_date == draw_date and self._valid_pig(pig):
                     connection.execute(
                         "DELETE FROM eaten_penalties WHERE user_id = ?",
                         (penalty_user,),
                     )
+                elif due_date == draw_date and (failed or penalty_should_fail):
+                    return {"status": "penalty-duplicate", "created": False}
 
             if not self._valid_pig(pig):
                 return {"status": "needs-pig", "created": False}

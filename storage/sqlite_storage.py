@@ -2651,46 +2651,24 @@ class SQLiteStorage(StorageBackend):
                     )
                     penalties_doc.pop(penalty_user, None)
                     roast_changed = True
-                elif due_date == draw_date and failed:
-                    return {
-                        "status": "penalty-blocked",
-                        "created": False,
-                        "history": history,
-                        "roast_state": roast,
-                    }
-                elif due_date == draw_date and penalty_should_fail:
-                    payload = {"due_date": draw_date, "failed": True}
-                    connection.execute(
-                        "UPDATE eaten_penalties SET failed = 1, payload_json = ? "
-                        "WHERE user_id = ?",
-                        (json.dumps(payload, ensure_ascii=False, sort_keys=True), penalty_user),
-                    )
-                    penalties_doc[penalty_user] = payload
-                    self._write_document_tx(
-                        connection, "roast_state.json", roast, updated_at=now
-                    )
-                    connection.execute(
-                        "INSERT INTO projection_meta(key, value) VALUES "
-                        "('write_authority', 'sql-primary-v2.14') "
-                        "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-                    )
-                    return {
-                        "status": "penalty-blocked",
-                        "created": False,
-                        "history": history,
-                        "roast_state": roast,
-                    }
                 elif due_date == draw_date and isinstance(pig, dict) and str(
                     pig.get("id") or ""
                 ).strip():
-                    # A successful penalty is consumed only in the same transaction
-                    # that inserts the daily draw. Probe calls must leave it intact.
+                    # A triggered next-day penalty still permits today's draw.
+                    # Supplying the forced duplicate consumes the penalty atomically.
                     connection.execute(
                         "DELETE FROM eaten_penalties WHERE user_id = ?",
                         (penalty_user,),
                     )
                     penalties_doc.pop(penalty_user, None)
                     roast_changed = True
+                elif due_date == draw_date and (failed or penalty_should_fail):
+                    return {
+                        "status": "penalty-duplicate",
+                        "created": False,
+                        "history": history,
+                        "roast_state": roast,
+                    }
 
             if not isinstance(pig, dict) or not str(pig.get("id") or "").strip():
                 if roast_changed:

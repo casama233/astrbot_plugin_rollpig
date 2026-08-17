@@ -47,7 +47,7 @@ def test_overview_kpi_strip_is_five_information_dense_cards():
     for label in labels:
         assert f'<span class="label">{label}</span>' in PAGE
     assert '<span class="label">小猪总数</span>' not in PAGE
-    assert "renderSpark('vDraws'" not in PAGE
+    assert "renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹')" in PAGE
     assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in PAGE
     assert "metric-snapshot-viz" not in PAGE
     assert "metric-scope" not in PAGE

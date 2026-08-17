@@ -29,6 +29,7 @@ try:
     from .permanent_collection_feature import PermanentCollectionMixin
     from .pig_studio_admin import PigStudioAdminMixin
     from .pig_studio_feature import PigStudioMixin
+    from .random_roast_feature import RandomRoastMixin
     from .renderers.daily_report import render_daily_report_dashboard
     from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
@@ -48,6 +49,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from permanent_collection_feature import PermanentCollectionMixin
     from pig_studio_admin import PigStudioAdminMixin
     from pig_studio_feature import PigStudioMixin
+    from random_roast_feature import RandomRoastMixin
     from renderers.daily_report import render_daily_report_dashboard
     from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
@@ -60,6 +62,7 @@ class RollPigPlugin(
     ReservationFirewoodMixin,
     OvenRefillMixin,
     HelpFeatureMixin,
+    RandomRoastMixin,
     RoastReservationMixin,
     DailyReportMixin,
     PigStudioAdminMixin,
