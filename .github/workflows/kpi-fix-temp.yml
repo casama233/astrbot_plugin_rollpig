@@ -1,0 +1,303 @@
+name: Temporary KPI strip repair
+
+on:
+  push:
+    branches: [fix/kpi-strip-v2]
+    paths: [.github/workflows/kpi-fix-temp.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply KPI strip and sparkline repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          page_path = root / 'pages/pig-manager/index.html'
+          page = page_path.read_text(encoding='utf-8')
+
+          old_metrics = '.metrics{display:grid;grid-template-columns:repeat(6,minmax(155px,1fr));gap:12px;margin-bottom:18px}'
+          new_metrics = '.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}'
+          if old_metrics not in page:
+              raise SystemExit('base metrics grid marker missing')
+          page = page.replace(old_metrics, new_metrics, 1)
+
+          old_metric = '.metric{position:relative;overflow:hidden;min-height:158px;border-radius:20px;padding:17px;transition:transform .45s var(--spring),border-color .35s var(--ease),box-shadow .35s var(--ease)}'
+          new_metric = '.metric{position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:184px;border-radius:20px;padding:18px;transition:transform .45s var(--spring),border-color .35s var(--ease),box-shadow .35s var(--ease)}'
+          if old_metric not in page:
+              raise SystemExit('base metric card marker missing')
+          page = page.replace(old_metric, new_metric, 1)
+
+          old_metric_line = '.metric-top{display:flex;justify-content:space-between;align-items:center}.metric .label{color:var(--muted);font-size:11px;font-weight:680}.metric-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:color-mix(in srgb,var(--tone,var(--pink)) 13%,transparent);color:var(--tone,var(--pink));font-size:13px}.metric .value{font-size:30px;font-weight:850;letter-spacing:-.045em;margin:8px 0 1px}.metric .note{color:var(--muted);font-size:10px}.metric-viz{position:absolute;left:12px;right:12px;bottom:8px;height:38px;opacity:.8}.metric-viz svg{width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.spark-area{fill:url(#sparkFill)}.metric-snapshot-viz{height:26px;display:flex;align-items:center;justify-content:flex-end;gap:7px;color:var(--muted);font-size:9px;opacity:.9}.metric-snapshot-viz:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--tone,var(--pink));box-shadow:0 0 0 4px color-mix(in srgb,var(--tone,var(--pink)) 12%,transparent)}'
+          new_metric_line = '.metric-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.metric .label{color:var(--muted);font-size:11px;font-weight:720}.metric-scope{display:inline-flex;align-items:center;min-height:22px;padding:4px 8px;border:1px solid color-mix(in srgb,var(--tone,var(--pink)) 18%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--tone,var(--pink)) 6%,transparent);color:var(--tone,var(--pink));font:760 8.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.03em;white-space:nowrap}.metric .value{font-size:32px;font-weight:860;letter-spacing:-.05em;margin:9px 0 2px}.metric .note{color:var(--muted);font-size:10px}.metric-context{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.45;min-height:25px}.metric-context strong{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}.metric-context .metric-up{color:var(--green)}.metric-context .metric-down{color:var(--danger)}.metric-context .metric-flat{color:var(--muted)}.metric-viz{position:relative;height:44px;margin:7px 0 5px;opacity:.92}.metric-viz svg{display:block;width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.35;stroke-linecap:round;stroke-linejoin:round}.spark-area{pointer-events:none}.spark-endpoint{fill:var(--surface-strong);stroke:var(--tone,var(--pink));stroke-width:2;vector-effect:non-scaling-stroke}.metric--trend .metric-context{margin-top:0;padding-top:7px}'
+          if old_metric_line not in page:
+              raise SystemExit('metric visual CSS marker missing')
+          page = page.replace(old_metric_line, new_metric_line, 1)
+
+          page, removed = re.subn(
+              r'\n\.metric-snapshot-viz \{.*?\n\n\.chart-draw-bar \{',
+              '\n\n.chart-draw-bar {',
+              page,
+              count=1,
+              flags=re.S,
+          )
+          if removed != 1:
+              raise SystemExit('legacy metric snapshot/signal CSS block missing')
+
+          new_dom = '''    <section class="metrics metrics--primary" aria-label="核心指标">
+              <article class="metric" style="--tone:var(--pink)">
+                <div class="metric-top"><span class="label">总使用人数</span><span class="metric-scope">累计</span></div>
+                <div class="value" id="mUsers">—</div>
+                <div class="note">至少抽取过一次的去重玩家</div>
+                <div class="metric-context" id="cUsers">正在计算今日活跃占比…</div>
+              </article>
+              <article class="metric" style="--tone:var(--violet)">
+                <div class="metric-top"><span class="label">累计抽取</span><span class="metric-scope">累计</span></div>
+                <div class="value" id="mDraws">—</div>
+                <div class="note">永久累计抽取次数</div>
+                <div class="metric-context" id="cDraws">正在计算近 14 日抽取…</div>
+              </article>
+              <article class="metric metric--trend" style="--tone:var(--green)">
+                <div class="metric-top"><span class="label">今日活跃</span><span class="metric-scope">今日</span></div>
+                <div class="value" id="mToday">—</div>
+                <div class="note">今日抽猪的去重玩家</div>
+                <div class="metric-viz" id="vToday"></div>
+                <div class="metric-context" id="cToday">正在计算今日变化…</div>
+              </article>
+              <article class="metric" style="--tone:var(--blue)">
+                <div class="metric-top"><span class="label">人均解锁</span><span class="metric-scope">图鉴</span></div>
+                <div class="value" id="mAverage">—</div>
+                <div class="note">每位玩家平均解锁的不同小猪</div>
+                <div class="metric-context" id="cAverage">正在计算图鉴探索空间…</div>
+              </article>
+              <article class="metric" style="--tone:var(--plum)">
+                <div class="metric-top"><span class="label">平均收藏率</span><span class="metric-scope">覆盖</span></div>
+                <div class="value" id="mRate">—</div>
+                <div class="note">人均解锁 / 当前图鉴总数</div>
+                <div class="metric-context" id="cRate">正在计算收藏覆盖…</div>
+              </article>
+            </section>'''
+          page, replaced = re.subn(
+              r'    <section class="metrics" aria-label="核心指标">.*?    </section>',
+              new_dom,
+              page,
+              count=1,
+              flags=re.S,
+          )
+          if replaced != 1:
+              raise SystemExit('KPI DOM block missing')
+
+          new_spark = r'''function metricSparkRange(values){
+            const nums=values.map(value=>Number(value)).filter(Number.isFinite);
+            if(!nums.length)return {min:0,max:1};
+            const min=Math.min(...nums),max=Math.max(...nums),scale=Math.max(Math.abs(max),Math.abs(min),1);
+            if(max===min){const half=Math.max(1.5,scale*.12);return {min:min-half,max:max+half}}
+            const naturalSpan=max-min,minSpan=scale<=5?Math.max(1,scale*.6):Math.max(3,scale*.22),span=Math.max(naturalSpan,minSpan),mid=(min+max)/2,cushion=Math.max(span*.12,.35);
+            return {min:mid-span/2-cushion,max:mid+span/2+cushion}
+          }
+          function sparkPoints(values,w=240,h=48,padX=5,padY=7){const nums=(values.length?values:[0]).map(value=>{const number=Number(value);return Number.isFinite(number)?number:0}),range=metricSparkRange(nums),span=Math.max(Number.EPSILON,range.max-range.min),steps=Math.max(1,nums.length-1);return nums.map((v,i)=>[padX+i*(w-padX*2)/steps,h-padY-(v-range.min)/span*(h-padY*2)])}
+          function monotoneSparkPath(pts){
+            if(!pts.length)return '';
+            if(pts.length===1)return `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+            const n=pts.length,slopes=new Array(n-1),tangents=new Array(n);
+            for(let i=0;i<n-1;i++){const dx=Math.max(Number.EPSILON,pts[i+1][0]-pts[i][0]);slopes[i]=(pts[i+1][1]-pts[i][1])/dx}
+            tangents[0]=slopes[0];tangents[n-1]=slopes[n-2];
+            for(let i=1;i<n-1;i++)tangents[i]=slopes[i-1]*slopes[i]<=0?0:(slopes[i-1]+slopes[i])/2;
+            for(let i=0;i<n-1;i++){
+              const slope=slopes[i];
+              if(Math.abs(slope)<1e-9){tangents[i]=0;tangents[i+1]=0;continue}
+              const a=tangents[i]/slope,b=tangents[i+1]/slope,norm=Math.hypot(a,b);
+              if(norm>3){const scale=3/norm;tangents[i]=scale*a*slope;tangents[i+1]=scale*b*slope}
+            }
+            let path=`M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+            for(let i=0;i<n-1;i++){
+              const [x0,y0]=pts[i],[x1,y1]=pts[i+1],dx=x1-x0,cp1x=x0+dx/3,cp2x=x1-dx/3,cp1y=y0+tangents[i]*dx/3,cp2y=y1-tangents[i+1]*dx/3;
+              path+=` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${x1.toFixed(2)} ${y1.toFixed(2)}`
+            }
+            return path
+          }
+          function renderSpark(id,values,index,label='近 14 日趋势'){
+            const root=$(id);if(!root)return;root.setAttribute('aria-label',label);
+            const w=240,h=48,padX=5,padY=7,pts=sparkPoints(values.length?values:[0],w,h,padX,padY),line=monotoneSparkPath(pts),baseline=h-padY,first=pts[0],last=pts[pts.length-1],area=`${line} L ${last[0].toFixed(2)} ${baseline.toFixed(2)} L ${first[0].toFixed(2)} ${baseline.toFixed(2)} Z`,gradient=`spark-${index}`;
+            root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><defs><linearGradient id="${gradient}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--tone)" stop-opacity=".18"/><stop offset="1" stop-color="var(--tone)" stop-opacity="0"/></linearGradient></defs><path class="spark-area" d="${area}" fill="url(#${gradient})"/><path class="spark-path" vector-effect="non-scaling-stroke" d="${line}"/><circle class="spark-endpoint" cx="${last[0].toFixed(2)}" cy="${last[1].toFixed(2)}" r="2.8"/></svg>`;
+            animateSvgPaths(root)
+          }
+          '''
+          page, replaced = re.subn(
+              r'function metricSparkRange\(values\)\{.*?(?=function smoothLinePath)',
+              new_spark,
+              page,
+              count=1,
+              flags=re.S,
+          )
+          if replaced != 1:
+              raise SystemExit('spark renderer block missing')
+
+          new_metric_visuals = r'''function metricContext(id,html){const root=$(id);if(root)root.innerHTML=html}
+          function metricDecimal(value){const number=Number(value)||0;return number.toFixed(1).replace(/\.0$/,'')}
+          function renderMetricVisuals(data){
+            const trend=Array.isArray(data.trend)?data.trend:[],metrics=data.metrics||{},users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),today=Number(metrics.today_users)||0,totalUsers=Number(metrics.total_users)||0,catalog=Number(metrics.catalog_count)||0,averageUnlocked=Number(metrics.average_unlocked)||0,rate=Number(metrics.average_unlock_rate)||0;
+            const activeShare=totalUsers>0?today/totalUsers*100:0,totalDraws14=draws.reduce((sum,value)=>sum+value,0),avgDraws=draws.length?totalDraws14/draws.length:0,avgUsers=users.length?users.reduce((sum,value)=>sum+value,0)/users.length:0,previous=users.length>1?users[users.length-2]:null,delta=previous===null?null:today-previous,deltaPct=previous>0?delta/previous*100:null,remaining=Math.max(0,catalog-averageUnlocked);
+            metricContext('cUsers',`今日活跃 <strong>${today.toLocaleString()} 人</strong> · 占累计 <strong>${metricDecimal(activeShare)}%</strong>`);
+            metricContext('cDraws',`近 14 日 <strong>+${totalDraws14.toLocaleString()} 次</strong> · 日均 ${metricDecimal(avgDraws)}`);
+            if(delta===null)metricContext('cToday',`近 14 日日均 <strong>${metricDecimal(avgUsers)} 人</strong>`);
+            else{const cls=delta>0?'metric-up':delta<0?'metric-down':'metric-flat',sign=delta>0?'+':'';metricContext('cToday',`较昨日 <strong class="${cls}">${sign}${delta} 人${deltaPct===null?'':` · ${sign}${metricDecimal(deltaPct)}%`}</strong> · 14 日均 ${metricDecimal(avgUsers)}`)}
+            metricContext('cAverage',`图鉴 <strong>${catalog.toLocaleString()} 只</strong> · 人均尚未探索 ${metricDecimal(remaining)} 只`);
+            metricContext('cRate',`人均 <strong>${metricDecimal(averageUnlocked)} / ${catalog.toLocaleString()} 只</strong> · 按当前图鉴计算`);
+            renderSpark('vToday',users,3,'近 14 日每日活跃人数')
+          }
+          '''
+          page, replaced = re.subn(
+              r'function renderMetricSnapshot\(id,label\)\{.*?(?=function installImmersiveMotion)',
+              new_metric_visuals,
+              page,
+              count=1,
+              flags=re.S,
+          )
+          if replaced != 1:
+              raise SystemExit('metric visual rendering block missing')
+
+          old_mpigs = "animateNumber($('mPigs'),m.catalog_count);"
+          if old_mpigs not in page:
+              raise SystemExit('mPigs load marker missing')
+          page = page.replace(old_mpigs, '', 1)
+          page_path.write_text(page, encoding='utf-8')
+
+          css_path = root / 'pages/pig-manager/ex-integration.css'
+          css = css_path.read_text(encoding='utf-8')
+          drop_starts = (
+              '#view-overview .metric{',
+              '#view-overview .metric .value{',
+              '#view-overview .metric .note{',
+              '#view-overview .metric-viz{',
+              '#view-overview .metric-snapshot-viz{',
+              '#view-overview .metric-snapshot-viz:before{',
+              '#view-overview #vDraws{',
+              '#view-overview #vDraws svg{',
+              '#view-overview #vDraws::before{',
+              '#view-overview #vDraws::after{',
+              '#view-overview #vToday{',
+              '#view-overview #vToday::after{',
+          )
+          css_lines=[]
+          for line in css.splitlines():
+              stripped=line.strip()
+              if stripped.startswith(drop_starts):
+                  continue
+              line=line.replace('#view-overview .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}','')
+              line=line.replace("#view-overview #vDraws::after{content:'看 14 日趋势'}",'')
+              css_lines.append(line)
+          css='\n'.join(css_lines).rstrip()+'\n'
+          css_path.write_text(css, encoding='utf-8')
+
+          trend_test = root / 'tests/test_admin_trend_ui_contract.py'
+          trend_text = trend_test.read_text(encoding='utf-8')
+          trend_text, n = re.subn(
+              r'def test_metric_sparklines_use_local_data_range_and_stable_svg_geometry\(\):.*?\n\n\ndef test_metric_cards_use_real_daily_series_and_do_not_fabricate_history\(\):.*?\n(?=\Z)',
+              '''def test_metric_sparklines_use_monotone_curves_and_honest_visual_range():\n    page = _page()\n    assert "function metricSparkRange" in page\n    assert "function monotoneSparkPath" in page\n    assert "Math.hypot(a,b)" in page\n    assert "norm>3" in page\n    assert "minSpan=" in page\n    assert "const w=240,h=48,padX=5,padY=7" in page\n    assert 'vector-effect="non-scaling-stroke"' in page\n    assert 'class="spark-endpoint"' in page\n    assert "line=pts.map((p,i)=>`${i?'L':'M'}" not in page\n\n\ndef test_metric_cards_keep_five_requested_kpis_with_real_context():\n    page = _page()\n    for label in ("总使用人数", "累计抽取", "今日活跃", "人均解锁", "平均收藏率"):\n        assert f'<span class="label">{label}</span>' in page\n    assert '<span class="label">小猪总数</span>' not in page\n    assert page.count('<article class="metric') == 5\n    for metric_id in ("cUsers", "cDraws", "cToday", "cAverage", "cRate"):\n        assert f'id="{metric_id}"' in page\n    assert "当前快照 · 无历史序列" not in page\n    assert "metric-snapshot-viz" not in page\n    assert "renderSpark('vDraws'" not in page\n    assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in page\n    for useful_copy in ("今日活跃", "占累计", "近 14 日", "较昨日", "人均尚未探索", "按当前图鉴计算"):\n        assert useful_copy in page\n''',
+              trend_text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit('admin trend contract block missing')
+          trend_test.write_text(trend_text, encoding='utf-8')
+
+          overhaul_test = root / 'tests/test_admin_dashboard_overhaul_contract.py'
+          overhaul_text = overhaul_test.read_text(encoding='utf-8')
+          if 'PAGE = (ROOT / "pages" / "pig-manager" / "index.html")' not in overhaul_text:
+              overhaul_text = overhaul_text.replace(
+                  'OVERVIEW_CSS = (ROOT / "pages" / "pig-manager" / "ex-integration.css").read_text(\n    encoding="utf-8"\n)\n',
+                  'OVERVIEW_CSS = (ROOT / "pages" / "pig-manager" / "ex-integration.css").read_text(\n    encoding="utf-8"\n)\nPAGE = (ROOT / "pages" / "pig-manager" / "index.html").read_text(encoding="utf-8")\n',
+              )
+          overhaul_text, n = re.subn(
+              r'def test_overview_does_not_repeat_daily_draws_sparkline_as_a_second_trend\(\):.*?(?=\n\ndef test_popularity_board_is_compact_card_style_leaderboard)',
+              '''def test_overview_kpi_strip_is_five_information_dense_cards():\n    labels = ("总使用人数", "累计抽取", "今日活跃", "人均解锁", "平均收藏率")\n    for label in labels:\n        assert f'<span class="label">{label}</span>' in PAGE\n    assert '<span class="label">小猪总数</span>' not in PAGE\n    assert "renderSpark('vDraws'" not in PAGE\n    assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in PAGE\n    assert "metric-snapshot-viz" not in PAGE\n    assert "#view-overview #vDraws" not in OVERVIEW_CSS\n''',
+              overhaul_text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit('dashboard overhaul KPI contract block missing')
+          overhaul_test.write_text(overhaul_text, encoding='utf-8')
+
+          browser_test = root / 'tests/browser/admin-ui.test.mjs'
+          browser = browser_test.read_text(encoding='utf-8')
+          old_overview = "if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 4, total_draws: 7, today_users: 2, catalog_count: 6, average_unlocked: 2, average_unlock_rate: 33.3}, trend: [], top_pigs: []}};"
+          new_overview = "if (pathName === 'overview') return {status: 'ok', data: {csrf_token: 'test', metrics: {total_users: 12, total_draws: 40, today_users: 4, catalog_count: 20, average_unlocked: 5, average_unlock_rate: 25}, trend: [{date: '08-14', users: 2, draws: 2, new_unlocks: 1}, {date: '08-15', users: 5, draws: 5, new_unlocks: 2}, {date: '08-16', users: 3, draws: 3, new_unlocks: 1}, {date: '08-17', users: 4, draws: 4, new_unlocks: 2}], top_pigs: []}};"
+          if old_overview not in browser:
+              raise SystemExit('browser overview fixture marker missing')
+          browser = browser.replace(old_overview, new_overview, 1)
+          anchor = "test('Analytics loads once on click and later clicks only refresh data', async t => {"
+          new_browser_test = r'''test('overview KPI strip renders five useful cards and a smooth truthful activity sparkline', async t => {
+            const {dom, window} = createDom();
+            t.after(() => dom.window.close());
+            runBootstrap(window);
+            await runCore(window);
+            const labels = [...window.document.querySelectorAll('#view-overview .metric .label')].map(node => node.textContent.trim());
+            assert.deepEqual(labels, ['总使用人数', '累计抽取', '今日活跃', '人均解锁', '平均收藏率']);
+            assert.equal(window.document.getElementById('mPigs'), null);
+            assert.equal(window.document.querySelectorAll('#view-overview .metric').length, 5);
+            assert.match(window.document.getElementById('cUsers').textContent, /占累计/);
+            assert.match(window.document.getElementById('cDraws').textContent, /近 14 日/);
+            assert.match(window.document.getElementById('cToday').textContent, /较昨日/);
+            assert.match(window.document.getElementById('cAverage').textContent, /尚未探索/);
+            const spark = window.document.querySelector('#vToday .spark-path');
+            assert.ok(spark);
+            assert.match(spark.getAttribute('d'), / C /);
+            assert.equal(spark.getAttribute('d').includes(' L '), false);
+            assert.ok(window.document.querySelector('#vToday .spark-endpoint'));
+            assert.equal(window.document.querySelectorAll('.metric-snapshot-viz').length, 0);
+          });
+
+          '''
+          if anchor not in browser:
+              raise SystemExit('browser test insertion anchor missing')
+          browser = browser.replace(anchor, new_browser_test + anchor, 1)
+          browser_test.write_text(browser, encoding='utf-8')
+
+          changelog = root / 'CHANGELOG.md'
+          changelog_text = changelog.read_text(encoding='utf-8')
+          old_unreleased = '## 未發佈\n\n- 暫無。'
+          new_unreleased = '''## 未發佈
+
+          - 管理面板頂部 KPI 收斂為「總使用人數／累計抽取／今日活躍／人均解鎖／平均收藏率」五項；移除小豬總數與無信息量的「當前快照」膠囊，改為真實的今日活躍占比、14 日抽取增量／日均、昨日比較、圖鑑探索空間與收藏覆蓋上下文。
+          - 重寫「今日活躍」mini sparkline renderer：改用帶斜率限制的單調 cubic Hermite 曲線，避免尖角與曲線過衝；同時加入最小視覺跨度，避免極小波動被局部 min/max 誇張成滿幅震盪，保留 non-scaling stroke、面積淡層與真實末端資料點。
+          '''
+          if old_unreleased not in changelog_text:
+              raise SystemExit('unreleased changelog marker missing')
+          changelog_text = changelog_text.replace(old_unreleased, new_unreleased, 1)
+          changelog_text = '\n'.join(line[10:] if line.startswith('          ') else line for line in changelog_text.splitlines()) + '\n'
+          changelog.write_text(changelog_text, encoding='utf-8')
+          PY
+
+          # The temporary workflows are implementation scaffolding only.
+          git rm .github/workflows/kpi-inspect-temp.yml .github/workflows/kpi-fix-temp.yml
+
+          # Cheap validation before the normal PR gates.
+          python -m compileall -q tests
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          assert page.count('<article class="metric') == 5
+          assert '<span class="label">小猪总数</span>' not in page
+          assert "function monotoneSparkPath" in page
+          assert "metric-snapshot-viz" not in page
+          PY
+          git diff --check
+          git add CHANGELOG.md pages/pig-manager/index.html pages/pig-manager/ex-integration.css tests/test_admin_trend_ui_contract.py tests/test_admin_dashboard_overhaul_contract.py tests/browser/admin-ui.test.mjs
+          git commit -m "fix: rebuild admin KPI strip and sparkline"
+          git push origin HEAD:fix/kpi-strip-v2
