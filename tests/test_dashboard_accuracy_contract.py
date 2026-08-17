@@ -108,7 +108,9 @@ def test_core_dashboard_no_longer_fabricates_metric_sparklines():
 
 def test_deep_analytics_success_rate_excludes_in_progress_attempts():
     source = Path("pages/pig-manager/ui-analytics.js").read_text(encoding="utf-8")
-    assert "completedAi" in source
-    assert "Number(ai.ready || 0) + Number(ai.failed || 0)" in source
+    assert "const completed = ready + failed" in source
+    assert "success: ready / completed * 100" in source
+    assert "生成中" in source
+    assert "不计入成功率分母" in source
     assert "上期→本期回访率" in source
     assert "本期独有活跃" in source
