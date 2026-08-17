@@ -157,5 +157,7 @@ def test_help_renderer_fixed_copy_is_simplified_chinese():
     source = Path(help_renderer.__file__).read_text(encoding="utf-8")
     assert "今日小猪 · 快速指令" in source
     assert "只列已启用功能 · 每条只说一件事 · 简繁别名都可用" in source
+    assert "带 @ 的指令请手动输入后再点选群友" in source
+    assert "复制他人整条发送可能无效" in source
     assert "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）" in source
     assert "今日小豬 · 快速指令" not in source
