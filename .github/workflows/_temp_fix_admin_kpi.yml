@@ -1,0 +1,99 @@
+name: Temp Fix Admin KPI Semantics
+
+on:
+  push:
+    branches:
+      - fix/admin-kpi-trend-semantics
+    paths:
+      - ".github/workflows/_temp_fix_admin_kpi.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/admin-kpi-trend-semantics
+          fetch-depth: 0
+
+      - name: Repair KPI trend semantics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('pages/pig-manager/index.html')
+          page = page_path.read_text(encoding='utf-8')
+
+          css_old = '.metric-viz{position:absolute;left:12px;right:12px;bottom:8px;height:38px;opacity:.8}.metric-viz svg{width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.spark-area{fill:url(#sparkFill)}'
+          css_new = '.metric-viz{position:absolute;left:12px;right:12px;bottom:8px;height:38px;opacity:.8}.metric-viz svg{width:100%;height:100%;overflow:visible}.spark-path{fill:none;stroke:var(--tone,var(--pink));stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.spark-area{fill:url(#sparkFill)}.metric-snapshot-viz{height:26px;display:flex;align-items:center;justify-content:flex-end;gap:7px;color:var(--muted);font-size:9px;opacity:.9}.metric-snapshot-viz:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--tone,var(--pink));box-shadow:0 0 0 4px color-mix(in srgb,var(--tone,var(--pink)) 12%,transparent)}'
+          if css_old not in page:
+              raise SystemExit('metric CSS anchor not found')
+          page = page.replace(css_old, css_new, 1)
+
+          spark_prefix_old = 'function renderSpark(id,values,index){const root=$(id),w=180,h=38,pad=3,'
+          spark_prefix_new = "function renderSpark(id,values,index,label='近 14 日趋势'){const root=$(id);root.classList.remove('metric-snapshot-viz');root.setAttribute('aria-label',label);const w=180,h=38,pad=3,"
+          if spark_prefix_old not in page:
+              raise SystemExit('renderSpark anchor not found')
+          page = page.replace(spark_prefix_old, spark_prefix_new, 1)
+
+          signal_old = 'function renderMetricSignal(id,label,progress=null){const root=$(id);if(!root)return;root.classList.add(\'metric-snapshot-viz\');const hasProgress=Number.isFinite(progress),safe=hasProgress?Math.max(0,Math.min(100,Number(progress))):0;root.innerHTML=`<div class="metric-signal" aria-hidden="true"><i></i><i></i><i></i><em ${hasProgress?`style="--progress:${safe}%"`:\'\'}></em></div><span>${esc(label)}</span>`}'
+          snapshot_new = 'function renderMetricSnapshot(id,label){const root=$(id);if(!root)return;root.classList.add(\'metric-snapshot-viz\');root.setAttribute(\'aria-label\',label);root.innerHTML=`<span>${esc(label)}</span>`}'
+          if signal_old not in page:
+              raise SystemExit('renderMetricSignal anchor not found')
+          page = page.replace(signal_old, snapshot_new, 1)
+
+          visuals_old = "function renderMetricVisuals(data){const trend=data.trend||[],users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0),metrics=data.metrics||{},totalDraws=Math.max(0,Number(metrics.total_draws)||0),windowDraws=draws.reduce((a,b)=>a+b,0);let running=Math.max(0,totalDraws-windowDraws);const cumulative=draws.map(value=>running+=value),rate=Math.max(0,Math.min(100,Number(metrics.average_unlock_rate)||0));renderMetricSignal('vUsers','逻辑用户快照');renderSpark('vDraws',cumulative,2);renderSpark('vToday',users,3);renderMetricSignal('vPigs','当前可抽取');renderMetricSignal('vAverage','当前覆盖',rate);renderMetricSignal('vRate','当前比例',rate)}"
+          visuals_new = "function renderMetricVisuals(data){const trend=data.trend||[],users=trend.map(x=>Number(x.users)||0),draws=trend.map(x=>Number(x.draws)||0);renderMetricSnapshot('vUsers','当前快照 · 无历史序列');renderSpark('vDraws',draws,2,'近 14 日每日抽取');renderSpark('vToday',users,3,'近 14 日每日活跃');renderMetricSnapshot('vPigs','当前快照 · 无历史序列');renderMetricSnapshot('vAverage','当前快照 · 无历史序列');renderMetricSnapshot('vRate','当前快照 · 无历史序列')}"
+          if visuals_old not in page:
+              raise SystemExit('renderMetricVisuals anchor not found')
+          page = page.replace(visuals_old, visuals_new, 1)
+          page_path.write_text(page, encoding='utf-8')
+
+          test_path = Path('tests/test_admin_trend_ui_contract.py')
+          test = test_path.read_text(encoding='utf-8')
+          test = test.replace(
+              '    assert "const root=$(id),w=180,h=38,pad=3" in page\n',
+              '    assert "root.classList.remove(\'metric-snapshot-viz\')" in page\n    assert "const w=180,h=38,pad=3" in page\n',
+              1,
+          )
+          addition = '''\n\ndef test_metric_cards_use_real_daily_series_and_do_not_fabricate_history():\n    page = _page()\n    assert "const cumulative=" not in page\n    assert "renderSpark('vDraws',draws,2,'近 14 日每日抽取')" in page\n    assert "renderSpark('vToday',users,3,'近 14 日每日活跃')" in page\n    assert "function renderMetricSnapshot" in page\n    assert "function renderMetricSignal" not in page\n    for metric_id in ("vUsers", "vPigs", "vAverage", "vRate"):\n        assert f"renderMetricSnapshot('{metric_id}'" in page\n    assert "当前快照 · 无历史序列" in page\n'''
+          if 'test_metric_cards_use_real_daily_series_and_do_not_fabricate_history' not in test:
+              test += addition
+          test_path.write_text(test, encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          entry = '- 修正管理面板 KPI 迷你圖的資料語義：累計抽取卡改畫真實「近 14 日每日抽取」而非人造累計斜線；今日活躍保留每日活躍趨勢，沒有歷史序列的四項快照指標不再顯示偽趨勢裝飾。\n'
+          if marker not in changelog:
+              raise SystemExit('unreleased changelog section not found')
+          if entry not in changelog:
+              changelog = changelog.replace(marker, marker + entry, 1)
+          changelog_path.write_text(changelog, encoding='utf-8')
+          PY
+
+      - name: Validate focused UI contracts
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q tests/test_admin_trend_ui_contract.py tests/test_admin_ex_integration_contract.py
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          page = Path('pages/pig-manager/index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', page, flags=re.S)
+          if not scripts:
+              raise SystemExit('no inline script found')
+          Path('/tmp/pig-manager-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
+          PY
+          node --check /tmp/pig-manager-inline.js
+
+      - name: Commit semantic fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add pages/pig-manager/index.html tests/test_admin_trend_ui_contract.py CHANGELOG.md
+          git commit -m "fix: use real daily KPI trend data"
+          git push origin HEAD:fix/admin-kpi-trend-semantics
