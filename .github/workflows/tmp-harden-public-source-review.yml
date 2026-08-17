@@ -1,0 +1,159 @@
+name: Temporary public-source review hardening
+
+on:
+  push:
+    branches:
+      - agent/harden-public-source-review-ui
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[review-hardening-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/harden-public-source-review-ui
+          fetch-depth: 0
+
+      - name: Apply capability-gated review hardening
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          legacy_path = root / 'legacy_main.py'
+          page_path = root / 'pages/pig-manager/index.html'
+          changelog_path = root / 'CHANGELOG.md'
+          test_path = root / 'tests/test_public_source_review_capability.py'
+
+          legacy = legacy_path.read_text(encoding='utf-8')
+
+          registration_pattern = re.compile(
+              r'''        context\.register_web_api\(\n'''
+              r'''            f"/\{self\.PLUGIN_NAME\}/source/reviews",\n'''
+              r'''            self\.page_public_source_reviews,\n'''
+              r'''            \["GET"\],\n'''
+              r'''            "查看 AstrBot 公共豬源待审核投稿",\n'''
+              r'''        \)\n'''
+              r'''        context\.register_web_api\(\n'''
+              r'''            f"/\{self\.PLUGIN_NAME\}/source/reviews/image",\n'''
+              r'''            self\.page_public_source_review_image,\n'''
+              r'''            \["GET"\],\n'''
+              r'''            "查看 AstrBot 公共豬源投稿图片",\n'''
+              r'''        \)\n'''
+              r'''        context\.register_web_api\(\n'''
+              r'''            f"/\{self\.PLUGIN_NAME\}/source/reviews/decision",\n'''
+              r'''            self\.page_public_source_review_decision,\n'''
+              r'''            \["POST"\],\n'''
+              r'''            "审核 AstrBot 公共豬源投稿",\n'''
+              r'''        \)\n'''
+          )
+          registration_replacement = '''        # Review APIs are maintainer-only capabilities. Ordinary installations do\n        # not register these routes at all, so merely installing the plugin never\n        # exposes a local review proxy surface.\n        if self._public_source_admin_token():\n            context.register_web_api(\n                f"/{self.PLUGIN_NAME}/source/reviews",\n                self.page_public_source_reviews,\n                ["GET"],\n                "查看 AstrBot 公共豬源待审核投稿",\n            )\n            context.register_web_api(\n                f"/{self.PLUGIN_NAME}/source/reviews/image",\n                self.page_public_source_review_image,\n                ["GET"],\n                "查看 AstrBot 公共豬源投稿图片",\n            )\n            context.register_web_api(\n                f"/{self.PLUGIN_NAME}/source/reviews/decision",\n                self.page_public_source_review_decision,\n                ["POST"],\n                "审核 AstrBot 公共豬源投稿",\n            )\n'''
+          legacy, count = registration_pattern.subn(registration_replacement, legacy, count=1)
+          assert count == 1, f'review registration block replacements={count}'
+
+          overview_old = '            data["csrf_token"] = self._csrf_token\n            return self._jsonify({"status": "ok", "data": data})'
+          overview_new = '            data["csrf_token"] = self._csrf_token\n            data["public_source_review_enabled"] = bool(\n                self._public_source_admin_token()\n            )\n            return self._jsonify({"status": "ok", "data": data})'
+          assert legacy.count(overview_old) == 1
+          legacy = legacy.replace(overview_old, overview_new, 1)
+          legacy_path.write_text(legacy, encoding='utf-8')
+
+          page = page_path.read_text(encoding='utf-8')
+
+          panel_pattern = re.compile(
+              r'\n    <section class="panel layer-panel" id="sourceReviewPanel" hidden>.*?</section>',
+              re.DOTALL,
+          )
+          page, count = panel_pattern.subn('', page, count=1)
+          assert count == 1, f'static review panel removals={count}'
+
+          modal_pattern = re.compile(
+              r'\n<div class="modal" id="reviewModal"><form class="dialog" id="reviewForm".*?</form></div>',
+              re.DOTALL,
+          )
+          page, count = modal_pattern.subn('', page, count=1)
+          assert count == 1, f'static review modal removals={count}'
+
+          state_old = "overviewData=null;"
+          assert page.count(state_old) == 1
+          page = page.replace(state_old, "overviewData=null,publicSourceReviewEnabled=false;", 1)
+
+          overview_js_old = "overviewData=d;csrfToken=String(d.csrf_token||csrfToken);"
+          overview_js_new = "overviewData=d;publicSourceReviewEnabled=Boolean(d.public_source_review_enabled);syncReviewCapabilityUi();csrfToken=String(d.csrf_token||csrfToken);"
+          assert page.count(overview_js_old) == 1
+          page = page.replace(overview_js_old, overview_js_new, 1)
+
+          capability_helpers = r'''function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;let panel=$('sourceReviewPanel');if(!panel){panel=document.createElement('section');panel.className='panel layer-panel';panel.id='sourceReviewPanel';panel.innerHTML='<div class="panel-head"><div><h2>公共豬源待审核</h2><div class="panel-desc" id="sourceReviewMeta">维护者专用；审核凭证只保留在服务端。</div></div><button class="btn ghost" id="sourceReviewRefreshBtn" type="button">刷新队列</button></div><div class="pig-grid" id="sourceReviewGrid"><div class="empty">正在读取待审核投稿…</div></div>';const layers=$('view-layers'),anchor=layers?.querySelector('.layer-panel');if(layers)layers.insertBefore(panel,anchor||null)}let modal=$('reviewModal');if(!modal){modal=document.createElement('div');modal.className='modal';modal.id='reviewModal';modal.innerHTML='<form class="dialog" id="reviewForm" style="max-width:540px"><div class="dialog-head"><div><div class="eyebrow" id="reviewEyebrow">Public Source Review</div><h2 id="reviewTitle">审核公共豬源投稿</h2></div><button class="close" type="button" id="reviewClose" aria-label="关闭">×</button></div><p class="panel-desc" id="reviewMessage"></p><div class="field"><label for="reviewNote">审核备注（可选）</label><textarea id="reviewNote" maxlength="300" placeholder="最多 300 字；拒绝时建议说明原因"></textarea><div class="hint">备注只写入审核记录，不会修改投稿文案。</div></div><div class="dialog-actions"><button class="btn ghost" type="button" id="reviewCancel">取消</button><button class="btn" type="submit" id="reviewConfirm">确认</button></div></form>';document.body.appendChild(modal)}const form=$('reviewForm');if(form&&form.dataset.reviewBound!=='1'){form.dataset.reviewBound='1';form.onsubmit=submitReviewDecision}const close=$('reviewClose'),cancel=$('reviewCancel');if(close)close.onclick=closeReviewModal;if(cancel)cancel.onclick=closeReviewModal;if(modal&&modal.dataset.reviewBound!=='1'){modal.dataset.reviewBound='1';modal.onclick=e=>{if(e.target===modal)closeReviewModal()}}const grid=$('sourceReviewGrid');if(grid&&grid.dataset.reviewBound!=='1'){grid.dataset.reviewBound='1';grid.addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')})}const refresh=$('sourceReviewRefreshBtn');if(refresh&&refresh.dataset.reviewBound!=='1'){refresh.dataset.reviewBound='1';refresh.onclick=()=>loadSourceReviews().catch(e=>toast(e.message))}return true}
+function syncReviewCapabilityUi(){if(publicSourceReviewEnabled){ensureReviewCapabilityUi();return}$('sourceReviewPanel')?.remove();$('reviewModal')?.remove();reviewItems=[];pendingReviewDecision=null}
+'''
+          marker = 'function reviewDuplicateHtml(p){'
+          assert page.count(marker) == 1
+          page = page.replace(marker, capability_helpers + marker, 1)
+
+          render_old = "function renderSourceReviews(){const panel=$('sourceReviewPanel');"
+          assert page.count(render_old) == 1
+          page = page.replace(render_old, "function renderSourceReviews(){if(!ensureReviewCapabilityUi())return;const panel=$('sourceReviewPanel');", 1)
+
+          load_pattern = re.compile(
+              r'''async function loadSourceReviews\(\)\{const d=await get\('source/reviews',\{__rollpig_csrf:csrfToken\}\);if\(!d\.enabled\)\{\$\('sourceReviewPanel'\)\.hidden=true;reviewItems=\[\];return d\}reviewItems=Array\.isArray\(d\.items\)\?d\.items:\[\];renderSourceReviews\(\);return d\}'''
+          )
+          load_new = "async function loadSourceReviews(){if(!publicSourceReviewEnabled){reviewItems=[];return{enabled:false,items:[]}}if(!ensureReviewCapabilityUi())return{enabled:false,items:[]};const d=await get('source/reviews',{__rollpig_csrf:csrfToken});if(!d.enabled){publicSourceReviewEnabled=false;syncReviewCapabilityUi();reviewItems=[];return d}reviewItems=Array.isArray(d.items)?d.items:[];renderSourceReviews();return d}"
+          page, count = load_pattern.subn(load_new, page, count=1)
+          assert count == 1, f'loadSourceReviews replacements={count}'
+
+          review_open_old = "function reviewPublicSource(p,decision){const approving=decision==='approve';"
+          assert page.count(review_open_old) == 1
+          page = page.replace(review_open_old, "function reviewPublicSource(p,decision){if(!ensureReviewCapabilityUi())return;const approving=decision==='approve';", 1)
+
+          close_old = "function closeReviewModal(){pendingReviewDecision=null;$('reviewModal').classList.remove('open')}"
+          assert page.count(close_old) == 1
+          page = page.replace(close_old, "function closeReviewModal(){pendingReviewDecision=null;$('reviewModal')?.classList.remove('open')}", 1)
+
+          submit_pattern = re.compile(
+              r'''\$\('reviewForm'\)\.onsubmit=async e=>\{e\.preventDefault\(\);const pending=pendingReviewDecision;if\(!pending\)return;const approving=pending\.decision==='approve',note=\$\('reviewNote'\)\.value\.trim\(\)\.slice\(0,300\);\$\('reviewModal'\)\.classList\.remove\('open'\);busy\(true\);try\{const d=await post\('source/reviews/decision',\{id:pending\.pig\.submission_id,decision:pending\.decision,note,confirm:true\}\);pendingReviewDecision=null;toast\(d\.message\|\|'审核完成'\);const refreshPublic=approving&&\$\('publicSourceModal'\)\.classList\.contains\('open'\)\?loadPublicSourceCatalog\(true\):Promise\.resolve\(\);await Promise\.all\(\[loadSourceReviews\(\),loadResourceStatus\(\),refreshPublic\]\)\}catch\(err\)\{toast\(err\.message\);pendingReviewDecision=pending;\$\('reviewModal'\)\.classList\.add\('open'\)\}finally\{busy\(false\)\}\};'''
+          )
+          submit_new = "async function submitReviewDecision(e){e.preventDefault();if(!ensureReviewCapabilityUi())return;const pending=pendingReviewDecision;if(!pending)return;const approving=pending.decision==='approve',note=$('reviewNote').value.trim().slice(0,300);$('reviewModal').classList.remove('open');busy(true);try{const d=await post('source/reviews/decision',{id:pending.pig.submission_id,decision:pending.decision,note,confirm:true});pendingReviewDecision=null;toast(d.message||'审核完成');const refreshPublic=approving&&$('publicSourceModal').classList.contains('open')?loadPublicSourceCatalog(true):Promise.resolve();await Promise.all([loadSourceReviews(),loadResourceStatus(),refreshPublic])}catch(err){toast(err.message);pendingReviewDecision=pending;$('reviewModal')?.classList.add('open')}finally{busy(false)}}"
+          page, count = submit_pattern.subn(submit_new, page, count=1)
+          assert count == 1, f'review submit handler replacements={count}'
+
+          unconditional_bind = "$('reviewClose').onclick=$('reviewCancel').onclick=closeReviewModal;$('reviewModal').onclick=e=>{if(e.target===$('reviewModal'))closeReviewModal()};"
+          assert page.count(unconditional_bind) == 1
+          page = page.replace(unconditional_bind, '', 1)
+
+          grid_bind = "$('sourceReviewGrid').addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')});"
+          assert page.count(grid_bind) == 1
+          page = page.replace(grid_bind, '', 1)
+
+          refresh_bind = "$('sourceReviewRefreshBtn').onclick=()=>loadSourceReviews().catch(e=>toast(e.message));"
+          assert page.count(refresh_bind) == 1
+          page = page.replace(refresh_bind, '', 1)
+
+          page_path.write_text(page, encoding='utf-8')
+
+          changelog = changelog_path.read_text(encoding='utf-8')
+          bullet = '- 強化公共豬源審核隔離：只有本機存在有效維護者 token 時才註冊審核 API；普通安裝者不再掛載待審面板、批准／拒絕表單，也不會探測管理路由。'
+          assert changelog.count('- 暫無。') == 1
+          changelog = changelog.replace('- 暫無。', bullet, 1)
+          changelog_path.write_text(changelog, encoding='utf-8')
+
+          test_path.write_text('''from pathlib import Path\n\n\nROOT = Path(__file__).resolve().parents[1]\nLEGACY = (ROOT / "legacy_main.py").read_text(encoding="utf-8")\nPAGE = (ROOT / "pages/pig-manager/index.html").read_text(encoding="utf-8")\nSCHEMA = (ROOT / "_conf_schema.json").read_text(encoding="utf-8")\n\n\ndef test_review_routes_are_registered_only_with_maintainer_token():\n    gate = LEGACY.index("        if self._public_source_admin_token():")\n    resources = LEGACY.index('            f"/{self.PLUGIN_NAME}/resources/status"', gate)\n    block = LEGACY[gate:resources]\n    assert 'source/reviews"' in block\n    assert 'source/reviews/image"' in block\n    assert 'source/reviews/decision"' in block\n    assert 'data["public_source_review_enabled"] = bool(' in LEGACY\n\n\ndef test_admin_token_is_not_a_public_plugin_config_field():\n    assert "public_source_admin_token" not in SCHEMA\n    assert "public_source_admin.token" in LEGACY\n\n\ndef test_review_panel_and_form_are_not_static_dom_for_normal_installs():\n    static_markup = PAGE.split("const bridge=window.AstrBotPluginPage;", 1)[0]\n    assert 'id="sourceReviewPanel"' not in static_markup\n    assert 'id="reviewModal"' not in static_markup\n    assert 'id="reviewNote"' not in static_markup\n    assert 'id="reviewConfirm"' not in static_markup\n\n\ndef test_frontend_mounts_and_queries_reviews_only_after_capability():\n    assert "publicSourceReviewEnabled=false" in PAGE\n    assert "Boolean(d.public_source_review_enabled);syncReviewCapabilityUi()" in PAGE\n    assert "function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;" in PAGE\n    assert "async function loadSourceReviews(){if(!publicSourceReviewEnabled)" in PAGE\n    assert "form.onsubmit=submitReviewDecision" in PAGE\n    assert "$('reviewForm').onsubmit=" not in PAGE\n''', encoding='utf-8')
+          PY
+
+      - name: Validate focused contracts
+        run: |
+          python -m compileall -q legacy_main.py
+          python -m pytest -q tests/test_group_report_source_review_hardening.py tests/test_public_source_review_capability.py
+
+      - name: Commit hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add legacy_main.py pages/pig-manager/index.html CHANGELOG.md tests/test_public_source_review_capability.py
+          git diff --cached --check
+          git commit -m "fix: capability-gate public source reviews [review-hardening-applied]"
+          git push origin HEAD:agent/harden-public-source-review-ui
