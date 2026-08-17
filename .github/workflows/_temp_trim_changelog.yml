@@ -1,0 +1,44 @@
+name: Temp Trim Changelog
+
+on:
+  push:
+    branches:
+      - chore/trim-ci-test-pipeline
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/trim-ci-test-pipeline
+
+      - name: Add CI trim changelog entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CHANGELOG.md')
+          text = path.read_text(encoding='utf-8')
+          marker = '## 未發佈\n\n'
+          entry = '- 精簡 PR 驗證流程：移除 AstrBot 已不支援的 Python 3.10 重複全量測試，收窄 Marketplace Package／AstrBot Market Smoke 的 PR 觸發範圍，並移除只驗證舊 Release Notes 存在性的歷史測試。\n'
+          if entry not in text:
+              if marker not in text:
+                  raise SystemExit('unreleased changelog section not found')
+              path.write_text(text.replace(marker, marker + entry, 1), encoding='utf-8')
+          PY
+
+      - name: Commit changelog when changed
+        run: |
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "Changelog already updated"
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add CHANGELOG.md
+          git commit -m "docs: record CI pipeline trim"
+          git push origin HEAD:chore/trim-ci-test-pipeline
