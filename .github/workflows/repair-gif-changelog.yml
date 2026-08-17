@@ -1,0 +1,47 @@
+name: Repair GIF changelog
+
+on:
+  push:
+    branches:
+      - agent/animated-gif-pigs
+    paths:
+      - .github/workflows/repair-gif-changelog.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: agent/animated-gif-pigs
+      - name: Restore main changelog and insert GIF entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git show origin/main:CHANGELOG.md > CHANGELOG.md
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+          marker = "## 未發佈\n\n"
+          bullet = "- 新增 GIF 小豬端到端支援：PigHub／手動上傳會保留動畫 GIF，不再一律轉成 PNG；抽到動畫小豬時整張小豬卡會逐幀合成並保留幀時長與循環設定；公共豬源投稿與審核圖片亦按實際格式保留 GIF。管理頁縮圖仍使用靜態 PNG 快取，並為動畫加入幀數、總時長與尺寸安全上限。\n"
+          if marker not in text:
+              raise SystemExit("unreleased changelog marker not found")
+          if bullet not in text:
+              text = text.replace(marker, marker + bullet, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "docs: repair animated GIF changelog entry"
+          git push origin HEAD:agent/animated-gif-pigs
