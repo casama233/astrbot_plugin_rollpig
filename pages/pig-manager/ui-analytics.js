@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const STATE_KEY = '__rollpigAnalyticsUiState';
-  const VERSION = '3.10.1';
+  const VERSION = '3.2.0';
   const pageRoot = document.querySelector('.shell');
   const bridge = window.AstrBotPluginPage;
   if (!pageRoot || !bridge?.apiGet) throw new Error('深度分析缺少页面根节点或管理桥接');
