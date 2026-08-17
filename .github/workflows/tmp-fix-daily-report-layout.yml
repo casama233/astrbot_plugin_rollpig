@@ -1,0 +1,279 @@
+name: Temporary daily report layout repair
+
+on:
+  push:
+    branches:
+      - fix/daily-report-layout-overflow
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/daily-report-layout-overflow
+          fetch-depth: 0
+
+      - name: Apply layout repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('renderers/daily_report.py')
+          text = path.read_text(encoding='utf-8')
+
+          marker = 'PNG_COMPRESS_LEVEL = 1\n'
+          constants = '''PNG_COMPRESS_LEVEL = 1
+
+# Compact report layout constants. Keep these explicit so vertical rhythm can be
+# regression-tested instead of relying on magic coordinates scattered around the
+# renderer.
+_METRIC_CARD_HEIGHT = 124
+_METRIC_ROW_STEP = 138
+_METRIC_HINT_TOP_OFFSET = 84
+_METRIC_TRACK_BOTTOM_PADDING = 15
+_SUMMARY_PANEL_TOP = 496
+_SUMMARY_PANEL_BOTTOM = 790
+_EVENT_ROW_TOP_OFFSET = 96
+_EVENT_ROW_STEP = 34
+'''
+          assert text.count(marker) == 1
+          text = text.replace(marker, constants, 1)
+
+          metric_pattern = re.compile(r'def _draw_metric\(.*?\n\n(?=def _draw_event_chart)', re.S)
+          metric_replacement = '''def _draw_metric(plugin, draw, palette, box, key, label, hint, value, scale) -> None:
+    left, top, right, bottom = box
+    draw.rounded_rectangle(box, 24, fill=palette["surface"])
+    value_font = plugin.font_bold.font_variant(size=38)
+    label_font = plugin.font_bold.font_variant(size=20)
+    hint_font = plugin.font_regular.font_variant(size=16)
+    draw.text((left + 22, top + 12), str(value), font=value_font, fill=palette["title"])
+    draw.text((left + 22, top + 57), label, font=label_font, fill=palette["secondary"])
+    hint_text = _fit_text(draw, hint, hint_font, right - left - 44)
+    hint_y = top + _METRIC_HINT_TOP_OFFSET
+    track_left, track_right = left + 22, right - 22
+    track_y = bottom - _METRIC_TRACK_BOTTOM_PADDING
+    # The old 116 px card put the hint baseline almost on top of the progress
+    # track. The taller card plus explicit offsets leave a stable text-safe gap
+    # even with CJK font ascent/descent differences.
+    draw.text(
+        (left + 22, hint_y),
+        hint_text,
+        font=hint_font,
+        fill=palette["muted"],
+    )
+    draw.rounded_rectangle(
+        (track_left, track_y, track_right, track_y + 7),
+        4,
+        fill=palette["surface_alt"],
+    )
+    if value > 0:
+        ratio = min(1.0, value / max(1, scale))
+        fill_right = max(
+            track_left + 10,
+            int(track_left + (track_right - track_left) * ratio),
+        )
+        draw.rounded_rectangle(
+            (track_left, track_y, fill_right, track_y + 7),
+            4,
+            fill=_metric_color(palette, key),
+        )
+
+
+'''
+          text, count = metric_pattern.subn(metric_replacement, text, count=1)
+          assert count == 1
+
+          event_pattern = re.compile(r'def _draw_event_chart\(.*?\n\n(?=def _draw_popular)', re.S)
+          event_replacement = '''def _draw_event_chart(plugin, draw, report, palette, box) -> None:
+    left, top, right, bottom = box
+    draw.rounded_rectangle(box, 28, fill=palette["surface"])
+    title_font = plugin.font_bold.font_variant(size=29)
+    label_font = plugin.font_bold.font_variant(size=19)
+    value_font = plugin.font_bold.font_variant(size=18)
+    small_font = plugin.font_regular.font_variant(size=16)
+    draw.text((left + 28, top + 22), "今日搞事分布", font=title_font, fill=palette["title"])
+    draw.text(
+        (left + 28, top + 61),
+        "条越长，今天越像是谁的主场。",
+        font=small_font,
+        fill=palette["muted"],
+    )
+    values = [int(report.get(key, 0) or 0) for key, _ in _EVENT_META]
+    maximum = max(1, max(values, default=0))
+    bar_left = left + 132
+    bar_right = right - 60
+    y = top + _EVENT_ROW_TOP_OFFSET
+    for (key, label), value in zip(_EVENT_META, values):
+        dot = _metric_color(palette, key)
+        draw.ellipse((left + 28, y + 4, left + 40, y + 16), fill=dot)
+        draw.text((left + 50, y - 2), label, font=label_font, fill=palette["secondary"])
+        draw.rounded_rectangle(
+            (bar_left, y + 4, bar_right, y + 20),
+            8,
+            fill=palette["surface_alt"],
+        )
+        if value > 0:
+            end = max(
+                bar_left + 16,
+                int(bar_left + (bar_right - bar_left) * value / maximum),
+            )
+            draw.rounded_rectangle(
+                (bar_left, y + 4, end, y + 20),
+                8,
+                fill=dot,
+            )
+        value_text = str(value)
+        text_w = draw.textlength(value_text, font=value_font)
+        draw.text(
+            (right - 26 - text_w, y - 2),
+            value_text,
+            font=value_font,
+            fill=palette["title"],
+        )
+        y += _EVENT_ROW_STEP
+
+    # Keep refill activity inside the same event panel. It used to sit outside
+    # the rounded card and collide with the fifth event row when font metrics
+    # were slightly taller than expected.
+    refill_text = (
+        f"今日补货 {int(report.get('oven_refills', 0) or 0)} 次 · "
+        f"添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次"
+    )
+    draw.text(
+        (left + 28, bottom - 30),
+        refill_text,
+        font=small_font,
+        fill=palette["secondary"],
+    )
+
+
+'''
+          text, count = event_pattern.subn(event_replacement, text, count=1)
+          assert count == 1
+
+          old_empty = '''        draw.text((left + 28, top + 86), headline, font=name_font, fill=palette["muted"])
+        draw.text((left + 28, top + 127), copy, font=body_font, fill=palette["secondary"])
+        return'''
+          new_empty = '''        headline_y = top + max(96, (bottom - top) // 2 - 28)
+        draw.text((left + 28, headline_y), headline, font=name_font, fill=palette["muted"])
+        draw.text((left + 28, headline_y + 43), copy, font=body_font, fill=palette["secondary"])
+        return'''
+          assert text.count(old_empty) == 1
+          text = text.replace(old_empty, new_empty, 1)
+
+          shifts = {
+              '(left + 28, top + 78)': '(left + 28, top + 92)',
+              '(left + 166, top + 84)': '(left + 166, top + 98)',
+              '(left + 168, top + 126)': '(left + 168, top + 140)',
+              '(left + 168, top + 158)': '(left + 168, top + 172)',
+          }
+          for old, new in shifts.items():
+              assert text.count(old) == 1, old
+              text = text.replace(old, new, 1)
+
+          assert text.count('y = 214 + row * 132') == 1
+          text = text.replace('y = 214 + row * 132', 'y = 214 + row * _METRIC_ROW_STEP', 1)
+          assert text.count('(x, y, x + 350, y + 116)') == 1
+          text = text.replace('(x, y, x + 350, y + 116)', '(x, y, x + 350, y + _METRIC_CARD_HEIGHT)', 1)
+          assert text.count('_draw_event_chart(plugin, draw, report, palette, (44, 486, 674, 744))') == 1
+          text = text.replace(
+              '_draw_event_chart(plugin, draw, report, palette, (44, 486, 674, 744))',
+              '_draw_event_chart(\n        plugin, draw, report, palette, (44, _SUMMARY_PANEL_TOP, 674, _SUMMARY_PANEL_BOTTOM)\n    )',
+              1,
+          )
+          assert text.count('_draw_popular(plugin, canvas, draw, report, palette, (696, 486, 1156, 744))') == 1
+          text = text.replace(
+              '_draw_popular(plugin, canvas, draw, report, palette, (696, 486, 1156, 744))',
+              '_draw_popular(\n        plugin,\n        canvas,\n        draw,\n        report,\n        palette,\n        (696, _SUMMARY_PANEL_TOP, 1156, _SUMMARY_PANEL_BOTTOM),\n    )',
+              1,
+          )
+
+          refill_block = '''    draw.text(
+        (54, 765),
+        f"今日补货 {int(report.get('oven_refills', 0) or 0)} 次 · 添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次",
+        font=body_font,
+        fill=palette["secondary"],
+    )
+'''
+          assert text.count(refill_block) == 1
+          text = text.replace(refill_block, '', 1)
+          assert text.count('draw.text((54, 806), "今日猪圈名人堂"') == 1
+          text = text.replace('draw.text((54, 806), "今日猪圈名人堂"', 'draw.text((54, 818), "今日猪圈名人堂"', 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/test_daily_report_renderer.py')
+          test = test_path.read_text(encoding='utf-8')
+          old_import = '''    REPORT_WIDTH,
+    _activity_story,
+    render_daily_report_dashboard,
+)'''
+          new_import = '''    REPORT_WIDTH,
+    _EVENT_META,
+    _EVENT_ROW_STEP,
+    _EVENT_ROW_TOP_OFFSET,
+    _METRIC_CARD_HEIGHT,
+    _METRIC_HINT_TOP_OFFSET,
+    _METRIC_ROW_STEP,
+    _METRIC_TRACK_BOTTOM_PADDING,
+    _SUMMARY_PANEL_BOTTOM,
+    _SUMMARY_PANEL_TOP,
+    _activity_story,
+    render_daily_report_dashboard,
+)'''
+          assert test.count(old_import) == 1
+          test = test.replace(old_import, new_import, 1)
+          addition = '''
+
+def test_compact_layout_keeps_text_and_fifth_event_row_inside_their_cards():
+    assert _METRIC_CARD_HEIGHT == 124
+    assert _METRIC_ROW_STEP > _METRIC_CARD_HEIGHT
+    track_y = _METRIC_CARD_HEIGHT - _METRIC_TRACK_BOTTOM_PADDING
+    assert track_y - _METRIC_HINT_TOP_OFFSET >= 24
+
+    panel_height = _SUMMARY_PANEL_BOTTOM - _SUMMARY_PANEL_TOP
+    last_row_bar_bottom = (
+        _EVENT_ROW_TOP_OFFSET
+        + (len(_EVENT_META) - 1) * _EVENT_ROW_STEP
+        + 20
+    )
+    # Reserve enough room after the fifth row for the in-panel refill summary.
+    assert last_row_bar_bottom <= panel_height - 38
+'''
+          assert 'test_compact_layout_keeps_text_and_fifth_event_row_inside_their_cards' not in test
+          test = test.rstrip() + addition + '\n'
+          test_path.write_text(test, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          log = changelog.read_text(encoding='utf-8')
+          assert log.count('## 未發佈\n\n- 暫無。') == 1
+          log = log.replace(
+              '## 未發佈\n\n- 暫無。',
+              '## 未發佈\n\n- 修正豬圈日報緊湊版面：KPI 提示文字不再被進度條壓住，五行搞事分布與補貨摘要完整留在面板內，空熱豬榜改為垂直置中，並保持 1200×1280 聊天安全尺寸。',
+              1,
+          )
+          changelog.write_text(log, encoding='utf-8')
+          PY
+
+      - name: Validate focused renderer
+        run: |
+          python -m pip install -q -r requirements.txt pytest pre-commit
+          python -m compileall -q renderers/daily_report.py
+          python -m pytest -q tests/test_daily_report_renderer.py tests/test_daily_report.py
+          pre-commit run --all-files
+          git diff --check
+
+      - name: Commit repair and remove temporary workflow
+        run: |
+          rm .github/workflows/tmp-fix-daily-report-layout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: repair daily report layout overflow"
+          git push origin HEAD:fix/daily-report-layout-overflow
