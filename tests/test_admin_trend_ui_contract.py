@@ -55,7 +55,13 @@ def test_metric_cards_keep_five_requested_kpis_with_real_context():
     assert "当前快照 · 无历史序列" not in page
     assert "metric-snapshot-viz" not in page
     assert "metric-scope" not in page
-    assert "renderSpark('vDraws'" not in page
+    for viz_id in ("vUsers", "vDraws", "vToday", "vAverage", "vRate"):
+        assert f'id="{viz_id}"' in page
+    assert "renderMetricMeter('vUsers',today,totalUsers" in page
+    assert "renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹')" in page
     assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in page
+    assert "renderMetricRuler('vAverage',averageUnlocked,catalog" in page
+    assert "renderMetricRate('vRate',rate" in page
+    assert "totalDraws-totalDraws14" in page
     for useful_copy in ("今日活跃", "占累计", "近 14 日", "较昨日", "人均尚未探索", "按当前图鉴计算"):
         assert useful_copy in page
