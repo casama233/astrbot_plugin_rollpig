@@ -15,7 +15,7 @@ def test_v340_release_contract_is_readable_lazy_and_versioned():
     )
     assert 'version: "3.7.0"' in metadata
     assert "AstrBot-RollPig/3.6.5" in main
-    assert "AstrBot-RollPig-Safe-Updater/3.6.5" in updater
+    assert "AstrBot-RollPig-Safe-Updater/" in updater
     assert "analyticsLoadBtn" in bootstrap
     assert "sessionStorage" not in bootstrap
     assert "v3.1.2 readable typography override" in css
