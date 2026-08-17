@@ -246,7 +246,7 @@ class RollPigPlugin(
         return await super().pigsty_daily_report(event, '關閉')
     # END MAIN COMMAND REGISTRATION
 
-    UI_ASSET_VERSION = "3.10.1"
+    UI_ASSET_VERSION = "3.2.0"
 
     def _build_analytics_insights(self):
         """Attach safe feature-state metadata needed by the admin dashboard."""
