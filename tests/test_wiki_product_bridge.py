@@ -89,7 +89,7 @@ def test_dynamic_help_links_to_wiki_and_invalidates_old_cached_card():
     feature = (ROOT / "help_feature.py").read_text(encoding="utf-8")
     renderer = (ROOT / "renderers" / "help.py").read_text(encoding="utf-8")
 
-    assert "HELP_RENDER_CACHE_VERSION = 5" in feature
+    assert "HELP_RENDER_CACHE_VERSION = 6" in feature
     assert "WIKI_HOME_URL" in feature
     assert "WIKI_TROUBLESHOOTING_URL" in feature
     assert "完整规则 · 管理 · 投稿 · 排障" in renderer
