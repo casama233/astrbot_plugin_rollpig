@@ -18,7 +18,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply layout repair
-        run: python .github/tmp_fix_daily_report.py
+        run: |
+          python .github/tmp_fix_daily_report.py
+          python -c "from pathlib import Path; p=Path('tests/test_daily_report_renderer.py'); p.write_text(p.read_text(encoding='utf-8').rstrip()+'\n', encoding='utf-8')"
 
       - name: Validate focused renderer
         run: |
