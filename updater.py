@@ -37,6 +37,9 @@ class PluginUpdateManager:
 
     OFFICIAL_REPOSITORY = "casama233/astrbot_plugin_rollpig"
     PACKAGE_NAME = "astrbot_plugin_rollpig_plus"
+    LATEST_RELEASE_API = (
+        "https://api.github.com/repos/casama233/astrbot_plugin_rollpig/releases/latest"
+    )
     RELEASES_API = (
         "https://api.github.com/repos/casama233/astrbot_plugin_rollpig/releases?per_page=30"
     )
@@ -144,9 +147,35 @@ class PluginUpdateManager:
                     raise
                 raise UpdateError(f"检查更新失败：{exc}") from exc
 
+    async def _fetch_stable_release_payload(self) -> dict[str, Any]:
+        # Prefer GitHub's dedicated latest-release endpoint so a stale or empty
+        # collection response cannot hide a valid stable Release.
+        latest_error = ""
+        try:
+            latest_payload = await self._request_json(self.LATEST_RELEASE_API)
+            return self._select_release_payload([latest_payload])
+        except UpdateError as exc:
+            latest_error = str(exc)
+            if self.logger is not None:
+                try:
+                    self.logger.warning(
+                        "RollPig updater latest-release lookup failed; falling back to release list: %s",
+                        exc,
+                    )
+                except Exception:
+                    pass
+
+        try:
+            releases = await self._request_json_list(self.RELEASES_API)
+            return self._select_release_payload(releases)
+        except UpdateError as exc:
+            detail = f"latest={latest_error or 'unknown'}; list={exc}"
+            raise UpdateError(
+                f"未找到可验证的 RollPig Plus 稳定 Release（{detail}）"
+            ) from exc
+
     async def _check_unlocked(self) -> dict[str, Any]:
-        releases = await self._request_json_list(self.RELEASES_API)
-        payload = self._select_release_payload(releases)
+        payload = await self._fetch_stable_release_payload()
 
         tag = str(payload.get("tag_name") or "")
         latest = self._normalise_version(tag)
@@ -351,8 +380,10 @@ class PluginUpdateManager:
         timeout = httpx.Timeout(self.timeout, connect=min(15.0, self.timeout))
         headers = {
             "Accept": accept,
-            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.6.5",
+            "User-Agent": "AstrBot-RollPig-Safe-Updater/3.11.3",
             "X-GitHub-Api-Version": "2022-11-28",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         }
         async with httpx.AsyncClient(
             follow_redirects=False,

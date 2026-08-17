@@ -4,6 +4,29 @@
 
 - 暫無。
 
+## v3.11.3
+
+發佈日期：2026-08-17
+
+v3.11.3 是管理面板安全更新器修復版。它修正「GitHub 已有有效穩定 Release，但更新面板誤報未找到可驗證 Release」的發布發現故障，不修改玩法或資料契約。
+
+### 安全更新器
+
+- 更新檢查改以 GitHub 官方 `releases/latest` 作為主通道，仍保留 Release collection 作相容 fallback；不再因 collection 回傳空列表或陳舊結果而把有效 Latest Release 判定為不存在。
+- `latest` 回應仍必須通過既有嚴格驗證：stable SemVer、非 draft／prerelease、官方倉庫 Release URL、精確的 `astrbot_plugin_rollpig_plus-vX.Y.Z.zip` 名稱與官方下載 URL；安全邊界沒有放寬。
+- GitHub 請求加入 `Cache-Control: no-cache`／`Pragma: no-cache`，降低中間快取讓更新檢查讀到過期 Release metadata 的風險。
+- 當 latest 與列表兩個通道都不可用時，錯誤訊息會同時保留兩邊的失敗原因，方便定位網路／Release 資料問題。
+- 新增回歸測試，直接覆蓋「latest 有效但 releases list 為空」這次實際故障型態，以及 latest 無效時的 fallback 行為。
+
+### 升級提示
+
+- v3.11.0–v3.11.2 的舊更新器本身依賴出問題的 Release collection；如果面板已出現「未找到可驗證的 RollPig Plus 穩定 Release」，需要先透過 AstrBot 插件市場／重新安裝或手動覆蓋 v3.11.3 完成一次引導升級。升到 v3.11.3 後，面板安全更新通道即可恢復正常。
+
+### 相容性
+
+- 可由 v3.11.0、v3.11.1、v3.11.2 直接升級。
+- 不修改 SQLite schema、Resource Protocol、指令、配置、抽取／保底／EX／烤豬規則或管理 API。
+
 ## v3.11.2
 
 發佈日期：2026-08-17
