@@ -36,7 +36,20 @@ def test_metric_sparklines_use_local_data_range_and_stable_svg_geometry():
     assert "function metricSparkRange" in page
     assert "Math.min(0,...values)" not in page
     assert "range=metricSparkRange(nums)" in page
-    assert "const root=$(id),w=180,h=38,pad=3" in page
+    assert "root.classList.remove('metric-snapshot-viz')" in page
+    assert "const w=180,h=38,pad=3" in page
     assert "baseline=h-pad" in page
     assert 'vector-effect="non-scaling-stroke"' in page
 
+
+
+def test_metric_cards_use_real_daily_series_and_do_not_fabricate_history():
+    page = _page()
+    assert "const cumulative=" not in page
+    assert "renderSpark('vDraws',draws,2,'近 14 日每日抽取')" in page
+    assert "renderSpark('vToday',users,3,'近 14 日每日活跃')" in page
+    assert "function renderMetricSnapshot" in page
+    assert "function renderMetricSignal" not in page
+    for metric_id in ("vUsers", "vPigs", "vAverage", "vRate"):
+        assert f"renderMetricSnapshot('{metric_id}'" in page
+    assert "当前快照 · 无历史序列" in page
