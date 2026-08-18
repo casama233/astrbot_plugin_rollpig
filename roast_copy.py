@@ -7,7 +7,10 @@ import re
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
-from display_copy import simplify_display_text
+try:
+    from .display_copy import simplify_display_text
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from display_copy import simplify_display_text
 
 SCHEMA_VERSION = 1
 MAX_PACK_BYTES = 256 * 1024
