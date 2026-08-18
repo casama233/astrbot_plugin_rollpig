@@ -155,18 +155,6 @@
   overflow: hidden;
   transition: transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
-#view-overview .metric::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  z-index: -1;
-  border-radius: inherit;
-  background: conic-gradient(from 180deg at 50% 50%, transparent 0 34%, color-mix(in srgb, var(--tone, var(--pink)) 30%, transparent) 44%, transparent 54% 100%);
-  opacity: 0;
-  animation: overviewSpectral 7s linear infinite;
-  transition: opacity .22s var(--ease);
-}
-#view-overview .metric:hover::before { opacity: .6; }
 #view-overview .metric:hover {
   box-shadow:
     0 18px 34px rgba(20, 28, 44, .10),
@@ -199,14 +187,12 @@
 
 @keyframes overviewDataBeam { 0%,100% { transform: scaleX(.28); opacity: .38; } 50% { transform: scaleX(1); opacity: 1; } }
 @keyframes overviewBeacon { 50% { opacity: .48; transform: scale(.72); } }
-@keyframes overviewSpectral { to { transform: rotate(360deg); } }
 @keyframes overviewBarRise { from { transform: scaleY(.05); opacity: .15; } to { transform: scaleY(1); opacity: 1; } }
 @keyframes overviewRingOrbit { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   #view-overview .hero-copy::after,
   .overview-scope::before,
-  #view-overview .metric::before,
   .chart-draw-bar,
   #view-overview .ring::after {
     animation: none !important;
