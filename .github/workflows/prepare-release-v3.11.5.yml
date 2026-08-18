@@ -1,0 +1,61 @@
+name: Prepare v3.11.5 release
+
+on:
+  push:
+    branches:
+      - release/v3.11.5
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v3.11.5
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare release files
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          version = '3.11.5'
+          date = '2026-08-19'
+
+          metadata_path = Path('metadata.yaml')
+          metadata = metadata_path.read_text(encoding='utf-8')
+          old = 'version: "3.11.4"'
+          new = f'version: "{version}"'
+          if old not in metadata:
+              raise SystemExit('expected metadata version 3.11.4 not found')
+          metadata_path.write_text(metadata.replace(old, new, 1), encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          marker = '## v3.11.4\n'
+          if marker not in changelog:
+              raise SystemExit('v3.11.4 changelog marker not found')
+          head, tail = changelog.split(marker, 1)
+          expected = '''# 更新\n\n## 未發佈\n\n- 移除管理面板五张 KPI 小卡悬停时的旋转锥形光谱扇区，避免半透明斜切层只覆盖卡片局部并干扰数据阅读；保留卡片边框、数据可视化与轻量悬停反馈。\n- 修复插件展示文本的繁体残留与字体缺字：内置烤猪文案、帮助卡、玩法速记、料理卡、历史收藏占位和管理页统一使用简体中文，替换主字体不支持的生僻“齁”字；AI、公共源、本地猪与 EX 描述进入展示链时自动转简体，并新增简体文案与主字体字形覆盖 CI 守门。繁体指令别名及旧数据兼容匹配保持不变。\n\n'''
+          if head != expected:
+              raise SystemExit('unexpected unreleased changelog content; refusing release rewrite')
+          release_section = f'''# 更新\n\n## 未發佈\n\n- 暂无。\n\n## v{version}\n\n发布日期：{date}\n\nv{version} 是在 v3.11.4 基础上的展示与字体兼容修复版：统一插件运行时用户可见中文文案为简体，修复内置图片字体缺字，并移除管理面板 KPI 小卡的局部旋转光谱扇区。依仓库保守 SemVer 规则，本次不修改公开资料、配置或数据 schema，因此发布为 patch。\n\n### 本版变更\n\n- 内置烤猪文案、帮助卡、玩法速记、料理卡、历史收藏占位和管理页展示文案统一为简体中文；主字体不支持的“齁”替换为常用表达。\n- AI 烤猪、公共源、本地猪与 EX 自定义名称／描述／完整文案在进入展示链时自动繁转简，同时保持 ID、配置键、路径、协议值和繁体命令别名不变。\n- AI 烤猪最近文案去重 key 在哈希前统一做简体规范化，升级前后的繁简候选继续映射到同一去重记录。\n- 新增展示文案 CI 守门：检查目标文案是否为简体，并逐字对照 `荆南麦圆体.otf` cmap 验证内置图片卡 CJK 字形覆盖；本次修复后纳入守门的静态内置展示文案缺字为 0。\n- 移除数据总览五张 KPI 小卡的 `metric::before` 旋转 conic-gradient 光谱扇区及 `overviewSpectral` 动画，解决半透明斜切块只覆盖卡片局部、干扰数据阅读的问题；保留数据可视化、边框与轻量 hover 阴影。\n\n### 兼容性\n\n- 可由 v3.11.4 直接升级。\n- 不修改 SQLite schema、Resource Protocol、插件身份、配置键、命令集合或玩法概率；AstrBot 最低版本仍为 `>=4.24.2`。\n- `/今日小豬`、`/豬圈日報`、`/隨機烤群友` 等繁体命令 alias、`強行點火` 兼容口令、日报旧动作值及历史繁体数据匹配继续保留。\n\n'''
+          changelog_path.write_text(release_section + marker + tail, encoding='utf-8')
+
+          notes = f'''# 今日小豬 · 增強版 v{version}\n\nv{version} 是 v3.11.4 之后的展示与字体兼容修复版，集中解决内置中文字体缺字、动态外来文案繁体输入，以及管理面板 KPI 卡片局部旋转光效影响可读性的问题。依仓库保守 SemVer 政策，本次保持公开数据、配置与玩法契约兼容，因此发布为 patch。\n\n## 简体展示与字体覆盖\n\n- 内置烤猪文案、帮助卡、玩法速记、料理卡、历史收藏占位和管理页展示文案统一使用简体中文。\n- 替换主字体不支持的生僻“齁”字；修复后纳入 CI 守门的静态内置图片／帮助／资源展示文案 CJK 缺字为 0。\n- 新增展示文案检查脚本，CI 会同时验证目标文案的简体规范和 `荆南麦圆体.otf` 的实际 cmap 字形覆盖，避免以后重新引入缺字。\n\n## 动态文案规范化\n\n- AI 烤猪、公共源、本地猪与 EX 自定义名称、描述和完整文案进入展示链时自动繁转简。\n- ID、配置键、路径、协议值与兼容命令 alias 不参与转换，不改变现有资源／配置契约。\n- AI 烤猪最近文案去重 key 在哈希前同步做简体规范化，繁简迁移前后的相同候选继续共享同一历史记录。\n\n## 管理面板\n\n- 删除五张核心 KPI 小卡的旋转 conic-gradient 光谱扇区和 `overviewSpectral` 动画，不再出现只覆盖卡片局部的半透明斜切块。\n- 保留 KPI 自身的数据折线、进度环、标尺、边框与轻量 hover 阴影。\n- 增加回归测试，防止该局部扇形叠加层再次被引入。\n\n## 兼容性\n\n- 可由 v3.11.4 直接升级。\n- 不修改 SQLite schema、Resource Protocol、插件身份、配置键、命令集合或玩法概率。\n- AstrBot 最低版本仍为 `>=4.24.2`。\n- 保留既有繁体命令 alias、超管兼容口令、日报兼容动作值和历史繁体数据匹配。\n'''
+          Path(f'.github/release-v{version}.md').write_text(notes, encoding='utf-8')
+          PY
+          python scripts/maintenance_contract.py release
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add metadata.yaml CHANGELOG.md .github/release-v3.11.5.md
+          git commit -m "chore: prepare v3.11.5 release"
+          git push origin HEAD:release/v3.11.5
