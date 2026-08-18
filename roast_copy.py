@@ -7,6 +7,11 @@ import re
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+try:
+    from .display_copy import simplify_display_text
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from display_copy import simplify_display_text
+
 SCHEMA_VERSION = 1
 MAX_PACK_BYTES = 256 * 1024
 MIN_DISH_NAMES = 24
@@ -37,7 +42,10 @@ def validate_roast_copy_catalog(raw: object) -> dict[str, object]:
     for line in normalized_lines:
         unknown = set(_PLACEHOLDER.findall(line)).difference({"pig"})
         if unknown:
-            raise ValueError("roast_copy line has unknown placeholder: " + ", ".join(sorted(unknown)))
+            raise ValueError(
+                "roast_copy line has unknown placeholder: "
+                + ", ".join(sorted(unknown))
+            )
     return {
         "schema_version": SCHEMA_VERSION,
         "dish_names": normalized_dishes,
@@ -90,7 +98,9 @@ def select_local_roast_copy(
 
     dish_index, line_index = selected
     key = f"local:{dish_index}:{line_index}"
-    copy = lines[line_index].format(pig=str(pig_name or "小豬")[:30])
+    copy = lines[line_index].format(
+        pig=simplify_display_text(pig_name or "小猪")[:30]
+    )
     return {"dish": dishes[dish_index], "copy": copy, "key": key}
 
 
@@ -107,7 +117,9 @@ def decode_ai_candidates(payload: object) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for item in values:
-        candidate = re.sub(r"\s+", " ", str(item or "")).strip("“”\"'` ")[:64]
+        candidate = re.sub(r"\s+", " ", simplify_display_text(item)).strip(
+            "“”\"'` "
+        )[:64]
         if not candidate or candidate in seen:
             continue
         seen.add(candidate)
@@ -116,12 +128,15 @@ def decode_ai_candidates(payload: object) -> list[str]:
 
 
 def encode_ai_candidates(candidates: Sequence[str]) -> str:
-    normalized = decode_ai_candidates(json.dumps(list(candidates), ensure_ascii=False))
+    normalized = decode_ai_candidates(
+        json.dumps(list(candidates), ensure_ascii=False)
+    )
     return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
 
 
 def ai_candidate_key(text: str) -> str:
-    digest = hashlib.sha256(str(text).encode("utf-8")).hexdigest()[:20]
+    normalized = simplify_display_text(text)
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
     return f"ai:{digest}"
 
 
@@ -131,10 +146,14 @@ def select_ai_candidate(
     recent_keys: Iterable[str] = (),
     rng: random.Random | random.SystemRandom | None = None,
 ) -> str | None:
-    normalized = decode_ai_candidates(json.dumps(list(candidates), ensure_ascii=False))
+    normalized = decode_ai_candidates(
+        json.dumps(list(candidates), ensure_ascii=False)
+    )
     if not normalized:
         return None
     blocked = set(list(recent_keys)[-RECENT_HISTORY_LIMIT:])
-    available = [item for item in normalized if ai_candidate_key(item) not in blocked]
+    available = [
+        item for item in normalized if ai_candidate_key(item) not in blocked
+    ]
     picker = rng or random
     return picker.choice(available or normalized)

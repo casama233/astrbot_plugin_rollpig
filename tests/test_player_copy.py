@@ -64,25 +64,21 @@ def test_player_copy_locale_aliases_and_strict_formatting():
         copy_text("missing.copy.key")
 
 
-def test_dynamic_help_uses_same_model_with_traditional_and_simplified_copy():
+def test_dynamic_help_uses_same_simplified_display_copy_for_all_locale_aliases():
     tw = _flatten_help("zh-TW")
     cn = _flatten_help("zh-CN")
 
-    assert "每天抽豬" in tw
-    assert "群體補貨" in tw
-    assert "預約烤豬" in tw
-    assert "豬圈日報" in tw
-    assert "EX 成長" in tw
+    for text in (tw, cn):
+        assert "每天抽猪" in text
+        assert "群体补货" in text
+        assert "预约烤猪" in text
+        assert "猪圈日报" in text
+        assert "EX 成长" in text
+        assert "/今日小猪" in text
 
-    assert "每天抽猪" in cn
-    assert "群体补货" in cn
-    assert "预约烤猪" in cn
-    assert "猪圈日报" in cn
-    assert "EX 成长" in cn
-
-    # Displayed command labels follow locale; both spellings remain registered aliases.
-    assert "/今日小豬" in tw
-    assert "/今日小猪" in cn
+    # Locale aliases remain accepted, but generated cards deliberately use
+    # Simplified labels so the bundled image font does not need Traditional CJK.
+    assert "/今日小豬" not in tw
     assert "/今日小豬" not in cn
 
 
@@ -106,7 +102,9 @@ def test_help_copy_cannot_regress_to_inline_player_facing_literals():
     violations: list[tuple[int, str]] = []
 
     def has_cjk(value: object) -> bool:
-        return isinstance(value, str) and any("\u3400" <= ch <= "\u9fff" for ch in value)
+        return isinstance(value, str) and any(
+            "\u3400" <= ch <= "\u9fff" for ch in value
+        )
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
