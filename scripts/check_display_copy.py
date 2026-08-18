@@ -36,10 +36,10 @@ LEGACY_ALLOWED_TRADITIONAL = {"強行點火"}
 def strings(value):
     if isinstance(value, dict):
         for item in value.values():
-  yield from strings(item)
+            yield from strings(item)
     elif isinstance(value, list):
         for item in value:
-  yield from strings(item)
+            yield from strings(item)
     elif isinstance(value, str):
         yield value
 
@@ -48,7 +48,7 @@ def python_strings(path: Path):
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-  yield getattr(node, "lineno", 0), node.value
+            yield getattr(node, "lineno", 0), node.value
 
 
 def assert_simplified(label: str, value: str, failures: list[str]) -> None:
@@ -63,45 +63,52 @@ def main() -> int:
     for path in JSON_TARGETS:
         payload = json.loads(path.read_text(encoding="utf-8"))
         for value in strings(payload):
-  assert_simplified(str(path.relative_to(ROOT)), value, failures)
-  if str(path).startswith(str(ROOT / "resource")):
-      rendered.append((str(path.relative_to(ROOT)), value))
+            assert_simplified(str(path.relative_to(ROOT)), value, failures)
+            if str(path).startswith(str(ROOT / "resource")):
+                rendered.append((str(path.relative_to(ROOT)), value))
 
     for path in DISPLAY_PYTHON:
         for line, value in python_strings(path):
-  assert_simplified(f"{path.relative_to(ROOT)}:{line}", value, failures)
-  if path.name in {"help_system.py", "player_copy.py"} or path.parent.name == "renderers":
-      rendered.append((f"{path.relative_to(ROOT)}:{line}", value))
+            assert_simplified(f"{path.relative_to(ROOT)}:{line}", value, failures)
+            if (
+                path.name in {"help_system.py", "player_copy.py"}
+                or path.parent.name == "renderers"
+            ):
+                rendered.append((f"{path.relative_to(ROOT)}:{line}", value))
 
     legacy = ROOT / "legacy_main.py"
     for line, value in python_strings(legacy):
         if value in LEGACY_ALLOWED_TRADITIONAL:
-  continue
+            continue
         assert_simplified(f"legacy_main.py:{line}", value, failures)
 
     for path in sorted((ROOT / "pages").rglob("*")):
         if not path.is_file() or path.suffix not in {".html", ".js"}:
-  continue
-        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-  if "ERROR_PATTERN" in line:
-      continue
-  assert_simplified(f"{path.relative_to(ROOT)}:{line_no}", line, failures)
+            continue
+        for line_no, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            if "ERROR_PATTERN" in line:
+                continue
+            assert_simplified(f"{path.relative_to(ROOT)}:{line_no}", line, failures)
 
     font = TTFont(ROOT / "resource" / "font" / "荆南麦圆体.otf")
     cmap: set[int] = set()
     for table in font["cmap"].tables:
         cmap.update(table.cmap.keys())
+
     for source, value in rendered:
         for ch in value:
-  code = ord(ch)
-  if 0x3400 <= code <= 0x9FFF and code not in cmap:
-      failures.append(f"{source}: primary font missing {ch} U+{code:04X}")
+            code = ord(ch)
+            if 0x3400 <= code <= 0x9FFF and code not in cmap:
+                failures.append(f"{source}: primary font missing {ch} U+{code:04X}")
 
     if failures:
         print("Display copy contract failed:")
         for failure in failures:
-  print(f"- {failure}")
+            print(f"- {failure}")
         return 1
+
     print("Display copy contract: Simplified Chinese + bundled font coverage OK")
     return 0
 
