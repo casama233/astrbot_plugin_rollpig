@@ -30,7 +30,7 @@ def test_main_manager_ex_editor_supports_level_write_reset_and_image_preview():
     assert "ex/variants/delete" in text
     assert "ex/variants/image" in text
     assert "EX Lv.${state.level}" in text
-    assert "留空＝繼承" in text
+    assert "留空＝继承" in text
 
 
 def test_public_source_preview_has_actions_instead_of_close_only():
@@ -81,7 +81,9 @@ def test_main_manager_ex_modal_has_stage2_effective_preview_parity():
 
 def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
     main_modal = integration_text()
-    standalone = (ROOT / "pages" / "pig-manager-ex" / "index.html").read_text(encoding="utf-8")
+    standalone = (ROOT / "pages" / "pig-manager-ex" / "index.html").read_text(
+        encoding="utf-8"
+    )
     for marker in (
         "Base ↔ EX",
         "data-compare-toggle",
