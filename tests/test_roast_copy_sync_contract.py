@@ -27,4 +27,4 @@ def test_roast_card_no_longer_uses_five_fixed_recipes():
     renderer = Path("renderers/roast.py").read_text(encoding="utf-8")
     assert "RECIPES =" not in renderer
     assert "local_copy: Mapping[str, object] | None" in renderer
-    assert 'recipe = "AI 豬圈私房"' in renderer
+    assert 'recipe = "AI 猪圈私房"' in renderer
