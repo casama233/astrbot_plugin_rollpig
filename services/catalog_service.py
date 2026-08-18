@@ -4,7 +4,10 @@ import random
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from display_copy import simplify_pig_display_copy
+try:
+    from ..display_copy import simplify_pig_display_copy
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from display_copy import simplify_pig_display_copy
 
 
 @dataclass(frozen=True)
