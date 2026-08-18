@@ -320,7 +320,7 @@ class ExAdminMixin:
             raise ValueError("EX 图片为空或超过 10MB")
         normalized = normalize_image_bytes(raw, (512, 512))
         if not normalized or len(normalized) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-            raise ValueError("正規化后的 EX 图片超过 10MB")
+            raise ValueError("正规化后的 EX 图片超过 10MB")
         return normalized
 
     def _write_local_ex_image(self, filename: str, data: bytes) -> None:

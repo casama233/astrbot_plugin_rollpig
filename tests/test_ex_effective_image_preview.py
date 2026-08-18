@@ -46,13 +46,19 @@ def _preview_harness(tmp_path: Path) -> ExAdminMixin:
     harness._ex_variants = {}
     harness._ex_variant_image_root = public_root
     harness._ex_variant_source = "bundled"
-    harness._find_catalog_pig = lambda pig_id: dict(BASE) if pig_id == "pig" else None
+    harness._find_catalog_pig = (
+        lambda pig_id: dict(BASE) if pig_id == "pig" else None
+    )
     harness._has_local_pig_override = lambda pig_id: False
-    harness.find_image_file = lambda pig_id, ex_level=None: base_path if pig_id == "pig" else None
+    harness.find_image_file = (
+        lambda pig_id, ex_level=None: base_path if pig_id == "pig" else None
+    )
     return harness
 
 
-def test_effective_preview_inherits_local_image_and_simulates_remove(tmp_path: Path):
+def test_effective_preview_inherits_local_image_and_simulates_remove(
+    tmp_path: Path,
+):
     harness = _preview_harness(tmp_path)
     local_root = harness.local_ex_variant_image_dir
     assert isinstance(local_root, Path)
@@ -92,7 +98,9 @@ def test_effective_preview_restores_public_image_when_last_local_image_is_remove
 
     harness._local_ex_variants = {"pig": {1: {"image": "pig-ex1.png"}}}
     harness._ex_variants = {
-        "pig": {1: {"image": "pig-public-ex1.png", "description": "公共 EX1"}}
+        "pig": {
+            1: {"image": "pig-public-ex1.png", "description": "公共 EX1"}
+        }
     }
     harness._ex_variant_source = "cloud"
 
@@ -111,7 +119,7 @@ def test_ex_editor_previews_effective_and_unsaved_images():
     assert "effective:true" in source
     assert "remove_image:removeImage" in source
     assert "FileReader" in source
-    assert "未儲存本地圖片" in source
+    assert "未储存本地图片" in source
     assert 'class="chat-card chat-card-ex"' in source
     assert "data-compare-toggle" in source
-    assert "data-preview>預覽目前圖片" not in source
+    assert "data-preview>预览目前图片" not in source

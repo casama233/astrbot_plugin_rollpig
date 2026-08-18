@@ -43,12 +43,15 @@ jobs:
         run: python scripts/maintenance_contract.py coverage
 
       - name: Compile source
-        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py storage services scripts/maintenance_contract.py
+        run: python -m compileall -q main.py legacy_main.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py display_copy.py storage services scripts/maintenance_contract.py scripts/check_display_copy.py
 
       - name: Install dependencies
         run: |
-          python -m pip install -r requirements.txt pytest pre-commit
+          python -m pip install -r requirements.txt pytest pre-commit fonttools
           python -m pip check
+
+      - name: Verify Simplified display copy and font coverage
+        run: python scripts/check_display_copy.py
 
       - name: Run tests
         run: pytest -q
