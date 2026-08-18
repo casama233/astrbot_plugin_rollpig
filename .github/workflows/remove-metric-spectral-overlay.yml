@@ -1,0 +1,70 @@
+name: Remove metric spectral overlay
+
+on:
+  push:
+    branches:
+      - agent/simplify-user-facing-copy
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/simplify-user-facing-copy
+          fetch-depth: 0
+      - name: Remove KPI spectral wedge and add regression coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page_path = Path('pages/pig-manager/index.html')
+          page = page_path.read_text(encoding='utf-8')
+          spectral = '''#view-overview .metric::before {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            z-index: -1;
+            border-radius: inherit;
+            background: conic-gradient(from 180deg at 50% 50%, transparent 0 34%, color-mix(in srgb, var(--tone, var(--pink)) 30%, transparent) 44%, transparent 54% 100%);
+            opacity: 0;
+            animation: overviewSpectral 7s linear infinite;
+            transition: opacity .22s var(--ease);
+          }
+          #view-overview .metric:hover::before { opacity: .6; }
+          '''
+          if spectral not in page:
+              raise SystemExit('expected KPI spectral overlay block was not found')
+          page = page.replace(spectral, '', 1)
+          page = page.replace('@keyframes overviewSpectral { to { transform: rotate(360deg); } }\n', '', 1)
+          page = page.replace('  #view-overview .metric::before,\n', '', 1)
+          page_path.write_text(page, encoding='utf-8')
+
+          test_path = Path('tests/test_admin_dashboard_overhaul_contract.py')
+          tests = test_path.read_text(encoding='utf-8')
+          marker = 'def test_overview_kpi_cards_have_no_partial_spectral_wedge_overlay():'
+          if marker not in tests:
+              tests += '''\n\ndef test_overview_kpi_cards_have_no_partial_spectral_wedge_overlay():\n    assert "#view-overview .metric::before" not in PAGE\n    assert "overviewSpectral" not in PAGE\n    assert "#view-overview .metric:hover {" in PAGE\n'''
+              test_path.write_text(tests, encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          bullet = '- 移除管理面板五张 KPI 小卡悬停时的旋转锥形光谱扇区，避免半透明斜切层只覆盖卡片局部并干扰数据阅读；保留卡片边框、数据可视化与轻量悬停反馈。\n'
+          if bullet not in changelog:
+              anchor = '## 未發佈\n\n'
+              if anchor not in changelog:
+                  raise SystemExit('unreleased changelog section not found')
+              changelog = changelog.replace(anchor, anchor + bullet, 1)
+              changelog_path.write_text(changelog, encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pages/pig-manager/index.html tests/test_admin_dashboard_overhaul_contract.py CHANGELOG.md
+          git commit -m "fix: remove KPI spectral wedge overlay"
+          git push origin HEAD:agent/simplify-user-facing-copy
