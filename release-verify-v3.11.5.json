@@ -1,0 +1,23 @@
+{
+  "tag_name": "v3.11.5",
+  "name": "今日小豬 · 增強版 v3.11.5",
+  "draft": false,
+  "prerelease": false,
+  "target_commitish": "36bf482b7ac9c63d5df15672906a5c09c0a65bc5",
+  "html_url": "https://github.com/casama233/astrbot_plugin_rollpig/releases/tag/v3.11.5",
+  "latest_tag_name": "v3.11.5",
+  "assets": [
+    {
+      "name": "astrbot_plugin_rollpig_plus-v3.11.5.zip",
+      "size": 15180239,
+      "digest": "sha256:b0bf4802f9f16dfdde0593c568693e7f869bafb381df612110b463c2b9f8737c",
+      "state": "uploaded"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 106,
+      "digest": "sha256:8c376b4060610e9ea3c5de059ac28a981bb31731df539776bc61eaffdc571ff5",
+      "state": "uploaded"
+    }
+  ]
+}
