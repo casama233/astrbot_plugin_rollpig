@@ -41,145 +41,249 @@ _ANALYSIS_TAILS = (
         "EX5 是熟悉度的终点站：经历一次次返场后，你已经把自己的风格活成了猪圈标准答案。",
     ),
     (
-        "第一次进阶让设定从平面文字长出了层次，同一只猪开始有了属于你的版本。",
-        "第二阶段继续把细节堆厚，基础设定还在，但已经明显多了个人痕迹。",
-        "第三阶段把原本的气质推到成熟区，重复不再只是重复，而是在持续升级。",
-        "第四阶段几乎把这套特征练成职业技能，猪圈里一眼就知道这只已经养得很深。",
-        "EX5 把所有成长线收束到完全体：原设定仍看得见，但你已经把它养出了最终版本。",
+        "第一次进阶没有改变本质，只是让原本的特点更容易被一眼认出来。",
+        "第二阶段开始有了明显成长感，熟悉不是复制，而是把原本的个性一点点养深。",
+        "第三阶段已经进入资深版本，同样的核心设定开始呈现出更稳定、更成熟的状态。",
+        "第四阶段几乎成了招牌版本，猪圈里只要提起这项特点，大家就会自然想到你。",
+        "最终阶段把成长收束成完整形态：核心没变，但每次返场累积出的资历已经写在气质里。",
     ),
     (
-        "第一次返场给这只猪盖上了你的印章，从今天起它不再只是图鉴里的一条记录。",
-        "第二次返场开始形成固定节目，看到这个名字时，大家已经知道熟悉的剧情要来了。",
-        "第三阶段进入资深席位，这只猪和你的绑定感已经远高于普通偶遇。",
-        "第四阶段基本坐稳常驻嘉宾，连重复都开始有了节目效果。",
-        "第五次成长直接把返场做成传奇常驻：别人是在抽猪，你是在维护自己的招牌角色。",
+        "第一次返场先留下一个记号：你还是你，只是大家开始记住你的固定节目。",
+        "返场渐渐变成习惯后，原本的设定也有了更多熟客感，不再像一次性的偶遇。",
+        "第三阶段拿到了资深席位，属于你的梗和气质已经可以稳定接住每一次出场。",
+        "第四阶段正式成为固定节目，重复出现不再稀释新鲜感，反而把个人特色越养越明显。",
+        "到了 EX5，你已经从常驻升级成传奇常驻——猪圈可能会换新猪，但这套招牌气质不会下线。",
     ),
 )
 
 
-def _default_ex_copy(pig_id: str, level: int, base_name: str = "") -> dict[str, str]:
-    normalized_id = str(pig_id or "").strip().lower()
-    safe_level = max(1, min(MAX_EX_VARIANT_LEVEL, int(level)))
-    variant = sum(ord(ch) for ch in normalized_id) % len(_DESCRIPTION_PHASES)
-    name = str(base_name or "").strip()
-    subject = name or "这只猪"
-    return {
-        "description": _DESCRIPTION_PHASES[variant][safe_level - 1],
-        "analysis": f"{subject}{_ANALYSIS_TAILS[variant][safe_level - 1]}",
-    }
+def _compact_copy(value: object, limit: int) -> str:
+    text = " ".join(simplify_display_text(value).split()).strip()
+    if len(text) <= limit:
+        return text
+    return text[: max(1, limit - 1)].rstrip() + "…"
 
 
-def build_default_ex_variants(
-    pig_ids: Iterable[str], *, base_names: Mapping[str, str] | None = None
+def _growth_style(pig_id: str) -> int:
+    return sum((index + 1) * ord(char) for index, char in enumerate(pig_id)) % len(
+        _DESCRIPTION_PHASES
+    )
+
+
+def generate_official_ex_baseline(
+    pigs: Iterable[Mapping[str, Any]],
 ) -> dict[str, dict[int, dict[str, str]]]:
-    names = {str(key): str(value) for key, value in (base_names or {}).items()}
+    """Generate deterministic EX1-EX5 copy for every catalog pig.
+
+    The baseline is deliberately presentation-only and is derived from the
+    existing name/description/analysis fields. It never changes IDs, gameplay,
+    rarity, pity or collection state. Every level has distinct description and
+    analysis copy, so a pig without bespoke EX assets still visibly grows.
+    """
     result: dict[str, dict[int, dict[str, str]]] = {}
-    for pig_id in sorted({str(item or "").strip() for item in pig_ids if str(item or "").strip()}):
-        result[pig_id] = {
-            level: _default_ex_copy(pig_id, level, names.get(pig_id, ""))
-            for level in range(1, MAX_EX_VARIANT_LEVEL + 1)
-        }
+    for raw in pigs:
+        if not isinstance(raw, Mapping):
+            continue
+        pig_id = str(raw.get("id") or "").strip()
+        if not _PIG_ID.fullmatch(pig_id):
+            continue
+        name = _compact_copy(raw.get("name") or pig_id, 48)
+        description = _compact_copy(raw.get("description") or name, 76)
+        analysis = _compact_copy(raw.get("analysis") or description, 610)
+        style = _growth_style(pig_id)
+        phases = _DESCRIPTION_PHASES[style]
+        tails = _ANALYSIS_TAILS[style]
+        levels: dict[int, dict[str, str]] = {}
+        for level in range(1, MAX_EX_VARIANT_LEVEL + 1):
+            phase = phases[level - 1]
+            levels[level] = {
+                "description": _compact_copy(f"{description} · {phase}", 120),
+                "analysis": _compact_copy(
+                    f"{analysis} {tails[level - 1]}",
+                    800,
+                ),
+            }
+        result[pig_id] = levels
     return result
 
 
-def _normalize_text(value: object) -> str:
-    text = " ".join(simplify_display_text(value).split()).strip()
-    return text[:400]
+def merge_ex_variant_layers(
+    baseline: Mapping[str, Mapping[int, Mapping[str, str]]],
+    overrides: Mapping[str, Mapping[int, Mapping[str, str]]],
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Apply sparse EX overrides over a complete baseline with inheritance.
+
+    Explicit fields keep the historic per-field inheritance contract: once an
+    override appears at a level it remains in force for higher levels until the
+    same field is overridden again. Baseline copy fills everything else.
+    """
+    result: dict[str, dict[int, dict[str, str]]] = {
+        str(pig_id): {
+            int(level): {str(key): str(value) for key, value in item.items()}
+            for level, item in levels.items()
+        }
+        for pig_id, levels in baseline.items()
+    }
+    for raw_pig_id, raw_levels in overrides.items():
+        pig_id = str(raw_pig_id)
+        target = result.setdefault(pig_id, {})
+        inherited: dict[str, str] = {}
+        for level in range(1, MAX_EX_VARIANT_LEVEL + 1):
+            raw_item = raw_levels.get(level, {})
+            if isinstance(raw_item, Mapping):
+                for field in _ALLOWED_FIELDS:
+                    value = str(raw_item.get(field) or "").strip()
+                    if value:
+                        inherited[field] = value
+            item = dict(target.get(level, {}))
+            item.update(inherited)
+            target[level] = item
+    return result
 
 
-def _normalize_image(value: object) -> str:
-    image = str(value or "").strip()
-    if not image:
-        return ""
-    name = image.replace("\\", "/").split("/")[-1]
-    if not _IMAGE_NAME.fullmatch(name):
-        return ""
-    if "." not in name or name.rsplit(".", 1)[-1].lower() not in DEFAULT_IMAGE_EXTENSIONS:
-        return ""
-    return name
+def build_effective_ex_variants(
+    pigs: Iterable[Mapping[str, Any]],
+    overrides: Mapping[str, Mapping[int, Mapping[str, str]]] | None = None,
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Return the complete official baseline with optional sparse overrides."""
+    baseline = generate_official_ex_baseline(pigs)
+    return merge_ex_variant_layers(baseline, overrides or {})
 
 
 def validate_ex_variants(
-    raw: object,
-    valid_pig_ids: Iterable[str],
+    payload: Any,
+    pig_ids: set[str] | None = None,
+    *,
+    image_extensions: set[str] | tuple[str, ...] = DEFAULT_IMAGE_EXTENSIONS,
 ) -> dict[str, dict[int, dict[str, str]]]:
-    allowed = {str(item) for item in valid_pig_ids}
-    if not isinstance(raw, Mapping):
-        return {}
-    pigs = raw.get("pigs") if "pigs" in raw else raw
-    if not isinstance(pigs, Mapping):
-        return {}
+    """Validate EX Lv.1-5 sparse variants and return a normalized mapping.
+
+    Accepted JSON shape::
+
+        {"schema_version": 1, "pigs": {"pig-id": {"2": {...}}}}
+
+    For backwards-friendly local authoring a plain ``{"pig-id": ...}`` mapping is
+    also accepted. A variant may override image, description and analysis only;
+    ID/name/gameplay fields can never be changed by EX growth.
+    """
+    if not isinstance(payload, Mapping):
+        raise ValueError("pig_ex_variants.json 必须是 JSON 对象")
+    if "pigs" in payload or "schema_version" in payload:
+        schema = payload.get("schema_version", EX_VARIANT_SCHEMA_VERSION)
+        if schema not in (EX_VARIANT_SCHEMA_VERSION, str(EX_VARIANT_SCHEMA_VERSION)):
+            raise ValueError("EX 差分协议版本不受支持")
+        raw_pigs = payload.get("pigs", {})
+    else:
+        raw_pigs = payload
+    if not isinstance(raw_pigs, Mapping):
+        raise ValueError("EX 差分 pigs 必须是对象")
+
+    allowed_ext = {str(item).lower().lstrip(".") for item in image_extensions}
+    known = {str(item) for item in pig_ids} if pig_ids is not None else None
     result: dict[str, dict[int, dict[str, str]]] = {}
-    for raw_pig_id, raw_levels in pigs.items():
+    for raw_pig_id, raw_levels in raw_pigs.items():
         pig_id = str(raw_pig_id or "").strip()
-        if pig_id not in allowed or not _PIG_ID.fullmatch(pig_id) or not isinstance(raw_levels, Mapping):
-            continue
+        if not _PIG_ID.fullmatch(pig_id):
+            raise ValueError(f"EX 差分小猪 ID 无效：{pig_id}")
+        if known is not None and pig_id not in known:
+            raise ValueError(f"EX 差分引用不存在的小猪：{pig_id}")
+        if not isinstance(raw_levels, Mapping) or not raw_levels:
+            raise ValueError(f"{pig_id} 的 EX 差分必须是非空对象")
         levels: dict[int, dict[str, str]] = {}
         for raw_level, raw_variant in raw_levels.items():
             try:
-                level = int(raw_level)
-            except (TypeError, ValueError):
-                continue
-            if level < 1 or level > MAX_EX_VARIANT_LEVEL or not isinstance(raw_variant, Mapping):
-                continue
-            variant: dict[str, str] = {}
-            image = _normalize_image(raw_variant.get("image"))
-            description = simplify_display_text(raw_variant.get("description")).strip()
-            analysis = simplify_display_text(raw_variant.get("analysis")).strip()
+                level = int(str(raw_level))
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{pig_id} 的 EX 等级无效：{raw_level}") from exc
+            if not 1 <= level <= MAX_EX_VARIANT_LEVEL:
+                raise ValueError(
+                    f"{pig_id} 的 EX 等级必须在 1-{MAX_EX_VARIANT_LEVEL}"
+                )
+            if level in levels:
+                raise ValueError(f"{pig_id} 的 EX Lv.{level} 重复")
+            if not isinstance(raw_variant, Mapping):
+                raise ValueError(f"{pig_id} EX Lv.{level} 必须是对象")
+            extras = set(map(str, raw_variant)).difference(_ALLOWED_FIELDS)
+            if extras:
+                raise ValueError(
+                    f"{pig_id} EX Lv.{level} 含不允许字段：{', '.join(sorted(extras))}"
+                )
+            item: dict[str, str] = {}
+            image = str(raw_variant.get("image") or "").strip()
             if image:
-                variant["image"] = image
+                if (
+                    not _IMAGE_NAME.fullmatch(image)
+                    or "/" in image
+                    or "\\" in image
+                    or "." not in image
+                    or image.rsplit(".", 1)[-1].lower() not in allowed_ext
+                ):
+                    raise ValueError(f"{pig_id} EX Lv.{level} 图片文件名无效：{image}")
+                item["image"] = image
+            description = simplify_display_text(raw_variant.get("description")).strip()
             if description:
-                variant["description"] = _normalize_text(description)
+                if len(description) > 120:
+                    raise ValueError(f"{pig_id} EX Lv.{level} 描述超过 120 字")
+                item["description"] = description
+            analysis = simplify_display_text(raw_variant.get("analysis")).strip()
             if analysis:
-                variant["analysis"] = _normalize_text(analysis)
-            if variant:
-                levels[level] = variant
-        if levels:
-            result[pig_id] = levels
-    return result
-
-
-def resolve_ex_variant(
-    variants: Mapping[str, Mapping[int, Mapping[str, str]]],
-    pig_id: str,
-    level: int,
-    *,
-    field: str | None = None,
-) -> dict[str, str] | str | None:
-    pig_levels = variants.get(str(pig_id), {})
-    if not pig_levels:
-        return None if field else {}
-    safe_level = max(0, min(MAX_EX_VARIANT_LEVEL, int(level)))
-    if field:
-        for current in range(safe_level, 0, -1):
-            value = str(pig_levels.get(current, {}).get(field) or "").strip()
-            if value:
-                return value
-        return None
-    result: dict[str, str] = {}
-    for current in range(1, safe_level + 1):
-        variant = pig_levels.get(current, {})
-        for key in _ALLOWED_FIELDS:
-            value = str(variant.get(key) or "").strip()
-            if value:
-                result[key] = value
+                if len(analysis) > 800:
+                    raise ValueError(f"{pig_id} EX Lv.{level} 文案超过 800 字")
+                item["analysis"] = analysis
+            if not item:
+                raise ValueError(f"{pig_id} EX Lv.{level} 至少要覆盖一项内容")
+            levels[level] = item
+        result[pig_id] = dict(sorted(levels.items()))
     return result
 
 
 def serialize_ex_variants(
     variants: Mapping[str, Mapping[int, Mapping[str, str]]]
-) -> dict[str, object]:
-    pigs: dict[str, dict[str, dict[str, str]]] = {}
-    for pig_id in sorted(variants):
-        levels: dict[str, dict[str, str]] = {}
-        for level in sorted(variants[pig_id]):
-            variant = {
-                key: str(value)
-                for key, value in variants[pig_id][level].items()
-                if key in _ALLOWED_FIELDS and str(value or "").strip()
+) -> dict[str, Any]:
+    """Convert normalized variants into the canonical resource JSON shape."""
+    return {
+        "schema_version": EX_VARIANT_SCHEMA_VERSION,
+        "pigs": {
+            str(pig_id): {
+                str(int(level)): {str(key): str(value) for key, value in item.items()}
+                for level, item in sorted(levels.items(), key=lambda pair: int(pair[0]))
             }
-            if variant:
-                levels[str(level)] = variant
-        if levels:
-            pigs[pig_id] = levels
-    return {"schema_version": EX_VARIANT_SCHEMA_VERSION, "pigs": pigs}
+            for pig_id, levels in sorted(variants.items())
+        },
+    }
+
+
+def resolve_ex_variant(
+    pig: Mapping[str, Any] | None,
+    variants: Mapping[str, Mapping[int, Mapping[str, str]]],
+    ex_level: int,
+) -> dict[str, Any] | None:
+    """Apply sparse EX overrides up to ``ex_level`` with per-field inheritance."""
+    if not isinstance(pig, Mapping):
+        return None
+    result = dict(pig)
+    pig_id = str(result.get("id") or "")
+    level = max(0, int(ex_level or 0))
+    result["_ex_level"] = level
+    levels = variants.get(pig_id, {}) if isinstance(variants, Mapping) else {}
+    applied_level = 0
+    image_name = ""
+    for variant_level in sorted(int(item) for item in levels):
+        if variant_level > level:
+            break
+        item = levels.get(variant_level, {})
+        if not isinstance(item, Mapping):
+            continue
+        for field in ("description", "analysis"):
+            value = str(item.get(field) or "").strip()
+            if value:
+                result[field] = value
+        value = str(item.get("image") or "").strip()
+        if value:
+            image_name = value
+        applied_level = max(applied_level, variant_level)
+    if applied_level:
+        result["_ex_variant_level"] = applied_level
+    if image_name:
+        result["_ex_image"] = image_name
+    return result
