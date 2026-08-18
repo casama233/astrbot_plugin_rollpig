@@ -26,7 +26,7 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
     assert traditional["help.admin.panel_title"] == "管理面板"
     assert simplified["help.admin.panel_title"] == "管理面板"
     assert "新猪机率会提高" in traditional["help.mechanic.new_pig_pity"]
-    assert "新猪机率会提高" in simplified["help.mechanic.new_pig_pity"]
+    assert "新猪概率会提高" in simplified["help.mechanic.new_pig_pity"]
     assert "全群添柴" in traditional["help.group.oven_refill"]
     assert "全群添柴" in simplified["help.group.oven_refill"]
     assert "补货就添柴" in traditional["help.group.firewood_router"]
