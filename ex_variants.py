@@ -4,6 +4,8 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from display_copy import simplify_display_text
+
 EX_VARIANT_SCHEMA_VERSION = 1
 MAX_EX_VARIANT_LEVEL = 5
 DEFAULT_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -53,7 +55,7 @@ _ANALYSIS_TAILS = (
 
 
 def _compact_copy(value: object, limit: int) -> str:
-    text = " ".join(str(value or "").split()).strip()
+    text = " ".join(simplify_display_text(value).split()).strip()
     if len(text) <= limit:
         return text
     return text[: max(1, limit - 1)].rstrip() + "…"
@@ -215,12 +217,12 @@ def validate_ex_variants(
                 ):
                     raise ValueError(f"{pig_id} EX Lv.{level} 图片文件名无效：{image}")
                 item["image"] = image
-            description = str(raw_variant.get("description") or "").strip()
+            description = simplify_display_text(raw_variant.get("description")).strip()
             if description:
                 if len(description) > 120:
                     raise ValueError(f"{pig_id} EX Lv.{level} 描述超过 120 字")
                 item["description"] = description
-            analysis = str(raw_variant.get("analysis") or "").strip()
+            analysis = simplify_display_text(raw_variant.get("analysis")).strip()
             if analysis:
                 if len(analysis) > 800:
                     raise ValueError(f"{pig_id} EX Lv.{level} 文案超过 800 字")

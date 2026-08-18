@@ -85,10 +85,10 @@ class AnimatedImageMixin:
         if not raw:
             raise ValueError("小猪图片为空")
         if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("公共豬源投稿图片不能超过 10MB")
+            raise ValueError("公共猪源投稿图片不能超过 10MB")
         normalized = normalize_image_bytes(raw, (512, 512))
         if len(normalized) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("转换后的公共豬源投稿图片超过 10MB")
+            raise ValueError("转换后的公共猪源投稿图片超过 10MB")
         return record, normalized
 
     async def _public_source_review_image_payload(self, submission_id: str) -> dict:
@@ -108,7 +108,7 @@ class AnimatedImageMixin:
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError("公共豬源投稿图片读取失败")
+                    raise ValueError("公共猪源投稿图片读取失败")
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),

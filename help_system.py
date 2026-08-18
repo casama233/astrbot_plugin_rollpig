@@ -73,26 +73,26 @@ def build_help_sections(
         return simplified
 
     daily_entries = [
-        HelpEntry(cmd("/今日小猪", "/今日小豬"), t("help.daily.today")),
-        HelpEntry(cmd("/昨日小猪", "/昨日小豬"), t("help.daily.yesterday")),
-        HelpEntry(cmd("/明日小猪", "/明日小豬"), t("help.daily.tomorrow")),
-        HelpEntry(cmd("/本周小猪", "/本週小豬"), t("help.daily.weekly")),
+        HelpEntry(cmd("/今日小猪", "/今日小猪"), t("help.daily.today")),
+        HelpEntry(cmd("/昨日小猪", "/昨日小猪"), t("help.daily.yesterday")),
+        HelpEntry(cmd("/明日小猪", "/明日小猪"), t("help.daily.tomorrow")),
+        HelpEntry(cmd("/本周小猪", "/本周小猪"), t("help.daily.weekly")),
     ]
     if state.at_view_pig:
         daily_entries.insert(
             1,
-            HelpEntry(cmd("/今日小猪 @某人", "/今日小豬 @某人"), t("help.daily.today_other")),
+            HelpEntry(cmd("/今日小猪 @某人", "/今日小猪 @某人"), t("help.daily.today_other")),
         )
 
     discovery_entries = [
-        HelpEntry(cmd("/我的猪圈 [页码]", "/我的豬圈 [頁碼]"), t("help.discovery.pigsty")),
-        HelpEntry(cmd("/随机小猪 [1-9]", "/隨機小豬 [1-9]"), t("help.discovery.random")),
-        HelpEntry(cmd("/找猪／搜猪 关键词", "/找豬／搜豬 關鍵詞"), t("help.discovery.search")),
+        HelpEntry(cmd("/我的猪圈 [页码]", "/我的猪圈 [页码]"), t("help.discovery.pigsty")),
+        HelpEntry(cmd("/随机小猪 [1-9]", "/随机小猪 [1-9]"), t("help.discovery.random")),
+        HelpEntry(cmd("/找猪／搜猪 关键词", "/找猪／搜猪 关键词"), t("help.discovery.search")),
     ]
 
     group_entries: list[HelpEntry] = []
     if state.enable_roast:
-        group_entries.append(HelpEntry(cmd("/今日烤猪", "/今日烤豬"), t("help.group.roast_today")))
+        group_entries.append(HelpEntry(cmd("/今日烤猪", "/今日烤猪"), t("help.group.roast_today")))
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
@@ -112,13 +112,13 @@ def build_help_sections(
         group_entries.extend(
             [
                 HelpEntry("/烤群友 @某人", detail),
-                HelpEntry(cmd("/随机烤群友", "/隨機烤群友"), t("help.group.random_roast")),
-                HelpEntry(cmd("/打点后厨 @某人", "/打點後廚 @某人"), t("help.group.force_roast")),
+                HelpEntry(cmd("/随机烤群友", "/随机烤群友"), t("help.group.random_roast")),
+                HelpEntry(cmd("/打点后厨 @某人", "/打点后厨 @某人"), t("help.group.force_roast")),
             ]
         )
         if state.enable_oven_refill:
             group_entries.append(
-                HelpEntry(cmd("/烤箱补货", "/烤箱補貨"), t("help.group.oven_refill"))
+                HelpEntry(cmd("/烤箱补货", "/烤箱补货"), t("help.group.oven_refill"))
             )
         if state.enable_oven_refill or state.enable_roast_reservation:
             group_entries.append(
@@ -135,7 +135,7 @@ def build_help_sections(
                         percent=max(1, int(state.eat_success_percent)),
                     ),
                 ),
-                HelpEntry(cmd("/随机吃群友", "/隨機吃群友"), t("help.group.random_eat")),
+                HelpEntry(cmd("/随机吃群友", "/随机吃群友"), t("help.group.random_eat")),
             ]
         )
 
@@ -143,9 +143,9 @@ def build_help_sections(
     if state.enable_daily_report:
         report_entries.extend(
             [
-                HelpEntry(cmd("/猪圈日报", "/豬圈日報"), t("help.report.manual")),
-                HelpEntry(cmd("/猪圈日报状态", "/豬圈日報狀態"), t("help.report.status")),
-                HelpEntry(cmd("/猪圈日报开启／关闭", "/豬圈日報開啟／關閉"), t("help.report.toggle")),
+                HelpEntry(cmd("/猪圈日报", "/猪圈日报"), t("help.report.manual")),
+                HelpEntry(cmd("/猪圈日报状态", "/猪圈日报状态"), t("help.report.status")),
+                HelpEntry(cmd("/猪圈日报开启／关闭", "/猪圈日报开启／关闭"), t("help.report.toggle")),
             ]
         )
         if not state.daily_report_auto_send:

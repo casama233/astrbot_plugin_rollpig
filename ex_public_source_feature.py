@@ -108,7 +108,7 @@ class ExPublicSourceMixin:
             "POST", "/submissions", payload=payload
         )
         if not isinstance(result, dict):
-            raise ValueError("公共豬源返回了无效投稿结果")
+            raise ValueError("公共猪源返回了无效投稿结果")
         return result
 
     async def page_ex_submit_public_source(self):
@@ -124,15 +124,15 @@ class ExPublicSourceMixin:
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
             result = await self._submit_local_ex_to_public_source(pig_id)
-            logger.info(f"管理页已提交小猪及 EX 差分到 AstrBot 公共豬源审核：{pig_id}")
+            logger.info(f"管理页已提交小猪及 EX 差分到 AstrBot 公共猪源审核：{pig_id}")
             return self._jsonify(
                 {"status": "ok", "message": result.get("message", "已提交"), "data": result}
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
-            logger.error(f"提交 EX 差分到公共豬源失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "提交公共豬源失败，请稍后重试"})
+            logger.error(f"提交 EX 差分到公共猪源失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "提交公共猪源失败，请稍后重试"})
 
     async def _public_source_review_variant_image_payload(
         self, submission_id: str, filename: str
@@ -155,7 +155,7 @@ class ExPublicSourceMixin:
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError("公共豬源 EX 投稿图片读取失败")
+                    raise ValueError("公共猪源 EX 投稿图片读取失败")
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),
@@ -176,5 +176,5 @@ class ExPublicSourceMixin:
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
-            logger.error(f"读取公共豬源 EX 投稿图片失败：{exc}", exc_info=True)
+            logger.error(f"读取公共猪源 EX 投稿图片失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "读取 EX 投稿图片失败"})
