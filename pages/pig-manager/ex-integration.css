@@ -35,5 +35,9 @@
 #view-overview .insight-stack .panel:has(#barChart) .panel-desc{max-width:360px}
 #view-overview .sync-panel,#view-overview .update-panel{border-radius:16px;box-shadow:0 7px 22px rgba(0,0,0,.06)}
 
+/* Keep overview KPI cards clean: disable the partial rotating conic-gradient wedge from inline styles. */
+#view-overview .metric::before{content:none!important;display:none!important;animation:none!important}
+#view-overview .metric:hover::before{opacity:0!important}
+
 @media(max-width:900px){#view-overview #barChart .bar-row{grid-template-columns:minmax(96px,120px) 1fr 36px}}
 @media(max-width:760px){.ex-manager-head{flex-direction:column}.ex-manager-badges{justify-content:flex-start}.ex-level-tabs{grid-template-columns:repeat(5,minmax(54px,1fr));overflow-x:auto}.ex-editor-grid{grid-template-columns:1fr}.ex-field.full{grid-column:auto}.public-source-ex-levels{grid-template-columns:repeat(2,minmax(0,1fr))}.ex-level-actions{flex-direction:column-reverse}.ex-level-actions .btn{width:100%}#view-overview #barChart .bar-row{grid-template-columns:minmax(90px,110px) 1fr 34px;padding:9px}}
