@@ -63,3 +63,9 @@ def test_popularity_board_is_compact_card_style_leaderboard():
         "#view-overview #barChart .bar-value{",
     ):
         assert token in OVERVIEW_CSS
+
+
+def test_overview_kpi_cards_have_no_partial_spectral_wedge_overlay():
+    assert "#view-overview .metric::before" not in PAGE
+    assert "overviewSpectral" not in PAGE
+    assert "#view-overview .metric:hover {" in PAGE
