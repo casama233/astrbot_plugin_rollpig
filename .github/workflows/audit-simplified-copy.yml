@@ -5,10 +5,11 @@ on:
     branches: [agent/simplify-user-facing-copy]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -118,7 +119,6 @@ jobs:
                       out.append(f'  L{lineno}: {before} -> {after}')
           out.append(f'Admin page changed lines total: {web_hits}')
 
-          # Font coverage: collect characters that can actually reach PIL-rendered cards.
           font = TTFont('resource/font/荆南麦圆体.otf')
           cmap = set()
           for table in font['cmap'].tables:
@@ -170,8 +170,11 @@ jobs:
           print('\n'.join(out[:120]))
           print(f'\nREPORT_LINES={len(out)} JSON_CHANGED_VALUES={len(changed_values)} PY_HITS={py_hits} WEB_HITS={web_hits} MISSING_CJK={len(missing)}')
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: simplified-copy-audit
-          path: simplified-copy-audit.txt
-          if-no-files-found: error
+      - name: Commit temporary audit report
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simplified-copy-audit.txt
+          git commit -m "chore: record temporary simplified copy audit"
+          git push origin HEAD:agent/simplify-user-facing-copy
