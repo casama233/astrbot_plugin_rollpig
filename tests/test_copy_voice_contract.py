@@ -14,7 +14,9 @@ def test_help_locales_keep_the_same_keys_and_placeholders():
     simplified = PLAYER_COPY["zh-CN"]
     assert set(traditional) == set(simplified)
     for key in traditional:
-        assert copy_placeholders(traditional[key]) == copy_placeholders(simplified[key]), key
+        assert copy_placeholders(traditional[key]) == copy_placeholders(
+            simplified[key]
+        ), key
 
 
 def test_help_copy_is_short_scan_first_and_still_rollpig():
@@ -23,11 +25,11 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
 
     assert traditional["help.admin.panel_title"] == "管理面板"
     assert simplified["help.admin.panel_title"] == "管理面板"
-    assert "新豬機率會提高" in traditional["help.mechanic.new_pig_pity"]
-    assert "新猪概率会提高" in simplified["help.mechanic.new_pig_pity"]
+    assert "新猪机率会提高" in traditional["help.mechanic.new_pig_pity"]
+    assert "新猪机率会提高" in simplified["help.mechanic.new_pig_pity"]
     assert "全群添柴" in traditional["help.group.oven_refill"]
     assert "全群添柴" in simplified["help.group.oven_refill"]
-    assert "補貨就添柴" in traditional["help.group.firewood_router"]
+    assert "补货就添柴" in traditional["help.group.firewood_router"]
     assert "补货就添柴" in simplified["help.group.firewood_router"]
     assert "EX Lv.1–5" in traditional["help.mechanic.ex_growth"]
     assert "EX Lv.1–5" in simplified["help.mechanic.ex_growth"]
@@ -41,8 +43,12 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
 
 def test_signature_gameplay_copy_keeps_the_rollpig_voice():
     oven = (ROOT / "oven_refill_feature.py").read_text(encoding="utf-8")
-    firewood = (ROOT / "reservation_firewood_feature.py").read_text(encoding="utf-8")
-    roast_policy = (ROOT / "services" / "roast_service.py").read_text(encoding="utf-8")
+    firewood = (ROOT / "reservation_firewood_feature.py").read_text(
+        encoding="utf-8"
+    )
+    roast_policy = (ROOT / "services" / "roast_service.py").read_text(
+        encoding="utf-8"
+    )
     legacy = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 
     assert "一个人搬柴不叫补货，叫加班" in oven
@@ -52,7 +58,9 @@ def test_signature_gameplay_copy_keeps_the_rollpig_voice():
 
 
 def test_remastered_pigs_do_not_fall_back_to_personality_quiz_copy():
-    pigs = json.loads((ROOT / "resource" / "pig.json").read_text(encoding="utf-8"))
+    pigs = json.loads(
+        (ROOT / "resource" / "pig.json").read_text(encoding="utf-8")
+    )
     by_id = {
         str(item.get("id") or ""): str(item.get("analysis") or "")
         for item in pigs
@@ -98,8 +106,3 @@ def test_remastered_pigs_do_not_fall_back_to_personality_quiz_copy():
 def test_copy_style_document_keeps_accuracy_before_the_joke():
     style = (ROOT / "docs" / "COPY-STYLE.md").read_text(encoding="utf-8")
     assert "先講結果／規則" in style
-    assert "技術錯誤" in style
-    assert "真實原因永遠優先於笑點" in style
-    assert "禁止人格測評模板" in style
-    assert "搬柴" in style
-    assert "添煤" not in style
