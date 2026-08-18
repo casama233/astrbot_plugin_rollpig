@@ -161,9 +161,9 @@
       <article class="ex-level-card">
         <div class="ex-level-title"><strong>EX Lv.${state.level}</strong><span>${levelHasLocal(pig, state.level) ? '已设置本地差分' : '留空＝继承上一层／官方内容'}</span></div>
         <div class="ex-editor-grid">
-          <div class="ex-field"><label>短描述</label><textarea id="exDescription" maxlength="120" placeholder="留空＝繼承">${esc(local.description || '')}</textarea><small>只覆盖这一层的短描述。</small></div>
+          <div class="ex-field"><label>短描述</label><textarea id="exDescription" maxlength="120" placeholder="留空＝继承">${esc(local.description || '')}</textarea><small>只覆盖这一层的短描述。</small></div>
           <div class="ex-field"><label>差分图片</label><div class="ex-image-row"><input id="exImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label><input id="exRemoveImage" type="checkbox" ${local.image ? '' : 'disabled'}> 移除当前图片</label></div><small>${local.image ? `当前：${esc(local.image)}；下方会显示真正生效图片` : '尚未设置本地差分图片；下方会显示继承／基础图片。'}</small></div>
-          <div class="ex-field full"><label>完整文案</label><textarea class="ex-analysis" id="exAnalysis" maxlength="800" placeholder="留空＝繼承">${esc(local.analysis || '')}</textarea><small>EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。</small></div>
+          <div class="ex-field full"><label>完整文案</label><textarea class="ex-analysis" id="exAnalysis" maxlength="800" placeholder="留空＝继承">${esc(local.analysis || '')}</textarea><small>EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。</small></div>
         </div>
         <div class="ex-effective">
           <div class="ex-preview-head"><div><strong>聊天卡效果预览</strong><span>当前实际生效内容；可展开 Base ↔ EX 对比</span></div><button class="ex-preview-toggle" type="button" data-compare-toggle>Base ↔ EX 对比</button></div>

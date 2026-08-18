@@ -554,19 +554,19 @@ class RollPigPlugin(Star):
             f"/{self.PLUGIN_NAME}/pigs/submit-public-source",
             self.page_pig_submit_public_source,
             ["POST"],
-            "提交本地小猪到 AstrBot 公共豬源审核",
+            "提交本地小猪到 AstrBot 公共猪源审核",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/source/catalog",
             self.page_public_source_catalog,
             ["GET"],
-            "浏览 AstrBot 官方公共豬源",
+            "浏览 AstrBot 官方公共猪源",
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/source/catalog/image",
             self.page_public_source_catalog_image,
             ["GET"],
-            "预览 AstrBot 官方公共豬源图片",
+            "预览 AstrBot 官方公共猪源图片",
         )
         # Review APIs are maintainer-only capabilities. Ordinary installations do
         # not register these routes at all, so merely installing the plugin never
@@ -576,19 +576,19 @@ class RollPigPlugin(Star):
                 f"/{self.PLUGIN_NAME}/source/reviews",
                 self.page_public_source_reviews,
                 ["GET"],
-                "查看 AstrBot 公共豬源待审核投稿",
+                "查看 AstrBot 公共猪源待审核投稿",
             )
             context.register_web_api(
                 f"/{self.PLUGIN_NAME}/source/reviews/image",
                 self.page_public_source_review_image,
                 ["GET"],
-                "查看 AstrBot 公共豬源投稿图片",
+                "查看 AstrBot 公共猪源投稿图片",
             )
             context.register_web_api(
                 f"/{self.PLUGIN_NAME}/source/reviews/decision",
                 self.page_public_source_review_decision,
                 ["POST"],
-                "审核 AstrBot 公共豬源投稿",
+                "审核 AstrBot 公共猪源投稿",
             )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/resources/status",
@@ -1915,7 +1915,7 @@ class RollPigPlugin(Star):
         if not raw:
             raise ValueError("小猪图片为空")
         if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("公共豬源投稿图片不能超过 10MB")
+            raise ValueError("公共猪源投稿图片不能超过 10MB")
         with PILImage.open(io.BytesIO(raw)) as source:
             method = getattr(PILImage, "Resampling", PILImage).LANCZOS
             normalized = ImageOps.fit(
@@ -1925,7 +1925,7 @@ class RollPigPlugin(Star):
             normalized.save(output, "PNG", optimize=True)
             raw = output.getvalue()
         if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("转换后的公共豬源投稿图片超过 10MB")
+            raise ValueError("转换后的公共猪源投稿图片超过 10MB")
         return record, raw
 
     def _public_source_admin_token(self) -> str:
@@ -1947,7 +1947,7 @@ class RollPigPlugin(Star):
         if admin:
             token = self._public_source_admin_token()
             if not token:
-                raise ValueError("这台 AstrBot 未配置公共豬源审核权限")
+                raise ValueError("这台 AstrBot 未配置公共猪源审核权限")
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
@@ -1960,7 +1960,7 @@ class RollPigPlugin(Star):
         admin: bool = False,
     ) -> dict:
         if not re.fullmatch(r"/[A-Za-z0-9_/?=&.-]+", path):
-            raise ValueError("公共豬源请求路径无效")
+            raise ValueError("公共猪源请求路径无效")
         url = self.PUBLIC_SOURCE_API_URL + path
         async with self._new_http_client(
             follow_redirects=False,
@@ -1974,16 +1974,16 @@ class RollPigPlugin(Star):
                 try:
                     body = json.loads(raw.decode("utf-8-sig"))
                 except Exception as exc:
-                    raise ValueError("公共豬源返回了无效数据") from exc
+                    raise ValueError("公共猪源返回了无效数据") from exc
                 if response.status_code < 200 or response.status_code >= 300:
                     message = (
-                        str(body.get("message") or "公共豬源请求失败")
+                        str(body.get("message") or "公共猪源请求失败")
                         if isinstance(body, dict)
-                        else "公共豬源请求失败"
+                        else "公共猪源请求失败"
                     )
                     raise ValueError(message[:200])
                 if not isinstance(body, dict) or body.get("status") != "ok":
-                    raise ValueError("公共豬源返回了无效状态")
+                    raise ValueError("公共猪源返回了无效状态")
                 data = body.get("data")
                 return data if isinstance(data, dict) else {"items": data or []}
 
@@ -2020,7 +2020,7 @@ class RollPigPlugin(Star):
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError("公共豬源投稿图片读取失败")
+                    raise ValueError("公共猪源投稿图片读取失败")
         return {
             "mime_type": "image/png",
             "base64": base64.b64encode(raw).decode("ascii"),
@@ -3966,8 +3966,8 @@ class RollPigPlugin(Star):
             output = self.render_help_image()
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
-            logger.error(f"生成豬豬幫助圖片失敗：{exc}", exc_info=True)
-            await event.send(event.plain_result("豬豬幫助圖片生成失敗，請查看後台日誌。"))
+            logger.error(f"生成猪猪帮助图片失败：{exc}", exc_info=True)
+            await event.send(event.plain_result("猪猪帮助图片生成失败，请查看后台日志。"))
         finally:
             if output:
                 output.unlink(missing_ok=True)
@@ -5685,20 +5685,20 @@ class RollPigPlugin(Star):
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
             result = await self._submit_local_pig_to_public_source(pig_id)
-            logger.info(f"管理页已提交小猪到 AstrBot 公共豬源审核：{pig_id}")
+            logger.info(f"管理页已提交小猪到 AstrBot 公共猪源审核：{pig_id}")
             return self._jsonify(
                 {"status": "ok", "message": result["message"], "data": result}
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError) as exc:
-            logger.warning(f"AstrBot 公共豬源投稿网络失败：{exc}")
+            logger.warning(f"AstrBot 公共猪源投稿网络失败：{exc}")
             return self._jsonify(
-                {"status": "error", "message": "公共豬源网络连接失败，请稍后再试"}
+                {"status": "error", "message": "公共猪源网络连接失败，请稍后再试"}
             )
         except Exception as exc:
-            logger.error(f"提交小猪到公共豬源失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "公共豬源投稿失败"})
+            logger.error(f"提交小猪到公共猪源失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "公共猪源投稿失败"})
 
     async def _official_public_source_snapshot(self, *, force: bool = False) -> dict:
         """Load a short-lived, validated snapshot of the official public source."""
@@ -5712,7 +5712,7 @@ class RollPigPlugin(Star):
             return cached
 
         manifest_url = self.OFFICIAL_RESOURCE_MANIFEST_URL
-        self._validate_remote_url(manifest_url, "AstrBot 官方公共豬源")
+        self._validate_remote_url(manifest_url, "AstrBot 官方公共猪源")
         async with self._new_http_client(
             follow_redirects=True,
             extra_headers=self._resource_request_headers(),
@@ -5724,14 +5724,14 @@ class RollPigPlugin(Star):
             )
             manifest = json.loads(manifest_raw.decode("utf-8-sig"))
             if not isinstance(manifest, dict):
-                raise ValueError("公共豬源 manifest 必须是 JSON 对象")
+                raise ValueError("公共猪源 manifest 必须是 JSON 对象")
             if manifest.get("schema_version") not in (1, "1"):
-                raise ValueError("公共豬源 manifest 协议版本不受支持")
+                raise ValueError("公共猪源 manifest 协议版本不受支持")
             if str(manifest.get("client") or "").strip() != self.RESOURCE_CLIENT_ID:
-                raise ValueError("公共豬源客户端标识不匹配")
+                raise ValueError("公共猪源客户端标识不匹配")
             pig_meta = manifest.get("pig_json")
             if not isinstance(pig_meta, dict):
-                raise ValueError("公共豬源 manifest 缺少 pig_json")
+                raise ValueError("公共猪源 manifest 缺少 pig_json")
             catalog_raw = await self._download_manifest_item(
                 client,
                 manifest_url,
@@ -5741,7 +5741,7 @@ class RollPigPlugin(Star):
 
         records_raw = json.loads(catalog_raw.decode("utf-8-sig"))
         if not isinstance(records_raw, list):
-            raise ValueError("公共豬源 pig.json 必须是数组")
+            raise ValueError("公共猪源 pig.json 必须是数组")
         records: list[dict[str, str]] = []
         seen: set[str] = set()
         for raw in records_raw:
@@ -5837,7 +5837,7 @@ class RollPigPlugin(Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共豬源暂时无法连接"}
+                {"status": "error", "message": "公共猪源暂时无法连接"}
             )
 
     async def page_public_source_catalog_image(self):
@@ -5847,11 +5847,11 @@ class RollPigPlugin(Star):
                 return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             pig_id = str(request.query.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("公共豬源小猪 ID 无效")
+                raise ValueError("公共猪源小猪 ID 无效")
             snapshot = await self._official_public_source_snapshot()
             meta = (snapshot.get("image_by_id") or {}).get(pig_id)
             if not isinstance(meta, dict):
-                raise ValueError("公共豬源没有这只小猪的图片")
+                raise ValueError("公共猪源没有这只小猪的图片")
             async with self._new_http_client(
                 follow_redirects=True,
                 extra_headers=self._resource_request_headers(),
@@ -5878,7 +5878,7 @@ class RollPigPlugin(Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共豬源图片暂时无法连接"}
+                {"status": "error", "message": "公共猪源图片暂时无法连接"}
             )
 
     async def page_public_source_reviews(self):
@@ -5903,7 +5903,7 @@ class RollPigPlugin(Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共豬源审核服务暂时无法连接"}
+                {"status": "error", "message": "公共猪源审核服务暂时无法连接"}
             )
 
     async def page_public_source_review_image(self):
@@ -5918,7 +5918,7 @@ class RollPigPlugin(Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共豬源投稿图片暂时无法读取"}
+                {"status": "error", "message": "公共猪源投稿图片暂时无法读取"}
             )
 
     async def page_public_source_review_decision(self):
@@ -5944,7 +5944,7 @@ class RollPigPlugin(Star):
                 payload={"decision": decision, "note": note},
                 admin=True,
             )
-            logger.info(f"公共豬源投稿已{decision}：{submission_id}")
+            logger.info(f"公共猪源投稿已{decision}：{submission_id}")
             return self._jsonify(
                 {"status": "ok", "message": data.get("message", "审核完成"), "data": data}
             )
@@ -5952,7 +5952,7 @@ class RollPigPlugin(Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共豬源审核服务暂时无法连接"}
+                {"status": "error", "message": "公共猪源审核服务暂时无法连接"}
             )
 
     async def page_update_status(self):

@@ -4,6 +4,8 @@ import random
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
+from display_copy import simplify_pig_display_copy
+
 
 @dataclass(frozen=True)
 class CatalogService:
@@ -35,14 +37,14 @@ class CatalogService:
             pig_id = str(source.get("id") or "")
             if not pig_id or pig_id in blocked:
                 continue
-            merged.append(dict(override_map.get(pig_id, source)))
+            merged.append(simplify_pig_display_copy(override_map.get(pig_id, source)))
             used.add(pig_id)
 
         for source in overrides:
             pig_id = str(source.get("id") or "")
             if not pig_id or pig_id in used or pig_id in blocked:
                 continue
-            merged.append(dict(source))
+            merged.append(simplify_pig_display_copy(source))
             used.add(pig_id)
 
         return merged
@@ -90,7 +92,7 @@ class CatalogService:
         blocked = {str(item) for item in hidden_ids if str(item)}
 
         active = [
-            dict(pig)
+            simplify_pig_display_copy(pig)
             for pig in catalog
             if isinstance(pig, Mapping) and str(pig.get("id") or "")
         ]
@@ -128,16 +130,17 @@ class CatalogService:
                 pig = {
                     "id": pig_id,
                     "name": pig_id,
-                    "description": "歷史收藏",
-                    "analysis": "這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。",
+                    "description": "历史收藏",
+                    "analysis": "这只小猪仍在你的永久收藏记录中，但目前资源源已不再提供它。",
                 }
             pig["id"] = pig_id
             pig["name"] = str(pig.get("name") or pig_id)
-            pig["description"] = str(pig.get("description") or "歷史收藏")
+            pig["description"] = str(pig.get("description") or "历史收藏")
             pig["analysis"] = str(
                 pig.get("analysis")
-                or "這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。"
+                or "这只小猪仍在你的永久收藏记录中，但目前资源源已不再提供它。"
             )
+            pig = simplify_pig_display_copy(pig)
             pig["_collection_retired"] = True
             retired.append(pig)
 

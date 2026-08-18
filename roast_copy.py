@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+from display_copy import simplify_display_text
+
 SCHEMA_VERSION = 1
 MAX_PACK_BYTES = 256 * 1024
 MIN_DISH_NAMES = 24
@@ -90,7 +92,7 @@ def select_local_roast_copy(
 
     dish_index, line_index = selected
     key = f"local:{dish_index}:{line_index}"
-    copy = lines[line_index].format(pig=str(pig_name or "小豬")[:30])
+    copy = lines[line_index].format(pig=simplify_display_text(pig_name or "小猪")[:30])
     return {"dish": dishes[dish_index], "copy": copy, "key": key}
 
 
@@ -107,7 +109,7 @@ def decode_ai_candidates(payload: object) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for item in values:
-        candidate = re.sub(r"\s+", " ", str(item or "")).strip("“”\"'` ")[:64]
+        candidate = re.sub(r"\s+", " ", simplify_display_text(item)).strip("“”\"'` ")[:64]
         if not candidate or candidate in seen:
             continue
         seen.add(candidate)

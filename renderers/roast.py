@@ -17,8 +17,8 @@ from .common import (
 
 
 _EMERGENCY_LOCAL_COPY = {
-    "dish": "豬圈炭火特餐",
-    "copy": "豬鼻一拱上烤架，今天不是翻身，是後廚很專業地幫你翻面。",
+    "dish": "猪圈炭火特餐",
+    "copy": "猪鼻一拱上烤架，今天不是翻身，是后厨很专业地帮你翻面。",
 }
 
 
@@ -40,7 +40,7 @@ def render_roast_card(
     recipe = str(selected.get("dish") or _EMERGENCY_LOCAL_COPY["dish"])
     copy = str(selected.get("copy") or _EMERGENCY_LOCAL_COPY["copy"])
     if ai_copy:
-        recipe = "AI 豬圈私房"
+        recipe = "AI 猪圈私房"
         copy = str(ai_copy)
 
     canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
@@ -54,7 +54,7 @@ def render_roast_card(
         outline=palette["roast_outline"],
         width=5,
     )
-    source = "AI 豬話" if ai_copy else "豬圈本地話"
+    source = "AI 猪话" if ai_copy else "猪圈本地话"
     draw.text(
         (64, 58),
         f"今日烤猪 · {source}",
