@@ -1,0 +1,177 @@
+name: Audit simplified user-facing copy
+
+on:
+  push:
+    branches: [agent/simplify-user-facing-copy]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/simplify-user-facing-copy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit dependencies
+        run: python -m pip install --disable-pip-version-check opencc-python-reimplemented fonttools
+      - name: Scan runtime copy and bundled font coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import ast
+          import json
+          import re
+          from collections import Counter
+          from pathlib import Path
+          from opencc import OpenCC
+          from fontTools.ttLib import TTFont
+
+          root = Path('.')
+          cc = OpenCC('t2s')
+          out: list[str] = []
+          changed_values: list[tuple[str, str, str, str]] = []
+
+          json_targets = [
+              Path('resource/pig.json'),
+              Path('resource/pig_ex_variants.json'),
+              Path('resource/roast_copy.json'),
+              *sorted(Path('resource/ex_curated').glob('*.json')),
+              Path('_conf_schema.json'),
+              Path('.astrbot-plugin/i18n/zh-CN.json'),
+          ]
+
+          def walk_json(value, path='$'):
+              if isinstance(value, dict):
+                  for k, v in value.items():
+                      yield from walk_json(v, f'{path}.{k}')
+              elif isinstance(value, list):
+                  for i, v in enumerate(value):
+                      yield from walk_json(v, f'{path}[{i}]')
+              elif isinstance(value, str):
+                  yield path, value
+
+          out.append('=== JSON string values changed by OpenCC t2s ===')
+          for path in json_targets:
+              if not path.exists():
+                  continue
+              payload = json.loads(path.read_text(encoding='utf-8'))
+              file_count = 0
+              for jpath, value in walk_json(payload):
+                  converted = cc.convert(value)
+                  if converted != value:
+                      changed_values.append((str(path), jpath, value, converted))
+                      file_count += 1
+              out.append(f'{path}: {file_count}')
+          out.append('')
+          for file, jpath, before, after in changed_values:
+              out.append(f'[{file}] {jpath}')
+              out.append(f'  - {before}')
+              out.append(f'  + {after}')
+
+          python_targets = [p for p in root.glob('*.py') if p.name not in {'wiki_links.py'}]
+          python_targets += sorted(Path('renderers').glob('*.py'))
+          python_targets += sorted(Path('services').glob('*.py'))
+          out.append('\n=== Python string literals changed by OpenCC t2s ===')
+          py_hits = 0
+          for path in sorted(set(python_targets)):
+              try:
+                  tree = ast.parse(path.read_text(encoding='utf-8'))
+              except Exception as exc:
+                  out.append(f'PARSE_ERROR {path}: {exc}')
+                  continue
+              file_hits = []
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                      before = node.value
+                      after = cc.convert(before)
+                      if before != after and re.search(r'[\u3400-\u9fff]', before):
+                          file_hits.append((getattr(node, 'lineno', 0), before, after))
+              if file_hits:
+                  out.append(f'{path}: {len(file_hits)}')
+                  py_hits += len(file_hits)
+                  for line, before, after in file_hits:
+                      out.append(f'  L{line}: {before!r} -> {after!r}')
+          out.append(f'Python changed literals total: {py_hits}')
+
+          web_targets = [
+              *sorted(Path('pages').rglob('*.html')),
+              *sorted(Path('pages').rglob('*.js')),
+          ]
+          out.append('\n=== Admin page lines changed by OpenCC t2s ===')
+          web_hits = 0
+          for path in web_targets:
+              hits = []
+              for lineno, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+                  after = cc.convert(line)
+                  if after != line and re.search(r'[\u3400-\u9fff]', line):
+                      hits.append((lineno, line.strip(), after.strip()))
+              if hits:
+                  out.append(f'{path}: {len(hits)}')
+                  web_hits += len(hits)
+                  for lineno, before, after in hits:
+                      out.append(f'  L{lineno}: {before} -> {after}')
+          out.append(f'Admin page changed lines total: {web_hits}')
+
+          # Font coverage: collect characters that can actually reach PIL-rendered cards.
+          font = TTFont('resource/font/荆南麦圆体.otf')
+          cmap = set()
+          for table in font['cmap'].tables:
+              cmap.update(table.cmap.keys())
+          rendered_strings: list[tuple[str, str]] = []
+          render_json_keys = {'name', 'description', 'analysis', 'title', 'subtitle', 'copy', 'text'}
+          for path in json_targets:
+              if not path.exists() or not str(path).startswith('resource/'):
+                  continue
+              payload = json.loads(path.read_text(encoding='utf-8'))
+              def collect(v, p='$', key=''):
+                  if isinstance(v, dict):
+                      for k, x in v.items():
+                          collect(x, f'{p}.{k}', str(k))
+                  elif isinstance(v, list):
+                      for i, x in enumerate(v):
+                          collect(x, f'{p}[{i}]', key)
+                  elif isinstance(v, str) and key in render_json_keys:
+                      rendered_strings.append((f'{path}:{p}', v))
+              collect(payload)
+          for path in sorted(Path('renderers').glob('*.py')) + [Path('help_system.py'), Path('player_copy.py')]:
+              if not path.exists():
+                  continue
+              try:
+                  tree = ast.parse(path.read_text(encoding='utf-8'))
+              except Exception:
+                  continue
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.search(r'[\u3400-\u9fff]', node.value):
+                      rendered_strings.append((f'{path}:L{getattr(node, "lineno", 0)}', node.value))
+
+          missing = Counter()
+          missing_sources: dict[str, list[str]] = {}
+          for source, text in rendered_strings:
+              for ch in text:
+                  cp = ord(ch)
+                  if 0x3400 <= cp <= 0x9FFF and cp not in cmap:
+                      missing[ch] += 1
+                      missing_sources.setdefault(ch, []).append(source)
+          out.append('\n=== Missing CJK glyphs in primary bundled font 荆南麦圆体.otf ===')
+          out.append(f'Unique missing CJK chars: {len(missing)}')
+          for ch, count in missing.most_common():
+              simp = cc.convert(ch)
+              sources = ', '.join(missing_sources[ch][:8])
+              out.append(f'{ch} U+{ord(ch):04X} x{count} -> t2s:{simp} | {sources}')
+
+          report = '\n'.join(out) + '\n'
+          Path('simplified-copy-audit.txt').write_text(report, encoding='utf-8')
+          print('\n'.join(out[:120]))
+          print(f'\nREPORT_LINES={len(out)} JSON_CHANGED_VALUES={len(changed_values)} PY_HITS={py_hits} WEB_HITS={web_hits} MISSING_CJK={len(missing)}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simplified-copy-audit
+          path: simplified-copy-audit.txt
+          if-no-files-found: error
