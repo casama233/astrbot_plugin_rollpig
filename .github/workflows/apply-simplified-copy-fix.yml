@@ -1,0 +1,411 @@
+name: Apply simplified display copy fix
+
+on:
+  push:
+    branches: [agent/simplify-user-facing-copy]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/simplify-user-facing-copy
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install codemod dependencies
+        run: python -m pip install --disable-pip-version-check opencc-python-reimplemented
+      - name: Normalize bundled and runtime display copy
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          from pathlib import Path
+          from opencc import OpenCC
+
+          cc = OpenCC('t2s')
+
+          def simplify_file(path: str) -> None:
+              p = Path(path)
+              p.write_text(cc.convert(p.read_text(encoding='utf-8')), encoding='utf-8')
+
+          def simplify_json(value):
+              if isinstance(value, dict):
+                  return {k: simplify_json(v) for k, v in value.items()}
+              if isinstance(value, list):
+                  return [simplify_json(v) for v in value]
+              if isinstance(value, str):
+                  return cc.convert(value)
+              return value
+
+          # Bundled roast copy is the largest remaining Traditional-Chinese source.
+          roast_path = Path('resource/roast_copy.json')
+          roast = json.loads(roast_path.read_text(encoding='utf-8'))
+          roast_path.write_text(
+              json.dumps(simplify_json(roast), ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+
+          # One rare Simplified glyph is absent from the bundled primary font.
+          curated = Path('resource/ex_curated/03-social-and-modern-life.json')
+          curated_text = curated.read_text(encoding='utf-8')
+          if '齁甜' not in curated_text:
+              raise SystemExit('expected curated rare-glyph phrase was not found')
+          curated.write_text(curated_text.replace('齁甜', '太甜'), encoding='utf-8')
+
+          # These modules own display copy, not compatibility aliases/protocol tokens.
+          for path in [
+              'player_copy.py',
+              'help_system.py',
+              'renderers/roast.py',
+              'roast_copy.py',
+              'animated_image_feature.py',
+              'ex_admin_feature.py',
+              'ex_public_source_feature.py',
+              'services/catalog_service.py',
+          ]:
+              simplify_file(path)
+
+          # legacy_main mixes display copy with one Traditional compatibility phrase.
+          legacy = Path('legacy_main.py')
+          legacy_text = cc.convert(legacy.read_text(encoding='utf-8'))
+          duplicate = 'is_super_phrase = "强行点火" in raw or "强行点火" in raw'
+          if duplicate not in legacy_text:
+              raise SystemExit('expected force-roast compatibility line after t2s conversion')
+          legacy_text = legacy_text.replace(
+              duplicate,
+              'is_super_phrase = "强行点火" in raw or "強行點火" in raw',
+              1,
+          )
+          legacy.write_text(legacy_text, encoding='utf-8')
+
+          # Admin pages should display Simplified Chinese, but keep Traditional error
+          # spellings inside ERROR_PATTERN so old/server-side messages remain detectable.
+          for p in sorted(Path('pages').rglob('*')):
+              if not p.is_file() or p.suffix not in {'.html', '.js'}:
+                  continue
+              original_lines = p.read_text(encoding='utf-8').splitlines(keepends=True)
+              converted = []
+              for line in original_lines:
+                  converted.append(line if 'ERROR_PATTERN' in line else cc.convert(line))
+              p.write_text(''.join(converted), encoding='utf-8')
+
+          # Runtime display normalization for AI / public-source / local custom copy.
+          Path('display_copy.py').write_text('''from __future__ import annotations
+
+from functools import lru_cache
+from typing import Any, Mapping
+
+from opencc import OpenCC
+
+
+_T2S = OpenCC("t2s")
+
+
+@lru_cache(maxsize=8192)
+def simplify_display_text(value: object) -> str:
+    """Normalize user-visible Chinese copy to Simplified Chinese.
+
+    IDs, command aliases, config keys and protocol values must not pass through
+    this helper. It is intentionally for names/descriptions/analysis/copy only.
+    """
+    return _T2S.convert(str(value or ""))
+
+
+def simplify_pig_display_copy(pig: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy one pig record and normalize only fields that can be displayed."""
+    result = dict(pig)
+    for key in ("name", "description", "analysis"):
+        if key in result:
+            result[key] = simplify_display_text(result.get(key))
+    return result
+''', encoding='utf-8')
+
+          # Catalog composition is the common ingress for bundled/cloud/local pig copy.
+          catalog = Path('services/catalog_service.py')
+          text = catalog.read_text(encoding='utf-8')
+          marker = 'from typing import Any, Mapping, Sequence\n'
+          if 'from display_copy import simplify_pig_display_copy' not in text:
+              text = text.replace(
+                  marker,
+                  marker + '\nfrom display_copy import simplify_pig_display_copy\n',
+                  1,
+              )
+          text = text.replace(
+              '            merged.append(dict(override_map.get(pig_id, source)))',
+              '            merged.append(simplify_pig_display_copy(override_map.get(pig_id, source)))',
+          )
+          text = text.replace(
+              '            merged.append(dict(source))\n            used.add(pig_id)',
+              '            merged.append(simplify_pig_display_copy(source))\n            used.add(pig_id)',
+          )
+          text = text.replace(
+              '            dict(pig)\n            for pig in catalog',
+              '            simplify_pig_display_copy(pig)\n            for pig in catalog',
+          )
+          text = text.replace(
+              '            pig["_collection_retired"] = True\n            retired.append(pig)',
+              '            pig = simplify_pig_display_copy(pig)\n            pig["_collection_retired"] = True\n            retired.append(pig)',
+          )
+          catalog.write_text(text, encoding='utf-8')
+
+          # EX copy accepts local/public overrides; normalize description/analysis there too.
+          ex = Path('ex_variants.py')
+          text = ex.read_text(encoding='utf-8')
+          marker = 'from typing import Any\n'
+          if 'from display_copy import simplify_display_text' not in text:
+              text = text.replace(marker, marker + '\nfrom display_copy import simplify_display_text\n', 1)
+          text = text.replace(
+              '    text = " ".join(str(value or "").split()).strip()',
+              '    text = " ".join(simplify_display_text(value).split()).strip()',
+              1,
+          )
+          text = text.replace(
+              '            description = str(raw_variant.get("description") or "").strip()',
+              '            description = simplify_display_text(raw_variant.get("description")).strip()',
+          )
+          text = text.replace(
+              '            analysis = str(raw_variant.get("analysis") or "").strip()',
+              '            analysis = simplify_display_text(raw_variant.get("analysis")).strip()',
+          )
+          ex.write_text(text, encoding='utf-8')
+
+          # AI roast candidate text is external model output and must be normalized too.
+          roast_py = Path('roast_copy.py')
+          text = roast_py.read_text(encoding='utf-8')
+          marker = 'from typing import Iterable, Mapping, Sequence\n'
+          if 'from display_copy import simplify_display_text' not in text:
+              text = text.replace(marker, marker + '\nfrom display_copy import simplify_display_text\n', 1)
+          text = text.replace(
+              '    copy = lines[line_index].format(pig=str(pig_name or "小猪")[:30])',
+              '    copy = lines[line_index].format(pig=simplify_display_text(pig_name or "小猪")[:30])',
+          )
+          text = text.replace(
+              '        candidate = re.sub(r"\\s+", " ", str(item or "")).strip("“”\\\"\'` ")[:64]',
+              '        candidate = re.sub(r"\\s+", " ", simplify_display_text(item)).strip("“”\\\"\'` ")[:64]',
+          )
+          roast_py.write_text(text, encoding='utf-8')
+
+          # Runtime dependency: pure-Python OpenCC keeps deployment platform-neutral.
+          req = Path('requirements.txt')
+          req_text = req.read_text(encoding='utf-8').rstrip() + '\n'
+          if 'opencc-python-reimplemented' not in req_text:
+              req_text += 'opencc-python-reimplemented>=0.1.7\n'
+          req.write_text(req_text, encoding='utf-8')
+
+          # Permanent regression guard: no Traditional display copy and no bundled
+          # image-card CJK glyph missing from the primary font.
+          Path('scripts/check_display_copy.py').write_text(r'''from __future__ import annotations
+
+import ast
+import json
+import re
+from pathlib import Path
+
+from fontTools.ttLib import TTFont
+from opencc import OpenCC
+
+ROOT = Path(__file__).resolve().parents[1]
+T2S = OpenCC("t2s")
+CJK = re.compile(r"[\u3400-\u9fff]")
+
+JSON_TARGETS = [
+    ROOT / "resource" / "pig.json",
+    ROOT / "resource" / "pig_ex_variants.json",
+    ROOT / "resource" / "roast_copy.json",
+    *sorted((ROOT / "resource" / "ex_curated").glob("*.json")),
+    ROOT / "_conf_schema.json",
+    ROOT / ".astrbot-plugin" / "i18n" / "zh-CN.json",
+]
+DISPLAY_PYTHON = [
+    ROOT / "animated_image_feature.py",
+    ROOT / "ex_admin_feature.py",
+    ROOT / "ex_public_source_feature.py",
+    ROOT / "help_system.py",
+    ROOT / "player_copy.py",
+    ROOT / "roast_copy.py",
+    ROOT / "services" / "catalog_service.py",
+    *sorted((ROOT / "renderers").glob("*.py")),
+]
+LEGACY_ALLOWED_TRADITIONAL = {"強行點火"}
+
+
+def strings(value):
+    if isinstance(value, dict):
+        for item in value.values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def python_strings(path: Path):
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            yield getattr(node, "lineno", 0), node.value
+
+
+def assert_simplified(label: str, value: str, failures: list[str]) -> None:
+    if CJK.search(value) and T2S.convert(value) != value:
+        failures.append(f"{label}: contains Traditional display copy: {value!r}")
+
+
+def main() -> int:
+    failures: list[str] = []
+    rendered: list[tuple[str, str]] = []
+
+    for path in JSON_TARGETS:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for value in strings(payload):
+            assert_simplified(str(path.relative_to(ROOT)), value, failures)
+            if str(path).startswith(str(ROOT / "resource")):
+                rendered.append((str(path.relative_to(ROOT)), value))
+
+    for path in DISPLAY_PYTHON:
+        for line, value in python_strings(path):
+            assert_simplified(f"{path.relative_to(ROOT)}:{line}", value, failures)
+            if path.name in {"help_system.py", "player_copy.py"} or path.parent.name == "renderers":
+                rendered.append((f"{path.relative_to(ROOT)}:{line}", value))
+
+    legacy = ROOT / "legacy_main.py"
+    for line, value in python_strings(legacy):
+        if value in LEGACY_ALLOWED_TRADITIONAL:
+            continue
+        assert_simplified(f"legacy_main.py:{line}", value, failures)
+
+    for path in sorted((ROOT / "pages").rglob("*")):
+        if not path.is_file() or path.suffix not in {".html", ".js"}:
+            continue
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "ERROR_PATTERN" in line:
+                continue
+            assert_simplified(f"{path.relative_to(ROOT)}:{line_no}", line, failures)
+
+    font = TTFont(ROOT / "resource" / "font" / "荆南麦圆体.otf")
+    cmap: set[int] = set()
+    for table in font["cmap"].tables:
+        cmap.update(table.cmap.keys())
+    for source, value in rendered:
+        for ch in value:
+            code = ord(ch)
+            if 0x3400 <= code <= 0x9FFF and code not in cmap:
+                failures.append(f"{source}: primary font missing {ch} U+{code:04X}")
+
+    if failures:
+        print("Display copy contract failed:")
+        for failure in failures:
+            print(f"- {failure}")
+        return 1
+    print("Display copy contract: Simplified Chinese + bundled font coverage OK")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+''', encoding='utf-8')
+
+          # Runtime/behavior tests for dynamic normalization and compatibility.
+          Path('tests/test_display_copy.py').write_text(r'''from __future__ import annotations
+
+from display_copy import simplify_display_text, simplify_pig_display_copy
+from ex_variants import validate_ex_variants
+from roast_copy import decode_ai_candidates
+from services.catalog_service import CatalogService
+
+
+def test_simplify_display_text_converts_traditional_copy():
+    assert simplify_display_text("豬圈後廚開飯") == "猪圈后厨开饭"
+
+
+def test_pig_display_normalization_preserves_identity_and_extra_fields():
+    raw = {
+        "id": "demo-pig",
+        "name": "測試豬",
+        "description": "今天很適合發呆",
+        "analysis": "後廚不開火",
+        "image": "demo.png",
+    }
+    result = simplify_pig_display_copy(raw)
+    assert result == {
+        "id": "demo-pig",
+        "name": "测试猪",
+        "description": "今天很适合发呆",
+        "analysis": "后厨不开火",
+        "image": "demo.png",
+    }
+    assert raw["name"] == "測試豬"
+
+
+def test_catalog_ingress_normalizes_public_or_local_display_copy():
+    merged = CatalogService.merge_layers(
+        [{"id": "p", "name": "小豬", "description": "後廚", "analysis": "開飯"}],
+        [],
+        frozenset(),
+    )
+    assert merged[0]["id"] == "p"
+    assert merged[0]["name"] == "小猪"
+    assert merged[0]["description"] == "后厨"
+    assert merged[0]["analysis"] == "开饭"
+
+
+def test_ex_override_copy_is_normalized_without_touching_image_or_id():
+    result = validate_ex_variants(
+        {"pigs": {"demo-pig": {"1": {"description": "返場", "analysis": "繼續成長", "image": "demo.png"}}}},
+        {"demo-pig"},
+    )
+    item = result["demo-pig"][1]
+    assert item["description"] == "返场"
+    assert item["analysis"] == "继续成长"
+    assert item["image"] == "demo.png"
+
+
+def test_ai_roast_candidates_are_normalized_before_selection_or_storage():
+    assert decode_ai_candidates('["後廚開飯", "豬圈限定"]') == ["后厨开饭", "猪圈限定"]
+''', encoding='utf-8')
+
+          # CI needs fontTools only for the static glyph-coverage gate.
+          ci = Path('.github/workflows/ci.yml')
+          ci_text = ci.read_text(encoding='utf-8')
+          ci_text = ci_text.replace(
+              'python -m pip install -r requirements.txt pytest pre-commit',
+              'python -m pip install -r requirements.txt pytest pre-commit fonttools',
+          )
+          check_step = '''\n      - name: Verify Simplified display copy and font coverage\n        run: python scripts/check_display_copy.py\n'''
+          if 'Verify Simplified display copy and font coverage' not in ci_text:
+              ci_text = ci_text.replace(
+                  '      - name: Run tests\n        run: pytest -q\n',
+                  check_step + '\n      - name: Run tests\n        run: pytest -q\n',
+              )
+          ci_text = ci_text.replace(
+              'storage services scripts/maintenance_contract.py',
+              'storage services display_copy.py scripts/maintenance_contract.py scripts/check_display_copy.py',
+          )
+          ci.write_text(ci_text, encoding='utf-8')
+
+          # Every non-release PR must add a substantive unreleased entry.
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          old = '## 未發佈\n\n- 暫無。'
+          bullet = ('## 未發佈\n\n- 修复插件展示文本的繁体残留与字体缺字：内置烤猪文案、帮助卡、玩法速记、料理卡、历史收藏占位和管理页统一使用简体中文，替换主字体不支持的生僻“齁”字；AI、公共源、本地猪与 EX 描述进入展示链时自动转简体，并新增简体文案与主字体字形覆盖 CI 守门。繁体指令别名及旧数据兼容匹配保持不变。')
+          if old not in text:
+              raise SystemExit('expected empty unreleased section')
+          changelog.write_text(text.replace(old, bullet, 1), encoding='utf-8')
+          PY
+      - name: Commit codemod result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: normalize display copy to Simplified Chinese"
+          git push origin HEAD:agent/simplify-user-facing-copy
