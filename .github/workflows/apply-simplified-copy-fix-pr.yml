@@ -20,18 +20,24 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install runner dependencies
-        run: python -m pip install --disable-pip-version-check pyyaml opencc-python-reimplemented
+        run: python -m pip install --disable-pip-version-check opencc-python-reimplemented
       - name: Execute staged codemod
         shell: bash
         run: |
           python - <<'PY'
           import subprocess
-          import yaml
           from pathlib import Path
 
-          data = yaml.safe_load(Path('.github/workflows/apply-simplified-copy-fix.yml').read_text(encoding='utf-8'))
-          steps = data['jobs']['apply']['steps']
-          script = next(step['run'] for step in steps if step.get('name') == 'Normalize bundled and runtime display copy')
+          raw = Path('.github/workflows/apply-simplified-copy-fix.yml').read_text(encoding='utf-8')
+          start_marker = '      - name: Normalize bundled and runtime display copy\n        shell: bash\n        run: |\n'
+          end_marker = '\n      - name: Commit codemod result\n'
+          start = raw.index(start_marker) + len(start_marker)
+          end = raw.index(end_marker, start)
+          lines = raw[start:end].splitlines()
+          normalized = []
+          for line in lines:
+              normalized.append(line[10:] if line.startswith('          ') else line)
+          script = '\n'.join(normalized) + '\n'
           subprocess.run(['bash', '-lc', script], check=True)
           PY
       - name: Commit codemod result
