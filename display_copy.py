@@ -24,5 +24,5 @@ def simplify_pig_display_copy(pig: Mapping[str, Any]) -> dict[str, Any]:
     result = dict(pig)
     for key in ("name", "description", "analysis"):
         if key in result:
-  result[key] = simplify_display_text(result.get(key))
+            result[key] = simplify_display_text(result.get(key))
     return result
