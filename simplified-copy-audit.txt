@@ -1,0 +1,640 @@
+=== JSON string values changed by OpenCC t2s ===
+resource/pig.json: 0
+resource/pig_ex_variants.json: 0
+resource/roast_copy.json: 108
+resource/ex_curated/01-origin-and-classics.json: 0
+resource/ex_curated/02-life-and-personality.json: 0
+resource/ex_curated/03-social-and-modern-life.json: 0
+resource/ex_curated/04-work-and-weirdness.json: 0
+resource/ex_curated/05-compat-tech-and-adventure.json: 0
+resource/ex_curated/06-compat-school-food-and-chaos.json: 0
+resource/ex_curated/07-compat-health-and-fandom.json: 0
+resource/ex_curated/08-compat-games-city-and-money.json: 0
+resource/ex_curated/09-compat-internet-and-daily-life.json: 0
+resource/ex_curated/10-compat-final-curated-pack.json: 0
+_conf_schema.json: 0
+.astrbot-plugin/i18n/zh-CN.json: 0
+
+[resource/roast_copy.json] $.dish_names[0]
+  - 豬圈蜜汁脆皮
+  + 猪圈蜜汁脆皮
+[resource/roast_copy.json] $.dish_names[1]
+  - 後廚炭火拱拱
+  + 后厨炭火拱拱
+[resource/roast_copy.json] $.dish_names[2]
+  - 豬運椒鹽金磚
+  + 猪运椒盐金砖
+[resource/roast_copy.json] $.dish_names[3]
+  - 返場照燒小豬
+  + 返场照烧小猪
+[resource/roast_copy.json] $.dish_names[4]
+  - EX 熔岩豬排
+  + EX 熔岩猪排
+[resource/roast_copy.json] $.dish_names[5]
+  - Charge 蒜香脆豬
+  + Charge 蒜香脆猪
+[resource/roast_copy.json] $.dish_names[6]
+  - 豬籍孜然翻面
+  + 猪籍孜然翻面
+[resource/roast_copy.json] $.dish_names[8]
+  - 豬圈黑椒翻身
+  + 猪圈黑椒翻身
+[resource/roast_copy.json] $.dish_names[9]
+  - 抽卡命運叉燒
+  + 抽卡命运叉烧
+[resource/roast_copy.json] $.dish_names[10]
+  - 後廚蔥爆豬運
+  + 后厨葱爆猪运
+[resource/roast_copy.json] $.dish_names[11]
+  - 拱門秘製烤豬
+  + 拱门秘制烤猪
+[resource/roast_copy.json] $.dish_names[12]
+  - 豬生鹽焗終章
+  + 猪生盐焗终章
+[resource/roast_copy.json] $.dish_names[13]
+  - 群友圍觀燒豬
+  + 群友围观烧猪
+[resource/roast_copy.json] $.dish_names[14]
+  - 主廚判詞脆皮
+  + 主厨判词脆皮
+[resource/roast_copy.json] $.dish_names[15]
+  - 豬圈夜市烤拱
+  + 猪圈夜市烤拱
+[resource/roast_copy.json] $.dish_names[16]
+  - 返場豉汁豬排
+  + 返场豉汁猪排
+[resource/roast_copy.json] $.dish_names[17]
+  - EX 五級炙烤
+  + EX 五级炙烤
+[resource/roast_copy.json] $.dish_names[18]
+  - 烤架哲學小豬
+  + 烤架哲学小猪
+[resource/roast_copy.json] $.dish_names[19]
+  - 新豬保底蜜燒
+  + 新猪保底蜜烧
+[resource/roast_copy.json] $.dish_names[20]
+  - 豬鼻椒香烤卷
+  + 猪鼻椒香烤卷
+[resource/roast_copy.json] $.dish_names[21]
+  - 後廚反轉燒肉
+  + 后厨反转烧肉
+[resource/roast_copy.json] $.dish_names[22]
+  - 豬運迷迭炭烤
+  + 猪运迷迭炭烤
+[resource/roast_copy.json] $.dish_names[23]
+  - 豬籍章魚燒風
+  + 猪籍章鱼烧风
+[resource/roast_copy.json] $.dish_names[26]
+  - 烤箱滿格燒豬
+  + 烤箱满格烧猪
+[resource/roast_copy.json] $.dish_names[27]
+  - 烤箱缺電冷燻
+  + 烤箱缺电冷熏
+[resource/roast_copy.json] $.dish_names[28]
+  - 今日豬運脆烤
+  + 今日猪运脆烤
+[resource/roast_copy.json] $.dish_names[29]
+  - 豬圈限定翻面
+  + 猪圈限定翻面
+[resource/roast_copy.json] $.dish_names[30]
+  - 主廚不講武德燒
+  + 主厨不讲武德烧
+[resource/roast_copy.json] $.dish_names[31]
+  - 命運輪盤烤豬
+  + 命运轮盘烤猪
+[resource/roast_copy.json] $.lines[0]
+  - 豬鼻剛拱上烤架，命運順手撒了把孜然——今天不是翻身，是翻面。
+  + 猪鼻刚拱上烤架，命运顺手撒了把孜然——今天不是翻身，是翻面。
+[resource/roast_copy.json] $.lines[1]
+  - 本豬申請撤回今日豬運，後廚已讀不回，並把申請表墊在了烤盤下面。
+  + 本猪申请撤回今日猪运，后厨已读不回，并把申请表垫在了烤盘下面。
+[resource/roast_copy.json] $.lines[2]
+  - 昨天還在豬圈談理想，今天已經躺在盤裡談擺盤，這就是豬生版本迭代。
+  + 昨天还在猪圈谈理想，今天已经躺在盘里谈摆盘，这就是猪生版本迭代。
+[resource/roast_copy.json] $.lines[3]
+  - 這隻{pig}試圖用可愛申請免烤，主廚批示：可愛可以加蔥，不能減刑。
+  + 这只{pig}试图用可爱申请免烤，主厨批示：可爱可以加葱，不能减刑。
+[resource/roast_copy.json] $.lines[4]
+  - 豬籍還沒註銷，菜單倒先給{pig}上了戶口，行政效率突然高得可怕。
+  + 猪籍还没注销，菜单倒先给{pig}上了户口，行政效率突然高得可怕。
+[resource/roast_copy.json] $.lines[5]
+  - 抽卡時叫天選之豬，上烤架後改名今日特選，命運只換了個菜單字體。
+  + 抽卡时叫天选之猪，上烤架后改名今日特选，命运只换了个菜单字体。
+[resource/roast_copy.json] $.lines[6]
+  - EX 升到五級也沒躲過後廚，成長的盡頭不是畢業，是更大的烤盤。
+  + EX 升到五级也没躲过后厨，成长的尽头不是毕业，是更大的烤盘。
+[resource/roast_copy.json] $.lines[7]
+  - Charge 還有一格，理智已經沒格了；主廚宣布本輪繼續拱火。
+  + Charge 还有一格，理智已经没格了；主厨宣布本轮继续拱火。
+[resource/roast_copy.json] $.lines[8]
+  - 豬圈都在等{pig}翻身，烤架說可以，然後很專業地幫它翻了個面。
+  + 猪圈都在等{pig}翻身，烤架说可以，然后很专业地帮它翻了个面。
+[resource/roast_copy.json] $.lines[9]
+  - 新豬保底保住了收藏，沒保住晚餐，抽卡系統對售後範圍有自己的理解。
+  + 新猪保底保住了收藏，没保住晚餐，抽卡系统对售后范围有自己的理解。
+[resource/roast_copy.json] $.lines[10]
+  - 返場次數太多不是人氣高，是後廚已經記住了{pig}的熟度偏好。
+  + 返场次数太多不是人气高，是后厨已经记住了{pig}的熟度偏好。
+[resource/roast_copy.json] $.lines[11]
+  - 豬運顯示今日大吉，備註小字寫著：吉到可以直接端上桌。
+  + 猪运显示今日大吉，备注小字写著：吉到可以直接端上桌。
+[resource/roast_copy.json] $.lines[12]
+  - 主廚拿起夾子沉思三秒，決定尊重命運——再烤三十秒。
+  + 主厨拿起夹子沉思三秒，决定尊重命运——再烤三十秒。
+[resource/roast_copy.json] $.lines[13]
+  - 群友說只是想看熱鬧，烤箱聽成了加大火力，語音識別非常豬工智能。
+  + 群友说只是想看热闹，烤箱听成了加大火力，语音识别非常猪工智能。
+[resource/roast_copy.json] $.lines[14]
+  - 這一口不是焦，是豬生留下的高光；再黑一點就能當限定皮膚。
+  + 这一口不是焦，是猪生留下的高光；再黑一点就能当限定皮肤。
+[resource/roast_copy.json] $.lines[15]
+  - {pig}努力保持體面，直到孜然落下來，豬設當場從偶像派轉職燒烤派。
+  + {pig}努力保持体面，直到孜然落下来，猪设当场从偶像派转职烧烤派。
+[resource/roast_copy.json] $.lines[16]
+  - 後廚今日 KPI：少講道理，多翻小豬；目前進度令人安心。
+  + 后厨今日 KPI：少讲道理，多翻小猪；目前进度令人安心。
+[resource/roast_copy.json] $.lines[17]
+  - 豬圈法庭宣判{pig}無罪，後廚表示收到，然後依法加熱。
+  + 猪圈法庭宣判{pig}无罪，后厨表示收到，然后依法加热。
+[resource/roast_copy.json] $.lines[18]
+  - 本次料理沒有受害者，只有一隻對『今日小豬』理解得不夠全面的豬。
+  + 本次料理没有受害者，只有一只对『今日小猪』理解得不够全面的猪。
+[resource/roast_copy.json] $.lines[19]
+  - 烤架不是終點，是豬生的一次橫向發展，只是發展方向有點焦。
+  + 烤架不是终点，是猪生的一次横向发展，只是发展方向有点焦。
+[resource/roast_copy.json] $.lines[20]
+  - 抽到{pig}那刻你以為是緣分，現在看來更像後廚的提前採購單。
+  + 抽到{pig}那刻你以为是缘分，现在看来更像后厨的提前采购单。
+[resource/roast_copy.json] $.lines[21]
+  - 豬鼻一拱，Charge 一掉，群友一笑，今天的豬圈生態鏈又閉環了。
+  + 猪鼻一拱，Charge 一掉，群友一笑，今天的猪圈生态链又闭环了。
+[resource/roast_copy.json] $.lines[22]
+  - 這隻豬剛完成永久收藏，下一秒完成永久記憶點：烤痕。
+  + 这只猪刚完成永久收藏，下一秒完成永久记忆点：烤痕。
+[resource/roast_copy.json] $.lines[23]
+  - 主廚說要做減法料理，於是把{pig}的逃跑路線先減掉了。
+  + 主厨说要做减法料理，于是把{pig}的逃跑路线先减掉了。
+[resource/roast_copy.json] $.lines[24]
+  - 今日限定風味叫『嘴硬』，特點是外表鎮定，內心已經開始哼哼。
+  + 今日限定风味叫『嘴硬』，特点是外表镇定，内心已经开始哼哼。
+[resource/roast_copy.json] $.lines[25]
+  - 豬圈傳言{pig}會逆天改命，烤箱表示它只負責改色。
+  + 猪圈传言{pig}会逆天改命，烤箱表示它只负责改色。
+[resource/roast_copy.json] $.lines[26]
+  - 本豬拒絕被定義，於是後廚改用中心溫度定義。
+  + 本猪拒绝被定义，于是后厨改用中心温度定义。
+[resource/roast_copy.json] $.lines[27]
+  - 命運給了{pig}第二次機會，主廚給了第二面上色，大家都有光明未來。
+  + 命运给了{pig}第二次机会，主厨给了第二面上色，大家都有光明未来。
+[resource/roast_copy.json] $.lines[28]
+  - 保底機制負責送新豬，後廚機制負責提醒：新也可以很快變熟。
+  + 保底机制负责送新猪，后厨机制负责提醒：新也可以很快变熟。
+[resource/roast_copy.json] $.lines[29]
+  - 烤箱今天情緒穩定，穩定地對每一隻豬抱有不切實際的熱情。
+  + 烤箱今天情绪稳定，稳定地对每一只猪抱有不切实际的热情。
+[resource/roast_copy.json] $.lines[30]
+  - 群友替{pig}喊冤三分鐘，主廚聽完很感動，決定多送一撮蔥花。
+  + 群友替{pig}喊冤三分钟，主厨听完很感动，决定多送一撮葱花。
+[resource/roast_copy.json] $.lines[31]
+  - 豬籍顯示狀態正常，烤架顯示溫度正常，只有{pig}覺得哪裡不太正常。
+  + 猪籍显示状态正常，烤架显示温度正常，只有{pig}觉得哪里不太正常。
+[resource/roast_copy.json] $.lines[32]
+  - 這不是料理，是豬圈年度績效面談；面談結果：建議轉熟。
+  + 这不是料理，是猪圈年度绩效面谈；面谈结果：建议转熟。
+[resource/roast_copy.json] $.lines[33]
+  - 返場老豬最懂流程，自己找位置躺好，順便提醒新人先刷醬再講夢想。
+  + 返场老猪最懂流程，自己找位置躺好，顺便提醒新人先刷酱再讲梦想。
+[resource/roast_copy.json] $.lines[34]
+  - EX 文案寫得再燃，也沒有烤箱燃；世界觀在這一刻完成了物理閉環。
+  + EX 文案写得再燃，也没有烤箱燃；世界观在这一刻完成了物理闭环。
+[resource/roast_copy.json] $.lines[35]
+  - 今日豬運關鍵詞：升溫、翻面、嘴硬，以及一點無法報銷的孜然。
+  + 今日猪运关键词：升温、翻面、嘴硬，以及一点无法报销的孜然。
+[resource/roast_copy.json] $.lines[36]
+  - {pig}本來只想混個出場率，沒想到直接混進了後廚出餐率。
+  + {pig}本来只想混个出场率，没想到直接混进了后厨出餐率。
+[resource/roast_copy.json] $.lines[37]
+  - 主廚宣布尊重每隻豬的選擇，所以提供正面烤和反面烤兩種方案。
+  + 主厨宣布尊重每只猪的选择，所以提供正面烤和反面烤两种方案。
+[resource/roast_copy.json] $.lines[38]
+  - 豬圈日報明天怎麼寫？『某豬因過度可愛，被後廚依法處以焦香。』
+  + 猪圈日报明天怎么写？『某猪因过度可爱，被后厨依法处以焦香。』
+[resource/roast_copy.json] $.lines[39]
+  - 這隻豬沒有輸，只是從收藏品賽道跨界到了擺盤賽道。
+  + 这只猪没有输，只是从收藏品赛道跨界到了摆盘赛道。
+[resource/roast_copy.json] $.lines[40]
+  - 群友按下烤豬指令時很輕，命運落在{pig}身上時很重，孜然倒是剛剛好。
+  + 群友按下烤猪指令时很轻，命运落在{pig}身上时很重，孜然倒是刚刚好。
+[resource/roast_copy.json] $.lines[41]
+  - 豬運不講武德，先發一張可愛卡，再把卡背面印成今日菜單。
+  + 猪运不讲武德，先发一张可爱卡，再把卡背面印成今日菜单。
+[resource/roast_copy.json] $.lines[42]
+  - 烤箱 Charge 是有限的，群友的壞心眼不是；{pig}今天先替大家證明一下。
+  + 烤箱 Charge 是有限的，群友的坏心眼不是；{pig}今天先替大家证明一下。
+[resource/roast_copy.json] $.lines[43]
+  - 本豬今天最接近自由的時刻，是主廚打開烤箱門準備翻面。
+  + 本猪今天最接近自由的时刻，是主厨打开烤箱门准备翻面。
+[resource/roast_copy.json] $.lines[44]
+  - 抽卡玄學說心誠則靈，後廚玄學說火大則香，兩派目前正在{pig}身上會師。
+  + 抽卡玄学说心诚则灵，后厨玄学说火大则香，两派目前正在{pig}身上会师。
+[resource/roast_copy.json] $.lines[45]
+  - 豬圈給了{pig}永久席位，後廚給了臨時餐位，都是位子，差別不宜深究。
+  + 猪圈给了{pig}永久席位，后厨给了临时餐位，都是位子，差别不宜深究。
+[resource/roast_copy.json] $.lines[46]
+  - 這份料理主打一個反差：名字叫今日小豬，結局叫今日小熟。
+  + 这份料理主打一个反差：名字叫今日小猪，结局叫今日小熟。
+[resource/roast_copy.json] $.lines[47]
+  - 主廚沒有針對{pig}，主廚只是平等地對每一隻豬都很有想法。
+  + 主厨没有针对{pig}，主厨只是平等地对每一只猪都很有想法。
+[resource/roast_copy.json] $.lines[48]
+  - 豬鼻還在倔強地拱，烤架已經很配合地響，雙方溝通效率極高。
+  + 猪鼻还在倔强地拱，烤架已经很配合地响，双方沟通效率极高。
+[resource/roast_copy.json] $.lines[49]
+  - 今天的哲學問題不是『我是誰』，而是『我為什麼已經開始冒香氣』。
+  + 今天的哲学问题不是『我是谁』，而是『我为什么已经开始冒香气』。
+[resource/roast_copy.json] $.lines[50]
+  - {pig}試圖靠返場經驗卡流程 Bug，後廚回覆：這裡的 Bug 會被刷醬。
+  + {pig}试图靠返场经验卡流程 Bug，后厨回复：这里的 Bug 会被刷酱。
+[resource/roast_copy.json] $.lines[51]
+  - 豬圈說成長要走出舒適區，{pig}走著走著就走進了預熱區。
+  + 猪圈说成长要走出舒适区，{pig}走著走著就走进了预热区。
+[resource/roast_copy.json] $.lines[52]
+  - 新豬第一次見世面，老豬第一次見新豬；烤箱表示大家很快就熟了。
+  + 新猪第一次见世面，老猪第一次见新猪；烤箱表示大家很快就熟了。
+[resource/roast_copy.json] $.lines[53]
+  - 這一盤的靈魂不是香料，是{pig}直到最後一秒都不肯承認自己在菜單上。
+  + 这一盘的灵魂不是香料，是{pig}直到最后一秒都不肯承认自己在菜单上。
+[resource/roast_copy.json] $.lines[54]
+  - 命運輪盤轉了半天，最後停在『再來一面』，烤架對結果表示完全尊重。
+  + 命运轮盘转了半天，最后停在『再来一面』，烤架对结果表示完全尊重。
+[resource/roast_copy.json] $.lines[55]
+  - 豬圈科技樹點到 EX，後廚科技樹點到上火，兩棵樹今天成功嫁接。
+  + 猪圈科技树点到 EX，后厨科技树点到上火，两棵树今天成功嫁接。
+[resource/roast_copy.json] $.lines[56]
+  - 本次出餐採用零添加理念：不添加希望，只添加一點豬言豬語。
+  + 本次出餐采用零添加理念：不添加希望，只添加一点猪言猪语。
+[resource/roast_copy.json] $.lines[57]
+  - 群友圍觀不是壓力，是{pig}熟成過程中的社交型環境變量。
+  + 群友围观不是压力，是{pig}熟成过程中的社交型环境变量。
+[resource/roast_copy.json] $.lines[58]
+  - 烤豬不是結束，是把今日運勢從『生效中』改成『已熟悉』。
+  + 烤猪不是结束，是把今日运势从『生效中』改成『已熟悉』。
+[resource/roast_copy.json] $.lines[59]
+  - 主廚說這隻{pig}很有層次：第一層嘴硬，第二層更嘴硬，第三層開始焦。
+  + 主厨说这只{pig}很有层次：第一层嘴硬，第二层更嘴硬，第三层开始焦。
+[resource/roast_copy.json] $.lines[60]
+  - 豬圈的風很自由，後廚的風是熱風；{pig}今天把兩種人生都體驗了。
+  + 猪圈的风很自由，后厨的风是热风；{pig}今天把两种人生都体验了。
+[resource/roast_copy.json] $.lines[61]
+  - 返場是命運的重播，烤架是後廚的快進，最後大家都跳到片尾彩蛋。
+  + 返场是命运的重播，烤架是后厨的快进，最后大家都跳到片尾彩蛋。
+[resource/roast_copy.json] $.lines[62]
+  - 這隻豬的收藏率很高，逃生率有待提升；數據分析不帶感情，孜然也不帶。
+  + 这只猪的收藏率很高，逃生率有待提升；数据分析不带感情，孜然也不带。
+[resource/roast_copy.json] $.lines[63]
+  - 今日小豬系統負責抽，今日後廚系統負責象徵性詢問它對熟度的看法。
+  + 今日小猪系统负责抽，今日后厨系统负责象征性询问它对熟度的看法。
+[resource/roast_copy.json] $.lines[64]
+  - {pig}原以為自己是 SSR，後廚說沒錯，是『稍稍容易熟』的縮寫。
+  + {pig}原以为自己是 SSR，后厨说没错，是『稍稍容易熟』的缩写。
+[resource/roast_copy.json] $.lines[65]
+  - 豬生沒有白走的路，每一步都算數；尤其走進烤箱那幾步，計時器算得很準。
+  + 猪生没有白走的路，每一步都算数；尤其走进烤箱那几步，计时器算得很准。
+[resource/roast_copy.json] $.lines[66]
+  - 主廚把反轉寫進菜譜：前半句『恭喜抽到{pig}』，後半句『請翻面』。
+  + 主厨把反转写进菜谱：前半句『恭喜抽到{pig}』，后半句『请翻面』。
+[resource/roast_copy.json] $.lines[67]
+  - 豬圈今天沒有事故，只有一場溫度較高、香氣較重的職業轉型。
+  + 猪圈今天没有事故，只有一场温度较高、香气较重的职业转型。
+[resource/roast_copy.json] $.lines[68]
+  - 這隻{pig}用盡一生學會返場，最後發現後廚也支持無限續杯式返場。
+  + 这只{pig}用尽一生学会返场，最后发现后厨也支持无限续杯式返场。
+[resource/roast_copy.json] $.lines[69]
+  - 命運說保持熱愛，烤箱說保持熱度；兩句話只差一個字，體感差很多。
+  + 命运说保持热爱，烤箱说保持热度；两句话只差一个字，体感差很多。
+[resource/roast_copy.json] $.lines[70]
+  - 群友本想替{pig}加油，後廚順手把『油』字單獨執行了。
+  + 群友本想替{pig}加油，后厨顺手把『油』字单独执行了。
+[resource/roast_copy.json] $.lines[71]
+  - 豬鼻聞到香味很開心，三秒後意識到香味來源是自己，成長瞬間完成。
+  + 猪鼻闻到香味很开心，三秒后意识到香味来源是自己，成长瞬间完成。
+[resource/roast_copy.json] $.lines[72]
+  - 今日豬運播報：宜收藏，宜返場，忌站在預熱完成的烤箱旁邊思考人生。
+  + 今日猪运播报：宜收藏，宜返场，忌站在预热完成的烤箱旁边思考人生。
+[resource/roast_copy.json] $.lines[73]
+  - 後廚尊重豬權，所以在翻面前提前通知；通知時間約為零點三秒。
+  + 后厨尊重猪权，所以在翻面前提前通知；通知时间约为零点三秒。
+[resource/roast_copy.json] $.lines[74]
+  - 這道菜沒有秘方，只有一條公開透明的流程：抽到、嘴硬、升溫、認命。
+  + 这道菜没有秘方，只有一条公开透明的流程：抽到、嘴硬、升温、认命。
+[resource/roast_copy.json] $.lines[75]
+  - {pig}在豬圈是角色，在後廚是素材，在群友眼裡則是今日限定節目效果。
+  + {pig}在猪圈是角色，在后厨是素材，在群友眼里则是今日限定节目效果。
+[resource/roast_copy.json] $.lines[76]
+  - 烤架問{pig}有沒有遺言，它說想升 EX；烤架點頭：那先升溫。
+  + 烤架问{pig}有没有遗言，它说想升 EX；烤架点头：那先升温。
+[resource/roast_copy.json] $.lines[77]
+  - 豬圈宇宙的基本定律：收藏可以永久，Charge 可以恢復，熟度通常不可逆。
+  + 猪圈宇宙的基本定律：收藏可以永久，Charge 可以恢复，熟度通常不可逆。
+[resource/roast_copy.json] $.lines[78]
+  - 主廚今天手感很好，具體表現為每次翻面都像在給命運蓋章。
+  + 主厨今天手感很好，具体表现为每次翻面都像在给命运盖章。
+
+=== Python string literals changed by OpenCC t2s ===
+animated_image_feature.py: 3
+  L88: '公共豬源投稿图片不能超过 10MB' -> '公共猪源投稿图片不能超过 10MB'
+  L91: '转换后的公共豬源投稿图片超过 10MB' -> '转换后的公共猪源投稿图片超过 10MB'
+  L111: '公共豬源投稿图片读取失败' -> '公共猪源投稿图片读取失败'
+daily_report_feature.py: 4
+  L1519: '開啟' -> '开启'
+  L1519: '啟用' -> '启用'
+  L1520: '關閉' -> '关闭'
+  L1521: '狀態' -> '状态'
+ex_admin_feature.py: 1
+  L323: '正規化后的 EX 图片超过 10MB' -> '正规化后的 EX 图片超过 10MB'
+ex_public_source_feature.py: 6
+  L111: '公共豬源返回了无效投稿结果' -> '公共猪源返回了无效投稿结果'
+  L127: '管理页已提交小猪及 EX 差分到 AstrBot 公共豬源审核：' -> '管理页已提交小猪及 EX 差分到 AstrBot 公共猪源审核：'
+  L134: '提交 EX 差分到公共豬源失败：' -> '提交 EX 差分到公共猪源失败：'
+  L135: '提交公共豬源失败，请稍后重试' -> '提交公共猪源失败，请稍后重试'
+  L158: '公共豬源 EX 投稿图片读取失败' -> '公共猪源 EX 投稿图片读取失败'
+  L179: '读取公共豬源 EX 投稿图片失败：' -> '读取公共猪源 EX 投稿图片失败：'
+help_system.py: 16
+  L76: '/今日小豬' -> '/今日小猪'
+  L77: '/昨日小豬' -> '/昨日小猪'
+  L78: '/明日小豬' -> '/明日小猪'
+  L79: '/本週小豬' -> '/本周小猪'
+  L88: '/我的豬圈 [頁碼]' -> '/我的猪圈 [页码]'
+  L89: '/隨機小豬 [1-9]' -> '/随机小猪 [1-9]'
+  L90: '/找豬／搜豬 關鍵詞' -> '/找猪／搜猪 关键词'
+  L84: '/今日小豬 @某人' -> '/今日小猪 @某人'
+  L95: '/今日烤豬' -> '/今日烤猪'
+  L115: '/隨機烤群友' -> '/随机烤群友'
+  L116: '/打點後廚 @某人' -> '/打点后厨 @某人'
+  L121: '/烤箱補貨' -> '/烤箱补货'
+  L138: '/隨機吃群友' -> '/随机吃群友'
+  L146: '/豬圈日報' -> '/猪圈日报'
+  L147: '/豬圈日報狀態' -> '/猪圈日报状态'
+  L148: '/豬圈日報開啟／關閉' -> '/猪圈日报开启／关闭'
+legacy_main.py: 37
+  L557: '提交本地小猪到 AstrBot 公共豬源审核' -> '提交本地小猪到 AstrBot 公共猪源审核'
+  L563: '浏览 AstrBot 官方公共豬源' -> '浏览 AstrBot 官方公共猪源'
+  L569: '预览 AstrBot 官方公共豬源图片' -> '预览 AstrBot 官方公共猪源图片'
+  L5715: 'AstrBot 官方公共豬源' -> 'AstrBot 官方公共猪源'
+  L579: '查看 AstrBot 公共豬源待审核投稿' -> '查看 AstrBot 公共猪源待审核投稿'
+  L585: '查看 AstrBot 公共豬源投稿图片' -> '查看 AstrBot 公共猪源投稿图片'
+  L591: '审核 AstrBot 公共豬源投稿' -> '审核 AstrBot 公共猪源投稿'
+  L1918: '公共豬源投稿图片不能超过 10MB' -> '公共猪源投稿图片不能超过 10MB'
+  L1928: '转换后的公共豬源投稿图片超过 10MB' -> '转换后的公共猪源投稿图片超过 10MB'
+  L1963: '公共豬源请求路径无效' -> '公共猪源请求路径无效'
+  L4384: '強行點火' -> '强行点火'
+  L5744: '公共豬源 pig.json 必须是数组' -> '公共猪源 pig.json 必须是数组'
+  L1950: '这台 AstrBot 未配置公共豬源审核权限' -> '这台 AstrBot 未配置公共猪源审核权限'
+  L5688: '管理页已提交小猪到 AstrBot 公共豬源审核：' -> '管理页已提交小猪到 AstrBot 公共猪源审核：'
+  L5727: '公共豬源 manifest 必须是 JSON 对象' -> '公共猪源 manifest 必须是 JSON 对象'
+  L5729: '公共豬源 manifest 协议版本不受支持' -> '公共猪源 manifest 协议版本不受支持'
+  L5731: '公共豬源客户端标识不匹配' -> '公共猪源客户端标识不匹配'
+  L5734: '公共豬源 manifest 缺少 pig_json' -> '公共猪源 manifest 缺少 pig_json'
+  L5850: '公共豬源小猪 ID 无效' -> '公共猪源小猪 ID 无效'
+  L5854: '公共豬源没有这只小猪的图片' -> '公共猪源没有这只小猪的图片'
+  L5947: '公共豬源投稿已' -> '公共猪源投稿已'
+  L1982: '公共豬源请求失败' -> '公共猪源请求失败'
+  L1986: '公共豬源返回了无效状态' -> '公共猪源返回了无效状态'
+  L2023: '公共豬源投稿图片读取失败' -> '公共猪源投稿图片读取失败'
+  L3969: '生成豬豬幫助圖片失敗：' -> '生成猪猪帮助图片失败：'
+  L5695: 'AstrBot 公共豬源投稿网络失败：' -> 'AstrBot 公共猪源投稿网络失败：'
+  L5697: '公共豬源网络连接失败，请稍后再试' -> '公共猪源网络连接失败，请稍后再试'
+  L5700: '提交小猪到公共豬源失败：' -> '提交小猪到公共猪源失败：'
+  L5701: '公共豬源投稿失败' -> '公共猪源投稿失败'
+  L5840: '公共豬源暂时无法连接' -> '公共猪源暂时无法连接'
+  L5881: '公共豬源图片暂时无法连接' -> '公共猪源图片暂时无法连接'
+  L5906: '公共豬源审核服务暂时无法连接' -> '公共猪源审核服务暂时无法连接'
+  L5921: '公共豬源投稿图片暂时无法读取' -> '公共猪源投稿图片暂时无法读取'
+  L5955: '公共豬源审核服务暂时无法连接' -> '公共猪源审核服务暂时无法连接'
+  L1977: '公共豬源返回了无效数据' -> '公共猪源返回了无效数据'
+  L3970: '豬豬幫助圖片生成失敗，請查看後台日誌。' -> '猪猪帮助图片生成失败，请查看后台日志。'
+  L1980: '公共豬源请求失败' -> '公共猪源请求失败'
+main.py: 52
+  L167: '豬豬幫助' -> '猪猪帮助'
+  L167: '小豬幫助' -> '小猪帮助'
+  L167: 'rollpig幫助' -> 'rollpig帮助'
+  L171: '今日小豬' -> '今日小猪'
+  L171: '今天是什麼小豬' -> '今天是什么小猪'
+  L171: '抽小豬' -> '抽小猪'
+  L171: '我的小豬' -> '我的小猪'
+  L175: '我的豬圈' -> '我的猪圈'
+  L175: '小豬圖鑑' -> '小猪图鉴'
+  L175: '豬圈' -> '猪圈'
+  L179: '昨日小豬' -> '昨日小猪'
+  L179: '昨天小豬' -> '昨天小猪'
+  L183: '明日小豬' -> '明日小猪'
+  L183: '明天小豬' -> '明天小猪'
+  L187: '本周小豬' -> '本周小猪'
+  L187: '本週小猪' -> '本周小猪'
+  L187: '本週小豬' -> '本周小猪'
+  L187: '本週豬報' -> '本周猪报'
+  L191: '随机小豬' -> '随机小猪'
+  L191: '隨機小猪' -> '随机小猪'
+  L191: '隨機小豬' -> '随机小猪'
+  L191: '隨機豬' -> '随机猪'
+  L195: '找豬' -> '找猪'
+  L195: '搜豬' -> '搜猪'
+  L199: '今日烤豬' -> '今日烤猪'
+  L199: '烤豬' -> '烤猪'
+  L207: '隨機烤群友' -> '随机烤群友'
+  L215: '隨機吃群友' -> '随机吃群友'
+  L219: '打點後廚' -> '打点后厨'
+  L219: '偷換烤架' -> '偷换烤架'
+  L219: '賄賂主廚' -> '贿赂主厨'
+  L219: '強行點火' -> '强行点火'
+  L223: '烤箱補貨' -> '烤箱补货'
+  L223: '烤箱補給' -> '烤箱补给'
+  L235: '豬圈日報' -> '猪圈日报'
+  L235: '今日豬圈日報' -> '今日猪圈日报'
+  L241: '狀態' -> '状态'
+  L239: '豬圈日報狀態' -> '猪圈日报状态'
+  L239: '猪圈日报狀態' -> '猪圈日报状态'
+  L239: '豬圈日報状态' -> '猪圈日报状态'
+  L239: '今日豬圈日報狀態' -> '今日猪圈日报状态'
+  L245: '開啟' -> '开启'
+  L243: '豬圈日報開啟' -> '猪圈日报开启'
+  L243: '猪圈日报開啟' -> '猪圈日报开启'
+  L243: '豬圈日報开启' -> '猪圈日报开启'
+  L243: '豬圈日報啟用' -> '猪圈日报启用'
+  L243: '今日豬圈日報開啟' -> '今日猪圈日报开启'
+  L249: '關閉' -> '关闭'
+  L247: '豬圈日報關閉' -> '猪圈日报关闭'
+  L247: '猪圈日报關閉' -> '猪圈日报关闭'
+  L247: '豬圈日報关闭' -> '猪圈日报关闭'
+  L247: '今日豬圈日報關閉' -> '今日猪圈日报关闭'
+player_copy.py: 44
+  L13: '每天抽豬' -> '每天抽猪'
+  L14: '找豬收藏' -> '找猪收藏'
+  L15: '後廚搞事' -> '后厨搞事'
+  L16: '豬圈日報' -> '猪圈日报'
+  L17: '玩法速記' -> '玩法速记'
+  L19: '抽今天的小豬；抽過就回同一隻' -> '抽今天的小猪；抽过就回同一只'
+  L20: '查看對方今日豬；不替對方抽' -> '查看对方今日猪；不替对方抽'
+  L21: '看昨天抽到哪隻豬' -> '看昨天抽到哪只猪'
+  L22: '預覽明日豬運；不提前開獎' -> '预览明日猪运；不提前开奖'
+  L23: '把本週七天小豬排成週報' -> '把本周七天小猪排成周报'
+  L24: '看永久豬籍；可加頁碼翻頁' -> '看永久猪籍；可加页码翻页'
+  L25: '隨機看 1–9 隻；不影響今日抽取' -> '随机看 1–9 只；不影响今日抽取'
+  L26: '按名稱、ID 或描述找豬' -> '按名称、ID 或描述找猪'
+  L27: '把自己今天的小豬做成料理卡' -> '把自己今天的小猪做成料理卡'
+  L29: '；沒抽豬可先埋伏' -> '；没抽猪可先埋伏'
+  L30: '隨機抓一位今天可料理的群友' -> '随机抓一位今天可料理的群友'
+  L31: '每天一次繞過普通限制開火' -> '每天一次绕过普通限制开火'
+  L32: '開一輪全群添柴，幫大家回 Charge' -> '开一轮全群添柴，帮大家回 Charge'
+  L33: '補貨輪次中，每人可添柴一次' -> '补货轮次中，每人可添柴一次'
+  L34: '補貨就添柴；有預約可 @目標 蹲鍋' -> '补货就添柴；有预约可 @目标 蹲锅'
+  L35: '吃指定群友；失敗可能反吃自己' -> '吃指定群友；失败可能反吃自己'
+  L36: '隨機挑一位目前可吃的群友' -> '随机挑一位目前可吃的群友'
+  L37: '生成今天的豬圈晚報' -> '生成今天的猪圈晚报'
+  L38: '查看日報開關、時間與狀態' -> '查看日报开关、时间与状态'
+  L39: '管理員開啟或關閉本群日報' -> '管理员开启或关闭本群日报'
+  L40: '自動日報休息中' -> '自动日报休息中'
+  L41: '自動發送已關；手動日報仍可用' -> '自动发送已关；手动日报仍可用'
+  L42: '新豬保底' -> '新猪保底'
+  L43: '老豬連續返場時，新豬機率會提高' -> '老猪连续返场时，新猪机率会提高'
+  L44: '跨日疲勞' -> '跨日疲劳'
+  L45: '跨日仍重複收藏，再疊新豬機會' -> '跨日仍重复收藏，再叠新猪机会'
+  L46: 'EX 成長' -> 'EX 成长'
+  L47: '重複抽同一隻豬，會升到 EX Lv.1–5' -> '重复抽同一只猪，会升到 EX Lv.1–5'
+  L49: '每群最多 {capacity} 格；用掉後按時間恢復' -> '每群最多 {capacity} 格；用掉后按时间恢复'
+  L50: '群體補貨' -> '群体补货'
+  L51: '全群添柴達標，活躍群友各回 1 格' -> '全群添柴达标，活跃群友各回 1 格'
+  L52: '預約烤豬' -> '预约烤猪'
+  L53: '沒抽豬先埋伏；/添柴 或 /烤群友 都能加入' -> '没抽猪先埋伏；/添柴 或 /烤群友 都能加入'
+  L54: '次日保護' -> '次日保护'
+  L55: '昨天被烤太狠，今天普通群烤／吃會被攔' -> '昨天被烤太狠，今天普通群烤／吃会被拦'
+  L57: '模型寫料理文案；失敗就回本地模板' -> '模型写料理文案；失败就回本地模板'
+  L58: '日報祭品' -> '日报祭品'
+  L59: '只在自動日報可能觸發；手動不吃人' -> '只在自动日报可能触发；手动不吃人'
+  L61: '豬源、豬圖、EX、投稿都在後台管理' -> '猪源、猪图、EX、投稿都在后台管理'
+renderers/roast.py: 5
+  L20: '豬圈炭火特餐' -> '猪圈炭火特餐'
+  L21: '豬鼻一拱上烤架，今天不是翻身，是後廚很專業地幫你翻面。' -> '猪鼻一拱上烤架，今天不是翻身，是后厨很专业地帮你翻面。'
+  L43: 'AI 豬圈私房' -> 'AI 猪圈私房'
+  L57: 'AI 豬話' -> 'AI 猪话'
+  L57: '豬圈本地話' -> '猪圈本地话'
+roast_copy.py: 1
+  L93: '小豬' -> '小猪'
+rollpig_core.py: 3
+  L61: '人類' -> '人类'
+  L63: '豬油' -> '猪油'
+  L63: '熟食形態' -> '熟食形态'
+services/catalog_service.py: 4
+  L131: '歷史收藏' -> '历史收藏'
+  L132: '這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。' -> '这只小猪仍在你的永久收藏记录中，但目前资源源已不再提供它。'
+  L136: '歷史收藏' -> '历史收藏'
+  L139: '這隻小豬仍在你的永久收藏記錄中，但目前資源源已不再提供它。' -> '这只小猪仍在你的永久收藏记录中，但目前资源源已不再提供它。'
+Python changed literals total: 176
+
+=== Admin page lines changed by OpenCC t2s ===
+pages/pig-manager/index.html: 12
+  L314: <section class="panel layer-note"><div><h2>AstrBot 公共豬源投稿</h2><div class="panel-desc">把本地小猪的 ID、名称、描述、完整文案与图片提交到我们维护的审核队列；批准后会自动进入 AstrBot 专用公共豬源。每次投稿都需要再次确认，不会上传群友或聊天资料。</div></div><div class="top-actions"><span class="pill ok">自建来源 · 人工审核</span><button class="btn ghost" id="publicSourceBrowseBtn" type="button">浏览公共豬源</button></div></section> -> <section class="panel layer-note"><div><h2>AstrBot 公共猪源投稿</h2><div class="panel-desc">把本地小猪的 ID、名称、描述、完整文案与图片提交到我们维护的审核队列；批准后会自动进入 AstrBot 专用公共猪源。每次投稿都需要再次确认，不会上传群友或聊天资料。</div></div><div class="top-actions"><span class="pill ok">自建来源 · 人工审核</span><button class="btn ghost" id="publicSourceBrowseBtn" type="button">浏览公共猪源</button></div></section>
+  L338: <div class="dialog-head"><div><div class="eyebrow">Official Public Source</div><h2>AstrBot 公共豬源图鉴</h2><div class="panel-desc" id="publicSourceMeta">打开后读取当前正式 v1 资源；只显示公共源，不混入本地覆盖。</div></div><button class="close" type="button" id="publicSourceClose" aria-label="关闭">×</button></div> -> <div class="dialog-head"><div><div class="eyebrow">Official Public Source</div><h2>AstrBot 公共猪源图鉴</h2><div class="panel-desc" id="publicSourceMeta">打开后读取当前正式 v1 资源；只显示公共源，不混入本地覆盖。</div></div><button class="close" type="button" id="publicSourceClose" aria-label="关闭">×</button></div>
+  L340: <div class="hub-grid" id="publicSourceGrid"><div class="empty">打开后加载公共豬源…</div></div><div class="pagination"><button class="btn ghost" id="publicSourcePrev" type="button">上一页</button><span id="publicSourcePageText">1 / 1</span><button class="btn ghost" id="publicSourceNext" type="button">下一页</button></div> -> <div class="hub-grid" id="publicSourceGrid"><div class="empty">打开后加载公共猪源…</div></div><div class="pagination"><button class="btn ghost" id="publicSourcePrev" type="button">上一页</button><span id="publicSourcePageText">1 / 1</span><button class="btn ghost" id="publicSourceNext" type="button">下一页</button></div>
+  L343: <div class="dialog-head"><div><div class="eyebrow">Public Pig Preview</div><h2 id="publicSourceDetailName">公共豬源预览</h2></div><button class="close" type="button" id="publicSourceDetailClose" aria-label="关闭">×</button></div> -> <div class="dialog-head"><div><div class="eyebrow">Public Pig Preview</div><h2 id="publicSourceDetailName">公共猪源预览</h2></div><button class="close" type="button" id="publicSourceDetailClose" aria-label="关闭">×</button></div>
+  L344: <div class="upload"><canvas class="preview" id="publicSourceDetailCanvas" width="192" height="192" aria-label="公共豬源图片预览"></canvas><div><div class="pig-id" id="publicSourceDetailId"></div><p class="panel-desc" id="publicSourceDetailDescription"></p></div></div> -> <div class="upload"><canvas class="preview" id="publicSourceDetailCanvas" width="192" height="192" aria-label="公共猪源图片预览"></canvas><div><div class="pig-id" id="publicSourceDetailId"></div><p class="panel-desc" id="publicSourceDetailDescription"></p></div></div>
+  L522: const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i; -> const ERROR_PATTERN = /(失败|失败|错误|错误|不可用|403|401|超时|逾时|校验失败|校验失败|bridge|版本不匹配)/i;
+  L721: async function loadResourceStatus(){const d=await get('resources/status'),attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步',sourceLabel=d.source==='cloud'?(d.official_source?'AstrBot 源缓存':'私人源缓存'):'内置兜底';$('syncStatus').innerHTML=`<span class="pill ${d.running||d.source==='cloud'?'ok':''}">${d.running?'同步中…':sourceLabel}</span><span class="pill ${d.official_source?'ok':''}">${d.official_source?'AstrBot v1 专用源':'自定义私人源'}</span><span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span><span class="pill">版本 ${esc(d.version)}</span><span class="pill">${esc(attempt)}</span><span class="pill">本地覆盖 ${d.local_overrides}</span><span class="pill">删除屏蔽 ${d.deleted_count}</span>${d.last_error?`<span class="pill warn">上次错误：${esc(d.last_error)}</span>`:''}`;$('syncBtn').disabled=Boolean(d.running)||!d.manifest_url||Boolean(d.source_rejected);$('syncBtn').textContent=d.running?'同步中…':d.source_rejected?'来源不可用':'立即同步';setSyncFeedback(d.running?'正在后台下载并校验资源；完成后会自动刷新图鉴。':(d.diagnosis||d.last_error)?`${d.diagnosis||`同步失败：${d.last_error}`}（現有資源已保留）`:d.last_success?`最近一次同步已成功：${formatTime(d.last_success)}。`:'资源源已配置，可先执行一次手动同步。');return d} -> async function loadResourceStatus(){const d=await get('resources/status'),attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步',sourceLabel=d.source==='cloud'?(d.official_source?'AstrBot 源缓存':'私人源缓存'):'内置兜底';$('syncStatus').innerHTML=`<span class="pill ${d.running||d.source==='cloud'?'ok':''}">${d.running?'同步中…':sourceLabel}</span><span class="pill ${d.official_source?'ok':''}">${d.official_source?'AstrBot v1 专用源':'自定义私人源'}</span><span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span><span class="pill">版本 ${esc(d.version)}</span><span class="pill">${esc(attempt)}</span><span class="pill">本地覆盖 ${d.local_overrides}</span><span class="pill">删除屏蔽 ${d.deleted_count}</span>${d.last_error?`<span class="pill warn">上次错误：${esc(d.last_error)}</span>`:''}`;$('syncBtn').disabled=Boolean(d.running)||!d.manifest_url||Boolean(d.source_rejected);$('syncBtn').textContent=d.running?'同步中…':d.source_rejected?'来源不可用':'立即同步';setSyncFeedback(d.running?'正在后台下载并校验资源；完成后会自动刷新图鉴。':(d.diagnosis||d.last_error)?`${d.diagnosis||`同步失败：${d.last_error}`}（现有资源已保留）`:d.last_success?`最近一次同步已成功：${formatTime(d.last_success)}。`:'资源源已配置，可先执行一次手动同步。');return d}
+  L846: function renderLayers(){const total=localOverrides.length+blockedPigs.length;$('layerHeroCount').textContent=total.toLocaleString();$('overrideMeta').textContent=`${localOverrides.length} 只 · 可编辑，也可明确确认后提交完整资料到 AstrBot 公共豬源审核`;$('blockedMeta').textContent=`${blockedPigs.length} 只 · 取消屏蔽不会恢复已删除的本地专属图片`;$('overrideGrid').innerHTML=localOverrides.length?localOverrides.map((p,i)=>layerCard(p,i,'override')).join(''):'<div class="empty">目前没有本地新增或覆盖的小猪</div>';$('blockedGrid').innerHTML=blockedPigs.length?blockedPigs.map((p,i)=>layerCard(p,i,'blocked')).join(''):'<div class="empty">目前没有被本地屏蔽的小猪</div>';document.querySelectorAll('[data-layer-canvas]').forEach(canvas=>{const [kind,index]=canvas.dataset.layerCanvas.split('-'),source=kind==='blocked'?blockedPigs:localOverrides;paintRgbaCanvas(canvas,source[Number(index)].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-layer-edit]').forEach(b=>b.onclick=()=>openEdit(localOverrides[Number(b.dataset.layerEdit)]));document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)],b));document.querySelectorAll('[data-unblock]').forEach(b=>b.onclick=()=>unblockPig(blockedPigs[Number(b.dataset.unblock)]))} -> function renderLayers(){const total=localOverrides.length+blockedPigs.length;$('layerHeroCount').textContent=total.toLocaleString();$('overrideMeta').textContent=`${localOverrides.length} 只 · 可编辑，也可明确确认后提交完整资料到 AstrBot 公共猪源审核`;$('blockedMeta').textContent=`${blockedPigs.length} 只 · 取消屏蔽不会恢复已删除的本地专属图片`;$('overrideGrid').innerHTML=localOverrides.length?localOverrides.map((p,i)=>layerCard(p,i,'override')).join(''):'<div class="empty">目前没有本地新增或覆盖的小猪</div>';$('blockedGrid').innerHTML=blockedPigs.length?blockedPigs.map((p,i)=>layerCard(p,i,'blocked')).join(''):'<div class="empty">目前没有被本地屏蔽的小猪</div>';document.querySelectorAll('[data-layer-canvas]').forEach(canvas=>{const [kind,index]=canvas.dataset.layerCanvas.split('-'),source=kind==='blocked'?blockedPigs:localOverrides;paintRgbaCanvas(canvas,source[Number(index)].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-layer-edit]').forEach(b=>b.onclick=()=>openEdit(localOverrides[Number(b.dataset.layerEdit)]));document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)],b));document.querySelectorAll('[data-unblock]').forEach(b=>b.onclick=()=>unblockPig(blockedPigs[Number(b.dataset.unblock)]))}
+  L850: async function submitPublicSource(p,button){if(!p?.id){toast('投稿失败：无法识别这只本地小猪');return}if(!button||button.dataset.submitConfirm!==p.id){if(button){button.dataset.submitConfirm=p.id;button.textContent='再次点击确认';button.classList.remove('ghost');button.setAttribute('aria-label',`再次点击确认投稿 ${p.name}`);clearTimeout(button._rollpigSubmitConfirmTimer);button._rollpigSubmitConfirmTimer=setTimeout(()=>resetPublicSubmitButton(button,p.id),7000)}toast(`再次点击确认投稿「${p.name}」；将发送 ID、名称、描述、完整文案与图片，不会发送群友或聊天资料`);return}resetPublicSubmitButton(button,p.id);busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||'已提交到 AstrBot 公共豬源审核队列');try{await loadSourceReviews()}catch(reviewError){console.warn('[rollpig] public source review refresh failed after successful submission',reviewError)}}catch(e){toast(`投稿失败：${e.message}`)}finally{busy(false)}} -> async function submitPublicSource(p,button){if(!p?.id){toast('投稿失败：无法识别这只本地小猪');return}if(!button||button.dataset.submitConfirm!==p.id){if(button){button.dataset.submitConfirm=p.id;button.textContent='再次点击确认';button.classList.remove('ghost');button.setAttribute('aria-label',`再次点击确认投稿 ${p.name}`);clearTimeout(button._rollpigSubmitConfirmTimer);button._rollpigSubmitConfirmTimer=setTimeout(()=>resetPublicSubmitButton(button,p.id),7000)}toast(`再次点击确认投稿「${p.name}」；将发送 ID、名称、描述、完整文案与图片，不会发送群友或聊天资料`);return}resetPublicSubmitButton(button,p.id);busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||'已提交到 AstrBot 公共猪源审核队列');try{await loadSourceReviews()}catch(reviewError){console.warn('[rollpig] public source review refresh failed after successful submission',reviewError)}}catch(e){toast(`投稿失败：${e.message}`)}finally{busy(false)}}
+  L856: async function openPublicSourceBrowser(initialSearch=''){publicSourceSearch=String(initialSearch||'').trim();publicSourcePage=1;$('publicSourceSearch').value=publicSourceSearch;$('publicSourceModal').classList.add('open');busy(true);try{await loadPublicSourceCatalog(false)}catch(e){$('publicSourceGrid').innerHTML=`<div class="empty">公共豬源加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}} -> async function openPublicSourceBrowser(initialSearch=''){publicSourceSearch=String(initialSearch||'').trim();publicSourcePage=1;$('publicSourceSearch').value=publicSourceSearch;$('publicSourceModal').classList.add('open');busy(true);try{await loadPublicSourceCatalog(false)}catch(e){$('publicSourceGrid').innerHTML=`<div class="empty">公共猪源加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}}
+  L858: function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;let panel=$('sourceReviewPanel');if(!panel){panel=document.createElement('section');panel.className='panel layer-panel';panel.id='sourceReviewPanel';panel.innerHTML='<div class="panel-head"><div><h2>公共豬源待审核</h2><div class="panel-desc" id="sourceReviewMeta">维护者专用；审核凭证只保留在服务端。</div></div><button class="btn ghost" id="sourceReviewRefreshBtn" type="button">刷新队列</button></div><div class="pig-grid" id="sourceReviewGrid"><div class="empty">正在读取待审核投稿…</div></div>';const layers=$('view-layers'),anchor=layers?.querySelector('.layer-panel');if(layers)layers.insertBefore(panel,anchor||null)}let modal=$('reviewModal');if(!modal){modal=document.createElement('div');modal.className='modal';modal.id='reviewModal';modal.innerHTML='<form class="dialog" id="reviewForm" style="max-width:540px"><div class="dialog-head"><div><div class="eyebrow" id="reviewEyebrow">Public Source Review</div><h2 id="reviewTitle">审核公共豬源投稿</h2></div><button class="close" type="button" id="reviewClose" aria-label="关闭">×</button></div><p class="panel-desc" id="reviewMessage"></p><div class="field"><label for="reviewNote">审核备注（可选）</label><textarea id="reviewNote" maxlength="300" placeholder="最多 300 字；拒绝时建议说明原因"></textarea><div class="hint">备注只写入审核记录，不会修改投稿文案。</div></div><div class="dialog-actions"><button class="btn ghost" type="button" id="reviewCancel">取消</button><button class="btn" type="submit" id="reviewConfirm">确认</button></div></form>';document.body.appendChild(modal)}const form=$('reviewForm');if(form&&form.dataset.reviewBound!=='1'){form.dataset.reviewBound='1';form.onsubmit=submitReviewDecision}const close=$('reviewClose'),cancel=$('reviewCancel');if(close)close.onclick=closeReviewModal;if(cancel)cancel.onclick=closeReviewModal;if(modal&&modal.dataset.reviewBound!=='1'){modal.dataset.reviewBound='1';modal.onclick=e=>{if(e.target===modal)closeReviewModal()}}const grid=$('sourceReviewGrid');if(grid&&grid.dataset.reviewBound!=='1'){grid.dataset.reviewBound='1';grid.addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')})}const refresh=$('sourceReviewRefreshBtn');if(refresh&&refresh.dataset.reviewBound!=='1'){refresh.dataset.reviewBound='1';refresh.onclick=()=>loadSourceReviews().catch(e=>toast(e.message))}return true} -> function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;let panel=$('sourceReviewPanel');if(!panel){panel=document.createElement('section');panel.className='panel layer-panel';panel.id='sourceReviewPanel';panel.innerHTML='<div class="panel-head"><div><h2>公共猪源待审核</h2><div class="panel-desc" id="sourceReviewMeta">维护者专用；审核凭证只保留在服务端。</div></div><button class="btn ghost" id="sourceReviewRefreshBtn" type="button">刷新队列</button></div><div class="pig-grid" id="sourceReviewGrid"><div class="empty">正在读取待审核投稿…</div></div>';const layers=$('view-layers'),anchor=layers?.querySelector('.layer-panel');if(layers)layers.insertBefore(panel,anchor||null)}let modal=$('reviewModal');if(!modal){modal=document.createElement('div');modal.className='modal';modal.id='reviewModal';modal.innerHTML='<form class="dialog" id="reviewForm" style="max-width:540px"><div class="dialog-head"><div><div class="eyebrow" id="reviewEyebrow">Public Source Review</div><h2 id="reviewTitle">审核公共猪源投稿</h2></div><button class="close" type="button" id="reviewClose" aria-label="关闭">×</button></div><p class="panel-desc" id="reviewMessage"></p><div class="field"><label for="reviewNote">审核备注（可选）</label><textarea id="reviewNote" maxlength="300" placeholder="最多 300 字；拒绝时建议说明原因"></textarea><div class="hint">备注只写入审核记录，不会修改投稿文案。</div></div><div class="dialog-actions"><button class="btn ghost" type="button" id="reviewCancel">取消</button><button class="btn" type="submit" id="reviewConfirm">确认</button></div></form>';document.body.appendChild(modal)}const form=$('reviewForm');if(form&&form.dataset.reviewBound!=='1'){form.dataset.reviewBound='1';form.onsubmit=submitReviewDecision}const close=$('reviewClose'),cancel=$('reviewCancel');if(close)close.onclick=closeReviewModal;if(cancel)cancel.onclick=closeReviewModal;if(modal&&modal.dataset.reviewBound!=='1'){modal.dataset.reviewBound='1';modal.onclick=e=>{if(e.target===modal)closeReviewModal()}}const grid=$('sourceReviewGrid');if(grid&&grid.dataset.reviewBound!=='1'){grid.dataset.reviewBound='1';grid.addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')})}const refresh=$('sourceReviewRefreshBtn');if(refresh&&refresh.dataset.reviewBound!=='1'){refresh.dataset.reviewBound='1';refresh.onclick=()=>loadSourceReviews().catch(e=>toast(e.message))}return true}
+  L877: $('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast('公共豬源已刷新')}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()}; -> $('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast('公共猪源已刷新')}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()};
+pages/pig-manager-ex/index.html: 22
+  L7: <title>今日小豬 · EX 成長管理</title> -> <title>今日小猪 · EX 成长管理</title>
+  L30: <div class="brand"><div class="logo">🐷</div><div><div class="title">EX 成長管理</div><div class="sub">本地差分優先 · 稀疏繼承 · 不改抽卡身份與玩法</div></div></div> -> <div class="brand"><div class="logo">🐷</div><div><div class="title">EX 成长管理</div><div class="sub">本地差分优先 · 稀疏继承 · 不改抽卡身份与玩法</div></div></div>
+  L31: <div class="actions"><button class="btn ghost" id="reloadBtn">重新載入</button></div> -> <div class="actions"><button class="btn ghost" id="reloadBtn">重新载入</button></div>
+  L35: <div><div class="sub">RollPig Growth Studio</div><h1>把重複抽到，真的變成<span>養熟</span>。</h1><p>每隻小豬可為 EX Lv.1–5 分別覆蓋描述、完整文案與圖片。留空代表繼承；實際生效預覽會把稀疏差分解析後的文字和真正使用的圖片一起展示出來。</p></div> -> <div><div class="sub">RollPig Growth Studio</div><h1>把重复抽到，真的变成<span>养熟</span>。</h1><p>每只小猪可为 EX Lv.1–5 分别覆盖描述、完整文案与图片。留空代表继承；实际生效预览会把稀疏差分解析后的文字和真正使用的图片一起展示出来。</p></div>
+  L36: <div class="stats"><div class="stat"><b id="pigCount">—</b><span>可編輯小豬</span></div><div class="stat"><b id="variantPigCount">—</b><span>已有本地 EX</span></div><div class="stat"><b id="variantLevelCount">—</b><span>本地差分層級</span></div></div> -> <div class="stats"><div class="stat"><b id="pigCount">—</b><span>可编辑小猪</span></div><div class="stat"><b id="variantPigCount">—</b><span>已有本地 EX</span></div><div class="stat"><b id="variantLevelCount">—</b><span>本地差分层级</span></div></div>
+  L40: <aside class="panel side"><div class="side-head"><input class="search" id="search" placeholder="搜尋名稱或 ID"></div><div class="pig-list" id="pigList"></div></aside> -> <aside class="panel side"><div class="side-head"><input class="search" id="search" placeholder="搜寻名称或 ID"></div><div class="pig-list" id="pigList"></div></aside>
+  L41: <section class="panel editor" id="editor"><div class="empty">從左側選一隻小豬開始編輯 EX 差分。</div></section> -> <section class="panel editor" id="editor"><div class="empty">从左侧选一只小猪开始编辑 EX 差分。</div></section>
+  L45: <div class="lightbox" id="imageLightbox" aria-hidden="true"><div class="lightbox-card"><button class="lightbox-close" id="lightboxClose" type="button" aria-label="關閉">×</button><img id="lightboxImage" alt="圖片放大預覽"><div class="lightbox-caption" id="lightboxCaption"></div></div></div> -> <div class="lightbox" id="imageLightbox" aria-hidden="true"><div class="lightbox-card"><button class="lightbox-close" id="lightboxClose" type="button" aria-label="关闭">×</button><img id="lightboxImage" alt="图片放大预览"><div class="lightbox-caption" id="lightboxCaption"></div></div></div>
+  L52: const unwrap=r=>{const x=r?.data??r;if(x?.status==='error')throw new Error(x.message||'操作失敗');return x?.data??x}; -> const unwrap=r=>{const x=r?.data??r;if(x?.status==='error')throw new Error(x.message||'操作失败');return x?.data??x};
+  L59: function sourceLabel(source){return({local:'本地 EX','local-base-block':'本地基礎覆蓋（未套公共 EX）',cloud:'雲端 EX',bundled:'內建 EX',baseline:'安全基線',base:'基礎內容'})[source]||source||'基礎內容'} -> function sourceLabel(source){return({local:'本地 EX','local-base-block':'本地基础覆盖（未套公共 EX）',cloud:'云端 EX',bundled:'内建 EX',baseline:'安全基线',base:'基础内容'})[source]||source||'基础内容'}
+  L60: function imageSourceLabel(source){return({local:'本地 EX 圖片',cloud:'雲端 EX 圖片',bundled:'內建 EX 圖片',baseline:'安全基線圖片',base:'基礎圖片',pending:'未儲存本地圖片'})[source]||source||'基礎圖片'} -> function imageSourceLabel(source){return({local:'本地 EX 图片',cloud:'云端 EX 图片',bundled:'内建 EX 图片',baseline:'安全基线图片',base:'基础图片',pending:'未储存本地图片'})[source]||source||'基础图片'}
+  L62: function renderList(){const rows=filtered();$('pigList').innerHTML=rows.length?rows.map(p=>{const count=Object.keys(p.local_levels||{}).length;return`<button class="pig-row ${p.id===selectedId?'active':''}" data-pig="${esc(p.id)}"><span><span class="pig-name">${esc(p.name)}</span><span class="pig-id">${esc(p.id)}</span></span><span class="count ${count?'on':''}">${count||'·'}</span></button>`}).join(''):'<div class="empty">沒有符合條件的小豬</div>';document.querySelectorAll('[data-pig]').forEach(b=>b.onclick=()=>selectPig(b.dataset.pig))} -> function renderList(){const rows=filtered();$('pigList').innerHTML=rows.length?rows.map(p=>{const count=Object.keys(p.local_levels||{}).length;return`<button class="pig-row ${p.id===selectedId?'active':''}" data-pig="${esc(p.id)}"><span><span class="pig-name">${esc(p.name)}</span><span class="pig-id">${esc(p.id)}</span></span><span class="count ${count?'on':''}">${count||'·'}</span></button>`}).join(''):'<div class="empty">没有符合条件的小猪</div>';document.querySelectorAll('[data-pig]').forEach(b=>b.onclick=()=>selectPig(b.dataset.pig))}
+  L63: function effectiveHtml(e,p,level){return`<div class="effective"><div class="preview-head"><div><b>聊天卡效果預覽</b><span>目前實際生效內容；可展開 Base ↔ EX 對比</span></div><button class="preview-toggle" type="button" data-compare-toggle>Base ↔ EX 對比</button></div><div class="preview-stage" data-preview-stage><article class="chat-card chat-card-ex"><button class="chat-media" type="button" data-effective-zoom disabled><img data-effective-image alt="實際生效圖片"><div class="effective-placeholder" data-effective-placeholder>載入實際圖片…</div></button><div class="chat-meta"><span data-effective-image-meta>圖片來源：載入中</span></div><div class="chat-body"><div class="chat-kicker">今日小豬 · EX Lv.${level}</div><h3>${esc(p.name)}</h3><p class="chat-description">${esc(e.description||'（空）')}</p><div class="chat-analysis">${esc(e.analysis||'（空）')}</div></div></article><article class="chat-card chat-card-base" data-base-card hidden><button class="chat-media" type="button" data-base-zoom disabled><img data-base-image alt="基礎圖片"><div class="base-placeholder" data-base-placeholder>載入基礎圖片…</div></button><div class="chat-meta"><span data-base-image-meta>Base 圖片</span></div><div class="chat-body"><div class="chat-kicker">Base · 未套 EX</div><h3>${esc(p.name)}</h3><p class="chat-description">${esc(p.description||'（空）')}</p><div class="chat-analysis">${esc(p.analysis||'（空）')}</div><div class="base-note">用目前圖鑑基礎資料作比較，不改任何 EX 狀態。</div></div></article></div></div>`} -> function effectiveHtml(e,p,level){return`<div class="effective"><div class="preview-head"><div><b>聊天卡效果预览</b><span>目前实际生效内容；可展开 Base ↔ EX 对比</span></div><button class="preview-toggle" type="button" data-compare-toggle>Base ↔ EX 对比</button></div><div class="preview-stage" data-preview-stage><article class="chat-card chat-card-ex"><button class="chat-media" type="button" data-effective-zoom disabled><img data-effective-image alt="实际生效图片"><div class="effective-placeholder" data-effective-placeholder>载入实际图片…</div></button><div class="chat-meta"><span data-effective-image-meta>图片来源：载入中</span></div><div class="chat-body"><div class="chat-kicker">今日小猪 · EX Lv.${level}</div><h3>${esc(p.name)}</h3><p class="chat-description">${esc(e.description||'（空）')}</p><div class="chat-analysis">${esc(e.analysis||'（空）')}</div></div></article><article class="chat-card chat-card-base" data-base-card hidden><button class="chat-media" type="button" data-base-zoom disabled><img data-base-image alt="基础图片"><div class="base-placeholder" data-base-placeholder>载入基础图片…</div></button><div class="chat-meta"><span data-base-image-meta>Base 图片</span></div><div class="chat-body"><div class="chat-kicker">Base · 未套 EX</div><h3>${esc(p.name)}</h3><p class="chat-description">${esc(p.description||'（空）')}</p><div class="chat-analysis">${esc(p.analysis||'（空）')}</div><div class="base-note">用目前图鉴基础资料作比较，不改任何 EX 状态。</div></div></article></div></div>`}
+  L64: function levelHtml(p,level){const local=p.local_levels?.[String(level)]||{},e=(p.effective||[]).find(x=>Number(x.level)===level)||{};return`<article class="level" data-level="${level}"><div class="level-head"><div class="level-title"><span class="lv">${level}</span><span>EX Lv.${level}</span></div><span class="source">${local.description||local.analysis||local.image?'有本地覆蓋':'留空即繼承'}</span></div><div class="grid"><div class="field"><label>短描述</label><textarea data-field="description" maxlength="120" placeholder="留空＝繼承上一層">${esc(local.description||'')}</textarea></div><div class="field"><label>圖片差分</label><div class="image-row"><input class="file" data-field="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label class="check"><input data-field="remove-image" type="checkbox" ${local.image?'':'disabled'}> 移除目前圖片</label></div><small>${local.image?`目前：${esc(local.image)}；下方會顯示真正生效圖片`:'尚未設定本地圖片；下方會顯示繼承／基礎圖片'}</small></div><div class="field full"><label>完整文案</label><textarea class="analysis" data-field="analysis" maxlength="800" placeholder="留空＝繼承上一層">${esc(local.analysis||'')}</textarea></div></div>${effectiveHtml(e,p,level)}<div class="level-actions"><button class="btn ghost" type="button" data-reset>重設此層</button><button class="btn" type="button" data-save>儲存 EX Lv.${level}</button></div></article>`} -> function levelHtml(p,level){const local=p.local_levels?.[String(level)]||{},e=(p.effective||[]).find(x=>Number(x.level)===level)||{};return`<article class="level" data-level="${level}"><div class="level-head"><div class="level-title"><span class="lv">${level}</span><span>EX Lv.${level}</span></div><span class="source">${local.description||local.analysis||local.image?'有本地覆盖':'留空即继承'}</span></div><div class="grid"><div class="field"><label>短描述</label><textarea data-field="description" maxlength="120" placeholder="留空＝继承上一层">${esc(local.description||'')}</textarea></div><div class="field"><label>图片差分</label><div class="image-row"><input class="file" data-field="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label class="check"><input data-field="remove-image" type="checkbox" ${local.image?'':'disabled'}> 移除目前图片</label></div><small>${local.image?`目前：${esc(local.image)}；下方会显示真正生效图片`:'尚未设定本地图片；下方会显示继承／基础图片'}</small></div><div class="field full"><label>完整文案</label><textarea class="analysis" data-field="analysis" maxlength="800" placeholder="留空＝继承上一层">${esc(local.analysis||'')}</textarea></div></div>${effectiveHtml(e,p,level)}<div class="level-actions"><button class="btn ghost" type="button" data-reset>重设此层</button><button class="btn" type="button" data-save>储存 EX Lv.${level}</button></div></article>`}
+  L65: function renderEditor(){const p=(snapshot.items||[]).find(x=>x.id===selectedId);if(!p){$('editor').innerHTML='<div class="empty">從左側選一隻小豬開始編輯 EX 差分。</div>';return}const source=p.base_overridden?'<span class="badge block">基礎資料已有本地覆蓋</span>':'<span class="badge">基礎資料來自目前圖鑑</span>';$('editor').innerHTML=`<div class="pig-header"><div><h2>${esc(p.name)}</h2><div class="pig-id">${esc(p.id)}</div><div class="base-copy"><b>基礎描述：</b>${esc(p.description)}<br><b>基礎完整文案：</b>${esc(p.analysis)}</div></div><div>${source}</div></div><div class="levels">${[1,2,3,4,5].map(l=>levelHtml(p,l)).join('')}</div>`;document.querySelectorAll('.level').forEach(card=>bindLevel(card,p))} -> function renderEditor(){const p=(snapshot.items||[]).find(x=>x.id===selectedId);if(!p){$('editor').innerHTML='<div class="empty">从左侧选一只小猪开始编辑 EX 差分。</div>';return}const source=p.base_overridden?'<span class="badge block">基础资料已有本地覆盖</span>':'<span class="badge">基础资料来自目前图鉴</span>';$('editor').innerHTML=`<div class="pig-header"><div><h2>${esc(p.name)}</h2><div class="pig-id">${esc(p.id)}</div><div class="base-copy"><b>基础描述：</b>${esc(p.description)}<br><b>基础完整文案：</b>${esc(p.analysis)}</div></div><div>${source}</div></div><div class="levels">${[1,2,3,4,5].map(l=>levelHtml(p,l)).join('')}</div>`;document.querySelectorAll('.level').forEach(card=>bindLevel(card,p))}
+  L66: async function fileData(input){const file=input.files?.[0];if(!file)return'';if(file.size>10*1024*1024)throw new Error('圖片不能超過 10MB');return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('讀取圖片失敗'));r.readAsDataURL(file)})} -> async function fileData(input){const file=input.files?.[0];if(!file)return'';if(file.size>10*1024*1024)throw new Error('图片不能超过 10MB');return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('读取图片失败'));r.readAsDataURL(file)})}
+  L67: function setEffectiveImage(card,{src='',source='base',variant_level=0,filename=''}={}){const img=card.querySelector('[data-effective-image]'),placeholder=card.querySelector('[data-effective-placeholder]'),meta=card.querySelector('[data-effective-image-meta]'),zoom=card.querySelector('[data-effective-zoom]');if(src){img.src=src;img.classList.add('show');placeholder.hidden=true;zoom.disabled=false;zoom.dataset.zoomSrc=src}else{img.removeAttribute('src');img.classList.remove('show');placeholder.hidden=false;placeholder.textContent='沒有可預覽的圖片';zoom.disabled=true;delete zoom.dataset.zoomSrc}const lv=Number(variant_level||0);meta.textContent=`圖片來源：${imageSourceLabel(source)}${lv?` · Lv.${lv}`:''}${filename?` · ${filename}`:''}`} -> function setEffectiveImage(card,{src='',source='base',variant_level=0,filename=''}={}){const img=card.querySelector('[data-effective-image]'),placeholder=card.querySelector('[data-effective-placeholder]'),meta=card.querySelector('[data-effective-image-meta]'),zoom=card.querySelector('[data-effective-zoom]');if(src){img.src=src;img.classList.add('show');placeholder.hidden=true;zoom.disabled=false;zoom.dataset.zoomSrc=src}else{img.removeAttribute('src');img.classList.remove('show');placeholder.hidden=false;placeholder.textContent='没有可预览的图片';zoom.disabled=true;delete zoom.dataset.zoomSrc}const lv=Number(variant_level||0);meta.textContent=`图片来源：${imageSourceLabel(source)}${lv?` · Lv.${lv}`:''}${filename?` · ${filename}`:''}`}
+  L68: function setBaseImage(card,{src='',filename=''}={}){const img=card.querySelector('[data-base-image]'),placeholder=card.querySelector('[data-base-placeholder]'),meta=card.querySelector('[data-base-image-meta]'),zoom=card.querySelector('[data-base-zoom]');if(src){img.src=src;img.classList.add('show');placeholder.hidden=true;zoom.disabled=false;zoom.dataset.zoomSrc=src}else{img.removeAttribute('src');img.classList.remove('show');placeholder.hidden=false;placeholder.textContent='沒有可預覽的基礎圖片';zoom.disabled=true;delete zoom.dataset.zoomSrc}meta.textContent=`Base 圖片${filename?` · ${filename}`:''}`} -> function setBaseImage(card,{src='',filename=''}={}){const img=card.querySelector('[data-base-image]'),placeholder=card.querySelector('[data-base-placeholder]'),meta=card.querySelector('[data-base-image-meta]'),zoom=card.querySelector('[data-base-zoom]');if(src){img.src=src;img.classList.add('show');placeholder.hidden=true;zoom.disabled=false;zoom.dataset.zoomSrc=src}else{img.removeAttribute('src');img.classList.remove('show');placeholder.hidden=false;placeholder.textContent='没有可预览的基础图片';zoom.disabled=true;delete zoom.dataset.zoomSrc}meta.textContent=`Base 图片${filename?` · ${filename}`:''}`}
+  L73: function bindPreviewControls(card,p){const toggle=card.querySelector('[data-compare-toggle]'),stage=card.querySelector('[data-preview-stage]'),base=card.querySelector('[data-base-card]'),effectiveZoom=card.querySelector('[data-effective-zoom]'),baseZoom=card.querySelector('[data-base-zoom]');toggle.onclick=async()=>{const opening=base.hidden;base.hidden=!opening;stage.classList.toggle('comparing',opening);toggle.classList.toggle('active',opening);toggle.textContent=opening?'收起 Base 對比':'Base ↔ EX 對比';if(opening)await loadBaseImage(card,p)};effectiveZoom.onclick=()=>openLightbox(effectiveZoom.dataset.zoomSrc||'',`${p.name} · EX Lv.${card.dataset.level}`);baseZoom.onclick=()=>openLightbox(baseZoom.dataset.zoomSrc||'',`${p.name} · Base`)} -> function bindPreviewControls(card,p){const toggle=card.querySelector('[data-compare-toggle]'),stage=card.querySelector('[data-preview-stage]'),base=card.querySelector('[data-base-card]'),effectiveZoom=card.querySelector('[data-effective-zoom]'),baseZoom=card.querySelector('[data-base-zoom]');toggle.onclick=async()=>{const opening=base.hidden;base.hidden=!opening;stage.classList.toggle('comparing',opening);toggle.classList.toggle('active',opening);toggle.textContent=opening?'收起 Base 对比':'Base ↔ EX 对比';if(opening)await loadBaseImage(card,p)};effectiveZoom.onclick=()=>openLightbox(effectiveZoom.dataset.zoomSrc||'',`${p.name} · EX Lv.${card.dataset.level}`);baseZoom.onclick=()=>openLightbox(baseZoom.dataset.zoomSrc||'',`${p.name} · Base`)}
+  L74: function bindLevel(card,p){const level=Number(card.dataset.level),fileInput=card.querySelector('[data-field="image"]'),removeInput=card.querySelector('[data-field="remove-image"]');bindPreviewControls(card,p);loadEffectiveImage(card,p);fileInput.onchange=async()=>{try{const dataUrl=await fileData(fileInput);if(!dataUrl){await loadEffectiveImage(card,p,{removeImage:removeInput.checked});return}removeInput.checked=false;setEffectiveImage(card,{src:dataUrl,source:'pending',variant_level:level,filename:fileInput.files?.[0]?.name||''})}catch(e){fileInput.value='';toast(e.message);await loadEffectiveImage(card,p,{removeImage:removeInput.checked})}};removeInput.onchange=async()=>{if(removeInput.checked)fileInput.value='';await loadEffectiveImage(card,p,{removeImage:removeInput.checked,silent:false})};card.querySelector('[data-save]').onclick=async()=>{busy(true);try{const image=await fileData(fileInput);snapshot=await post('ex/variants/save',{id:p.id,level,description:card.querySelector('[data-field="description"]').value,analysis:card.querySelector('[data-field="analysis"]').value,image,remove_image:removeInput.checked});syncStats();renderList();renderEditor();toast(`已儲存 ${p.name} EX Lv.${level}`)}catch(e){toast(e.message)}finally{busy(false)}};card.querySelector('[data-reset]').onclick=async()=>{if(!confirm(`重設「${p.name}」EX Lv.${level} 的所有本地差分嗎？`))return;busy(true);try{snapshot=await post('ex/variants/delete',{id:p.id,level});syncStats();renderList();renderEditor();toast(`已重設 EX Lv.${level}`)}catch(e){toast(e.message)}finally{busy(false)}}} -> function bindLevel(card,p){const level=Number(card.dataset.level),fileInput=card.querySelector('[data-field="image"]'),removeInput=card.querySelector('[data-field="remove-image"]');bindPreviewControls(card,p);loadEffectiveImage(card,p);fileInput.onchange=async()=>{try{const dataUrl=await fileData(fileInput);if(!dataUrl){await loadEffectiveImage(card,p,{removeImage:removeInput.checked});return}removeInput.checked=false;setEffectiveImage(card,{src:dataUrl,source:'pending',variant_level:level,filename:fileInput.files?.[0]?.name||''})}catch(e){fileInput.value='';toast(e.message);await loadEffectiveImage(card,p,{removeImage:removeInput.checked})}};removeInput.onchange=async()=>{if(removeInput.checked)fileInput.value='';await loadEffectiveImage(card,p,{removeImage:removeInput.checked,silent:false})};card.querySelector('[data-save]').onclick=async()=>{busy(true);try{const image=await fileData(fileInput);snapshot=await post('ex/variants/save',{id:p.id,level,description:card.querySelector('[data-field="description"]').value,analysis:card.querySelector('[data-field="analysis"]').value,image,remove_image:removeInput.checked});syncStats();renderList();renderEditor();toast(`已储存 ${p.name} EX Lv.${level}`)}catch(e){toast(e.message)}finally{busy(false)}};card.querySelector('[data-reset]').onclick=async()=>{if(!confirm(`重设「${p.name}」EX Lv.${level} 的所有本地差分吗？`))return;busy(true);try{snapshot=await post('ex/variants/delete',{id:p.id,level});syncStats();renderList();renderEditor();toast(`已重设 EX Lv.${level}`)}catch(e){toast(e.message)}finally{busy(false)}}}
+  L79: $('search').oninput=e=>{query=e.target.value;renderList()};$('reloadBtn').onclick=async()=>{busy(true);try{await load();toast('EX 資料已重新載入')}catch(e){toast(e.message)}finally{busy(false)}}; -> $('search').oninput=e=>{query=e.target.value;renderList()};$('reloadBtn').onclick=async()=>{busy(true);try{await load();toast('EX 资料已重新载入')}catch(e){toast(e.message)}finally{busy(false)}};
+  L80: (async()=>{busy(true);try{await load()}catch(e){$('editor').innerHTML=`<div class="empty">EX 管理頁載入失敗：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}})(); -> (async()=>{busy(true);try{await load()}catch(e){$('editor').innerHTML=`<div class="empty">EX 管理页载入失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}})();
+pages/pig-manager-ex-public-source/index.html: 11
+  L5: <title>今日小豬 · EX 公共源</title> -> <title>今日小猪 · EX 公共源</title>
+  L11: <header class="head"><div><div class="eyebrow">RollPig Public Source</div><h1>EX 投稿與<span>審核</span></h1><p>投稿 envelope v2 會把基礎小豬、基礎圖片、本地 EX 差分與被引用的 EX 圖片作為同一次審核提交；批准後由服務端在同一 candidate resource 中驗證並原子發布。</p></div><button class="btn ghost" id="reload">重新載入</button></header> -> <header class="head"><div><div class="eyebrow">RollPig Public Source</div><h1>EX 投稿与<span>审核</span></h1><p>投稿 envelope v2 会把基础小猪、基础图片、本地 EX 差分与被引用的 EX 图片作为同一次审核提交；批准后由服务端在同一 candidate resource 中验证并原子发布。</p></div><button class="btn ghost" id="reload">重新载入</button></header>
+  L13: <article class="card"><div class="card-head"><h2>可投稿的本地 EX</h2><span class="badge" id="localCount">0</span></div><div class="body"><input class="search" id="search" placeholder="搜尋小豬名稱或 ID"><div style="height:12px"></div><div class="list" id="localList"></div></div></article> -> <article class="card"><div class="card-head"><h2>可投稿的本地 EX</h2><span class="badge" id="localCount">0</span></div><div class="body"><input class="search" id="search" placeholder="搜寻小猪名称或 ID"><div style="height:12px"></div><div class="list" id="localList"></div></div></article>
+  L14: <article class="card"><div class="card-head"><h2>公共源審核隊列</h2><div class="status-tabs"><button class="tab active" data-status="pending">待審</button><button class="tab" data-status="approved">已批准</button><button class="tab" data-status="rejected">已拒絕</button></div></div><div class="body" id="reviewList"></div></article> -> <article class="card"><div class="card-head"><h2>公共源审核队列</h2><div class="status-tabs"><button class="tab active" data-status="pending">待审</button><button class="tab" data-status="approved">已批准</button><button class="tab" data-status="rejected">已拒绝</button></div></div><div class="body" id="reviewList"></div></article>
+  L16: </main><div class="toast" id="toast"></div><div class="modal" id="modal"><div class="modal-card"><h3>確認公開投稿</h3><p id="confirmText"></p><div class="modal-actions"><button class="btn ghost" id="cancel">取消</button><button class="btn" id="confirm">確認投稿</button></div></div></div> -> </main><div class="toast" id="toast"></div><div class="modal" id="modal"><div class="modal-card"><h3>确认公开投稿</h3><p id="confirmText"></p><div class="modal-actions"><button class="btn ghost" id="cancel">取消</button><button class="btn" id="confirm">确认投稿</button></div></div></div>
+  L18: const bridge=window.AstrBotPluginPage,$=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));let csrf='',local={items:[]},reviews=[],status='pending',query='',pendingPig='';const theme=matchMedia('(prefers-color-scheme:dark)'),apply=()=>document.documentElement.dataset.theme=theme.matches?'dark':'light';apply();theme.addEventListener?.('change',apply);const unwrap=r=>{const x=r?.data??r;if(x?.status==='error')throw new Error(x.message||'操作失敗');return x?.data??x};const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500)};async function get(path,params={}){return unwrap(await bridge.apiGet(path,params))}async function post(path,p={}){return unwrap(await bridge.apiPost(path,{...p,__rollpig_csrf:csrf}))} -> const bridge=window.AstrBotPluginPage,$=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));let csrf='',local={items:[]},reviews=[],status='pending',query='',pendingPig='';const theme=matchMedia('(prefers-color-scheme:dark)'),apply=()=>document.documentElement.dataset.theme=theme.matches?'dark':'light';apply();theme.addEventListener?.('change',apply);const unwrap=r=>{const x=r?.data??r;if(x?.status==='error')throw new Error(x.message||'操作失败');return x?.data??x};const toast=m=>{const e=$('toast');e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500)};async function get(path,params={}){return unwrap(await bridge.apiGet(path,params))}async function post(path,p={}){return unwrap(await bridge.apiPost(path,{...p,__rollpig_csrf:csrf}))}
+  L19: function levelsOf(p){return Object.entries(p.local_levels||{}).sort((a,b)=>Number(a[0])-Number(b[0]))}function renderLocal(){const q=query.trim().toLowerCase(),items=(local.items||[]).filter(p=>levelsOf(p).length&&(!q||`${p.name} ${p.id}`.toLowerCase().includes(q)));$('localCount').textContent=items.length;$('localList').innerHTML=items.length?items.map(p=>`<div class="pig"><div class="pig-top"><div><div class="name">${esc(p.name)}</div><div class="id">${esc(p.id)}</div></div><span class="badge ex">${levelsOf(p).length} 個 EX 差分</span></div><div class="levels">${levelsOf(p).map(([lv,v])=>`<span class="lv">Lv.${lv}${v.image?' · 圖':''}${v.description?' · 描述':''}${v.analysis?' · 文案':''}</span>`).join('')}</div><button class="btn" data-submit="${esc(p.id)}">連同 EX 投稿公共源</button></div>`).join(''):'<div class="empty">目前沒有可投稿的本地 EX 差分。</div>';document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>openConfirm(b.dataset.submit))} -> function levelsOf(p){return Object.entries(p.local_levels||{}).sort((a,b)=>Number(a[0])-Number(b[0]))}function renderLocal(){const q=query.trim().toLowerCase(),items=(local.items||[]).filter(p=>levelsOf(p).length&&(!q||`${p.name} ${p.id}`.toLowerCase().includes(q)));$('localCount').textContent=items.length;$('localList').innerHTML=items.length?items.map(p=>`<div class="pig"><div class="pig-top"><div><div class="name">${esc(p.name)}</div><div class="id">${esc(p.id)}</div></div><span class="badge ex">${levelsOf(p).length} 个 EX 差分</span></div><div class="levels">${levelsOf(p).map(([lv,v])=>`<span class="lv">Lv.${lv}${v.image?' · 图':''}${v.description?' · 描述':''}${v.analysis?' · 文案':''}</span>`).join('')}</div><button class="btn" data-submit="${esc(p.id)}">连同 EX 投稿公共源</button></div>`).join(''):'<div class="empty">目前没有可投稿的本地 EX 差分。</div>';document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>openConfirm(b.dataset.submit))}
+  L20: function exRows(item){const levels=item.ex_variants?.pigs?.[item.pig_id]||{};return Object.entries(levels).sort((a,b)=>Number(a[0])-Number(b[0])).map(([lv,v])=>`<div class="ex-row"><b>EX Lv.${lv}</b>${v.description?`<div class="copy">描述：${esc(v.description)}</div>`:''}${v.analysis?`<div class="copy">文案：${esc(v.analysis)}</div>`:''}${v.image?`<div class="copy">圖片：${esc(v.image)}</div>`:''}</div>`).join('')} -> function exRows(item){const levels=item.ex_variants?.pigs?.[item.pig_id]||{};return Object.entries(levels).sort((a,b)=>Number(a[0])-Number(b[0])).map(([lv,v])=>`<div class="ex-row"><b>EX Lv.${lv}</b>${v.description?`<div class="copy">描述：${esc(v.description)}</div>`:''}${v.analysis?`<div class="copy">文案：${esc(v.analysis)}</div>`:''}${v.image?`<div class="copy">图片：${esc(v.image)}</div>`:''}</div>`).join('')}
+  L22: function renderReviews(){if(!reviews.length){$('reviewList').innerHTML='<div class="empty">這個狀態目前沒有投稿。</div>';return}$('reviewList').innerHTML=reviews.map((r,i)=>`<section class="review"><div class="review-top"><div><div class="name">${esc(r.name)}</div><div class="id">${esc(r.pig_id)} · ${esc(r.submission_id)}</div></div><div><span class="badge">Envelope v${Number(r.submission_version||1)}</span> ${Number(r.ex_variant_levels||0)?`<span class="badge ex">${Number(r.ex_variant_levels)} 個 EX 差分</span>`:''}</div></div><div class="copy"><b>描述：</b>${esc(r.description)}<br><b>完整文案：</b>${esc(r.analysis)}</div>${Number(r.ex_variant_levels||0)?`<div class="ex-block">${exRows(r)}</div>`:''}<div class="images"><div class="image-box"><img data-base-image="${i}" alt="基礎圖片"><small>基礎圖片</small></div>${(r.variant_images||[]).map((n,j)=>`<div class="image-box"><img data-variant-image="${i}:${j}" alt="EX 圖片"><small>${esc(n)}</small></div>`).join('')}</div>${status==='pending'?`<div class="review-actions"><input data-note="${i}" placeholder="審核備註（可選）"><button class="btn approve" data-decision="${i}:approve">批准並發布</button><button class="btn reject" data-decision="${i}:reject">拒絕</button></div>`:`<div class="copy">審核備註：${esc(r.reviewer_note||'—')} ${r.resource_version?`· 資源版本 ${esc(r.resource_version)}`:''}</div>`}</section>`).join('');document.querySelectorAll('[data-base-image]').forEach(img=>{const i=Number(img.dataset.baseImage);baseImage(reviews[i].submission_id,img)});document.querySelectorAll('[data-variant-image]').forEach(img=>{const [i,j]=img.dataset.variantImage.split(':').map(Number);variantImage(reviews[i].submission_id,reviews[i].variant_images[j],img)});document.querySelectorAll('[data-decision]').forEach(b=>b.onclick=async()=>{const [i,decision]=b.dataset.decision.split(':'),r=reviews[Number(i)],note=document.querySelector(`[data-note="${i}"]`)?.value||'';if(decision==='approve'&&!confirm(`批准後「${r.name}」及其 EX 差分會一起發布到正式公共源。繼續？`))return;try{await post('source/reviews/decision',{submission_id:r.submission_id,decision,note});toast(decision==='approve'?'已批准並發布':'已拒絕');await loadReviews()}catch(e){toast(e.message)}})} -> function renderReviews(){if(!reviews.length){$('reviewList').innerHTML='<div class="empty">这个状态目前没有投稿。</div>';return}$('reviewList').innerHTML=reviews.map((r,i)=>`<section class="review"><div class="review-top"><div><div class="name">${esc(r.name)}</div><div class="id">${esc(r.pig_id)} · ${esc(r.submission_id)}</div></div><div><span class="badge">Envelope v${Number(r.submission_version||1)}</span> ${Number(r.ex_variant_levels||0)?`<span class="badge ex">${Number(r.ex_variant_levels)} 个 EX 差分</span>`:''}</div></div><div class="copy"><b>描述：</b>${esc(r.description)}<br><b>完整文案：</b>${esc(r.analysis)}</div>${Number(r.ex_variant_levels||0)?`<div class="ex-block">${exRows(r)}</div>`:''}<div class="images"><div class="image-box"><img data-base-image="${i}" alt="基础图片"><small>基础图片</small></div>${(r.variant_images||[]).map((n,j)=>`<div class="image-box"><img data-variant-image="${i}:${j}" alt="EX 图片"><small>${esc(n)}</small></div>`).join('')}</div>${status==='pending'?`<div class="review-actions"><input data-note="${i}" placeholder="审核备注（可选）"><button class="btn approve" data-decision="${i}:approve">批准并发布</button><button class="btn reject" data-decision="${i}:reject">拒绝</button></div>`:`<div class="copy">审核备注：${esc(r.reviewer_note||'—')} ${r.resource_version?`· 资源版本 ${esc(r.resource_version)}`:''}</div>`}</section>`).join('');document.querySelectorAll('[data-base-image]').forEach(img=>{const i=Number(img.dataset.baseImage);baseImage(reviews[i].submission_id,img)});document.querySelectorAll('[data-variant-image]').forEach(img=>{const [i,j]=img.dataset.variantImage.split(':').map(Number);variantImage(reviews[i].submission_id,reviews[i].variant_images[j],img)});document.querySelectorAll('[data-decision]').forEach(b=>b.onclick=async()=>{const [i,decision]=b.dataset.decision.split(':'),r=reviews[Number(i)],note=document.querySelector(`[data-note="${i}"]`)?.value||'';if(decision==='approve'&&!confirm(`批准后「${r.name}」及其 EX 差分会一起发布到正式公共源。继续？`))return;try{await post('source/reviews/decision',{submission_id:r.submission_id,decision,note});toast(decision==='approve'?'已批准并发布':'已拒绝');await loadReviews()}catch(e){toast(e.message)}})}
+  L23: function openConfirm(id){const p=(local.items||[]).find(x=>x.id===id);if(!p)return;pendingPig=id;$('confirmText').textContent=`將公開傳送「${p.name}」的完整基礎資料、基礎圖片，以及 ${levelsOf(p).length} 個本地 EX 差分與其引用圖片。投稿後需由公共源管理員審核；是否繼續？`;$('modal').classList.add('show')}function closeConfirm(){pendingPig='';$('modal').classList.remove('show')} -> function openConfirm(id){const p=(local.items||[]).find(x=>x.id===id);if(!p)return;pendingPig=id;$('confirmText').textContent=`将公开传送「${p.name}」的完整基础资料、基础图片，以及 ${levelsOf(p).length} 个本地 EX 差分与其引用图片。投稿后需由公共源管理员审核；是否继续？`;$('modal').classList.add('show')}function closeConfirm(){pendingPig='';$('modal').classList.remove('show')}
+  L25: $('search').oninput=e=>{query=e.target.value;renderLocal()};$('cancel').onclick=closeConfirm;$('confirm').onclick=async()=>{const id=pendingPig;if(!id)return;try{const r=await post('ex/submit-public-source',{id,confirm:true});toast(r.message||'已提交公共源審核');closeConfirm();await loadReviews()}catch(e){toast(e.message)}};$('reload').onclick=()=>load().catch(e=>toast(e.message));document.querySelectorAll('[data-status]').forEach(b=>b.onclick=async()=>{status=b.dataset.status;document.querySelectorAll('[data-status]').forEach(x=>x.classList.toggle('active',x===b));try{await loadReviews()}catch(e){toast(e.message)}});load().catch(e=>toast(e.message)); -> $('search').oninput=e=>{query=e.target.value;renderLocal()};$('cancel').onclick=closeConfirm;$('confirm').onclick=async()=>{const id=pendingPig;if(!id)return;try{const r=await post('ex/submit-public-source',{id,confirm:true});toast(r.message||'已提交公共源审核');closeConfirm();await loadReviews()}catch(e){toast(e.message)}};$('reload').onclick=()=>load().catch(e=>toast(e.message));document.querySelectorAll('[data-status]').forEach(b=>b.onclick=async()=>{status=b.dataset.status;document.querySelectorAll('[data-status]').forEach(x=>x.classList.toggle('active',x===b));try{await loadReviews()}catch(e){toast(e.message)}});load().catch(e=>toast(e.message));
+pages/pig-manager/ex-integration.js: 2
+  L164: <div class="ex-field"><label>短描述</label><textarea id="exDescription" maxlength="120" placeholder="留空＝繼承">${esc(local.description || '')}</textarea><small>只覆盖这一层的短描述。</small></div> -> <div class="ex-field"><label>短描述</label><textarea id="exDescription" maxlength="120" placeholder="留空＝继承">${esc(local.description || '')}</textarea><small>只覆盖这一层的短描述。</small></div>
+  L166: <div class="ex-field full"><label>完整文案</label><textarea class="ex-analysis" id="exAnalysis" maxlength="800" placeholder="留空＝繼承">${esc(local.analysis || '')}</textarea><small>EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。</small></div> -> <div class="ex-field full"><label>完整文案</label><textarea class="ex-analysis" id="exAnalysis" maxlength="800" placeholder="留空＝继承">${esc(local.analysis || '')}</textarea><small>EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。</small></div>
+pages/pig-manager/ui-bootstrap.js: 1
+  L165: const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i; -> const ERROR_PATTERN = /(失败|失败|错误|错误|不可用|403|401|超时|逾时|校验失败|校验失败|bridge|版本不匹配)/i;
+Admin page changed lines total: 48
+
+=== Missing CJK glyphs in primary bundled font 荆南麦圆体.otf ===
+Unique missing CJK chars: 49
+報 U+5831 x12 -> t2s:报 | help_system.py:L146, help_system.py:L147, help_system.py:L148, player_copy.py:L16, player_copy.py:L23, player_copy.py:L37, player_copy.py:L38, player_copy.py:L39
+機 U+6A5F x8 -> t2s:机 | help_system.py:L89, help_system.py:L115, help_system.py:L138, player_copy.py:L25, player_copy.py:L30, player_copy.py:L36, player_copy.py:L43, player_copy.py:L45
+隨 U+96A8 x6 -> t2s:随 | help_system.py:L89, help_system.py:L115, help_system.py:L138, player_copy.py:L25, player_copy.py:L30, player_copy.py:L36
+關 U+95DC x5 -> t2s:关 | help_system.py:L90, help_system.py:L148, player_copy.py:L38, player_copy.py:L39, player_copy.py:L41
+動 U+52D5 x5 -> t2s:动 | player_copy.py:L40, player_copy.py:L41, player_copy.py:L41, player_copy.py:L59, player_copy.py:L59
+補 U+88DC x4 -> t2s:补 | help_system.py:L121, player_copy.py:L33, player_copy.py:L34, player_copy.py:L50
+貨 U+8CA8 x4 -> t2s:货 | help_system.py:L121, player_copy.py:L33, player_copy.py:L34, player_copy.py:L50
+廚 U+5EDA x3 -> t2s:厨 | renderers/roast.py:L21, help_system.py:L116, player_copy.py:L15
+頁 U+9801 x3 -> t2s:页 | help_system.py:L88, player_copy.py:L24, player_copy.py:L24
+預 U+9810 x3 -> t2s:预 | player_copy.py:L22, player_copy.py:L34, player_copy.py:L52
+幫 U+5E6B x2 -> t2s:帮 | renderers/roast.py:L21, player_copy.py:L32
+話 U+8A71 x2 -> t2s:话 | renderers/roast.py:L57, renderers/roast.py:L57
+碼 U+78BC x2 -> t2s:码 | help_system.py:L88, player_copy.py:L24
+態 U+614B x2 -> t2s:态 | help_system.py:L147, player_copy.py:L38
+閉 U+9589 x2 -> t2s:闭 | help_system.py:L148, player_copy.py:L39
+過 U+904E x2 -> t2s:过 | player_copy.py:L19, player_copy.py:L31
+對 U+5C0D x2 -> t2s:对 | player_copy.py:L20, player_copy.py:L20
+沒 U+6C92 x2 -> t2s:没 | player_copy.py:L29, player_copy.py:L53
+輪 U+8F2A x2 -> t2s:轮 | player_copy.py:L32, player_copy.py:L33
+約 U+7D04 x2 -> t2s:约 | player_copy.py:L34, player_copy.py:L52
+標 U+6A19 x2 -> t2s:标 | player_copy.py:L34, player_copy.py:L51
+敗 U+6557 x2 -> t2s:败 | player_copy.py:L35, player_copy.py:L57
+間 U+9593 x2 -> t2s:间 | player_copy.py:L38, player_copy.py:L49
+複 U+8907 x2 -> t2s:复 | player_copy.py:L45, player_copy.py:L47
+齁 U+9F41 x1 -> t2s:齁 | resource/ex_curated/03-social-and-modern-life.json:$.pigs.chocolate-pig.2.analysis
+鍵 U+9375 x1 -> t2s:键 | help_system.py:L90
+詞 U+8A5E x1 -> t2s:词 | help_system.py:L90
+點 U+9EDE x1 -> t2s:点 | help_system.py:L116
+記 U+8A18 x1 -> t2s:记 | player_copy.py:L17
+覽 U+89BD x1 -> t2s:览 | player_copy.py:L22
+運 U+904B x1 -> t2s:运 | player_copy.py:L22
+獎 U+734E x1 -> t2s:奖 | player_copy.py:L22
+響 U+97FF x1 -> t2s:响 | player_copy.py:L25
+稱 U+7A31 x1 -> t2s:称 | player_copy.py:L26
+繞 U+7E5E x1 -> t2s:绕 | player_copy.py:L31
+鍋 U+934B x1 -> t2s:锅 | player_copy.py:L34
+員 U+54E1 x1 -> t2s:员 | player_copy.py:L39
+連 U+9023 x1 -> t2s:连 | player_copy.py:L43
+續 U+7E8C x1 -> t2s:续 | player_copy.py:L43
+場 U+5834 x1 -> t2s:场 | player_copy.py:L43
+勞 U+52DE x1 -> t2s:劳 | player_copy.py:L44
+疊 U+758A x1 -> t2s:叠 | player_copy.py:L45
+達 U+9054 x1 -> t2s:达 | player_copy.py:L51
+躍 U+8E8D x1 -> t2s:跃 | player_copy.py:L51
+護 U+8B77 x1 -> t2s:护 | player_copy.py:L54
+攔 U+6514 x1 -> t2s:拦 | player_copy.py:L55
+寫 U+5BEB x1 -> t2s:写 | player_copy.py:L57
+觸 U+89F8 x1 -> t2s:触 | player_copy.py:L59
+圖 U+5716 x1 -> t2s:图 | player_copy.py:L61
