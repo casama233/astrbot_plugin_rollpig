@@ -28,4 +28,4 @@ def test_comparison_is_lazy_and_does_not_mutate_ex_state():
     assert "if(card.dataset.baseLoaded==='1')return" in PAGE
     assert "card.dataset.baseLoaded='1'" in PAGE
     assert "loadBaseImage(card,p)" in PAGE
-    assert "Base ↔ EX 對比" in PAGE
+    assert "Base ↔ EX 对比" in PAGE
