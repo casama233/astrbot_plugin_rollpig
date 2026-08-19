@@ -100,6 +100,18 @@ jobs:
             --exclude '.env' \
             --exclude 'data/' \
             --exclude 'plugin_data/'
+
+          python scripts/prepare_install_bundle.py "dist/$PLUGIN_NAME"
+          python - <<PY
+          import json
+          from pathlib import Path
+          root = Path("dist/$PLUGIN_NAME/resource")
+          pigs = json.loads((root / "pig.json").read_text(encoding="utf-8-sig"))
+          images = [p for p in (root / "image").iterdir() if p.is_file()]
+          assert len(pigs) == 22, len(pigs)
+          assert len(images) == 22, len(images)
+          PY
+
           test -f "dist/$PLUGIN_NAME/resource/font/荆南麦圆体.otf"
           (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
 
