@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import sys
 import types
 from pathlib import Path
@@ -112,14 +113,53 @@ def test_effective_preview_restores_public_image_when_last_local_image_is_remove
     assert level == 1
 
 
-def test_ex_editor_previews_effective_and_unsaved_images():
+def test_ex_card_preview_delegates_to_runtime_renderer_and_cleans_temp_file(tmp_path: Path):
+    harness = _preview_harness(tmp_path)
+    harness._ex_variants = {
+        "pig": {2: {"description": "EX2 描述", "analysis": "EX2 完整文案"}}
+    }
+    harness._ex_variant_source = "bundled"
+    rendered = tmp_path / "rendered.png"
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    seen = {}
+
+    def render(display):
+        seen.clear()
+        seen.update(display)
+        rendered.write_bytes(png)
+        return rendered
+
+    harness.render_pig_image = render
+    harness.EX_CARD_PREVIEW_MAX_SIZE = 64 * 1024 * 1024
+
+    payload = harness._render_ex_card_preview_payload("pig", 2)
+    assert seen["_ex_level"] == 2
+    assert seen["description"] == "EX2 描述"
+    assert seen["analysis"] == "EX2 完整文案"
+    assert payload["mime_type"] == "image/png"
+    assert base64.b64decode(payload["base64"]) == png
+    assert not rendered.exists()
+
+    payload = harness._render_ex_card_preview_payload("pig", 2, base=True)
+    assert seen["_ex_level"] == 0
+    assert seen["description"] == BASE["description"]
+    assert seen["analysis"] == BASE["analysis"]
+    assert payload["source"] == "base"
+    assert not rendered.exists()
+
+
+def test_ex_editor_previews_exact_runtime_cards_instead_of_fake_browser_cards():
     source = Path("pages/pig-manager-ex/index.html").read_text(encoding="utf-8")
-    assert "data-effective-image" in source
-    assert "data-effective-image-meta" in source
+    assert "ex/variants/card" in source
+    assert "data-effective-card-image" in source
+    assert "data-base-card-image" in source
+    assert "真实发送 renderer" in source
     assert "effective:true" in source
-    assert "remove_image:removeImage" in source
+    assert "base:true" in source
     assert "FileReader" in source
-    assert "未储存本地图片" in source
     assert 'class="chat-card chat-card-ex"' in source
     assert "data-compare-toggle" in source
-    assert "data-preview>预览目前图片" not in source
+    assert '<div class="chat-body">' not in source
+    assert "data-effective-image" not in source
