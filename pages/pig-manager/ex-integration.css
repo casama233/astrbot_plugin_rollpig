@@ -37,3 +37,18 @@
 
 @media(max-width:900px){#view-overview #barChart .bar-row{grid-template-columns:minmax(96px,120px) 1fr 36px}}
 @media(max-width:760px){.ex-manager-head{flex-direction:column}.ex-manager-badges{justify-content:flex-start}.ex-level-tabs{grid-template-columns:repeat(5,minmax(54px,1fr));overflow-x:auto}.ex-editor-grid{grid-template-columns:1fr}.ex-field.full{grid-column:auto}.public-source-ex-levels{grid-template-columns:repeat(2,minmax(0,1fr))}.ex-level-actions{flex-direction:column-reverse}.ex-level-actions .btn{width:100%}#view-overview #barChart .bar-row{grid-template-columns:minmax(90px,110px) 1fr 34px;padding:9px}}
+
+
+/* Production-card preview parity: the browser displays the exact 800×800 output
+   from render_pig_image instead of reconstructing a second chat-card design. */
+.ex-preview-card{padding:12px;background:color-mix(in srgb,var(--surface-strong) 88%,transparent)}
+.ex-preview-card-base{background:color-mix(in srgb,var(--surface-strong) 82%,var(--violet) 5%)}
+.ex-preview-rendered{width:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}
+.ex-preview-rendered:disabled{cursor:default}
+.ex-preview-rendered img{display:none;width:min(100%,520px);height:auto;aspect-ratio:1;object-fit:contain;border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+.ex-preview-rendered img.show{display:block}
+.ex-preview-runtime-meta{display:flex;justify-content:center;padding:9px 4px 1px;color:var(--muted);font-size:9px;text-align:center}
+.ex-preview-card.preview-pending{border-color:color-mix(in srgb,var(--orange) 52%,var(--line))}
+.ex-preview-card.preview-pending .ex-preview-runtime-meta{color:var(--orange)}
+.ex-preview-stage.comparing .ex-preview-rendered img{width:min(100%,460px)}
+@media(max-width:760px){.ex-preview-rendered img,.ex-preview-stage.comparing .ex-preview-rendered img{width:min(100%,520px)}}

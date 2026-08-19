@@ -36,6 +36,7 @@ class ExAdminMixin:
     """
 
     LOCAL_EX_IMAGE_MAX_SIZE = 10 * 1024 * 1024
+    EX_CARD_PREVIEW_MAX_SIZE = 64 * 1024 * 1024
 
     def __init__(self, context, config):
         self._local_ex_variants: dict[str, dict[int, dict[str, str]]] = {}
@@ -71,6 +72,12 @@ class ExAdminMixin:
             self.page_ex_variant_image,
             ["POST"],
             "预览本地或实际生效 EX 图片",
+        )
+        context.register_web_api(
+            f"/{self.PLUGIN_NAME}/ex/variants/card",
+            self.page_ex_variant_card,
+            ["POST"],
+            "渲染与真实发送一致的 EX 聊天卡预览",
         )
 
     def _reload_catalog_layers(self):
@@ -477,6 +484,74 @@ class ExAdminMixin:
         except Exception as exc:
             logger.error(f"删除本地 EX 差分失败：{exc}", exc_info=True)
             return self._jsonify({"status": "error", "message": "删除本地 EX 差分失败"})
+
+    def _render_ex_card_preview_payload(
+        self, pig_id: str, level: int, *, base: bool = False
+    ) -> dict:
+        """Render the exact runtime pig card used by chat delivery.
+
+        The admin UI must not maintain a second approximation of the card. This
+        helper resolves the same saved Base/EX copy, sets the runtime EX level,
+        and then delegates to ``self.render_pig_image``. That path also keeps
+        animated GIF handling aligned with real delivery.
+        """
+        pig = self._find_catalog_pig(str(pig_id))
+        if not isinstance(pig, dict):
+            raise ValueError("小猪不存在")
+
+        if base:
+            display = dict(pig)
+            display["_ex_level"] = 0
+            source = "base"
+            variant_level = 0
+        else:
+            preview = self._effective_ex_preview(pig, int(level))
+            display = dict(pig)
+            display["description"] = str(preview.get("description") or "")
+            display["analysis"] = str(preview.get("analysis") or "")
+            display["_ex_level"] = max(1, int(level))
+            source = str(preview.get("source") or "base")
+            variant_level = int(preview.get("variant_level", 0) or 0)
+
+        rendered = self.render_pig_image(display)
+        if not rendered or not Path(rendered).is_file():
+            raise ValueError("聊天卡预览渲染失败")
+        rendered_path = Path(rendered)
+        try:
+            raw = rendered_path.read_bytes()
+        finally:
+            rendered_path.unlink(missing_ok=True)
+        if not raw:
+            raise ValueError("聊天卡预览为空")
+        if len(raw) > self.EX_CARD_PREVIEW_MAX_SIZE:
+            raise ValueError("聊天卡预览超过 64MB")
+        return {
+            "mime_type": image_mime_type_from_bytes(raw),
+            "base64": base64.b64encode(raw).decode("ascii"),
+            "source": source,
+            "variant_level": variant_level,
+        }
+
+    async def page_ex_variant_card(self):
+        try:
+            payload = await request.json(default={})
+            if not self._is_authorized_write_request(request, payload):
+                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+            if not isinstance(payload, dict):
+                raise ValueError("请求格式无效")
+            pig_id, level = self._parse_ex_target(payload)
+            data = await asyncio.to_thread(
+                self._render_ex_card_preview_payload,
+                pig_id,
+                level,
+                base=payload.get("base") is True,
+            )
+            return self._jsonify({"status": "ok", "data": data})
+        except ValueError as exc:
+            return self._jsonify({"status": "error", "message": str(exc)})
+        except Exception as exc:
+            logger.error(f"渲染 EX 聊天卡预览失败：{exc}", exc_info=True)
+            return self._jsonify({"status": "error", "message": "渲染 EX 聊天卡预览失败"})
 
     async def page_ex_variant_image(self):
         try:
