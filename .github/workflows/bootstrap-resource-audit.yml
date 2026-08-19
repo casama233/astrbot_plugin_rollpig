@@ -1,0 +1,88 @@
+name: Bootstrap resource audit
+
+on:
+  push:
+    branches: [feat/bootstrap-resource-bundle]
+    paths:
+      - .github/workflows/bootstrap-resource-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit hard references and bundle sizes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          root = Path('.')
+          pigs = json.loads((root/'resource/pig.json').read_text(encoding='utf-8-sig'))
+          ids = [str(x['id']) for x in pigs]
+          wanted_suffixes = {'.py', '.js', '.html', '.css', '.json', '.yml', '.yaml', '.toml'}
+          excluded_roots = {'resource', '.git'}
+          texts = []
+          for p in root.rglob('*'):
+              if not p.is_file() or p.suffix.lower() not in wanted_suffixes:
+                  continue
+              if p.parts and p.parts[0] in excluded_roots:
+                  continue
+              try:
+                  text = p.read_text(encoding='utf-8')
+              except Exception:
+                  continue
+              texts.append((p.as_posix(), text))
+
+          refs = {}
+          for pig_id in ids:
+              pat = re.compile(r'(?<![A-Za-z0-9_-])' + re.escape(pig_id) + r'(?![A-Za-z0-9_-])')
+              hits = sorted({name for name, text in texts if pat.search(text)})
+              if hits:
+                  refs[pig_id] = hits
+
+          def tree_stats(path):
+              files = [p for p in path.rglob('*') if p.is_file()] if path.exists() else []
+              return len(files), sum(p.stat().st_size for p in files)
+
+          img_count, img_bytes = tree_stats(root/'resource/image')
+          font_count, font_bytes = tree_stats(root/'resource/font')
+          curated_count, curated_bytes = tree_stats(root/'resource/ex_curated')
+          largest = sorted(
+              ((p.stat().st_size, p.name) for p in (root/'resource/image').glob('*') if p.is_file()),
+              reverse=True,
+          )[:30]
+
+          out = []
+          out += [
+              f'bundled_pig_count={len(ids)}',
+              f'image_files={img_count}',
+              f'image_bytes={img_bytes}',
+              f'font_files={font_count}',
+              f'font_bytes={font_bytes}',
+              f'ex_curated_files={curated_count}',
+              f'ex_curated_bytes={curated_bytes}',
+              '',
+              '[hard_referenced_pig_ids]',
+          ]
+          for pig_id, paths in sorted(refs.items()):
+              out.append(f'{pig_id}: ' + ', '.join(paths))
+          out += ['', '[largest_images]']
+          for size, name in largest:
+              out.append(f'{size}\t{name}')
+          (root/'bootstrap-audit.txt').write_text('\n'.join(out) + '\n', encoding='utf-8')
+          PY
+      - name: Commit audit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bootstrap-audit.txt
+          git commit -m "chore: record bootstrap resource audit"
+          git push
