@@ -28,13 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout frozen pre-v3.4 compatibility source
-        uses: actions/checkout@v4
-        with:
-          repository: Felis2026/rollpig-resources
-          ref: 17ac1586a91c33995883803a55e2f755047f6e1f
-          path: _compat/rollpig-resources
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -43,104 +36,74 @@ jobs:
       - name: Install image validator
         run: python -m pip install -r requirements.txt
 
-      - name: Restore compatibility floor
+      - name: Enforce quarantined authored resource boundary
         run: |
+          test ! -e resource/pig_ex_variants.json
+          test ! -d resource/ex_curated
+
+      - name: Verify legacy compatibility helper fails closed
+        run: |
+          set +e
           python scripts/prepare_resource_catalog.py \
             --primary resource \
-            --compat _compat/rollpig-resources/rollpig \
-            --output dist/merged-resource
+            --compat /tmp/not-used \
+            --output /tmp/not-used-output >/tmp/compat.out 2>/tmp/compat.err
+          status=$?
+          set -e
+          test "$status" -ne 0
+          grep -q 'publishing is disabled\|publishing.*disabled\|compatibility-floor publishing is disabled' /tmp/compat.err
 
-      - name: Build validated AstrBot source
+      - name: Build validated AstrBot source from bundled lineage only
         env:
           RESOURCE_VERSION: ${{ github.sha }}
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          root = Path("dist/merged-resource")
-          records = json.loads((root / "pig.json").read_text(encoding="utf-8"))
-          ids = {str(item["id"]) for item in records}
-          documents = [root / "pig_ex_variants.json", *sorted((root / "ex_curated").glob("*.json"))]
-          handcrafted = {}
-          source_by_id = {}
-          for path in documents:
-              payload = json.loads(path.read_text(encoding="utf-8-sig"))
-              pigs = payload.get("pigs", {})
-              if not isinstance(pigs, dict):
-                  raise SystemExit(f"invalid EX authoring document: {path}")
-              duplicates = set(handcrafted).intersection(pigs)
-              if duplicates:
-                  raise SystemExit(f"duplicate handcrafted EX IDs in {path.name}: {sorted(duplicates)}")
-              for pig_id in pigs:
-                  source_by_id[str(pig_id)] = path.name
-              handcrafted.update({str(pig_id): levels for pig_id, levels in pigs.items()})
-
-          if set(handcrafted) != ids:
-              missing = sorted(ids - set(handcrafted))[:20]
-              extra = sorted(set(handcrafted) - ids)[:20]
-              raise SystemExit(f"handcrafted EX coverage mismatch: missing={missing}, extra={extra}")
-          expected_levels = {"1", "2", "3", "4", "5"}
-          for pig_id, levels in handcrafted.items():
-              if set(levels) != expected_levels:
-                  raise SystemExit(f"{pig_id} handcrafted EX is not exactly Lv1-Lv5 ({source_by_id[pig_id]})")
-              descriptions = [str(levels[str(level)].get("description") or "").strip() for level in range(1, 6)]
-              analyses = [str(levels[str(level)].get("analysis") or "").strip() for level in range(1, 6)]
-              if not all(descriptions) or len(set(descriptions)) != 5:
-                  raise SystemExit(f"{pig_id} handcrafted descriptions are incomplete/duplicated")
-              if not all(analyses) or len(set(analyses)) != 5:
-                  raise SystemExit(f"{pig_id} handcrafted analyses are incomplete/duplicated")
-          print(f"handcrafted EX authoring gate: {len(handcrafted)}/{len(ids)} pigs")
-          PY
-
           python scripts/build_resource_source.py \
-            --source dist/merged-resource \
+            --source resource \
             --output dist/astrbot-rollpig-source \
             --version "git-${RESOURCE_VERSION:0:12}"
+
           python -m json.tool dist/astrbot-rollpig-source/manifest.json >/dev/null
           test -f dist/astrbot-rollpig-source/health.json
+          test -f dist/astrbot-rollpig-source/pig.json
           test -f dist/astrbot-rollpig-source/pig_ex_variants.json
           test -d dist/astrbot-rollpig-source/images
+          test ! -e dist/astrbot-rollpig-source/compatibility_floor.json
+
           python - <<'PY'
           import json
           from pathlib import Path
 
           root = Path("dist/astrbot-rollpig-source")
           records = json.loads((root / "pig.json").read_text(encoding="utf-8"))
-          ids = {item["id"] for item in records}
-          required = {"miku-pig", "wechat-pig", "duke-pig"}
-          missing = required - ids
-          if missing:
-              raise SystemExit(f"pre-v3.4 compatibility sentinels missing: {sorted(missing)}")
-          floor = json.loads(Path("dist/merged-resource/compatibility_floor.json").read_text(encoding="utf-8"))
-          floor_ids = set(floor["ids"])
-          if not floor_ids <= ids:
-              raise SystemExit("official source shrank below the frozen compatibility floor")
-
+          ids = {str(item["id"]) for item in records}
           variants = json.loads((root / "pig_ex_variants.json").read_text(encoding="utf-8"))
           ex_pigs = variants.get("pigs", {})
+
           if set(ex_pigs) != ids:
-              missing_ex = sorted(ids - set(ex_pigs))[:10]
-              extra_ex = sorted(set(ex_pigs) - ids)[:10]
-              raise SystemExit(f"EX coverage mismatch: missing={missing_ex}, extra={extra_ex}")
+              missing = sorted(ids - set(ex_pigs))[:10]
+              extra = sorted(set(ex_pigs) - ids)[:10]
+              raise SystemExit(f"generated EX coverage mismatch: missing={missing}, extra={extra}")
+
           expected_levels = {"1", "2", "3", "4", "5"}
           for pig_id, levels in ex_pigs.items():
               if set(levels) != expected_levels:
-                  raise SystemExit(f"{pig_id} does not have complete EX1-EX5 materialization")
+                  raise SystemExit(f"{pig_id} does not have generated EX1-EX5 materialization")
               descriptions = [str(levels[str(level)].get("description") or "") for level in range(1, 6)]
               analyses = [str(levels[str(level)].get("analysis") or "") for level in range(1, 6)]
               if not all(descriptions) or len(set(descriptions)) != 5:
-                  raise SystemExit(f"{pig_id} EX descriptions are not five distinct values")
+                  raise SystemExit(f"{pig_id} generated EX descriptions are incomplete/duplicated")
               if not all(analyses) or len(set(analyses)) != 5:
-                  raise SystemExit(f"{pig_id} EX analyses are not five distinct values")
+                  raise SystemExit(f"{pig_id} generated EX analyses are incomplete/duplicated")
 
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           health = json.loads((root / "health.json").read_text(encoding="utf-8"))
+          if manifest.get("pig_count") != len(ids):
+              raise SystemExit("manifest pig count does not match bundled catalog")
           if manifest.get("ex_variant_pig_count") != len(ids):
-              raise SystemExit("manifest EX count does not match pig count")
+              raise SystemExit("manifest generated EX count does not match pig count")
           if health.get("ex_variant_pig_count") != len(ids):
-              raise SystemExit("health EX count does not match pig count")
-          print(f"compatibility floor: {len(floor_ids)} ids; published: {len(ids)} ids; EX: {len(ex_pigs)} ids")
+              raise SystemExit("health generated EX count does not match pig count")
+          print(f"bundled lineage source: {len(ids)} pigs; generated EX: {len(ex_pigs)} pigs")
           PY
 
       - name: Upload deployable source artifact
@@ -148,13 +111,5 @@ jobs:
         with:
           name: astrbot-rollpig-source-${{ github.sha }}
           path: dist/astrbot-rollpig-source/
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload migrated canonical catalog
-        uses: actions/upload-artifact@v4
-        with:
-          name: astrbot-rollpig-canonical-${{ github.sha }}
-          path: dist/merged-resource/
           if-no-files-found: error
           retention-days: 14

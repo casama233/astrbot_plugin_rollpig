@@ -4,13 +4,17 @@ Last updated: 2026-08-19
 
 This document records the resource-focused portion of the remediation started after the attribution concerns in [AstrBotDevs/AstrBot#9687](https://github.com/AstrBotDevs/AstrBot/issues/9687).
 
-It is evidence/provenance documentation, **not a blanket license grant** for artwork or text.
+It is evidence/provenance documentation, **not a blanket license grant** for artwork, prose, catalog data or other resources.
 
-## Why this is separate from the software license
+## Current publication rule
 
-The repository's MIT software license covers software distributed under that license. Images, fonts, prose, catalog data and other content can have different origins and licensing conditions. A resource must not be treated as freely redistributable merely because the code loading it is MIT-licensed.
+The project now follows a fail-closed resource rule:
 
-## Findings so far
+> A resource that cannot be tied to a documented source and redistribution basis is withheld from public redistribution until that provenance is established.
+
+Software licensing and resource licensing are reviewed separately. The fact that code is MIT-licensed does not by itself grant rights to artwork, prose, community submissions or mirrored resource packs.
+
+## Findings and remediation
 
 ### 1. Baseline pig images are inherited from the direct AstrBot parent
 
@@ -33,38 +37,45 @@ Verified examples include:
 | `black-pig.png` | `4692848076222ede43279907759e7574482cbbba` | yes | yes | not needed for origin determination |
 | `black-white-pig.png` | `4c0d9c28c01ab422047245b47289701459515502` | yes | yes | not needed for origin determination |
 
-For these baseline assets, the repository should preserve the earlier project-lineage attribution rather than incorrectly describing them as newly copied from RollPig Plus.
+For these baseline assets, the repository preserves the earlier project-lineage attribution rather than incorrectly describing them as newly copied from RollPig Plus.
 
-This finding does **not** establish the original artwork license by itself; it establishes that the files were already inherited through this repository's direct parent lineage.
+This establishes parent lineage for the checked blobs; it does **not** independently establish the original artwork license for every historical asset.
 
-### 2. The bundled `resource/pig.json` copy is also parent-lineage content
+### 2. The bundled `resource/pig.json` base catalog is also parent-lineage content
 
-The opening entries in this repository's `resource/pig.json` match the direct MegSopern parent copy, including the rewritten `human`, `pig` and `black-pig` descriptions/analysis.
+Checked opening entries in this repository's bundled `resource/pig.json` match the direct MegSopern parent copy, including the rewritten `human`, `pig` and `black-pig` descriptions/analysis.
 
-The corresponding current `Felis2026/nonebot-plugin-rollpig-plus` `pig.json` uses different prose for those entries. Therefore, the current bundled base catalog should not be described as having been copied wholesale from the current Felis catalog.
+The corresponding current `Felis2026/nonebot-plugin-rollpig-plus` catalog uses different prose for those checked entries. Therefore the bundled base catalog is not being described as a wholesale copy of the current Felis catalog.
 
-This does not rule out later individual catalog/resource overlaps; those need item-level review.
+This is a sampled lineage finding and does not excuse later individual additions from item-level review.
 
-### 3. Later resource additions require separate review
+### 3. Bundled authored EX copy has been quarantined
 
-The following are not covered by the baseline-parent finding and remain in the audit scope:
+The following authored EX resources were previously identified as later material requiring separate provenance review:
 
 - `resource/pig_ex_variants.json`;
-- `resource/ex_curated/*.json`;
-- `resource/roast_copy.json`;
-- any remotely published catalog entries that are not present in the inherited parent resource tree;
-- any remotely published images obtained after the fork diverged;
-- any mirrored RollPig Plus resource pack, if present in production/public-source storage.
+- `resource/ex_curated/*.json`.
 
-#### `resource/roast_copy.json` sample check
+As part of the 2026-08-19 remediation, those authored bundled files are removed from the current publication tree pending item-level provenance/permission review.
 
-The local pack contains later project-specific copy such as `可爱可以加葱，不能减刑` and `成长的尽头不是毕业，是更大的烤盘`. Sample searches of the current public Felis repository did not return those exact phrases.
+The EX mechanism itself is retained. When no explicit cloud/bundled authoring document is available, the plugin uses its existing deterministic five-level baseline derived from the active base catalog. This preserves EX behavior without redistributing the quarantined authored prose.
 
-That is only a limited negative check. It is **not** proof that the whole pack is independently authored, and it does not replace a complete provenance review.
+Tests now enforce both conditions:
 
-### 4. The production compatibility floor explicitly uses a frozen Felis resource snapshot
+1. authored bundled EX files are absent; and
+2. the deterministic baseline still produces complete EX1-EX5 presentation data for the bundled catalog.
 
-The private production service contains a retained compatibility migration whose `LEGACY_COMPATIBILITY` source is:
+### 4. Bundled roast-copy has been replaced rather than presumed cleared
+
+The previous `resource/roast_copy.json` was subject only to limited negative exact-text sampling. That sampling was not sufficient to establish independent provenance for the complete pack.
+
+Instead of treating the old pack as cleared, the 2026-08-19 remediation replaces it with a newly authored bundled roast-copy pack. The replacement is intentionally a fresh set of dish names and lines rather than a phrase-by-phrase edit of the old pack.
+
+The production provenance-safe restoration profile does not publish a remote roast-copy pack at all. Clients may use the newly authored bundled fallback until a separately audited remote text pack is intentionally introduced.
+
+### 5. Historical Felis compatibility-floor redistribution is confirmed and now fail-closed
+
+A historical compatibility path used the frozen resource snapshot:
 
 - repository: `Felis2026/rollpig-resources`;
 - commit: `17ac1586a91c33995883803a55e2f755047f6e1f`;
@@ -72,46 +83,58 @@ The private production service contains a retained compatibility migration whose
 - fixed `pig.json` SHA-256: `687a491e541869cf1ef4f495e9189cf358a0d68655d1f780395a482113bc8be8`;
 - sentinels: `miku-pig`, `wechat-pig`, `duke-pig`.
 
-The migration is not merely an ID-preservation list. For IDs missing from the current AstrBot catalog, it takes the record from that frozen Felis snapshot and copies the corresponding image from the compatibility snapshot into the merged catalog. Current AstrBot records/images win only when the same ID already exists.
+That mechanism did more than preserve IDs: for records missing from the AstrBot catalog it could copy the record and corresponding image from the frozen compatibility snapshot into a merged public catalog. It is therefore a direct resource-redistribution provenance issue, not merely a software-attribution issue.
 
-This is therefore a **direct resource redistribution provenance issue** and must not be treated as only a feature-design or MIT-code attribution issue.
+The remediation now disables that path in both publication layers:
 
-At the frozen commit above, the repository root did not contain a `LICENSE` or `RESOURCES-LICENSE.md`. The current `Felis2026/rollpig-resources` repository now explicitly separates software from resources: its current license says Felis-original images/text are not covered by the MIT software license and points to separate resource terms that include restrictions on bulk mirroring/re-hosting and attribution requirements.
+- this public repository's Resource Source GitHub Actions workflow no longer checks out the Felis resource repository, no longer runs a compatibility-floor restore, no longer requires compatibility sentinels, and no longer uploads a merged compatibility catalog;
+- `scripts/prepare_resource_catalog.py` retains the historical metadata for forensic reproducibility but rejects the historical Felis compatibility spec by default and its CLI cannot publish it;
+- the private production service separately keeps its retained compatibility migration fail-closed for publishing, with any explicit bypass reserved for isolated audit/reproduction only.
 
-This audit does not assume that today's resource terms retroactively change any permission that may or may not have existed at the frozen commit. It records the narrower and safer conclusion: **the current project does not yet have documented redistribution permission for every Felis-snapshot record/image restored by the compatibility-floor migration, so those restored items must be treated as unverified until provenance/permission is established.**
+Historical identifiers are intentionally retained in audit code/documentation so the remediation can be reproduced. Removing the evidence would make provenance review harder and is not a substitute for stopping redistribution.
 
-Required remediation for this compatibility floor:
+### 6. Production catalog was audited directly and remains offline
 
-1. identify the exact `restored_ids` produced when the migration was run against production;
-2. for each restored ID, determine whether its record/image came from Bearlele/PigHub/community material or Felis-original material and retain the applicable source notice;
-3. stop relying on the Felis snapshot as an automatic future compatibility source unless redistribution permission is documented;
-4. withhold any Felis-original or otherwise unverified restored resources from the public mirror until permission is established;
-5. retain evidence of the frozen source commit and the remediation decision rather than deleting history.
+Git repository state alone was insufficient because the production review/catalog storage is outside the service code release tree. A direct production audit was therefore performed while public serving was disabled.
 
-### 5. Production/public-source storage is a separate audit target
+The Phase 3 offline result supplied by the production operator on 2026-08-19 was:
 
-The private `casama233/rollpig-public-source-service` repository documents that production review state and the public catalog/published resources are stored outside the code release tree. Therefore a clean Git repository comparison alone cannot establish what the public `curryudon.top` resource endpoint is currently distributing.
+- production canonical records: **204**;
+- provenance allow set: **157**;
+- quarantine set: **47**;
+- allow/quarantine overlap: **0**;
+- uncovered canonical IDs: **0**;
+- foreign IDs in the classification: **0**;
+- the 47 quarantined records and their base images were removed from the offline candidate;
+- resulting clean candidate: **157** records;
+- `PROVENANCE.json`: **157** entries;
+- `NOTICE.md` and `LICENSES/` were added to the candidate;
+- a formal offline builder validation completed successfully.
 
-The production catalog and image store must be audited directly before claiming that all publicly served resources have verified provenance.
+Crucially, that validation did **not** constitute republication. At the end of the phase the service remained inactive, the public resource directory remained inaccessible, and the public HTTP endpoint returned `403`.
 
-Until that check is complete, any remotely published item whose source or redistribution permission cannot be established should be withheld from public distribution.
+The earlier full builder also materialized EX/roast-copy extended resources, so that validation alone is not used as the final restoration artifact. The private production service now has a dedicated `provenance-safe-base-only` builder whose restoration profile requires the attribution bundle and is structurally incapable of including authored EX, EX images or roast-copy resources.
+
+The production source must remain offline until a final base-only candidate is rebuilt and checked with that profile.
 
 ## Resource remediation rules
 
-1. **Do not delete inherited baseline assets solely because the same blob also exists in RollPig Plus.** Check whether the blob predates the fork divergence or exists in Bearlele/MegSopern lineage first.
-2. **Do not treat MIT code licensing as artwork/prose licensing.** Resource rights must be checked independently.
-3. **For Felis-exclusive material that was copied or adapted**, preserve the applicable source/license notice when the material is actually covered by that license; otherwise stop redistribution until permission is established.
+1. **Do not delete inherited baseline assets solely because the same blob also exists in RollPig Plus.** Check whether the blob predates fork divergence or exists in Bearlele/MegSopern lineage first.
+2. **Do not treat MIT code licensing as artwork/prose licensing.** Resource rights are reviewed independently.
+3. **For Felis-exclusive material that was copied or adapted**, preserve applicable source/license notices when redistribution is actually covered; otherwise withhold it until permission is established.
 4. **For unknown-source images/text**, withhold them from public distribution until provenance is documented.
 5. **For independently submitted public-source content**, retain contributor/source metadata where available.
-6. **Record removals or provenance corrections publicly** in the remediation PR where practical.
-7. **Do not use an external compatibility snapshot as a future automatic source without documented redistribution permission for the material being copied into the mirror.**
+6. **Record removals and provenance corrections publicly** in remediation changes where practical.
+7. **Do not use an external compatibility snapshot as an automatic public source without documented redistribution permission for the copied material.**
+8. **Do not treat a successful technical build as a provenance decision.** A restoration artifact must also satisfy the provenance-safe publication profile.
 
 ## Audit status
 
 - Baseline parent image lineage: **sampled and confirmed**.
 - Base `pig.json` lineage: **sampled and confirmed as MegSopern-parent text for checked entries**.
 - RollPig Plus-derived feature/protocol attribution: **documented in `ATTRIBUTION.md`; path-level audit ongoing**.
-- `roast_copy.json`: **sample negative exact-text checks complete; full review pending**.
-- EX curated copy/resources: **pending item-level review**.
-- Felis compatibility-floor mechanism: **confirmed; restored-ID provenance/permission audit required**.
-- Production `curryudon.top` catalog/images: **not established by Git repository state; direct production audit required**.
+- Bundled authored EX copy: **quarantined from current publication tree; deterministic baseline retained**.
+- Bundled roast-copy: **historical pack no longer presumed cleared; replaced with newly authored fallback**.
+- Felis compatibility-floor mechanism: **confirmed and disabled for automatic/public publishing; retained audit-only metadata is fail-closed**.
+- Production base catalog/images: **direct Phase 3 classification completed: 157 allow / 47 quarantine; no republication yet**.
+- Final production restoration artifact: **pending rebuild with the provenance-safe base-only profile; public source remains offline until that check passes**.

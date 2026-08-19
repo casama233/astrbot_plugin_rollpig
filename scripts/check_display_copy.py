@@ -12,6 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 T2S = OpenCC("t2s")
 CJK = re.compile(r"[\u3400-\u9fff]")
 
+# Authored EX JSON is intentionally optional. During provenance quarantine the
+# explicit bundled EX files may be absent; runtime then uses the deterministic
+# baseline, which has its own behavior/content tests. If authored files are
+# reintroduced later, this gate automatically resumes checking their copy.
 JSON_TARGETS = [
     ROOT / "resource" / "pig.json",
     ROOT / "resource" / "pig_ex_variants.json",
@@ -61,6 +65,8 @@ def main() -> int:
     rendered: list[tuple[str, str]] = []
 
     for path in JSON_TARGETS:
+        if not path.is_file():
+            continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         for value in strings(payload):
             assert_simplified(str(path.relative_to(ROOT)), value, failures)
