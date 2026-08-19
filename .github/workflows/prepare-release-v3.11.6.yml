@@ -1,0 +1,110 @@
+name: Prepare v3.11.6 release
+
+on:
+  push:
+    branches: [release/v3.11.6]
+    paths:
+      - .github/workflows/prepare-release-v3.11.6.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v3.11.6
+          fetch-depth: 0
+      - name: Prepare release files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          metadata = Path('metadata.yaml')
+          meta = metadata.read_text(encoding='utf-8')
+          old = 'version: "3.11.5"'
+          new = 'version: "3.11.6"'
+          if meta.count(old) != 1:
+              raise SystemExit(f'expected one {old!r}, got {meta.count(old)}')
+          metadata.write_text(meta.replace(old, new, 1), encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          start_marker = '## 未發佈\n\n'
+          end_marker = '\n## v3.11.5\n'
+          if start_marker not in text or end_marker not in text:
+              raise SystemExit('unexpected changelog structure')
+          prefix, rest = text.split(start_marker, 1)
+          unreleased, history = rest.split(end_marker, 1)
+          bullets = [line for line in unreleased.strip().splitlines() if line.startswith('- ')]
+          if len(bullets) != 6:
+              raise SystemExit(f'expected 6 Unreleased bullets, got {len(bullets)}')
+
+          section = '''## 未發佈
+
+- 暂无。
+
+## v3.11.6
+
+发布日期：2026-08-19
+
+v3.11.6 是在 v3.11.5 基础上的稳定整合 patch：完成公共猪源多层容灾与轻量安装包，修复管理面板布局，并让 EX 管理预览与真实聊天卡保持一致，同时收紧动态 DOM 渲染安全边界。本版不修改 SQLite schema、Resource Protocol、插件身份、命令集合或玩法概率。
+
+### 公共猪源与同步可靠性
+
+- 官方公共源按 `curryudon` 主源 → Vercel 已验证镜像 → 可选 GitHub 镜像顺序故障转移；完整性或协议校验失败才进入下一层，数字版 `resource_version` 不允许由备用源自动降级。
+- 自定义／私人 manifest 保持明确的单一来源语义，不会在失败时偷偷切回公开源；最近一次已验证本地缓存与内置资源继续承担离线兜底。
+- 全新安装的资源检查默认周期由 24 小时收敛为 6 小时；没有既有云资源版本时首次后台同步约 3–10 秒启动，健康缓存保持 30–120 秒启动抖动，损坏缓存仍走 5 秒快速修复。
+
+### 轻量安装包
+
+- Marketplace 与 GitHub Release 只在打包 staging 副本中保留 22 只可离线使用的 bootstrap 小猪及对应图片；仓库中的完整 99 只基础作者资源与 201 只手写 EX 作者数据保持不变。
+- Marketplace 验证包已由此前约 15 MB 量级缩减到约 3.24 MB，同时保留字体、运行代码、离线基础能力以及联网后的完整公共图鉴同步。
+
+### 管理面板与 EX 预览
+
+- 修复桌面端「近 14 日猪圈脉搏」与右侧收藏率／热门小猪整列底部不齐；趋势图可吸收纵向空间而不设置固定 Dashboard 总高度，回访率圆环中心标签在响应式尺寸下保持在圆内。
+- EX Base／EX 预览改由后端生产 `render_pig_image` 渲染链生成，与真实聊天发送卡的字体、排版、图片解析及 GIF 动画行为保持一致；Base ↔ EX 对比与 lightbox 继续保留。
+- 未保存的 EX 编辑明确显示为待保存；主管理 modal 的动态小猪与 EX 字段改用 DOM `textContent`／`value` 构建，移除动态 `innerHTML` 数据注入面，并加入回归守门。
+
+### 兼容性
+
+- 可由 v3.11.5 直接升级。
+- SQLite schema、Resource Protocol v1、插件身份、命令集合、抽取／保底／EX／烤猪规则均不变。
+- AstrBot 最低版本仍为 `>=4.24.2`；本地 override 与 tombstone 继续高于公共资源层。
+'''
+          changelog.write_text(prefix + section + '\n## v3.11.5\n' + history, encoding='utf-8')
+
+          notes = Path('.github/release-v3.11.6.md')
+          notes.write_text('''# 今日小豬 · 增強版 v3.11.6
+
+v3.11.6 是 v3.11.5 的稳定整合 patch，集中完成公共猪源容灾、安装包瘦身、管理面板布局与 EX 真实预览／前端安全收口。
+
+## 主要更新
+
+- **公共猪源容灾**：官方链路固定为 `curryudon` 主源 → Vercel 已验证镜像 → 可选 GitHub 镜像；私人 manifest 仍是单一来源，备用源不会自动把数字版 `resource_version` 降级。
+- **更快同步**：新安装默认每 6 小时检查资源；首次安装无云端版本时约 3–10 秒开始同步，已有健康缓存仍保留启动抖动，损坏缓存快速修复。
+- **轻量安装包**：Marketplace／GitHub Release 只携带 22 只 bootstrap 小猪和对应图片；完整 99 只作者基础资源与 201 只手写 EX 作者数据仍留在仓库／公共源构建流程。PR 验证中的 Marketplace ZIP 约 3.24 MB。
+- **管理面板布局**：修复 14 日趋势面板与右栏底部不齐，以及回访率圆环中心标签越界；不通过固定总高度硬撑版面。
+- **EX 真实聊天卡预览**：Base／EX 管理预览直接走生产 `render_pig_image`，静态图、GIF、字体与排版跟真实聊天发送结果一致。
+- **EX 前端安全**：动态小猪／EX 字段改用 `textContent`／`value` 等 DOM API 构建，移除管理 modal 中动态 `innerHTML` 数据注入面；相关安全 review 与回归测试均已收口。
+
+## 兼容性
+
+可由 **v3.11.5 直接升级**。本版不修改 SQLite schema、Resource Protocol v1、插件身份、命令集合或玩法概率，AstrBot 最低版本仍为 `>=4.24.2`。
+
+升级后若网络可用，全新安装会很快从公共源补齐完整图鉴；全部远端不可用时，22 只 bootstrap 小猪仍可提供离线基础功能。
+''', encoding='utf-8')
+          PY
+          rm -f .github/workflows/prepare-release-v3.11.6.yml
+          python scripts/maintenance_contract.py release
+          git diff --check
+      - name: Commit release files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add metadata.yaml CHANGELOG.md .github/release-v3.11.6.md .github/workflows/prepare-release-v3.11.6.yml
+          git commit -m "chore: prepare v3.11.6 release"
+          git push
