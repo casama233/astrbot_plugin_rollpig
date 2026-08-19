@@ -152,3 +152,43 @@ def test_sync_status_exposes_last_successful_remote_origin():
         "vercel",
         "github",
     ]
+
+
+
+def test_fresh_install_uses_short_jitter_before_first_sync(monkeypatch):
+    plugin = _Harness()
+    plugin._state = {}
+    calls = []
+
+    def randint(low, high):
+        calls.append((low, high))
+        return 7
+
+    monkeypatch.setattr("resource_failover_feature.random.randint", randint)
+    assert plugin._initial_resource_sync_delay_seconds(damaged_cache=False) == 7
+    assert calls == [(3, 10)]
+
+
+
+def test_existing_cache_keeps_broader_startup_jitter(monkeypatch):
+    plugin = _Harness()
+    calls = []
+
+    def randint(low, high):
+        calls.append((low, high))
+        return 60
+
+    monkeypatch.setattr("resource_failover_feature.random.randint", randint)
+    assert plugin._initial_resource_sync_delay_seconds(damaged_cache=False) == 60
+    assert calls == [(30, 120)]
+
+
+
+def test_damaged_cache_repair_stays_immediate_without_random_jitter(monkeypatch):
+    plugin = _Harness()
+
+    def unexpected_randint(_low, _high):
+        raise AssertionError("damaged cache repair must not wait for random jitter")
+
+    monkeypatch.setattr("resource_failover_feature.random.randint", unexpected_randint)
+    assert plugin._initial_resource_sync_delay_seconds(damaged_cache=True) == 5
