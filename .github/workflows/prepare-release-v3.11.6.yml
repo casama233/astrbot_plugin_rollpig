@@ -1,16 +1,16 @@
 name: Prepare v3.11.6 release
 
 on:
-  push:
-    branches: [release/v3.11.6]
-    paths:
-      - .github/workflows/prepare-release-v3.11.6.yml
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   prepare:
+    if: github.head_ref == 'release/v3.11.6'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,8 +77,7 @@ v3.11.6 是在 v3.11.5 基础上的稳定整合 patch：完成公共猪源多层
 '''
           changelog.write_text(prefix + section + '\n## v3.11.5\n' + history, encoding='utf-8')
 
-          notes = Path('.github/release-v3.11.6.md')
-          notes.write_text('''# 今日小豬 · 增強版 v3.11.6
+          Path('.github/release-v3.11.6.md').write_text('''# 今日小豬 · 增強版 v3.11.6
 
 v3.11.6 是 v3.11.5 的稳定整合 patch，集中完成公共猪源容灾、安装包瘦身、管理面板布局与 EX 真实预览／前端安全收口。
 
