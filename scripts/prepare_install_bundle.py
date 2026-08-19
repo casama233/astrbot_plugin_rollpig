@@ -90,12 +90,19 @@ def prepare_install_bundle(
             + ", ".join(sorted(missing_records))
         )
 
-    filtered_pigs = [
-        item
-        for item in pigs
-        if isinstance(item, dict) and str(item.get("id") or "").strip() in selected
-    ]
-    if {str(item["id"]) for item in filtered_pigs} != selected:
+    filtered_pigs = []
+    for item in pigs:
+        if not isinstance(item, dict):
+            continue
+        normalized_id = str(item.get("id") or "").strip()
+        if normalized_id not in selected:
+            continue
+        normalized_item = dict(item)
+        normalized_item["id"] = normalized_id
+        filtered_pigs.append(normalized_item)
+
+    filtered_ids = {str(item["id"]).strip() for item in filtered_pigs}
+    if filtered_ids != selected or len(filtered_pigs) != len(selected):
         raise ValueError("bootstrap catalog filtering produced an inconsistent ID set")
     _write_json(pig_path, filtered_pigs, indent=4)
 
