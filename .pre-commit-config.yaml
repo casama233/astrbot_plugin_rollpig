@@ -8,3 +8,11 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=10240"]
+  - repo: local
+    hooks:
+      - id: prepare-v3116-release
+        name: prepare v3.11.6 release
+        entry: python scripts/prepare_release_3116.py
+        language: system
+        pass_filenames: false
+        always_run: true
