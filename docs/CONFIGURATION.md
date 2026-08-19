@@ -105,8 +105,11 @@
 | 配置鍵 | 類型 | 預設 | 範圍 | 說明 |
 | --- | --- | --- | --- | --- |
 | `resource_sync_enabled` | bool | `true` | bool | 自動同步 AstrBot／私人小豬資源；關閉不刪既有快取 |
-| `resource_manifest_url` | string | 官方 AstrBot v1 | HTTPS URL | 可改成有權使用的相容私人 manifest |
-| `resource_sync_interval_hours` | float | `24` | `1-168` | 自動檢查間隔 |
+| `resource_manifest_url` | string | 官方 AstrBot v1 | HTTPS URL | 可改成有權使用的相容私人 manifest；自訂後不啟用官方備援鏈 |
+| `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 僅預設官方源失敗時使用；留空停用 Vercel 層 |
+| `resource_github_fallback_enabled` | bool | `true` | bool | Vercel 也失敗時是否再嘗試公開 GitHub 快照 |
+| `resource_github_mirror_url` | string | 官方 GitHub 鏡像 | HTTPS URL | GitHub 最終災備 manifest，通常不需修改 |
+| `resource_sync_interval_hours` | float | `6` | `1-168` | 新安裝自動檢查間隔；既有明確配置保持原值 |
 | `resource_sync_timeout` | float | `30` | `2-120` | 連線超時；圖片讀取另有較寬下限與重試 |
 | `resource_use_system_proxy` | bool | `false` | bool | 是否信任系統代理環境；預設直連 |
 | `resource_max_file_size_mb` | int | `10` | `1-50` | 單資源文件上限（MiB），亦用於 PigHub 圖片導入 |
@@ -117,7 +120,7 @@
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-同步失敗保留既有快取或內置資源。舊 `pig.felislab.cc` 精確地址會遷移到 AstrBot 專用源；其他自訂 URL 不擅自改寫。詳見 [RESOURCE-MANAGEMENT.md](RESOURCE-MANAGEMENT.md)。
+使用預設官方源時，故障轉移固定為 **curryudon 主源 → Vercel 驗證快照 → GitHub 公開快照 → 最近一次已驗證本地快取／內置資源**。備用源的 `schema_version`、`client`、大小與 SHA-256 仍走同一套校驗；數字版 `resource_version` 低於本地版本時拒絕降級。舊 `pig.felislab.cc` 精確地址會遷移到 AstrBot 專用源；其他自訂 URL 不擅自改寫，也不會被偷偷串到官方備援鏈。詳見 [RESOURCE-MANAGEMENT.md](RESOURCE-MANAGEMENT.md)。
 
 ## 🔄 管理面板安全更新
 

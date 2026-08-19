@@ -56,7 +56,16 @@
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-你也可以把 `resource_manifest_url` 改成有權使用的 HTTPS 私人 manifest。
+預設官方源採固定故障轉移鏈：
+
+1. `curryudon.top` 生產主源（更新最快、最高優先級）；
+2. Vercel 部署的已驗證公開快照；
+3. `casama233/rollpig-public-source-mirror` 的 GitHub Raw 快照（可由配置停用）；
+4. 最近一次已驗證本地快取；沒有快取才回退插件內置資源。
+
+只有前一層連線、HTTP、協議或完整性校驗失敗才會嘗試下一層。備用鏡像版本低於本地數字版 `resource_version` 時拒絕自動降級。
+
+你也可以把 `resource_manifest_url` 改成有權使用的 HTTPS 私人 manifest。這是明確的運維選擇；一旦使用私人 URL，插件只同步該來源，不會在失敗時偷偷切回官方公共源。
 
 最小示例：
 
@@ -125,7 +134,7 @@ EX Lv.1–5 可分別覆蓋圖片、描述或完整文案，未配置欄位會�
 
 這不是 manifest 解析、圖片格式或 SQLite 問題。v3.4.0+ 的處理方式：
 
-- 新安裝預設啟用 AstrBot v1 專用源。
+- 新安裝預設啟用 AstrBot v1 專用源，並以 6 小時作為新的自動檢查預設值。
 - 舊 nonebot URL 會精確遷移到新來源；自訂私人 URL 不會被覆蓋。
 - 新來源要求 `X-RollPig-Client`、`X-RollPig-Protocol` 與 AstrBot 版本化 User-Agent。
 - 普通瀏覽器、錯誤客戶端和 nonebot 請求會回傳 HTTP 403，AstrBot v1 客戶端正常取得資源。
