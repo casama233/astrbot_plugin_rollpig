@@ -118,7 +118,9 @@ def test_generic_merge_rejects_mutated_fixed_snapshot(tmp_path):
     compat, spec = _compat_fixture(tmp_path)
     records = json.loads((compat / "pig.json").read_text(encoding="utf-8"))
     records[0]["name"] = "被偷偷修改"
-    (compat / "pig.json").write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+    (compat / "pig.json").write_text(
+        json.dumps(records, ensure_ascii=False), encoding="utf-8"
+    )
 
     try:
         merge_catalog(primary, compat, tmp_path / "merged", spec=spec)
@@ -155,7 +157,19 @@ def test_resource_workflow_does_not_checkout_or_restore_felis_snapshot():
     assert "repository: Felis2026/rollpig-resources" not in workflow
     assert "Restore compatibility floor" not in workflow
     assert PINNED_COMMIT not in workflow
-    assert "compatibility_floor.json" not in workflow
+    assert "--compat _compat/rollpig-resources" not in workflow
+    assert "dist/merged-resource" not in workflow
+
+    # The workflow is allowed to mention compatibility_floor.json only to assert
+    # that a freshly built artifact does NOT contain it.
+    mentions = [
+        line.strip()
+        for line in workflow.splitlines()
+        if "compatibility_floor.json" in line
+    ]
+    assert mentions == [
+        "test ! -e dist/astrbot-rollpig-source/compatibility_floor.json"
+    ]
 
     # Historical identifiers remain in the helper solely as auditable evidence;
     # the executable publishing path is fail-closed by default.
