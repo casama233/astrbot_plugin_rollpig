@@ -179,11 +179,29 @@
         "type": "string",
         "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
     },
+    "resource_vercel_mirror_url": {
+        "description": "Vercel 公共猪源备用 manifest",
+        "hint": "仅在使用默认官方公共源且主源不可用时尝试；留空可关闭这一层备用源",
+        "type": "string",
+        "default": "https://rollpig-public-source-mirror.vercel.app/v1/manifest.json"
+    },
+    "resource_github_fallback_enabled": {
+        "description": "启用 GitHub 公共猪源最终备用",
+        "hint": "仅在默认官方主源和 Vercel 镜像均不可用时尝试公开 GitHub 快照；不会影响私人 manifest",
+        "type": "bool",
+        "default": true
+    },
+    "resource_github_mirror_url": {
+        "description": "GitHub 公共猪源备用 manifest",
+        "hint": "默认指向项目公开只读镜像；通常无需修改",
+        "type": "string",
+        "default": "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/main/public/v1/manifest.json"
+    },
     "resource_sync_interval_hours": {
         "description": "云资源自动同步间隔（小时）",
-        "hint": "范围 1-168，默认每 24 小时检查一次",
+        "hint": "范围 1-168，新安装默认每 6 小时检查一次",
         "type": "float",
-        "default": 24
+        "default": 6
     },
     "resource_sync_timeout": {
         "description": "资源网络请求超时（秒）",
