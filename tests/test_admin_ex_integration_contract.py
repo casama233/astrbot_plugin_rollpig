@@ -110,3 +110,15 @@ def test_main_preview_no_longer_rebuilds_card_copy_in_browser():
     assert "ex-preview-body" not in script
     assert "data-effective-image" not in script
     assert "source: 'pending'" not in script
+
+
+def test_main_ex_modal_does_not_inject_dynamic_data_with_innerhtml():
+    script = integration_text()
+    render_modal = script.split("function renderModal() {", 1)[1].split(
+        "async function fileData(input)", 1
+    )[0]
+    assert "body.innerHTML" not in render_modal
+    assert "body.replaceChildren" in render_modal
+    assert ".textContent = text" in render_modal
+    assert "description.value = local.description" in render_modal
+    assert "analysis.value = local.analysis" in render_modal
