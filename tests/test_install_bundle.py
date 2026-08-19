@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ex_variants import build_effective_ex_variants
 from scripts.prepare_install_bundle import BOOTSTRAP_PIG_IDS, prepare_install_bundle
 
 
@@ -28,11 +29,16 @@ def test_bootstrap_ids_exist_with_one_bundled_image_each():
         assert image_stems.count(pig_id) == 1, pig_id
 
 
-def test_all_explicit_bundled_ex_pigs_survive_bootstrap_pruning():
-    variants = _load(RESOURCE / "pig_ex_variants.json")
-    explicit_ids = set(variants["pigs"])
-    assert len(explicit_ids) == 10
-    assert explicit_ids <= set(BOOTSTRAP_PIG_IDS)
+def test_bootstrap_pigs_keep_complete_ex_baseline_without_authored_bundle():
+    pigs = _load(RESOURCE / "pig.json")
+    selected = set(BOOTSTRAP_PIG_IDS)
+    bootstrap_records = [item for item in pigs if str(item.get("id") or "") in selected]
+    effective = build_effective_ex_variants(bootstrap_records, {})
+
+    assert not (RESOURCE / "pig_ex_variants.json").exists()
+    assert set(effective) == selected
+    for pig_id, levels in effective.items():
+        assert set(levels) == {1, 2, 3, 4, 5}, pig_id
 
 
 def test_prepare_install_bundle_filters_catalog_variants_and_images(tmp_path: Path):
