@@ -112,7 +112,7 @@ def test_random_roast_spends_charge_before_mentioning_target():
         FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
     assert method.index("self._consume_group_roast_charge") < method.index(
-        "self._send_with_mention"
+        "self._random_roast_target_announcement"
     )
     assert "if not charge_status.get(\"consumed\")" in method
 
