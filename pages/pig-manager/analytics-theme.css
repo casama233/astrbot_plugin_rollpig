@@ -1086,3 +1086,17 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Keep the retention label inside the donut at every responsive size. */
+.retention-ring div {
+  width: 78px;
+  max-width: calc(100% - 26px);
+}
+
+.retention-ring span {
+  display: block;
+  margin: 2px auto 0;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
