@@ -62,7 +62,33 @@ The local pack contains later project-specific copy such as `可爱可以加葱�
 
 That is only a limited negative check. It is **not** proof that the whole pack is independently authored, and it does not replace a complete provenance review.
 
-### 4. Production/public-source storage is a separate audit target
+### 4. The production compatibility floor explicitly uses a frozen Felis resource snapshot
+
+The private production service contains a retained compatibility migration whose `LEGACY_COMPATIBILITY` source is:
+
+- repository: `Felis2026/rollpig-resources`;
+- commit: `17ac1586a91c33995883803a55e2f755047f6e1f`;
+- resource version: `2026-08-10.1`;
+- fixed `pig.json` SHA-256: `687a491e541869cf1ef4f495e9189cf358a0d68655d1f780395a482113bc8be8`;
+- sentinels: `miku-pig`, `wechat-pig`, `duke-pig`.
+
+The migration is not merely an ID-preservation list. For IDs missing from the current AstrBot catalog, it takes the record from that frozen Felis snapshot and copies the corresponding image from the compatibility snapshot into the merged catalog. Current AstrBot records/images win only when the same ID already exists.
+
+This is therefore a **direct resource redistribution provenance issue** and must not be treated as only a feature-design or MIT-code attribution issue.
+
+At the frozen commit above, the repository root did not contain a `LICENSE` or `RESOURCES-LICENSE.md`. The current `Felis2026/rollpig-resources` repository now explicitly separates software from resources: its current license says Felis-original images/text are not covered by the MIT software license and points to separate resource terms that include restrictions on bulk mirroring/re-hosting and attribution requirements.
+
+This audit does not assume that today's resource terms retroactively change any permission that may or may not have existed at the frozen commit. It records the narrower and safer conclusion: **the current project does not yet have documented redistribution permission for every Felis-snapshot record/image restored by the compatibility-floor migration, so those restored items must be treated as unverified until provenance/permission is established.**
+
+Required remediation for this compatibility floor:
+
+1. identify the exact `restored_ids` produced when the migration was run against production;
+2. for each restored ID, determine whether its record/image came from Bearlele/PigHub/community material or Felis-original material and retain the applicable source notice;
+3. stop relying on the Felis snapshot as an automatic future compatibility source unless redistribution permission is documented;
+4. withhold any Felis-original or otherwise unverified restored resources from the public mirror until permission is established;
+5. retain evidence of the frozen source commit and the remediation decision rather than deleting history.
+
+### 5. Production/public-source storage is a separate audit target
 
 The private `casama233/rollpig-public-source-service` repository documents that production review state and the public catalog/published resources are stored outside the code release tree. Therefore a clean Git repository comparison alone cannot establish what the public `curryudon.top` resource endpoint is currently distributing.
 
@@ -78,6 +104,7 @@ Until that check is complete, any remotely published item whose source or redist
 4. **For unknown-source images/text**, withhold them from public distribution until provenance is documented.
 5. **For independently submitted public-source content**, retain contributor/source metadata where available.
 6. **Record removals or provenance corrections publicly** in the remediation PR where practical.
+7. **Do not use an external compatibility snapshot as a future automatic source without documented redistribution permission for the material being copied into the mirror.**
 
 ## Audit status
 
@@ -86,4 +113,5 @@ Until that check is complete, any remotely published item whose source or redist
 - RollPig Plus-derived feature/protocol attribution: **documented in `ATTRIBUTION.md`; path-level audit ongoing**.
 - `roast_copy.json`: **sample negative exact-text checks complete; full review pending**.
 - EX curated copy/resources: **pending item-level review**.
+- Felis compatibility-floor mechanism: **confirmed; restored-ID provenance/permission audit required**.
 - Production `curryudon.top` catalog/images: **not established by Git repository state; direct production audit required**.
