@@ -1,8 +1,18 @@
+import asyncio
 import os
 import time
 from pathlib import Path
 
 from daily_report_delivery import DailyReportDeliveryClaims
+
+
+class _LeakedDailyReportScheduler:
+    def __init__(self, plugin_data_dir):
+        self.plugin_data_dir = plugin_data_dir
+
+    async def _background_daily_report(self):
+        while True:
+            await asyncio.sleep(3600)
 
 
 def test_delivery_claim_is_exclusive_across_instances(tmp_path):
@@ -59,6 +69,56 @@ def test_old_claims_are_pruned_without_touching_recent_claims(tmp_path):
     claims.prune()
     assert not old.exists()
     assert recent.exists()
+
+
+def test_three_hot_reloads_leave_only_latest_daily_report_scheduler(tmp_path):
+    async def scenario():
+        plugin_data_dir = tmp_path / "rollpig-data"
+        claims_root = plugin_data_dir / "daily_report_delivery_claims"
+        tasks = []
+
+        for index in range(3):
+            claims = DailyReportDeliveryClaims(
+                claims_root, keep_days=14, owner=f"reload-{index}"
+            )
+            if index:
+                assert claims.cancelled_stale_schedulers == 1
+            owner = _LeakedDailyReportScheduler(plugin_data_dir)
+            task = asyncio.create_task(owner._background_daily_report())
+            tasks.append(task)
+            await asyncio.sleep(0)
+
+        assert tasks[0].cancelled()
+        assert tasks[1].cancelled()
+        assert not tasks[2].done()
+
+        tasks[2].cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+def test_reload_sweep_does_not_cancel_other_plugin_data_namespace(tmp_path):
+    async def scenario():
+        first_data_dir = tmp_path / "first"
+        second_data_dir = tmp_path / "second"
+        owner = _LeakedDailyReportScheduler(second_data_dir)
+        other_task = asyncio.create_task(owner._background_daily_report())
+        await asyncio.sleep(0)
+
+        claims = DailyReportDeliveryClaims(
+            first_data_dir / "daily_report_delivery_claims",
+            keep_days=14,
+            owner="new",
+        )
+        await asyncio.sleep(0)
+        assert claims.cancelled_stale_schedulers == 0
+        assert not other_task.done()
+
+        other_task.cancel()
+        await asyncio.gather(other_task, return_exceptions=True)
+
+    asyncio.run(scenario())
 
 
 def test_delivery_contract_claims_before_platform_send_and_never_retries_uncertain():
