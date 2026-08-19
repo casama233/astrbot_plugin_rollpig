@@ -23,6 +23,13 @@
 > [!CAUTION]
 > **本插件代碼由 AI 生成，並經人工審閱。** 即使經過審閱，仍可能存在未發現的缺陷、安全風險或相容性問題。請謹慎使用；在重要帳號、生產環境或敏感場景部署前，建議先自行審查代碼並充分測試。
 
+> [!IMPORTANT]
+> **項目來源與署名說明（2026-08-19）**
+>
+> 本倉庫是 [MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig) 的 AstrBot 延續分支，其更早來源為 [Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)。後續增強開發中，部分功能設計、指令表面及／或實現曾參考或移植自 [Felis2026/nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)。此前 README、metadata 與 LICENSE 對這段來源關係說明不足，現已補充並進行逐項來源與授權審計。
+>
+> 詳細項目沿革、MIT 署名、代碼／功能設計／圖片與文案的不同授權邊界，以及目前審計範圍見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。在來源審計完成前，無法確認再分發權的第三方圖片、文案或資源不應被視為本項目原創或可自由再分發。
+
 > [!NOTE]
 > **它還是那個 `/今日小豬`。只是現在抽完不一定就完了。** 你的豬會留下豬籍、重複返場、長 EX；群友可以預約烤你、往鍋裡添柴、把 Roast Charge 燒光，再全群一起把烤箱救回來。晚上還有人負責把事故寫進《豬圈日報》。
 
@@ -161,6 +168,9 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 
 公共投稿只會在管理員明確確認後提交小豬 ID、名稱、描述、完整文案、圖片及對應 EX 差分；不提交群聊原文、群號、SQLite、備份或插件配置。人工審核批准後才會發佈。
 
+> [!WARNING]
+> 公開資源同步與第三方素材仍受來源與再分發權約束。來源或授權無法確認的圖片、文案、資源包與鏡像條目應在審計完成前停止公開分發；MIT 軟件授權不會自動授予第三方圖片或文案的再分發權。詳見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
+
 完整規則見 [資源管理](docs/RESOURCE-MANAGEMENT.md)。
 
 ## 🛡️ 資料與安全
@@ -211,14 +221,15 @@ pre-commit run --all-files --show-diff-on-failure
 
 Release 流程還會跑 AstrBot 真實載入 smoke、Marketplace package、Wiki strict build 與 Resource Source gate。
 
-## 致謝
+## 致謝與來源
 
 - 原始核心：[Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
-- AstrBot 上游：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)
+- AstrBot 直接上游／本倉庫 GitHub parent：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)
+- 後續部分功能設計、指令表面及／或實現參考與移植來源：[Felis2026/nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)
 - 公共圖片平台：[PigHub](https://pighub.top/) 與 [PigHub-DB](https://github.com/BadFish-HSrui/PigHub-DB)
 
-本增強分支持續保留原作者署名與 MIT 授權資訊。
+本增強分支持續保留上游作者署名與 MIT 授權資訊。更完整的來源、授權邊界與 2026-08 provenance audit 見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
 
 ## License
 
-本專案採用 [MIT License](LICENSE)。
+本專案採用 [MIT License](LICENSE)。第三方圖片、文案、資料與其他非代碼資源的再分發權需按其各自來源另行確認。
