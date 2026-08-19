@@ -83,7 +83,7 @@ class ResourceFailoverMixin:
         return result
 
     async def _probe_official_resource_manifest(self, url: str) -> str:
-        """Cheap strict probe before a potentially expensive full package sync."""
+        """Strictly preflight a mirror before the existing transactional sync."""
         self._validate_remote_url(url, "manifest URL")
         async with self._new_http_client(
             follow_redirects=True,
