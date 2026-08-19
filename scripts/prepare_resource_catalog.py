@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Merge the frozen pre-v3.4 RollPig catalog into the current AstrBot source.
+"""Historical RollPig catalog merge helper retained for provenance auditing.
 
-The v3.4 source cut-over accidentally seeded the new AstrBot-only source from the
-bundled 99-pig catalog instead of the complete default source that existing
-installations had been syncing.  This helper pins the last Felis public RollPig
-snapshot available before the cut-over and treats every ID in that immutable
-snapshot as a compatibility floor.
-
-Current AstrBot records/images always win on duplicate IDs.  The frozen source
-only fills IDs that would otherwise disappear.
+The pre-v3.4 external Felis compatibility snapshot is no longer a publishable
+source.  Production/public publishing must use independently verified provenance
+instead.  This module keeps the generic merge machinery for local fixtures and
+forensic comparison, while failing closed for the historical external snapshot
+unless a caller explicitly opts into audit-only processing in code.
 """
 
 from __future__ import annotations
@@ -97,7 +94,10 @@ def _image_map(root: Path) -> dict[str, Path]:
     return images
 
 
-def _verify_snapshot(root: Path, spec: CompatibilitySpec) -> tuple[list[dict], dict[str, Path]]:
+def _verify_snapshot(
+    root: Path,
+    spec: CompatibilitySpec,
+) -> tuple[list[dict], dict[str, Path]]:
     manifest_path = root / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
@@ -148,8 +148,21 @@ def merge_catalog(
     output: Path,
     *,
     spec: CompatibilitySpec | None = LEGACY_COMPATIBILITY,
+    allow_unverified_external_compat: bool = False,
 ) -> dict:
-    """Create a merged canonical catalog without mutating either input tree."""
+    """Create a merged catalog for fixtures/audit without mutating inputs.
+
+    The historical Felis snapshot is explicitly blocked by default because its
+    redistribution rights are not established for current publishing.  The
+    opt-in exists only so maintainers can reproduce historical restored-ID sets
+    in an isolated audit environment; callers must not publish that output.
+    """
+    if spec == LEGACY_COMPATIBILITY and not allow_unverified_external_compat:
+        raise PermissionError(
+            "historical Felis compatibility floor is quarantined; "
+            "publishing/automatic redistribution is disabled"
+        )
+
     primary_root = primary_root.resolve()
     compatibility_root = compatibility_root.resolve()
     output = output.resolve()
@@ -208,7 +221,7 @@ def merge_catalog(
 
     floor = {
         "schema_version": 1,
-        "policy": "compatibility-floor",
+        "policy": "audit-only-compatibility-floor",
         "source_repository": spec.repository if spec else "test-fixture",
         "source_commit": spec.commit if spec else "",
         "source_resource_version": spec.resource_version if spec else "",
@@ -221,8 +234,6 @@ def merge_catalog(
     )
 
     merged_ids = {str(item["id"]) for item in merged_records}
-    if not compatibility_ids.issubset(merged_ids):
-        raise AssertionError("合併結果違反兼容下限：存在舊 ID 被移除")
     restored_ids = sorted(compatibility_ids.difference(primary_ids))
     return {
         "primary_count": len(primary_ids),
@@ -230,6 +241,7 @@ def merge_catalog(
         "merged_count": len(merged_ids),
         "restored_count": len(restored_ids),
         "restored_ids": restored_ids,
+        "audit_only": True,
     }
 
 
@@ -238,10 +250,11 @@ def main() -> int:
     parser.add_argument("--primary", type=Path, required=True)
     parser.add_argument("--compat", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    summary = merge_catalog(args.primary, args.compat, args.output)
-    print(json.dumps(summary, ensure_ascii=False))
-    return 0
+    parser.parse_args()
+    raise PermissionError(
+        "legacy compatibility-floor publishing is disabled; "
+        "use the provenance audit workflow instead"
+    )
 
 
 if __name__ == "__main__":
