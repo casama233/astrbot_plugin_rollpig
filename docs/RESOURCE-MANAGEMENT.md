@@ -65,6 +65,14 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 
 只有前一層連線、HTTP、協議或完整性校驗失敗才會嘗試下一層。備用鏡像版本低於本地數字版 `resource_version` 時拒絕自動降級。
 
+### 輕量安裝包與首次同步
+
+GitHub Release／AstrBot Marketplace 安裝包只攜帶 **22 隻 bootstrap 小豬**、必要圖片、字體與運行代碼；完整作者資源仍保留在源碼倉庫並用於公共源建構與內容回歸測試，不會因安裝包瘦身而刪除。
+
+全新安裝在沒有任何已同步 `resource_version` 時，會在約 **3–10 秒**的隨機延遲後發起第一次背景同步，優先從生產主源取得完整公共圖鑑；主源失敗時依次嘗試 Vercel 與可選 GitHub 鏡像。如果所有遠端來源都不可用，22 隻 bootstrap 小豬仍可離線提供基本功能，之後的背景檢查會繼續按配置週期重試。
+
+這個瘦身只作用於發佈時的 staging 副本，不改動倉庫中的完整 `resource/pig.json`、作者 EX 文案或公共源生成輸入。
+
 你也可以把 `resource_manifest_url` 改成有權使用的 HTTPS 私人 manifest。這是明確的運維選擇；一旦使用私人 URL，插件只同步該來源，不會在失敗時偷偷切回官方公共源。
 
 最小示例：
