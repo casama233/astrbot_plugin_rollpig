@@ -28,7 +28,7 @@ def test_main_manager_ex_editor_supports_level_write_reset_and_image_preview():
     text = integration_text()
     assert "ex/variants/save" in text
     assert "ex/variants/delete" in text
-    assert "ex/variants/image" in text
+    assert "ex/variants/card" in text
     assert "EX Lv.${state.level}" in text
     assert "留空＝继承" in text
 
@@ -59,20 +59,22 @@ def test_main_manager_ex_modal_has_stage2_effective_preview_parity():
     css = EX_CSS.read_text(encoding="utf-8")
     for marker in (
         "data-compare-toggle",
-        "data-effective-image",
+        "data-effective-card-image",
+        "data-base-card-image",
         "data-base-card",
         "data-effective-zoom",
         "data-base-zoom",
         "Base ↔ EX",
+        "真实发送 renderer",
         "function openPreviewLightbox",
-        "function loadEffectiveImage",
-        "function loadBaseImage",
+        "function loadEffectiveCard",
+        "function loadBaseCard",
     ):
         assert marker in script
     assert "effective: true" in script
     assert "base: true" in script
-    assert "remove_image: removeImage" in script
-    assert "source: 'pending'" in script
+    assert "ex/variants/card" in script
+    assert "markPreviewPending" in script
     assert "exPreviewImage" not in script
     assert "exLocalImage" not in script
     assert ".ex-preview-stage.comparing" in css
@@ -87,10 +89,12 @@ def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
     for marker in (
         "Base ↔ EX",
         "data-compare-toggle",
-        "data-effective-image",
+        "data-effective-card-image",
+        "data-base-card-image",
         "data-base-card",
         "data-effective-zoom",
         "data-base-zoom",
+        "真实发送 renderer",
     ):
         assert marker in main_modal
         assert marker in standalone
@@ -98,3 +102,11 @@ def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
     assert "effective:true" in standalone
     assert "base: true" in main_modal
     assert "base:true" in standalone
+
+
+def test_main_preview_no_longer_rebuilds_card_copy_in_browser():
+    script = integration_text()
+    assert "ex/variants/card" in script
+    assert "ex-preview-body" not in script
+    assert "data-effective-image" not in script
+    assert "source: 'pending'" not in script

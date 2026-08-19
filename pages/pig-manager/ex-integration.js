@@ -169,14 +169,12 @@
           <div class="ex-preview-head"><div><strong>聊天卡效果预览</strong><span>当前实际生效内容；可展开 Base ↔ EX 对比</span></div><button class="ex-preview-toggle" type="button" data-compare-toggle>Base ↔ EX 对比</button></div>
           <div class="ex-preview-stage" data-preview-stage>
             <article class="ex-preview-card ex-preview-card-effective">
-              <button class="ex-preview-media" type="button" data-effective-zoom disabled><img data-effective-image alt="实际生效图片"><span class="ex-preview-placeholder" data-effective-placeholder>载入实际图片…</span></button>
-              <div class="ex-preview-meta"><span data-effective-image-meta>图片来源：载入中</span></div>
-              <div class="ex-preview-body"><div class="ex-preview-kicker">今日小猪 · EX Lv.${state.level}</div><h3>${esc(pig.name)}</h3><p class="ex-preview-description">${esc(effective.description || '（空）')}</p><div class="ex-preview-analysis">${esc(effective.analysis || '（空）')}</div><div class="ex-preview-copy-source">文案：${esc(sourceLabel(effective.source))} · 差分来源 Lv.${Number(effective.variant_level || 0) || '基础'}</div></div>
+              <button class="ex-preview-rendered" type="button" data-effective-zoom disabled><img data-effective-card-image alt="真实发送的 EX 聊天卡"><span class="ex-preview-placeholder" data-effective-placeholder>正在生成真实发送卡片…</span></button>
+              <div class="ex-preview-runtime-meta"><span data-effective-card-meta>真实发送 renderer · 正在生成</span></div>
             </article>
             <article class="ex-preview-card ex-preview-card-base" data-base-card hidden>
-              <button class="ex-preview-media" type="button" data-base-zoom disabled><img data-base-image alt="基础图片"><span class="ex-preview-placeholder" data-base-placeholder>载入基础图片…</span></button>
-              <div class="ex-preview-meta"><span data-base-image-meta>Base 图片</span></div>
-              <div class="ex-preview-body"><div class="ex-preview-kicker">Base · 未套 EX</div><h3>${esc(pig.name)}</h3><p class="ex-preview-description">${esc(pig.description || '（空）')}</p><div class="ex-preview-analysis">${esc(pig.analysis || '（空）')}</div><div class="ex-preview-base-note">使用当前图鉴基础资料作比较，不修改任何 EX 状态。</div></div>
+              <button class="ex-preview-rendered" type="button" data-base-zoom disabled><img data-base-card-image alt="真实发送的 Base 聊天卡"><span class="ex-preview-placeholder" data-base-placeholder>正在生成 Base 卡片…</span></button>
+              <div class="ex-preview-runtime-meta"><span data-base-card-meta>Base · 真实发送 renderer</span></div>
             </article>
           </div>
         </div>
@@ -191,28 +189,36 @@
     const card = body.querySelector('.ex-level-card');
     if (card) {
       bindPreviewControls(card, pig);
-      loadEffectiveImage(card, pig);
+      loadEffectiveCard(card, pig);
       const fileInput = $('exImageFile');
       const removeInput = $('exRemoveImage');
       fileInput.onchange = async () => {
         try {
           const dataUrl = await fileData(fileInput);
           if (!dataUrl) {
-            await loadEffectiveImage(card, pig, {removeImage: Boolean(removeInput?.checked)});
+            await loadEffectiveCard(card, pig);
             return;
           }
           if (removeInput) removeInput.checked = false;
-          setEffectiveImage(card, {src: dataUrl, source: 'pending', variant_level: state.level, filename: fileInput.files?.[0]?.name || ''});
+          markPreviewPending(card, fileInput.files?.[0]?.name || '新图片');
         } catch (error) {
           fileInput.value = '';
           toast(error.message || String(error));
-          await loadEffectiveImage(card, pig, {removeImage: Boolean(removeInput?.checked)});
+          await loadEffectiveCard(card, pig, {silent: false});
         }
       };
       if (removeInput) removeInput.onchange = async () => {
-        if (removeInput.checked) fileInput.value = '';
-        await loadEffectiveImage(card, pig, {removeImage: removeInput.checked, silent: false});
+        if (removeInput.checked) {
+          fileInput.value = '';
+          markPreviewPending(card, '移除图片');
+        } else {
+          await loadEffectiveCard(card, pig, {silent: false});
+        }
       };
+      ['exDescription', 'exAnalysis'].forEach(id => {
+        const field = $(id);
+        if (field) field.addEventListener('input', () => markPreviewPending(card, '文案修改'));
+      });
     }
   }
 
@@ -268,10 +274,10 @@
     }
   }
 
-  function setEffectiveImage(card, {src = '', source = 'base', variant_level = 0, filename = ''} = {}) {
-    const image = card.querySelector('[data-effective-image]');
+  function setEffectiveCard(card, {src = '', source = 'base', variant_level = 0} = {}) {
+    const image = card.querySelector('[data-effective-card-image]');
     const placeholder = card.querySelector('[data-effective-placeholder]');
-    const meta = card.querySelector('[data-effective-image-meta]');
+    const meta = card.querySelector('[data-effective-card-meta]');
     const zoom = card.querySelector('[data-effective-zoom]');
     if (src) {
       image.src = src;
@@ -283,18 +289,19 @@
       image.removeAttribute('src');
       image.classList.remove('show');
       placeholder.hidden = false;
-      placeholder.textContent = '没有可预览的图片';
+      placeholder.textContent = '真实发送卡片生成失败';
       zoom.disabled = true;
       delete zoom.dataset.zoomSrc;
     }
     const level = Number(variant_level || 0);
-    meta.textContent = `图片来源：${imageSourceLabel(source)}${level ? ` · Lv.${level}` : ''}${filename ? ` · ${filename}` : ''}`;
+    meta.textContent = `真实发送 renderer · ${sourceLabel(source)}${level ? ` · 差分 Lv.${level}` : ''}`;
+    card.classList.remove('preview-pending');
   }
 
-  function setBaseImage(card, {src = '', filename = ''} = {}) {
-    const image = card.querySelector('[data-base-image]');
+  function setBaseCard(card, {src = ''} = {}) {
+    const image = card.querySelector('[data-base-card-image]');
     const placeholder = card.querySelector('[data-base-placeholder]');
-    const meta = card.querySelector('[data-base-image-meta]');
+    const meta = card.querySelector('[data-base-card-meta]');
     const zoom = card.querySelector('[data-base-zoom]');
     if (src) {
       image.src = src;
@@ -306,31 +313,37 @@
       image.removeAttribute('src');
       image.classList.remove('show');
       placeholder.hidden = false;
-      placeholder.textContent = '没有可预览的基础图片';
+      placeholder.textContent = 'Base 真实发送卡片生成失败';
       zoom.disabled = true;
       delete zoom.dataset.zoomSrc;
     }
-    meta.textContent = `Base 图片${filename ? ` · ${filename}` : ''}`;
+    meta.textContent = 'Base · 真实发送 renderer';
   }
 
-  async function loadEffectiveImage(card, pig, {removeImage = false, silent = true} = {}) {
+  function markPreviewPending(card, detail = '') {
+    const meta = card.querySelector('[data-effective-card-meta]');
+    if (meta) meta.textContent = `有未保存修改${detail ? ` · ${detail}` : ''}；保存后按真实发送样式重新生成`;
+    card.classList.add('preview-pending');
+  }
+
+  async function loadEffectiveCard(card, pig, {silent = true} = {}) {
     try {
-      const data = await post('ex/variants/image', {id: pig.id, level: state.level, effective: true, remove_image: removeImage});
-      setEffectiveImage(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
+      const data = await post('ex/variants/card', {id: pig.id, level: state.level, effective: true});
+      setEffectiveCard(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
     } catch (error) {
-      setEffectiveImage(card, {src: '', source: 'base'});
+      setEffectiveCard(card, {src: '', source: 'base'});
       if (!silent) toast(error.message || String(error));
     }
   }
 
-  async function loadBaseImage(card, pig) {
+  async function loadBaseCard(card, pig) {
     if (card.dataset.baseLoaded === '1') return;
     try {
-      const data = await post('ex/variants/image', {id: pig.id, level: state.level, base: true});
-      setBaseImage(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
+      const data = await post('ex/variants/card', {id: pig.id, level: state.level, base: true});
+      setBaseCard(card, {...data, src: `data:${data.mime_type || 'image/png'};base64,${data.base64 || ''}`});
       card.dataset.baseLoaded = '1';
     } catch (error) {
-      setBaseImage(card, {src: ''});
+      setBaseCard(card, {src: ''});
       toast(error.message || String(error));
     }
   }
@@ -347,7 +360,7 @@
       stage.classList.toggle('comparing', opening);
       toggle.classList.toggle('active', opening);
       toggle.textContent = opening ? '收起 Base 对比' : 'Base ↔ EX 对比';
-      if (opening) await loadBaseImage(card, pig);
+      if (opening) await loadBaseCard(card, pig);
     };
     effectiveZoom.onclick = () => openPreviewLightbox(effectiveZoom.dataset.zoomSrc || '', `${pig.name} · EX Lv.${state.level}`);
     baseZoom.onclick = () => openPreviewLightbox(baseZoom.dataset.zoomSrc || '', `${pig.name} · Base`);
