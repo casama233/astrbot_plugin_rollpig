@@ -8,8 +8,11 @@ used.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import random
 import re
+import time
 from urllib.parse import urlsplit
 
 from astrbot.api import logger
@@ -182,6 +185,41 @@ class ResourceFailoverMixin:
         )
         self._save_sync_status(error=message)
         raise ValueError(message)
+
+    def _initial_resource_sync_delay_seconds(self, *, damaged_cache: bool) -> int:
+        """Fresh lightweight installs should expand quickly without a startup herd."""
+        if damaged_cache:
+            return 5
+        state = self._cloud_state()
+        if not str(state.get("resource_version") or "").strip():
+            return random.randint(3, 10)
+        return random.randint(30, 120)
+
+    async def _background_resource_sync(self):
+        """Keep the base sync loop semantics but accelerate a first-ever sync."""
+        try:
+            damaged_cache = self._cloud_cache_needs_repair()
+            await asyncio.sleep(
+                self._initial_resource_sync_delay_seconds(damaged_cache=damaged_cache)
+            )
+            while True:
+                try:
+                    state = self._cloud_state()
+                    due = time.time() - float(state.get("synced_at") or 0)
+                    if self._cloud_cache_needs_repair():
+                        logger.warning("检测到云资源缓存不完整，立即尝试原子重新同步")
+                        await self.sync_cloud_resources(force=True)
+                    elif due >= self.resource_sync_interval_hours * 3600:
+                        await self.sync_cloud_resources()
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning(f"今日小猪云资源后台同步失败，继续使用现有资源：{exc}")
+                await asyncio.sleep(
+                    min(3600, self.resource_sync_interval_hours * 3600)
+                )
+        except asyncio.CancelledError:
+            pass
 
     def _sync_status(self) -> dict:
         payload = super()._sync_status()
