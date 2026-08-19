@@ -42,7 +42,7 @@ def test_prepare_install_bundle_filters_catalog_variants_and_images(tmp_path: Pa
     image_dir.mkdir(parents=True)
 
     pigs = [
-        {"id": "keep-a", "name": "A", "description": "A", "analysis": "A"},
+        {"id": " keep-a ", "name": "A", "description": "A", "analysis": "A"},
         {"id": "drop", "name": "D", "description": "D", "analysis": "D"},
         {"id": "keep-b", "name": "B", "description": "B", "analysis": "B"},
     ]
@@ -65,7 +65,7 @@ def test_prepare_install_bundle_filters_catalog_variants_and_images(tmp_path: Pa
     (image_dir / "drop.png").write_bytes(b"drop")
     (image_dir / "keep-b.webp").write_bytes(b"bb")
 
-    stats = prepare_install_bundle(root, bootstrap_ids=("keep-a", "keep-b"))
+    stats = prepare_install_bundle(root, bootstrap_ids=(" keep-a ", "keep-b"))
 
     assert stats["pig_count"] == 2
     assert stats["image_count"] == 2
