@@ -1,10 +1,55 @@
 from __future__ import annotations
 
+import astrbot.api.message_components as Comp
 from astrbot.api import logger
 
 
 class RandomRoastMixin:
     """Random group-roast orchestration without owning AstrBot command registration."""
+
+    def _random_roast_target_announcement(self, event, target_id: str):
+        """Build the target announcement with the target mention inside the sentence.
+
+        The command actor header is installed separately by CommandActorMentionMixin.
+        Keeping the target mention inline makes the two roles visually distinct while
+        preserving the adapter-specific mention fallbacks used elsewhere by RollPig.
+        """
+        canonical_id = self._canonical_user_id(event, target_id)
+        mention_id = self._legacy_identity(canonical_id)
+        if not mention_id:
+            mention_id = self._legacy_identity(str(target_id or "").strip())
+
+        platform_type = self._platform_type(event)
+        telegram_name = (
+            self._telegram_mention_name(event, canonical_id, mention_id)
+            if platform_type == "telegram"
+            else ""
+        )
+        prefix = "🎲 随机转盘停在了 "
+        suffix = " 头上。后厨说：就你了。"
+
+        # Slack and QQ Official currently discard AstrBot At components without
+        # raising, so keep their native textual mention syntax.
+        if platform_type in {"slack", "qq_official"}:
+            return event.plain_result(f"{prefix}<@{mention_id}>{suffix}")
+
+        # Telegram needs a textual bridge when only a username or numeric ID is
+        # available; this mirrors the normal outbound-mention compatibility path.
+        if platform_type == "telegram":
+            if telegram_name:
+                return event.plain_result(f"{prefix}@{telegram_name}{suffix}")
+            if mention_id.isdigit():
+                return event.plain_result(
+                    f"{prefix}[群友](tg://user?id={mention_id}){suffix}"
+                )
+
+        return event.chain_result(
+            [
+                Comp.Plain(prefix),
+                Comp.At(qq=mention_id, name=telegram_name),
+                Comp.Plain(suffix),
+            ]
+        )
 
     async def roast_random_group_member(self, event):
         """Pick an eligible target, spend Charge, then announce and resolve the roast."""
@@ -77,11 +122,7 @@ class RandomRoastMixin:
             )
             return
 
-        await self._send_with_mention(
-            event,
-            target_id,
-            " 🎲 随机转盘停在你头上。后厨说：就你了。",
-        )
+        await event.send(self._random_roast_target_announcement(event, target_id))
 
         charge_note = self._roast_charge_note(charge_status)
         result = self.roast_service.choose_group_roast_outcome()
