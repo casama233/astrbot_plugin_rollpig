@@ -307,10 +307,10 @@ class RollPigPlugin(Star):
             logger.info("已把失效的 nonebot 资源地址迁移为 AstrBot 专用资源源")
         try:
             sync_hours = float(
-                self.config.get("resource_sync_interval_hours", 24)
+                self.config.get("resource_sync_interval_hours", 6)
             )
         except (TypeError, ValueError):
-            sync_hours = 24
+            sync_hours = 6
         self.resource_sync_interval_hours = min(168, max(1, sync_hours))
         try:
             sync_timeout = float(self.config.get("resource_sync_timeout", 30))

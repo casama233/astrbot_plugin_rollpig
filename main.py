@@ -30,6 +30,7 @@ try:
     from .pig_studio_admin import PigStudioAdminMixin
     from .pig_studio_feature import PigStudioMixin
     from .random_roast_feature import RandomRoastMixin
+    from .resource_failover_feature import ResourceFailoverMixin
     from .renderers.daily_report import render_daily_report_dashboard
     from .reservation_firewood_feature import ReservationFirewoodMixin
     from .roast_reservation_feature import RoastReservationMixin
@@ -50,6 +51,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from pig_studio_admin import PigStudioAdminMixin
     from pig_studio_feature import PigStudioMixin
     from random_roast_feature import RandomRoastMixin
+    from resource_failover_feature import ResourceFailoverMixin
     from renderers.daily_report import render_daily_report_dashboard
     from reservation_firewood_feature import ReservationFirewoodMixin
     from roast_reservation_feature import RoastReservationMixin
@@ -71,6 +73,7 @@ class RollPigPlugin(
     ExAdminMixin,
     ExVariantMixin,
     PermanentCollectionMixin,
+    ResourceFailoverMixin,
     _BaseRollPigPlugin,
 ):
     """RollPig Plus with growth, roast reservations and rich daily reports."""
