@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "pages" / "pig-manager" / "index.html"
 EX_JS = ROOT / "pages" / "pig-manager" / "ex-integration.js"
+EX_CORE_JS = ROOT / "pages" / "pig-manager" / "ex-integration-core.js"
 EX_CSS = ROOT / "pages" / "pig-manager" / "ex-integration.css"
 
 
@@ -12,6 +13,11 @@ def page_text() -> str:
 
 
 def integration_text() -> str:
+    """Return the EX implementation source, not the thin module loader."""
+    return EX_CORE_JS.read_text(encoding="utf-8")
+
+
+def integration_wrapper_text() -> str:
     return EX_JS.read_text(encoding="utf-8")
 
 
@@ -46,9 +52,12 @@ def test_public_source_preview_has_actions_instead_of_close_only():
 
 def test_ex_manager_assets_are_loaded_and_responsive():
     page = page_text()
+    wrapper = integration_wrapper_text()
     css = EX_CSS.read_text(encoding="utf-8")
     assert './ex-integration.css' in page
     assert './ex-integration.js' in page
+    assert "import './ex-integration-core.js'" in wrapper
+    assert "import './rights-integration.js'" in wrapper
     assert ".ex-manager-modal" in css
     assert ".ex-level-tabs" in css
     assert "@media(max-width:760px)" in css
