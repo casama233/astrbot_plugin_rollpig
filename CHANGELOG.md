@@ -2,6 +2,7 @@
 
 ## 未發佈
 
+- 来源与资源隔离：撤下未经逐项 provenance 核实的 bundled 手写 EX 文案与外部 compatibility-floor 自动发布路径，EX 改用确定性安全基线，并以全新原创 roast-copy 包替换旧 bundled 文案。
 - 随机烤群友：命中提示改为先单独标识指令发起人，再在随机转盘句内 @ 被烤对象，避免两个身份挤在消息开头而难以分辨。
 - 来源与许可整改：补充 Felis / RollPig Plus 的 MIT 署名、项目沿革与功能／资源 provenance 审计，移除“独立维护”误导性描述，并将未核实再分发权的外部 compatibility-floor 资源纳入隔离与逐项核权流程。
 
