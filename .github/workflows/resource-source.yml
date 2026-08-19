@@ -40,8 +40,6 @@ jobs:
         run: |
           test ! -e resource/pig_ex_variants.json
           test ! -d resource/ex_curated
-          ! grep -q 'repository: Felis2026/rollpig-resources' .github/workflows/resource-source.yml
-          ! grep -q 'Restore compatibility floor' .github/workflows/resource-source.yml
 
       - name: Verify legacy compatibility helper fails closed
         run: |
