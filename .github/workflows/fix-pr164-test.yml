@@ -1,0 +1,63 @@
+name: Fix PR 164 regression contract
+
+on:
+  push:
+    branches: [fix/dashboard-panel-alignment]
+    paths:
+      - .github/workflows/fix-pr164-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/dashboard-panel-alignment
+      - name: Update stale layout regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_admin_trend_ui_contract.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''def test_admin_trend_panel_does_not_stretch_into_dead_space():
+    page = _page()
+    assert ".trend-panel{align-self:start" in page
+    assert "grid-template-columns:repeat(4,minmax(0,1fr))" in page
+    assert "@media(max-width:760px){.trend-summary" in page
+'''
+          new = '''def test_admin_trend_panel_stretches_without_fixed_dashboard_height():
+    page = _page()
+    assert ".trend-panel{align-self:stretch" in page
+    assert ".trend-panel>.chart{flex:1 1 300px;min-height:300px;height:auto}" in page
+    dashboard_rule = page.split(".dashboard-grid{", 1)[1].split("}", 1)[0]
+    assert "height:" not in dashboard_rule
+    assert "min-height:" not in dashboard_rule
+    assert "grid-template-columns:repeat(4,minmax(0,1fr))" in page
+    assert "@media(max-width:760px){.trend-summary" in page
+
+
+def test_retention_ring_label_stays_inside_responsive_donut():
+    css = (PAGE.parent / "analytics-theme.css").read_text(encoding="utf-8")
+    assert ".retention-ring div {" in css
+    assert "max-width: calc(100% - 26px);" in css
+    assert ".retention-ring span {" in css
+    assert "white-space: normal;" in css
+    assert "overflow-wrap: anywhere;" in css
+'''
+          if old not in text:
+              raise SystemExit('stale trend contract block not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm -f .github/workflows/fix-pr164-test.yml
+          python -m pytest -q tests/test_admin_trend_ui_contract.py
+          git diff --check
+      - name: Commit regression update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/test_admin_trend_ui_contract.py .github/workflows/fix-pr164-test.yml
+          git commit -m "test: align dashboard layout regression"
+          git push
