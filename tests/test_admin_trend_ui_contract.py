@@ -25,11 +25,25 @@ def test_admin_trend_has_compact_four_metric_summary_strip():
         assert label in page
 
 
-def test_admin_trend_panel_does_not_stretch_into_dead_space():
+def test_admin_trend_panel_stretches_without_fixed_dashboard_height():
     page = _page()
-    assert ".trend-panel{align-self:start" in page
+    assert ".trend-panel{align-self:stretch" in page
+    assert ".trend-panel>.chart{flex:1 1 300px;min-height:300px;height:auto}" in page
+    dashboard_rule = page.split(".dashboard-grid{", 1)[1].split("}", 1)[0]
+    assert "height:" not in dashboard_rule
+    assert "min-height:" not in dashboard_rule
     assert "grid-template-columns:repeat(4,minmax(0,1fr))" in page
     assert "@media(max-width:760px){.trend-summary" in page
+
+
+def test_retention_ring_label_stays_inside_responsive_donut():
+    css = (PAGE.parent / "analytics-theme.css").read_text(encoding="utf-8")
+    assert ".retention-ring div {" in css
+    assert "max-width: calc(100% - 26px);" in css
+    assert ".retention-ring span {" in css
+    assert "white-space: normal;" in css
+    assert "overflow-wrap: anywhere;" in css
+
 
 def test_metric_sparklines_use_monotone_curves_and_honest_visual_range():
     page = _page()
