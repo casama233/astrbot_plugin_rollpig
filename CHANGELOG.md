@@ -6,6 +6,38 @@
 - 随机烤群友：命中提示改为先单独标识指令发起人，再在随机转盘句内 @ 被烤对象，避免两个身份挤在消息开头而难以分辨。
 - 来源与许可整改：补充 Felis / RollPig Plus 的 MIT 署名、项目沿革与功能／资源 provenance 审计，移除“独立维护”误导性描述，并将未核实再分发权的外部 compatibility-floor 资源纳入隔离与逐项核权流程。
 
+## v3.11.7
+
+发布日期：2026-08-20
+
+v3.11.7 是公共猪源来源与再分发控制的安全整改版本。投稿客户端与管理员审核流程统一升级为 rights-aware envelope v3；内容审核、权利证据审核与正式公共源发布被明确拆分。本版本不会因为管理员批准投稿而自动生成资源版本或修改正式公共源。
+
+### 公共源投稿与权利证据
+
+- 基础小猪与 EX 投稿统一使用 `submission_version: 3`，投稿前必须填写作者／创作者、权利人、HTTPS 原始来源、署名文本以及明确的再分发依据。
+- 权利依据分为 `original`、`license`、`explicit_permission`：许可证投稿必须提供许可证标识；明确授权投稿必须提供可核验的 HTTPS 授权证据 URL。
+- 投稿者必须分别明确确认 `redistribution_authorized=true` 与真实性声明 `attestation=true`；缺少必要权利资料时客户端直接 fail-closed，不再发送旧 envelope v1/v2 投稿。
+- 存在本地 EX 差分时，可在同一 rights-v3 表单中选择连同 EX 文案与图片一起进入同一次权利审核，不再使用旧的独立 envelope-v2 投稿流程。
+
+### 审核与发布分离
+
+- 管理员批准投稿必须显式确认 `rights_verified=true`，并留下至少 8 字的权利审核备注；缺少 rights-v3 证据的历史投稿禁止批准。
+- “批准”只代表内容与权利资料通过审核，结果保持 `publication_status=not_published`，不会直接产生新的正式公共源版本。
+- 管理面板不再把批准描述为“批准并发布”；正式发布必须另行进入 provenance-safe 流程，并重新验证 NOTICE／PROVENANCE／LICENSES 与资源内容后才能切换公开 `v1`。
+- 原 EX 公共源独立页面改为迁移提示，防止继续使用旧 envelope-v2／批准即发布语义。
+
+### 当前安全边界
+
+- 本次客户端升级不会自行启动生产 review service，也不会自行解除生产 `/astrbot-rollpig/api/` 的 Web 层隔离。
+- 已恢复的正式静态公共源继续使用当前 provenance-safe base-only 发布集；被隔离资源不会因为本次客户端更新重新进入公开源。
+- 权利声明与审核记录用于来源审计和发布控制，不代表软件自动作出版权或法律权属判断。
+
+### 兼容性
+
+- AstrBot 最低版本仍为 `>=4.24.2`。
+- Resource Protocol v1、游戏 SQLite 数据 schema、插件身份、命令集合、抽取／保底／烤猪等玩法规则均不变。
+- 公共源投稿协议从旧投稿 envelope 升级到 rights-aware v3；不满足新权利资料要求的投稿应 fail-closed，而不是绕过核验。
+
 ## v3.11.6
 
 发布日期：2026-08-19
