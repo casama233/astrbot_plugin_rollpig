@@ -71,6 +71,21 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Refresh existing stable GitHub Release notes
+        if: steps.existing.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          notes_file=".github/release-v${VERSION}.md"
+          if [[ -f "$notes_file" ]]; then
+            gh release edit "$TAG" \
+              --title "$DISPLAY_NAME v$VERSION" \
+              --notes-file "$notes_file"
+          fi
+
       - name: Build release archive and checksum
         if: steps.existing.outputs.exists == 'false'
         env:
