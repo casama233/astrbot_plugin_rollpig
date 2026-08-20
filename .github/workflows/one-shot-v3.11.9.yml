@@ -5,16 +5,16 @@ on:
     branches:
       - main
     types:
+      - opened
       - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   prepare:
-    if: >-
-      github.event.pull_request.number == 178 &&
-      github.head_ref == 'release/v3.11.9'
+    if: github.head_ref == 'release/v3.11.9'
     runs-on: ubuntu-latest
     steps:
       - name: Check out release branch
@@ -26,12 +26,13 @@ jobs:
       - name: Restore exact history and insert v3.11.9 changelog
         shell: bash
         run: |
-          if grep -q '^## v3\.11\.9$' CHANGELOG.md && cmp -s .github/workflows/ci.yml <(git show origin/main:.github/workflows/ci.yml 2>/dev/null || true); then
+          git fetch origin main
+
+          if grep -q '^## v3\.11\.9$' CHANGELOG.md && cmp -s .github/workflows/ci.yml <(git show origin/main:.github/workflows/ci.yml); then
             echo 'release branch already prepared'
             exit 0
           fi
 
-          git fetch origin main
           git checkout origin/main -- CHANGELOG.md .github/workflows/ci.yml
 
           python - <<'PY'
