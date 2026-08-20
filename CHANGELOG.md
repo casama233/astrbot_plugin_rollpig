@@ -6,6 +6,36 @@
 - 随机烤群友：命中提示改为先单独标识指令发起人，再在随机转盘句内 @ 被烤对象，避免两个身份挤在消息开头而难以分辨。
 - 来源与许可整改：补充 Felis / RollPig Plus 的 MIT 署名、项目沿革与功能／资源 provenance 审计，移除“独立维护”误导性描述，并将未核实再分发权的外部 compatibility-floor 资源纳入隔离与逐项核权流程。
 
+## v3.11.8
+
+发布日期：2026-08-20
+
+v3.11.8 是 v3.11.7 之后的稳定性与玩法体验 patch，合入此前待处理的日报热重载修复与烤猪概率／随机数隔离改进，并继续保留 v3.11.7 建立的来源透明度、资源隔离和 rights-aware 公共源边界。
+
+### 猪圈日报热重载稳定性
+
+- 修复 AstrBot 热重载未完整执行旧插件 unload 时，旧 `_background_daily_report` asyncio scheduler 可能继续留在事件循环并额外发送日报的问题。
+- 新实例在建立 scheduler 前只清理与当前 `plugin_data_dir` 完全相同数据命名空间中的旧日报 task，不影响其他 RollPig 数据目录或其他插件。
+- 原有 `(draw_date, group_id)` 持久化 delivery claim 继续作为最终 at-most-once 边界；新增连续三次热重载与跨命名空间隔离回归测试。
+
+### 烤猪概率与随机数隔离
+
+- 普通烤群友、随机烤群友和预约结算继续共用同一 `RoastService` policy，结果权重由 60% 成功 / 30% 逃脱 / 10% 反噬调整为 70% / 20% / 10%。
+- 命令文档、预约规则、玩法 Wiki 与互动演示同步更新为 70/20/10，避免文档与实际行为漂移。
+- `DrawService` 默认随机源改为私有 `SystemRandom`，不再受同一 AstrBot 进程中其他插件调用 `random.seed(...)` 的影响；测试仍可显式注入 RNG。
+
+### 来源与公共源边界
+
+- 延续 v3.11.7 的 credit-first / provenance-safe 整改；不恢复当前 47 项隔离资源、旧 authored EX、旧 roast-copy 或 compatibility-floor 自动发布路径。
+- 公共源投稿继续要求 rights-aware `submission_version: 3`；审核批准继续保持 `not_published`，正式发布仍必须经过独立 provenance-safe 流程。
+- 本版本不改变当前生产 157 项 base-only 公共静态源，也不对所有历史内容作 blanket license／法律权属结论。
+
+### 兼容性
+
+- 可由 v3.11.7 直接升级。
+- AstrBot 最低版本仍为 `>=4.24.2`。
+- SQLite schema、Resource Protocol v1、插件身份与公共源 rights-v3 schema 不变。
+
 ## v3.11.7
 
 发布日期：2026-08-20
