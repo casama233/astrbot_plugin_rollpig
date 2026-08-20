@@ -34,7 +34,7 @@ def _draw_missing_pig_placeholder(
     font_bold: ImageFont.FreeTypeFont,
     body_font: ImageFont.FreeTypeFont,
 ) -> None:
-    """Keep roast cards readable when the historical pig image is unavailable."""
+    """Keep roast cards readable when the resolved pig image cannot be rendered."""
     left, top, right, bottom = _ROAST_IMAGE_BOX
     center_x = (left + right) // 2
 
