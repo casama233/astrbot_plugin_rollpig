@@ -1,18 +1,21 @@
 name: Prepare v3.11.8 release branch
 
 on:
-  push:
+  pull_request:
     branches:
-      - release/v3.11.8
-    paths:
-      - .github/workflows/prepare-v3.11.8.yml
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
+  pull-requests: read
 
-# One-shot release-branch helper; it deletes itself after preparing the branch.
 jobs:
   prepare:
+    if: github.head_ref == 'release/v3.11.8'
     runs-on: ubuntu-latest
     steps:
       - name: Check out release branch
