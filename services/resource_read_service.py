@@ -64,12 +64,17 @@ class ResourceReadService:
         custom_image_dir: Path,
         cloud_image_dir: Path,
         bundled_image_dir: Path,
+        overlay_image_dir: Path | None = None,
         ex_level: int | None = None,
         variant_resolver: VariantResolver | None = None,
     ) -> Path | None:
         """Preserve the established read precedence.
 
         local override -> optional EX variant -> cloud base -> bundled base
+
+        The direct Felis overlay is inserted between cloud and bundled when
+        ``overlay_image_dir`` is provided; the legacy contract above remains
+        unchanged for callers that do not opt into the overlay.
         """
         pig_id = str(pig_id)
         local = self._find_cached(custom_image_dir, pig_id)
@@ -83,7 +88,9 @@ class ResourceReadService:
             if variant and variant.exists():
                 return variant
 
-        for directory in (cloud_image_dir, bundled_image_dir):
+        for directory in (cloud_image_dir, overlay_image_dir, bundled_image_dir):
+            if directory is None:
+                continue
             candidate = self._find_cached(directory, pig_id)
             if candidate is not None:
                 return candidate

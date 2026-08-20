@@ -105,6 +105,8 @@
 | 配置鍵 | 類型 | 預設 | 範圍 | 說明 |
 | --- | --- | --- | --- | --- |
 | `resource_sync_enabled` | bool | `true` | bool | 自動同步 AstrBot／私人小豬資源；關閉不刪既有快取 |
+| `felis_direct_enabled` | bool | `true` | bool | 非商業 Bot 直接讀取 Felis 官方 34 項 overlay 並本機快取；關閉不刪既有快取 |
+| `felis_direct_manifest_url` | string | Felis 官方 raw manifest | 固定官方 HTTPS URL | 只允許 `Felis2026/rollpig-resources` 官方 manifest，不作本站 CDN／公共 Manifest 鏡像 |
 | `resource_manifest_url` | string | 官方 AstrBot v1 | HTTPS URL | 可改成有權使用的相容私人 manifest；自訂後不啟用官方備援鏈 |
 | `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 僅預設官方源失敗時使用；留空停用 Vercel 層 |
 | `resource_github_fallback_enabled` | bool | `true` | bool | Vercel 也失敗時是否再嘗試公開 GitHub 快照 |
