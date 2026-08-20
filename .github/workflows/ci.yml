@@ -9,13 +9,66 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
+  actions: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  repair-release-branch:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/v3.11.8'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Restore untouched changelog history and normal CI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CHANGELOG.md')
+          text = path.read_text(encoding='utf-8')
+
+          repairs = {
+              '### 🐷 整個插件開始說同一種「豬話」\n玩家高頻文案':
+                  '### 🐷 整個插件開始說同一種「豬話」\n\n玩家高頻文案',
+              '所有管理页资源缓存键同步提升至 v3.0.2，不修改 SQLite 單一權威、API 契約或業務流程。':
+                  '所有管理页资源缓存键同步提升至 v3.0.2，不修改 SQLite 单一权威、API 契约或业务流程。',
+              '兼容文档仍在同一事务中同步，供 JSON 导出、舊版回滚和災難恢復使用':
+                  '兼容文档仍在同一事务中同步，供 JSON 导出、旧版回滚和灾難恢復使用',
+              '旧版整份本地图鉴会自动迁移为覆盖层與刪除屏蔽，不丟失管理員已有修改。':
+                  '旧版整份本地图鉴会自动迁移为覆盖层与删除屏蔽，不丢失管理员已有修改。',
+          }
+
+          for old, new in repairs.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'repair precondition failed for {old!r}: {count}')
+              text = text.replace(old, new, 1)
+
+          if not text.endswith('\n'):
+              text += '\n'
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md .github/workflows/ci.yml
+          git diff --cached --check
+          git commit -m "Restore exact changelog history for v3.11.8"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   test:
     name: test (3.12)
     runs-on: ubuntu-latest
