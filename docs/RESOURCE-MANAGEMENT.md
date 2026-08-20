@@ -10,6 +10,13 @@
 2. **本地覆蓋層**：管理面板新增的記錄，以及對基礎記錄的名稱、描述、文案或圖片修改。
 3. **刪除屏蔽層**：被管理員刪除的 ID，優先級最高。
 
+另有独立的 **Felis 直读 overlay**：默认开启的非商业客户端会直接读取
+[Felis 官方资源仓库](https://github.com/Felis2026/rollpig-resources) 的 manifest，
+只缓存审计过的 34 个基础 ID 到 `felis_resources/active`。它不是本站 CDN 或
+公共 Manifest 镜像；来源、协议、配置与校验细节见
+[`docs/FELIS-DIRECT-RESOURCES.md`](FELIS-DIRECT-RESOURCES.md)。关闭
+`felis_direct_enabled` 后既有 Felis 缓存也不会并入图鉴。
+
 | 操作 | 結果 |
 | --- | --- |
 | 新增一個基礎層不存在的 ID | 顯示為「本地新增」 |

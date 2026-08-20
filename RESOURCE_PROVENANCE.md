@@ -6,6 +6,19 @@ This document records the resource-focused portion of the remediation started af
 
 It is evidence/provenance documentation, **not a blanket license grant** for artwork, prose, catalog data or other resources.
 
+## Felis direct-read overlay (2026-08)
+
+The client keeps an isolated `felis_resources/active` cache containing only the
+audited 34 Felis base IDs. It fetches the official manifest directly, validates
+metadata, file size, SHA-256, image format and dimensions, then atomically
+switches the complete cache. The last complete cache remains usable when the
+upstream is offline. Felis EX/variant files and future IDs are not imported
+automatically.
+
+This is a non-commercial client-side read/cache path, not a public curryudon
+mirror. See the upstream [resource license](https://github.com/Felis2026/rollpig-resources/blob/main/RESOURCES-LICENSE.md)
+and [third-party notices](https://github.com/Felis2026/rollpig-resources/blob/main/THIRD_PARTY_NOTICES.md).
+
 ## Current publication rule
 
 The project now follows a fail-closed resource rule:

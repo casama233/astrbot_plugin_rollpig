@@ -37,6 +37,7 @@ from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont, ImageOps
 
 try:
+    from .felis_direct_feature import FelisDirectFeature
     from .identity_migration import (
         migrate_legacy_config,
         migrate_legacy_data,
@@ -71,6 +72,7 @@ try:
     from .storage import StorageManager, StorageMigrationError
     from .updater import PluginUpdateManager, UpdateError
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from felis_direct_feature import FelisDirectFeature
     from identity_migration import (
         migrate_legacy_config,
         migrate_legacy_data,
@@ -106,7 +108,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from updater import PluginUpdateManager, UpdateError
 
 
-class RollPigPlugin(Star):
+class RollPigPlugin(FelisDirectFeature, Star):
     PLUGIN_NAME = "astrbot_plugin_rollpig_plus"
     RESOURCE_CLIENT_ID = PLUGIN_NAME
     RESOURCE_PROTOCOL_VERSION = "1"
@@ -373,6 +375,7 @@ class RollPigPlugin(Star):
         self.roast_copy_builtin_path = self.res_dir / "roast_copy.json"
         self.roast_copy_usage_path = self.plugin_data_dir / "roast_copy_usage.json"
         self.custom_image_dir = self.plugin_data_dir / "images"
+        self._init_felis_direct()
         # This file is provisioned only on the source maintainer's AstrBot.
         # It is never exposed through configuration or returned to the browser.
         self.public_source_admin_token_path = (
@@ -425,6 +428,7 @@ class RollPigPlugin(Star):
         self._pig_image_repair_locks: dict[str, asyncio.Lock] = {}
         self._csrf_token = secrets.token_urlsafe(32)
         self._background_task: asyncio.Task | None = None
+        self._felis_direct_background_task: asyncio.Task | None = None
         self._manual_sync_task: asyncio.Task | None = None
         self._pighub_images: list[dict] = []
         self._pighub_cached_at = 0.0
@@ -682,6 +686,13 @@ class RollPigPlugin(Star):
                 )
             except RuntimeError:
                 logger.info("当前尚无事件循环，将在手动同步时检查云端资源")
+        if self.felis_direct_enabled:
+            try:
+                self._felis_direct_background_task = asyncio.get_running_loop().create_task(
+                    self._background_felis_direct_sync()
+                )
+            except RuntimeError:
+                logger.info("当前尚无事件循环，将在手动同步时检查 Felis 直读资源")
 
 
     def _now(self) -> datetime.datetime:
@@ -1168,10 +1179,22 @@ class RollPigPlugin(Star):
             return None
 
     def _reload_catalog_layers(self):
-        """云端／内置作基底，本地记录覆盖，tombstone 最后屏蔽。"""
+        """Cloud base, then direct Felis additions, then local policy layers."""
         cloud = self._load_cloud_pigs()
         base = cloud or self._bundled_pigs
-        self._catalog_source = "cloud" if cloud else "bundled"
+        felis = (
+            self._felis_direct_cached_pigs()
+            if self.felis_direct_enabled
+            else []
+        )
+        base_ids = {str(item.get("id") or "") for item in base}
+        if felis:
+            base = list(base) + [item for item in felis if item["id"] not in base_ids]
+        self._catalog_source = (
+            "cloud+felis-direct" if cloud and felis else
+            "cloud" if cloud else
+            "bundled+felis-direct" if felis else "bundled"
+        )
         try:
             overrides = self._validate_pig_records(
                 self._runtime_document(
@@ -1242,6 +1265,7 @@ class RollPigPlugin(Star):
             "interval_hours": self.resource_sync_interval_hours,
             "manifest_url": self.resource_manifest_url,
             "official_source": official_source,
+            "felis_direct": self._felis_direct_status(),
             "client_protocol": self.RESOURCE_PROTOCOL_VERSION,
             "source_migrated": self.resource_source_migrated,
             "local_overrides": len(
@@ -3688,6 +3712,11 @@ class RollPigPlugin(Star):
             pig_id,
             custom_image_dir=self.custom_image_dir,
             cloud_image_dir=self.resource_active_dir / "images",
+            overlay_image_dir=(
+                self.felis_direct_active_dir / "images"
+                if self.felis_direct_enabled
+                else None
+            ),
             bundled_image_dir=self.image_dir,
             ex_level=ex_level,
             variant_resolver=resolver if callable(resolver) else None,
@@ -6246,6 +6275,12 @@ class RollPigPlugin(Star):
 
     async def terminate(self):
         """插件卸载清理"""
+        if self._felis_direct_background_task and not self._felis_direct_background_task.done():
+            self._felis_direct_background_task.cancel()
+            try:
+                await self._felis_direct_background_task
+            except asyncio.CancelledError:
+                pass
         if self._background_task and not self._background_task.done():
             self._background_task.cancel()
             try:
