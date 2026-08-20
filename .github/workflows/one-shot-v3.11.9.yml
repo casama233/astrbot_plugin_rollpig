@@ -1,8 +1,11 @@
 name: One-shot v3.11.9 release preparer
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
 
 permissions:
   contents: write
@@ -10,10 +13,8 @@ permissions:
 jobs:
   prepare:
     if: >-
-      github.event.issue.pull_request &&
-      github.event.issue.number == 178 &&
-      github.event.comment.body == '/prepare-v3.11.9' &&
-      github.event.comment.user.login == 'casama233'
+      github.event.pull_request.number == 178 &&
+      github.head_ref == 'release/v3.11.9'
     runs-on: ubuntu-latest
     steps:
       - name: Check out release branch
@@ -22,19 +23,28 @@ jobs:
           ref: release/v3.11.9
           fetch-depth: 0
 
-      - name: Insert release changelog and restore normal branch CI
+      - name: Restore exact history and insert v3.11.9 changelog
         shell: bash
         run: |
+          if grep -q '^## v3\.11\.9$' CHANGELOG.md && cmp -s .github/workflows/ci.yml <(git show origin/main:.github/workflows/ci.yml 2>/dev/null || true); then
+            echo 'release branch already prepared'
+            exit 0
+          fi
+
+          git fetch origin main
+          git checkout origin/main -- CHANGELOG.md .github/workflows/ci.yml
+
           python - <<'PY'
           from pathlib import Path
 
           path = Path('CHANGELOG.md')
           text = path.read_text(encoding='utf-8')
-          if '## v3.11.9' not in text:
-              anchor = '## v3.11.8'
-              if text.count(anchor) != 1:
-                  raise SystemExit(f'v3.11.8 anchor count={text.count(anchor)}')
-              section = '''## v3.11.9
+          anchor = '## v3.11.8'
+          if '## v3.11.9' in text:
+              raise SystemExit('unexpected v3.11.9 section already present in main')
+          if text.count(anchor) != 1:
+              raise SystemExit(f'v3.11.8 anchor count={text.count(anchor)}')
+          section = '''## v3.11.9
 
 发布日期：2026-08-20
 
@@ -53,12 +63,9 @@ v3.11.9 是 v3.11.8 之后的渲染稳定性 patch，收录已合入 #176 的烤
 - 生产公共静态源继续保持 157 项 base-only；47 项隔离资源继续不发布；公共源审核通过仍不会自动发布。
 
 '''
-              text = text.replace(anchor, section + anchor, 1)
-              path.write_text(text, encoding='utf-8')
+          path.write_text(text.replace(anchor, section + anchor, 1), encoding='utf-8')
           PY
 
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md .github/workflows/ci.yml
