@@ -40,11 +40,11 @@
 
   function weightedRoastResult() {
     const roll = Math.random() * 100;
-    if (roll < 60) {
-      return { glyph: '🔥', label: '60%：燒烤成功', note: '目標成為這次真正 victim，記一次實際被烤。' };
+    if (roll < 70) {
+      return { glyph: '🔥', label: '70%：燒烤成功', note: '目標成為這次真正 victim，記一次實際被烤。' };
     }
     if (roll < 90) {
-      return { glyph: '💨', label: '30%：目標逃脫', note: '這次不增加目標的實際被烤次數。' };
+      return { glyph: '💨', label: '20%：目標逃脫', note: '這次不增加目標的實際被烤次數。' };
     }
     return { glyph: '💥', label: '10%：烤架反噬', note: '如果主廚自己可料理，真正上桌的是主廚。' };
   }

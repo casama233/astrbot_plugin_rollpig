@@ -46,14 +46,14 @@ def _feature_method(name: str):
     )
 
 
-def test_group_roast_outcome_keeps_single_60_30_10_policy():
+def test_group_roast_outcome_keeps_single_70_20_10_policy():
     service = RoastService()
     rng = FakeChoices("backlash")
     assert service.choose_group_roast_outcome(rng=rng) == "backlash"
     assert rng.calls == [
         (
             ("success", "escape", "backlash"),
-            (60, 30, 10),
+            (70, 20, 10),
             1,
         )
     ]
@@ -81,7 +81,7 @@ def test_injected_roast_rng_drives_target_and_outcome_from_one_private_source():
     assert rng.calls == [
         (
             ("success", "escape", "backlash"),
-            (60, 30, 10),
+            (70, 20, 10),
             1,
         )
     ]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 
@@ -16,6 +16,12 @@ class DrawService:
     daily_duplicate_pity_step_percent: int = 5
     daily_duplicate_pity_max_percent: int = 15
     max_pity_percent: int = 80
+    _rng: Any = field(
+        default_factory=random.SystemRandom,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     @staticmethod
     def _streak(collection: Mapping[str, Any] | None, key: str) -> int:
@@ -60,7 +66,7 @@ class DrawService:
         pigs: Sequence[Mapping[str, Any]],
         collection: Mapping[str, Any] | None,
         *,
-        rng: Any = random,
+        rng: Any | None = None,
     ) -> dict[str, Any] | None:
         """Choose one already-unlocked pig without applying new-pig pity.
 
@@ -68,6 +74,7 @@ class DrawService:
         the player has no active unlocked pig and callers should fall back to a
         normal daily draw.
         """
+        chooser = rng if rng is not None else self._rng
         user = collection if isinstance(collection, Mapping) else {}
         unlocked_raw = user.get("pigs")
         unlocked = set(unlocked_raw) if isinstance(unlocked_raw, Mapping) else set()
@@ -77,18 +84,19 @@ class DrawService:
             if str(pig.get("id") or "") in unlocked
             and str(pig.get("id") or "") != "eaten"
         ]
-        return dict(rng.choice(candidates)) if candidates else None
+        return dict(chooser.choice(candidates)) if candidates else None
 
     def choose(
         self,
         pigs: Sequence[Mapping[str, Any]],
         collection: Mapping[str, Any] | None,
         *,
-        rng: Any = random,
+        rng: Any | None = None,
     ) -> dict[str, Any]:
         if not pigs:
             raise ValueError("pig catalog is empty")
-        chosen = dict(rng.choice(pigs))
+        chooser = rng if rng is not None else self._rng
+        chosen = dict(chooser.choice(pigs))
         if not (self.enable_new_pig_pity or self.enable_daily_duplicate_pity):
             return chosen
 
@@ -101,4 +109,4 @@ class DrawService:
             return chosen
 
         chance = self.pity_chance(user)
-        return dict(rng.choice(unseen)) if rng.random() < chance else chosen
+        return dict(chooser.choice(unseen)) if chooser.random() < chance else chosen

@@ -14,7 +14,7 @@ class RoastService:
     """Pure eligibility, outcome and copy policy for roast/eat actions."""
 
     GROUP_ROAST_OUTCOMES = ("success", "escape", "backlash")
-    GROUP_ROAST_WEIGHTS = (60, 30, 10)
+    GROUP_ROAST_WEIGHTS = (70, 20, 10)
 
     def __init__(self, rng=None):
         # Keep roast randomness isolated from Python's process-global ``random``
@@ -136,7 +136,7 @@ class RoastService:
         return str(chooser.choice(pool))
 
     def choose_group_roast_outcome(self, *, bypass: bool = False, rng=None) -> str:
-        """Return the existing 60/30/10 roast outcome from one policy source."""
+        """Return the shared 70/20/10 roast outcome from one policy source."""
         if bypass:
             return "success"
         chooser = rng or self._rng
