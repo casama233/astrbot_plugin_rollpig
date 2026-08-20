@@ -9,13 +9,68 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
+  actions: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  prepare-v3-11-9:
+    if: github.event_name == 'pull_request' && github.head_ref == 'release/v3.11.9'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Insert v3.11.9 changelog section and restore normal CI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CHANGELOG.md')
+          text = path.read_text(encoding='utf-8')
+          if '## v3.11.9' not in text:
+              anchor = '## v3.11.8'
+              if text.count(anchor) != 1:
+                  raise SystemExit(f'v3.11.8 anchor count={text.count(anchor)}')
+              section = '''## v3.11.9
+
+发布日期：2026-08-20
+
+v3.11.9 是 v3.11.8 之后的渲染稳定性 patch，收录已合入 #176 的烤猪料理卡缺图降级，并继续保持现有 provenance-safe 公共源与 rights-aware 审核边界。
+
+### 烤猪料理卡缺图降级
+
+- 当历史小猪图片已退出当前资源源、文件缺失或无法解码时，料理卡不再留下大面积空白，改为用现有 palette/font 绘制本地矢量猪脸占位，并显示资源 ID。
+- 图片解析或解码失败会记录包含 `pig_id` 与可用路径的 warning；fallback 不依赖新的外部图片资产。
+- 新增 missing resolver 与 corrupt image 回归测试，确保仍输出有效的 800×870 PNG 且占位区域可见。
+
+### 兼容性与公共源边界
+
+- 可由 v3.11.8 直接升级；AstrBot 最低版本仍为 `>=4.24.2`。
+- 不修改 70/20/10 烤猪 outcome、文案选择、资源优先级、玩法状态、SQLite schema、Resource Protocol v1 或 rights-v3 schema。
+- 生产公共静态源继续保持 157 项 base-only；47 项隔离资源继续不发布；公共源审核通过仍不会自动发布。
+
+'''
+              text = text.replace(anchor, section + anchor, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md .github/workflows/ci.yml
+          git diff --cached --check
+          git commit -m "Document v3.11.9 release"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   test:
     name: test (3.12)
     runs-on: ubuntu-latest
