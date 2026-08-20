@@ -4,6 +4,15 @@ Last updated: 2026-08-19
 
 This repository is maintained by `casama233`, but it is **not presented as an independently-originated RollPig implementation**.
 
+## Felis direct resource overlay
+
+The non-commercial AstrBot client can directly read and locally cache 34
+allow-listed base resources from [Felis2026/rollpig-resources](https://github.com/Felis2026/rollpig-resources).
+The overlay preserves the upstream source and attribution notice; it is not a
+curryudon CDN, public Manifest mirror, or re-hosted public resource package.
+Resource terms are documented in
+[RESOURCES-LICENSE.md](https://github.com/Felis2026/rollpig-resources/blob/main/RESOURCES-LICENSE.md).
+
 ## Project lineage
 
 The project has developed through work from multiple upstream projects and maintainers:
@@ -25,6 +34,9 @@ During this remediation the project deliberately uses a **credit-first / no-unde
 - artwork, prose and other resources remain subject to their own provenance and redistribution rights regardless of software attribution.
 
 This policy is intentionally conservative while the detailed audit remains open.
+The quarantine rule applies to public mirroring and redistribution; it does not
+disable the separately documented Felis client-side direct-read overlay, which
+uses the upstream address and keeps only a Bot-local operational cache.
 
 ## License notices
 

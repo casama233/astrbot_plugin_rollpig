@@ -173,6 +173,18 @@
         "type": "bool",
         "default": true
     },
+    "felis_direct_enabled": {
+        "description": "启用 Felis 官方资源直读 overlay",
+        "hint": "默认开启；仅非商业 Bot 使用，客户端直接读取官方上游并本机缓存，不作为本站 CDN/Manifest 镜像分发",
+        "type": "bool",
+        "default": true
+    },
+    "felis_direct_manifest_url": {
+        "description": "Felis 官方资源 manifest 地址",
+        "hint": "仅允许 Felis2026/rollpig-resources 官方 raw manifest；保留来源与署名",
+        "type": "string",
+        "default": "https://raw.githubusercontent.com/Felis2026/rollpig-resources/main/rollpig/manifest.json"
+    },
     "resource_manifest_url": {
         "description": "云端资源 manifest 地址",
         "hint": "默认使用 AstrBot 专用源；也可改成你有权使用、兼容 v1 manifest 协议的 HTTPS 私人源",
