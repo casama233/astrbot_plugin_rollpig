@@ -5,6 +5,7 @@
 - 来源与资源隔离：撤下未经逐项 provenance 核实的 bundled 手写 EX 文案与外部 compatibility-floor 自动发布路径，EX 改用确定性安全基线，并以全新原创 roast-copy 包替换旧 bundled 文案。
 - 随机烤群友：命中提示改为先单独标识指令发起人，再在随机转盘句内 @ 被烤对象，避免两个身份挤在消息开头而难以分辨。
 - 来源与许可整改：补充 Felis / RollPig Plus 的 MIT 署名、项目沿革与功能／资源 provenance 审计，移除“独立维护”误导性描述，并将未核实再分发权的外部 compatibility-floor 资源纳入隔离与逐项核权流程。
+- 烤猪料理卡：当历史小猪图片已退出当前资源源、文件缺失或无法解码时，不再留下大面积空白，改为显示明确的小猪占位与资源 ID，并写入诊断日志。
 
 ## v3.11.7
 
@@ -118,7 +119,7 @@ v3.11.3 是管理面板安全更新器修復版。它修正「GitHub 已有有�
 
 - 更新檢查改以 GitHub 官方 `releases/latest` 作為主通道，仍保留 Release collection 作相容 fallback；不再因 collection 回傳空列表或陳舊結果而把有效 Latest Release 判定為不存在。
 - `latest` 回應仍必須通過既有嚴格驗證：stable SemVer、非 draft／prerelease、官方倉庫 Release URL、精確的 `astrbot_plugin_rollpig_plus-vX.Y.Z.zip` 名稱與官方下載 URL；安全邊界沒有放寬。
-- GitHub 請求加入 `Cache-Control: no-cache`／`Pragma: no-cache`，降低中間快取讓更新檢查讀到過期 Release metadata 的風險。
+- GitHub 請求加入 `Cache-Control: no-cache`／`Pragma: no-cache`，降低中間快取讓更新檢查讀到過期 Release metadata 的概率。
 - 當 latest 與列表兩個通道都不可用時，錯誤訊息會同時保留兩邊的失敗原因，方便定位網路／Release 資料問題。
 - 新增回歸測試，直接覆蓋「latest 有效但 releases list 為空」這次實際故障型態，以及 latest 無效時的 fallback 行為。
 
@@ -558,7 +559,7 @@ MkDocs Material 的左右 navigation / TOC 會先吃掉桌面寬度，所以現�
 
 本版已把入口順序重新固定為：
 
-1. `pig-manager` — 豬圈管理（預設）
+1. `pig-manager` — 豬圈管理（預設首頁）
 2. `pig-manager-ex` — EX 成長管理
 3. `pig-manager-ex-public-source` — EX 公共源
 
@@ -1028,7 +1029,7 @@ v3.7.0 是 v3.6.5 之後的玩法與架構大型更新。本版把「烤群友�
 - 批准投稿後先使用正式建構器全量校驗，再建立不可變資源版本、備份 canonical catalog 並原子切換 `v1`。
 - 發佈失敗會恢復原 catalog；服務啟動時可修復已完成發佈但審核狀態尚未落庫的短暫崩潰窗口。
 - 新增 OpenResty、systemd 部署範本與公共源維護文檔；正式插件 ZIP 排除服務端原始碼及部署檔。
-- README、資源管理、運維、配置、文檔索引與市場描述更新到 v3.5.0。
+- README、資源管理、運維、配置、文檔索引與市場 metadata 及發版說明更新到 v3.5.0。
 
 ## v3.4.0 (2026-08-14)
 
@@ -1178,7 +1179,7 @@ v3.7.0 是 v3.6.5 之後的玩法與架構大型更新。本版把「烤群友�
 - 修复 AstrBot 管理桥接尚未就绪时，深度 Analytics 过早标记为已初始化并永久退出的问题。
 - Analytics 现在会以 100ms 间隔、最多 8 秒等待桥接；桥接就绪后才设置完成标记并读取聚合数据。
 - 重复注入保持幂等；桥接长期不可用时显示局部错误与“重新连接”，普通总览、图鉴和管理操作不受影响。
-- 所有管理页资源缓存键同步提升至 v3.0.2，不修改 SQLite 单一权威、API 契约或业务流程。
+- 所有管理页资源缓存键同步提升至 v3.0.2，不修改 SQLite 單一運行時權威、API 契約或業務流程。
 
 ## v3.0.1 (2026-08-04)
 ### 管理页 UI 缓存与恢复证据修复
@@ -1243,7 +1244,7 @@ v3.7.0 是 v3.6.5 之後的玩法與架構大型更新。本版把「烤群友�
 - 每日抽猪改为规范化 SQL 表的直接事务写入；`PRIMARY KEY(draw_date, user_id)` 现在真正承担跨连接并发唯一性。
 - 次日被吃惩罚的检查、消费与失败锁定和每日抽取放在同一个 `BEGIN IMMEDIATE` 事务边界内。
 - 吃群友的当天替换、原猪保存、次日惩罚和事件记录改为一次提交或全部回滚。
-- 兼容文档仍在同一事务中同步，供 JSON 导出、旧版回滚和灾難恢復使用，但熱寫入不再觸發歷史／烤豬投影全表刪除重建。
+- 兼容文档仍在同一事务中同步，供 JSON 导出、旧版回滚和災難恢復使用，但熱寫入不再觸發歷史／烤豬投影全表刪除重建。
 - JSON 後端繼續保留舊邏輯；已遷移的 v2.10 資料庫無需再次手動遷移即可使用 SQL 主寫路徑。
 
 ## v2.10.1 (2026-08-04)
