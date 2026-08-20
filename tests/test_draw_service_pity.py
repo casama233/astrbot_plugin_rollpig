@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import random
 
 import pytest
 
@@ -22,6 +23,11 @@ class StubRng:
 
     def random(self):
         return self.random_value
+
+
+def test_default_draw_rng_is_process_global_seed_isolated():
+    service = DrawService()
+    assert isinstance(service._rng, random.SystemRandom)
 
 
 def test_legacy_pity_is_unchanged_when_daily_bonus_is_disabled():
