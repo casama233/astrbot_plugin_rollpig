@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
 
+# One-shot release-branch helper; it deletes itself after preparing the branch.
 jobs:
   prepare:
     runs-on: ubuntu-latest
