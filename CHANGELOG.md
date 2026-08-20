@@ -1,5 +1,32 @@
 # 更新
 
+## v3.11.10
+
+发布日期：2026-08-21
+
+v3.11.10 在不扩大 curryudon 公共再分发范围的前提下恢复后期 Felis
+资源可用性：34 项固定 allowlist 由非商业 AstrBot 客户端直接读取 Felis 官方
+上游并在 Bot 本机缓存，公共来源、Felis 直读层与管理员本地覆盖继续相互隔离。
+
+### Felis 官方直读资源层
+
+- 新增默认启用的非商业 Felis 官方直读路径，仅本机缓存审计过的 34 项基础资源。
+- 资源不进入 curryudon 公共 CDN/Manifest；同步过程校验 manifest、大小、SHA-256 与图片内容后原子切换。
+- 网络失败继续使用最近一次完整缓存；Felis EX/variant 与未来新增资源不会自动纳入。
+- 配置、署名、来源与资源许可边界同步记录于 `docs/CONFIGURATION.md`、`ATTRIBUTION.md` 与 `RESOURCE_PROVENANCE.md`。
+
+### 分层优先级与停用行为
+
+- 公共来源同 ID 继续优先于 Felis；Felis 只补齐公共层没有的 34 项，管理员本地覆盖与 tombstone 规则保持不变。
+- 关闭 `felis_direct_enabled` 后不会删除已有缓存，但缓存不会继续并入运行时图鉴。
+- 图片读取路径继续保持本地 override 与既有 EX 解析规则，并在 cloud 与 bundled 基础图片之间加入 Felis 本机缓存层。
+
+### 兼容性与维护记录
+
+- 随机烤群友继续先单独显示 `@指令發起者`，再在转盘句中标识被烤对象，避免混淆两种身份。
+- 可由 v3.11.9 直接升级；AstrBot 最低版本仍为 `>=4.24.2`，SQLite schema、Resource Protocol v1 与 rights-v3 投稿协议不变。
+- 本版本不宣称 PigHub 或其他第三方资源获得新的开源授权，也不将 Felis 资源重新托管为 curryudon 公共镜像。
+
 ## 未發佈
 
 - 来源与资源隔离：撤下未经逐项 provenance 核实的 bundled 手写 EX 文案与外部 compatibility-floor 自动发布路径，EX 改用确定性安全基线，并以全新原创 roast-copy 包替换旧 bundled 文案。
