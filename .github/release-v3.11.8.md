@@ -8,7 +8,7 @@
 
 ## 回归与边界
 
-- 本版整合已合入的 #173（日報热重载 scheduler 清理）与 #169（70/20/10 共用烤猪 policy + DrawService RNG 隔离）。
+- 本版整合已合入的 #173（日报热重载 scheduler 清理）与 #169（70/20/10 共用烤猪 policy + DrawService RNG 隔离）；相关用户文档与 Wiki 更新已随 #169 先行合入。
 - 新增连续三次热重载的 scheduler 清理回归测试，并验证不同 RollPig 数据命名空间不会被误取消。
 - 烤猪 policy 测试锁定 70/20/10；抽取测试锁定默认 RNG 与 process-global random seed 隔离。
 - SQLite schema、Resource Protocol v1、插件身份与公共源 rights-v3 schema 不变；可由 v3.11.7 直接升级，AstrBot 最低版本仍为 `>=4.24.2`。
