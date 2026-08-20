@@ -36,18 +36,26 @@ jobs:
           path = Path('CHANGELOG.md')
           text = path.read_text(encoding='utf-8')
 
-          repairs = {
-              '1. `pig-manager` — 豬圈管理（預設）':
-                  '1. `pig-manager` — 豬圈管理（預設首頁）',
-              'schema 5 新增日期／小豬與圖鑑反向查询索引，改善大数据量下的趋势和收藏统计性能。':
-                  'schema 5 新增日期／小猪与图鉴反向查询索引，改善大数据量下的趋势和收藏统计性能。',
-          }
+          old_block = '''AstrBot Plugin Page 應只發現：
 
-          for old, new in repairs.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'repair precondition failed for {old!r}: {count}')
-              text = text.replace(old, new, 1)
+1. `pig-manager` — 豬圈管理（預設）
+2. `pig-manager-ex` — EX 成長管理
+3. `pig-manager-ex-public-source` — EX 公共源'''
+          new_block = '''AstrBot Plugin Page 應只發現：
+
+1. `pig-manager` — 豬圈管理（預設首頁）
+2. `pig-manager-ex` — EX 成長管理
+3. `pig-manager-ex-public-source` — EX 公共源'''
+
+          if text.count(old_block) != 1:
+              raise SystemExit(f'pig-manager contextual repair count={text.count(old_block)}')
+          text = text.replace(old_block, new_block, 1)
+
+          old_schema = 'schema 5 新增日期／小豬與圖鑑反向查询索引，改善大数据量下的趋势和收藏统计性能。'
+          new_schema = 'schema 5 新增日期／小猪与图鉴反向查询索引，改善大数据量下的趋势和收藏统计性能。'
+          if text.count(old_schema) != 1:
+              raise SystemExit(f'schema contextual repair count={text.count(old_schema)}')
+          text = text.replace(old_schema, new_schema, 1)
 
           if not text.endswith('\n'):
               text += '\n'
