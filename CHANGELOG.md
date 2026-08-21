@@ -33,6 +33,7 @@ v3.11.10 在不扩大 curryudon 公共再分发范围的前提下恢复后期 Fe
 - 随机烤群友：命中提示改为先单独标识指令发起人，再在随机转盘句内 @ 被烤对象，避免两个身份挤在消息开头而难以分辨。
 - 来源与许可整改：补充 Felis / RollPig Plus 的 MIT 署名、项目沿革与功能／资源 provenance 审计，移除“独立维护”误导性描述，并将未核实再分发权的外部 compatibility-floor 资源纳入隔离与逐项核权流程。
 - 烤猪料理卡：当历史小猪图片已退出当前资源源、文件缺失或无法解码时，不再留下大面积空白，改为显示明确的小猪占位与资源 ID，并写入诊断日志。
+- 猪圈日报头像：补齐 target／victim-only 得主的跨平台 profile 解析；优先复用 mention metadata 与 native-ID alias，aiocqhttp 可在缺少历史 sender profile 时查询群成员名片并补 QQ 头像，避免日报退回数字 ID 与首字占位。
 
 ## v3.11.9
 
