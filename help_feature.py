@@ -53,6 +53,9 @@ class HelpFeatureMixin:
             enable_roast_protection=bool(
                 getattr(self, "enable_roast_protection", True)
             ),
+            enable_eat_protection=bool(
+                getattr(self, "enable_eat_protection", True)
+            ),
             enable_ai_roast_copy=bool(getattr(self, "enable_ai_roast_copy", False)),
             enable_daily_report=bool(getattr(self, "enable_daily_report", True)),
             daily_report_auto_send=bool(
@@ -62,6 +65,16 @@ class HelpFeatureMixin:
                 getattr(self, "daily_report_random_eat_enabled", False)
             ),
             eat_success_percent=int(getattr(self, "eat_success_percent", 15) or 15),
+            eat_escape_percent=int(getattr(self, "eat_escape_percent", 20) or 0),
+            eat_cooked_bonus_percent=int(
+                getattr(self, "eat_cooked_bonus_percent", 10) or 0
+            ),
+            eat_daily_attempt_limit=int(
+                getattr(self, "eat_daily_attempt_limit", 2) or 2
+            ),
+            eat_daily_success_limit=int(
+                getattr(self, "eat_daily_success_limit", 1) or 1
+            ),
             group_roast_max_charges=int(
                 getattr(self, "group_roast_max_charges", 2) or 2
             ),
@@ -177,7 +190,6 @@ class HelpFeatureMixin:
 
     async def rollpig_help(self, event: AstrMessageEvent):
         """Prepare and copy dynamic help outside the asyncio event loop."""
-
         self._claim_command_event(event)
         output = None
         try:
