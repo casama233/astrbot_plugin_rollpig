@@ -33,6 +33,7 @@ SCRIPT_PAIRS = {
 SCRIPT_IDENTICAL = {
     "roast_group_member": "烤群友",
     "eat_group_member": "吃群友",
+    "eat_appetite_status": "胃口",
     "firewood_support": "添柴",
     "oven_refill_support_compat": "添煤",
 }
