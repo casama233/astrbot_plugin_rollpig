@@ -37,11 +37,16 @@ class HelpFeatureState:
     enable_oven_refill: bool = True
     enable_group_eat: bool = True
     enable_roast_protection: bool = True
+    enable_eat_protection: bool = True
     enable_ai_roast_copy: bool = False
     enable_daily_report: bool = True
     daily_report_auto_send: bool = True
     daily_report_random_eat_enabled: bool = False
     eat_success_percent: int = 15
+    eat_escape_percent: int = 20
+    eat_cooked_bonus_percent: int = 10
+    eat_daily_attempt_limit: int = 2
+    eat_daily_success_limit: int = 1
     group_roast_max_charges: int = 2
     group_roast_recovery_hours: float = 8.0
     roast_reservation_max_participants: int = 12
@@ -126,16 +131,24 @@ def build_help_sections(
             )
 
     if state.enable_group_eat:
+        success = min(90, max(0, int(state.eat_success_percent)))
+        escape = min(max(0, int(state.eat_escape_percent)), max(0, 100 - success))
+        backlash = max(0, 100 - success - escape)
         group_entries.extend(
             [
                 HelpEntry(
                     "/吃群友 @某人",
                     t(
                         "help.group.eat_target",
-                        percent=max(1, int(state.eat_success_percent)),
+                        success=success,
+                        escape=escape,
+                        backlash=backlash,
+                        attempts=max(1, int(state.eat_daily_attempt_limit)),
+                        meals=max(1, int(state.eat_daily_success_limit)),
                     ),
                 ),
                 HelpEntry(cmd("/随机吃群友", "/随机吃群友"), t("help.group.random_eat")),
+                HelpEntry("/胃口", t("help.group.eat_status")),
             ]
         )
 
@@ -213,11 +226,32 @@ def build_help_sections(
                 kind="feature",
             )
         )
+    if state.enable_group_eat:
+        mechanics.append(
+            HelpEntry(
+                t("help.mechanic.appetite_title"),
+                t(
+                    "help.mechanic.appetite",
+                    attempts=max(1, int(state.eat_daily_attempt_limit)),
+                    meals=max(1, int(state.eat_daily_success_limit)),
+                    cooked=max(0, int(state.eat_cooked_bonus_percent)),
+                ),
+                kind="feature",
+            )
+        )
     if state.enable_roast_protection and (group_roast_enabled or state.enable_group_eat):
         mechanics.append(
             HelpEntry(
                 t("help.mechanic.protection_title"),
                 t("help.mechanic.protection"),
+                kind="feature",
+            )
+        )
+    if state.enable_group_eat and state.enable_eat_protection:
+        mechanics.append(
+            HelpEntry(
+                t("help.mechanic.eat_protection_title"),
+                t("help.mechanic.eat_protection"),
                 kind="feature",
             )
         )
