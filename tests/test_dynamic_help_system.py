@@ -65,6 +65,7 @@ def test_disabled_features_are_omitted_instead_of_advertised():
         enable_oven_refill=False,
         enable_group_eat=False,
         enable_roast_protection=False,
+        enable_eat_protection=False,
         enable_ai_roast_copy=False,
         enable_daily_report=False,
         daily_report_random_eat_enabled=False,
@@ -79,13 +80,16 @@ def test_disabled_features_are_omitted_instead_of_advertised():
     assert "/添柴" not in commands
     assert "/吃群友 @某人" not in commands
     assert "/随机吃群友" not in commands
+    assert "/胃口" not in commands
     assert not any(command.startswith("/猪圈日报") for command in commands)
     assert not any("新豬保底" in command for command in commands)
     assert not any("跨日疲勞" in command for command in commands)
     assert not any("预约烤猪" in command for command in commands)
+    assert not any("群友胃口" in command for command in commands)
+    assert not any("餐后观察期" in command for command in commands)
 
 
-def test_enabled_features_expose_new_report_and_reservation_capabilities():
+def test_enabled_features_expose_new_report_reservation_and_appetite_capabilities():
     state = HelpFeatureState(
         at_view_pig=True,
         enable_roast=True,
@@ -94,6 +98,7 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
         enable_oven_refill=True,
         enable_group_eat=True,
         enable_roast_protection=True,
+        enable_eat_protection=True,
         enable_ai_roast_copy=True,
         enable_daily_report=True,
         daily_report_auto_send=False,
@@ -106,10 +111,13 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     assert "/烤箱补货" in commands
     assert "/添柴" in commands
     assert "/添煤" not in commands
+    assert "/胃口" in commands
     assert "/猪圈日报开启／关闭" in commands
     assert any("自动日报" in command for command in commands)
     assert any("预约烤猪" in command for command in commands)
+    assert any("群友胃口" in command for command in commands)
     assert any("次日保护" in command for command in commands)
+    assert any("餐后观察期" in command for command in commands)
     assert any("AI 料理文案" in command for command in commands)
     assert any("日报祭品" in command for command in commands)
 
@@ -157,12 +165,16 @@ def test_all_registered_commands_have_script_aware_help_coverage_when_enabled():
     assert uncovered == set(), f"commands missing from dynamic help: {sorted(uncovered)}"
 
 
-def test_help_fingerprint_tracks_visible_content_and_theme():
+def test_help_fingerprint_tracks_visible_content_theme_and_appetite_values():
     base = build_help_sections(HelpFeatureState(at_view_pig=False))
     with_at = build_help_sections(HelpFeatureState(at_view_pig=True))
+    more_appetite = build_help_sections(HelpFeatureState(eat_daily_attempt_limit=3))
 
     assert help_sections_fingerprint(base, theme="light") != help_sections_fingerprint(
         with_at, theme="light"
+    )
+    assert help_sections_fingerprint(base, theme="light") != help_sections_fingerprint(
+        more_appetite, theme="light"
     )
     assert help_sections_fingerprint(base, theme="light") != help_sections_fingerprint(
         base, theme="night"
