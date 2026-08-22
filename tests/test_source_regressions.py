@@ -419,10 +419,23 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
 def test_eaten_next_day_penalty_never_locks_daily_draw():
     consume = ast.get_source_segment(SOURCE, _method("_consume_eaten_penalty")) or ""
     choose = ast.get_source_segment(SOURCE, _method("_choose_daily_pig")) or ""
+    roll_pig = ast.get_source_segment(SOURCE, _method("roll_pig")) or ""
     assert "eaten_next_day_duplicate_percent" in SOURCE
     assert "penalty-blocked" not in SOURCE
     assert "return False" in consume
     assert "_pending_eaten_duplicate_users" in consume
     assert "choose_duplicate" in choose
     assert "force_duplicate" in choose
+    assert "抽猪资格还在消化中" not in roll_pig
 
+
+def test_eaten_next_day_player_copy_and_wiki_describe_forced_duplicate():
+    commands = (ROOT / "docs" / "COMMANDS.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting" / "index.md").read_text(
+        encoding="utf-8"
+    )
+    assert "明天抽猪可能会抽到重复猪" in SOURCE
+    assert "明天抽猪可能失败" not in SOURCE
+    assert "次日仍可正常抽豬" in commands
+    assert "不會失敗或鎖天" in commands
+    assert "抽取仍會正常完成，不會鎖到自然日結束" in troubleshooting
