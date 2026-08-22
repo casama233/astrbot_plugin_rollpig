@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPERS = [
     "legacy_main.py",
     "daily_report_feature.py",
+    "eat_feature.py",
     "ex_variant_feature.py",
     "roast_reservation_feature.py",
     "reservation_firewood_feature.py",
@@ -19,6 +20,7 @@ REPORT_ADAPTERS = {
 }
 COMPAT_ADAPTERS = {"oven_refill_support_compat": "oven_refill_support"}
 EXPECTED = {
+    "eat_appetite_status",
     "eat_group_member",
     "eat_random_group_member",
     "find_pigs",
