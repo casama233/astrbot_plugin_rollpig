@@ -19,7 +19,7 @@
 
 跨日疲勞只沿**相鄰自然日**回溯；中間漏抽、抽到新豬或沒有有效記錄都會截斷跨日鏈。同一天重查 `/今日小豬` 不增加層數。原 `duplicate_streak` 與跨日疲勞是兩套狀態，最後一起算，但條件式新豬重抽率不超過 80%。
 
-## 🔥 群聊後廚、Roast Charge 與預約
+## 🔥 群聊後廚、Roast Charge 與吃群友
 
 | 配置鍵 | 類型 | 預設 | 範圍 | 說明 |
 | --- | --- | --- | --- | --- |
@@ -31,11 +31,27 @@
 | `roast_reservation_max_participants` | int | `12` | `2-20` | 每張預約最大參與人數，包含固定主廚 |
 | `enable_roast_protection` | bool | `true` | bool | 昨日同群實際被烤過多後，今日普通後廚受保護 |
 | `roast_protection_threshold` | int | `3` | `1-20` | 昨日同群被成功烤到多少次後觸發今日保護 |
-| `enable_group_eat` | bool | `true` | bool | 吃群友／隨機吃群友 |
-| `eat_success_percent` | int | `15` | `1-80` | 吃群友成功率；失敗時發起者自己變「吃掉了」 |
+| `enable_group_eat` | bool | `true` | bool | 啟用 `/吃群友`、`/隨機吃群友` 與 `/胃口` |
+| `eat_success_percent` | int | `15` | `1-80` | 普通目標的基礎成功率 |
+| `eat_escape_percent` | int | `20` | `0-80` | 目標溜走概率；雙方都不被吃，但仍消耗 1 口胃口 |
+| `eat_cooked_bonus_percent` | int | `10` | `0-40` | 熟食形態額外成功百分點；優先從反噬概率扣除 |
+| `eat_daily_attempt_limit` | int | `2` | `1-10` | **每位玩家 × 每個群 × 每自然日**的吃群友嘗試上限 |
+| `eat_daily_success_limit` | int | `1` | `1-5` | 每日每群成功進食上限；運行時不會高於胃口上限 |
+| `enable_eat_protection` | bool | `true` | bool | 昨日在同群成功被吃達閾值者，今日進入餐後觀察期 |
+| `eat_protection_threshold` | int | `1` | `1-10` | 昨日同群被成功吃多少次後觸發今日觀察期 |
 | `eaten_next_day_failure_percent` | int | `20` | `1-80` | **兼容舊鍵名**：今天被吃後，次日抽豬命中此概率時強制從已解鎖池抽一隻重複豬；不再抽取失敗或鎖天 |
 | `enable_ai_roast_copy` | bool | `false` | bool | 嘗試請當前會話模型生成料理文案 |
 | `ai_generation_timeout_seconds` | float | `45` | `5-120` | AI 文案超時；失敗／超時回退本地模板 |
+
+### 吃群友的三段概率與胃口
+
+預設普通目標為 **15% 吃到 / 20% 溜走 / 65% 反噬**。`eat_success_percent` 與 `eat_escape_percent` 先決定前兩段，剩餘概率自動歸入反噬；成功率最終封頂 90%，避免把玩法調成完全無風險。
+
+熟食形態再加 `eat_cooked_bonus_percent`，預設 +10，因此預設熟食目標為 **25% 吃到 / 20% 溜走 / 55% 反噬**。加成優先吃掉反噬區間；若成功與溜走合計逼近 100%，溜走區間才會被縮短。
+
+`eat_daily_attempt_limit=2` 表示每位玩家在**每個群**每天最多下筷兩次；目標溜走也算一口。`eat_daily_success_limit=1` 則讓第一次成功後立刻「吃飽」，防止極端好運時一路連吃清場。這些限制寫入獨立 `eat_state.json`，不依賴日報是否開啟，也不依賴日報事件保留上限。
+
+`enable_eat_protection=true` 時，昨天在同一群實際成功被吃達 `eat_protection_threshold` 的玩家，今天進入「餐後觀察期」，普通 `/吃群友` 與 `/隨機吃群友` 都不會再選中他。這與既有被烤保護是兩條獨立規則。
 
 ### Charge 語義
 
@@ -59,7 +75,7 @@
 - 再次 `/烤群友 @同一目標` 仍保留相容；
 - 加入不消耗自己的額外 Charge；
 - 目標之後觸發預約時不再扣主廚第二格；
-- 添柴人數目前不增加 60/30/10 成功率。
+- 添柴人數目前不增加 70/20/10 成功率。
 
 裸 `/添柴` 還會依上下文路由：補貨進行中優先補貨；沒有補貨且只有一張預約時加入該預約；多張預約則要求 `@目標`。
 
@@ -167,6 +183,13 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
   "enable_oven_refill": true,
   "oven_refill_round_timeout_minutes": 120,
   "enable_group_eat": true,
+  "eat_success_percent": 15,
+  "eat_escape_percent": 20,
+  "eat_cooked_bonus_percent": 10,
+  "eat_daily_attempt_limit": 2,
+  "eat_daily_success_limit": 1,
+  "enable_eat_protection": true,
+  "eat_protection_threshold": 1,
   "enable_daily_report": true,
   "daily_report_random_eat_enabled": false,
   "image_theme": "auto",
