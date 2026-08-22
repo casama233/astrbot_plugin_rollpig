@@ -3700,7 +3700,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         await self._send_with_mention(
             event,
             actor_id,
-            " 🍴 没吃到别人，反而把自己吃没了。这顿饭主打自产自销；明天抽猪可能失败。",
+            " 🍴 没吃到别人，反而把自己吃没了。这顿饭主打自产自销；明天抽猪可能会抽到重复猪。",
         )
 
     def find_image_file(
@@ -4092,16 +4092,15 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 )
                 existing = user_records.get(existing_key) if existing_key else None
 
+                if not viewing_other:
+                    self._consume_eaten_penalty(str(actor_id), today_str)
+
                 if viewing_other:
                     if existing:
                         pig_to_send = existing
                         send_user_id = target_id
                     else:
                         response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
-                elif self._consume_eaten_penalty(str(actor_id), today_str):
-                    response_text = (
-                        "🍽️ 昨天被吃得太彻底，今天的抽猪资格还在消化中；请明天再来。"
-                    )
                 elif existing:
                     changed = self._record_unlock(
                         existing_key,
