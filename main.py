@@ -18,6 +18,7 @@ try:
     from .animated_image_feature import AnimatedImageMixin
     from .command_actor_feature import CommandActorMentionMixin
     from .daily_report_feature import DailyReportMixin
+    from .eat_feature import EatFeatureMixin
     from .ex_admin_feature import ExAdminMixin
     from .ex_public_source_feature import ExPublicSourceMixin
     from .ex_variant_feature import ExVariantMixin
@@ -39,6 +40,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from animated_image_feature import AnimatedImageMixin
     from command_actor_feature import CommandActorMentionMixin
     from daily_report_feature import DailyReportMixin
+    from eat_feature import EatFeatureMixin
     from ex_admin_feature import ExAdminMixin
     from ex_public_source_feature import ExPublicSourceMixin
     from ex_variant_feature import ExVariantMixin
@@ -66,6 +68,7 @@ class RollPigPlugin(
     HelpFeatureMixin,
     RandomRoastMixin,
     RoastReservationMixin,
+    EatFeatureMixin,
     DailyReportMixin,
     PigStudioAdminMixin,
     PigStudioMixin,
@@ -218,6 +221,10 @@ class RollPigPlugin(
     @filter.command('随机吃群友', alias={'隨機吃群友'}, priority=1000)
     async def eat_random_group_member(self, event: AstrMessageEvent):
         return await super().eat_random_group_member(event)
+
+    @filter.command('胃口', alias={'我的胃口', '吃群友状态', '吃群友狀態'}, priority=1000)
+    async def eat_appetite_status(self, event: AstrMessageEvent):
+        return await super().eat_appetite_status(event)
 
     @filter.command('打点后厨', alias={'打點後廚', '偷换烤架', '偷換烤架', '贿赂主厨', '賄賂主廚', '加急生火', '强行点火', '強行點火'}, priority=1000)
     async def force_roast_group_member(self, event: AstrMessageEvent, args: str=''):
