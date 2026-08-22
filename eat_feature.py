@@ -16,18 +16,18 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class EatFeatureMixin:
-    """Richer /吃群友 rules without reusing the roast-charge economy.
+    """Richer /吃群友 rules with a dedicated appetite ledger.
 
-    The eat game has its own identity:
-    * two bites per actor/group/day by default;
-    * at most one successful meal per actor/group/day;
-    * success / escape / backlash outcomes;
-    * cooked targets are easier to eat;
-    * yesterday's successful victim receives one-day digestive protection.
-
-    Attempt/outcome bookkeeping uses the shared gameplay event stream so limits
-    survive restarts and remain available to future report/analytics layers.
+    Eat intentionally does not reuse the roast Charge economy. Its identity is
+    a small daily appetite budget, a one-meal success cap, three-way outcomes,
+    a cooked-target bonus and one-day digestive protection for yesterday's
+    victims. The appetite ledger is gameplay-authoritative and persisted apart
+    from the bounded Daily Report event stream; gameplay events are analytics
+    only and cannot grant extra bites when truncated or disabled.
     """
+
+    EAT_STATE_VERSION = 1
+    EAT_STATE_KEEP_DAYS = 3
 
     EVENT_EAT_ATTEMPT = "eat_attempt"
     EVENT_EAT_SUCCESS = "eat_outcome_success"
@@ -59,9 +59,24 @@ class EatFeatureMixin:
         self.eat_protection_threshold = self._eat_int_config(
             config_view, "eat_protection_threshold", 1, 1, 10
         )
+
         self.eat_service = EatService()
         self._eat_action_locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._eat_success_claims: set[tuple[str, str, str]] = set()
+        self.eat_state_path = self.plugin_data_dir / "eat_state.json"
+        default_state = {"version": self.EAT_STATE_VERSION, "days": {}}
+        try:
+            loaded = self.load_json(self.eat_state_path, default_state)
+        except Exception as exc:
+            logger.warning(f"吃群友胃口账本读取失败，已使用空状态：{exc}")
+            loaded = default_state
+        self.eat_state = loaded if isinstance(loaded, dict) else default_state
+        self.eat_state["version"] = self.EAT_STATE_VERSION
+        if not isinstance(self.eat_state.get("days"), dict):
+            self.eat_state["days"] = {}
+        with self._data_lock:
+            if self._prune_eat_state_locked():
+                self._save_eat_state_locked()
 
     @staticmethod
     def _eat_bool_config(value: Any, default: bool) -> bool:
@@ -98,38 +113,70 @@ class EatFeatureMixin:
             self._eat_action_locks[key] = lock
         return lock
 
-    def _eat_day_events(
-        self, group_id: str, day: datetime.date
-    ) -> list[dict[str, Any]]:
-        reader = getattr(self, "_report_events", None)
-        if not callable(reader):
-            return []
-        try:
-            rows = reader(str(group_id), day.isoformat())
-        except Exception as exc:
-            logger.warning(f"读取吃群友胃口账本失败：{exc}")
-            return []
-        return [dict(item) for item in rows if isinstance(item, dict)]
+    def _prune_eat_state_locked(self) -> bool:
+        days = self.eat_state.setdefault("days", {})
+        if not isinstance(days, dict):
+            self.eat_state["days"] = {}
+            return True
+        cutoff = self._today() - datetime.timedelta(days=self.EAT_STATE_KEEP_DAYS - 1)
+        changed = False
+        for key in list(days):
+            try:
+                day = datetime.date.fromisoformat(str(key))
+            except (TypeError, ValueError):
+                del days[key]
+                changed = True
+                continue
+            if day < cutoff:
+                del days[key]
+                changed = True
+        return changed
+
+    def _save_eat_state_locked(self) -> None:
+        self.save_json(self.eat_state_path, self.eat_state)
+
+    def _eat_group_state_locked(
+        self, day: datetime.date, group_id: str, *, create: bool
+    ) -> dict[str, Any] | None:
+        days = self.eat_state.setdefault("days", {})
+        date_key = day.isoformat()
+        if create:
+            date_state = days.setdefault(date_key, {})
+            group = date_state.setdefault(str(group_id), {})
+            group.setdefault("actors", {})
+            group.setdefault("victims", {})
+            return group
+        date_state = days.get(date_key, {})
+        if not isinstance(date_state, dict):
+            return None
+        group = date_state.get(str(group_id))
+        return group if isinstance(group, dict) else None
 
     def _eat_actor_stats(self, group_id: str, actor_id: str) -> tuple[int, int]:
         actor_id = str(actor_id)
         attempts = 0
         successes = 0
-        for item in self._eat_day_events(group_id, self._today()):
-            if str(item.get("actor_id") or "") != actor_id:
-                continue
-            kind = str(item.get("kind") or "")
-            if kind == self.EVENT_EAT_ATTEMPT:
-                attempts += 1
-            elif kind == self.EVENT_EAT_SUCCESS:
-                successes += 1
+        with self._data_lock:
+            group = self._eat_group_state_locked(
+                self._today(), str(group_id), create=False
+            )
+            actors = group.get("actors", {}) if isinstance(group, dict) else {}
+            row = actors.get(actor_id, {}) if isinstance(actors, dict) else {}
+            if isinstance(row, dict):
+                try:
+                    attempts = max(0, int(row.get("attempts", 0)))
+                except (TypeError, ValueError):
+                    attempts = 0
+                try:
+                    successes = max(0, int(row.get("successes", 0)))
+                except (TypeError, ValueError):
+                    successes = 0
         claim_key = (self._today().isoformat(), str(group_id), actor_id)
         if claim_key in self._eat_success_claims:
             successes = max(1, successes)
         return attempts, successes
 
-    def _eat_limit_reason(self, group_id: str, actor_id: str) -> str | None:
-        attempts, successes = self._eat_actor_stats(group_id, actor_id)
+    def _eat_limit_reason_from_stats(self, attempts: int, successes: int) -> str | None:
         if successes >= self.eat_daily_success_limit:
             return (
                 "🍚 你今天在本群已经吃饱了（"
@@ -144,6 +191,11 @@ class EatFeatureMixin:
             )
         return None
 
+    def _eat_limit_reason(self, group_id: str, actor_id: str) -> str | None:
+        return self._eat_limit_reason_from_stats(
+            *self._eat_actor_stats(group_id, actor_id)
+        )
+
     def _record_eat_event(
         self,
         group_id: str,
@@ -153,27 +205,22 @@ class EatFeatureMixin:
         target_id: str,
         victim_id: str = "",
         metadata: dict[str, Any] | None = None,
-    ) -> bool:
+    ) -> None:
+        """Best-effort analytics mirror; never authoritative for eat limits."""
         recorder = getattr(self, "_record_gameplay_event", None)
         if not callable(recorder):
-            logger.warning(
-                "共享 gameplay event 记录器不可用；为避免绕过胃口限制，本次吃群友已取消"
-            )
-            return False
+            return
         try:
-            return bool(
-                recorder(
-                    str(group_id),
-                    kind,
-                    actor_id=str(actor_id),
-                    target_id=str(target_id),
-                    victim_id=str(victim_id),
-                    metadata=metadata,
-                )
+            recorder(
+                str(group_id),
+                kind,
+                actor_id=str(actor_id),
+                target_id=str(target_id),
+                victim_id=str(victim_id),
+                metadata=metadata,
             )
         except Exception as exc:
-            logger.warning(f"记录吃群友事件失败：{exc}")
-            return False
+            logger.warning(f"记录吃群友分析事件失败：{exc}")
 
     def _claim_eat_attempt(
         self,
@@ -183,8 +230,46 @@ class EatFeatureMixin:
         *,
         weights: tuple[int, int, int],
         cooked_bonus: int,
-    ) -> bool:
-        return self._record_eat_event(
+    ) -> tuple[bool, str | None, int]:
+        actor_id = str(actor_id)
+        group_id = str(group_id)
+        with self._data_lock:
+            self._prune_eat_state_locked()
+            group = self._eat_group_state_locked(self._today(), group_id, create=True)
+            assert group is not None
+            actors = group.setdefault("actors", {})
+            row = actors.setdefault(actor_id, {"attempts": 0, "successes": 0})
+            try:
+                attempts = max(0, int(row.get("attempts", 0)))
+            except (TypeError, ValueError):
+                attempts = 0
+            try:
+                successes = max(0, int(row.get("successes", 0)))
+            except (TypeError, ValueError):
+                successes = 0
+            claim_key = (self._today().isoformat(), group_id, actor_id)
+            if claim_key in self._eat_success_claims:
+                successes = max(1, successes)
+            reason = self._eat_limit_reason_from_stats(attempts, successes)
+            if reason:
+                return False, reason, attempts
+
+            previous = dict(row)
+            row["attempts"] = attempts + 1
+            row["successes"] = successes
+            try:
+                self._save_eat_state_locked()
+            except Exception as exc:
+                actors[actor_id] = previous
+                logger.warning(f"保存吃群友胃口账本失败：{exc}")
+                return (
+                    False,
+                    "🧯 胃口账本没有记住这一筷子。为了防止无限续杯，本次吃群友已取消，请稍后再试。",
+                    attempts,
+                )
+            attempts_after = attempts + 1
+
+        self._record_eat_event(
             group_id,
             self.EVENT_EAT_ATTEMPT,
             actor_id=actor_id,
@@ -194,8 +279,50 @@ class EatFeatureMixin:
                 "escape_percent": weights[1],
                 "backlash_percent": weights[2],
                 "cooked_bonus_percent": cooked_bonus,
+                "attempt_number": attempts_after,
             },
         )
+        return True, None, attempts_after
+
+    def _mark_eat_success_state(
+        self, group_id: str, actor_id: str, target_id: str
+    ) -> bool:
+        actor_id = str(actor_id)
+        target_id = str(target_id)
+        group_id = str(group_id)
+        claim_key = (self._today().isoformat(), group_id, actor_id)
+        self._eat_success_claims.add(claim_key)
+        with self._data_lock:
+            group = self._eat_group_state_locked(self._today(), group_id, create=True)
+            assert group is not None
+            actors = group.setdefault("actors", {})
+            victims = group.setdefault("victims", {})
+            row = actors.setdefault(actor_id, {"attempts": 0, "successes": 0})
+            previous_row = dict(row)
+            previous_victim = victims.get(target_id)
+            try:
+                row["attempts"] = max(0, int(row.get("attempts", 0)))
+            except (TypeError, ValueError):
+                row["attempts"] = 0
+            try:
+                row["successes"] = max(0, int(row.get("successes", 0))) + 1
+            except (TypeError, ValueError):
+                row["successes"] = 1
+            try:
+                victims[target_id] = max(0, int(victims.get(target_id, 0))) + 1
+            except (TypeError, ValueError):
+                victims[target_id] = 1
+            try:
+                self._save_eat_state_locked()
+            except Exception as exc:
+                actors[actor_id] = previous_row
+                if previous_victim is None:
+                    victims.pop(target_id, None)
+                else:
+                    victims[target_id] = previous_victim
+                logger.warning(f"保存吃群友成功状态失败：{exc}")
+                return False
+        return True
 
     def _eat_protection_status(
         self, group_id: str, target_id: str
@@ -203,13 +330,13 @@ class EatFeatureMixin:
         if not self.enable_eat_protection:
             return False, 0
         yesterday = self._today() - datetime.timedelta(days=1)
-        target_id = str(target_id)
-        count = sum(
-            1
-            for item in self._eat_day_events(group_id, yesterday)
-            if str(item.get("kind") or "") == self.EVENT_EAT_SUCCESS
-            and str(item.get("victim_id") or "") == target_id
-        )
+        with self._data_lock:
+            group = self._eat_group_state_locked(yesterday, str(group_id), create=False)
+            victims = group.get("victims", {}) if isinstance(group, dict) else {}
+            try:
+                count = max(0, int(victims.get(str(target_id), 0))) if isinstance(victims, dict) else 0
+            except (TypeError, ValueError):
+                count = 0
         return count >= self.eat_protection_threshold, count
 
     @staticmethod
@@ -227,9 +354,7 @@ class EatFeatureMixin:
         attempts_after: int,
     ) -> str:
         success, escape, backlash = weights
-        bonus_note = (
-            f"；熟食诱惑 +{cooked_bonus}%" if cooked_bonus > 0 else ""
-        )
+        bonus_note = f"；熟食诱惑 +{cooked_bonus}%" if cooked_bonus > 0 else ""
         return (
             f"\n📊 本次：吃到 {success}% / 溜走 {escape}% / 反噬 {backlash}%{bonus_note}"
             f"\n🥢 今日胃口：{attempts_after}/{self.eat_daily_attempt_limit}"
@@ -299,21 +424,17 @@ class EatFeatureMixin:
                 self.eat_escape_percent,
                 success_bonus_percent=cooked_bonus,
             )
-            if not self._claim_eat_attempt(
+            claimed, claim_reason, attempts_after = self._claim_eat_attempt(
                 group_id,
                 actor_id,
                 target_id,
                 weights=weights,
                 cooked_bonus=cooked_bonus,
-            ):
-                await event.send(
-                    event.plain_result(
-                        "🧯 胃口账本没有记住这一筷子。为了防止无限续杯，本次吃群友已取消，请稍后再试。"
-                    )
-                )
+            )
+            if not claimed:
+                await event.send(event.plain_result(claim_reason or "🥢 今天吃不下了。"))
                 return
 
-            attempts_after, _ = self._eat_actor_stats(group_id, actor_id)
             outcome = self.eat_service.choose_eat_outcome(
                 success_percent=self.eat_success_percent,
                 escape_percent=self.eat_escape_percent,
@@ -351,8 +472,8 @@ class EatFeatureMixin:
                         )
                     )
                     return
-                self._eat_success_claims.add(
-                    (self._today().isoformat(), str(group_id), str(actor_id))
+                state_saved = self._mark_eat_success_state(
+                    group_id, actor_id, target_id
                 )
                 self._record_eat_event(
                     group_id,
@@ -360,13 +481,18 @@ class EatFeatureMixin:
                     actor_id=actor_id,
                     target_id=target_id,
                     victim_id=target_id,
+                    metadata={"appetite_state_saved": state_saved},
                 )
+                warning = ""
+                if not state_saved:
+                    warning = "\n⚠️ 胃口成功状态落盘失败；本次进程仍会按已吃饱处理，请检查数据目录写入权限。"
                 await self._send_with_mention(
                     event,
                     target_id,
                     self._eat_success_message(target_pig)
                     + f"\n🍚 主厨今天在本群已经吃饱（1/{self.eat_daily_success_limit} 顿），不能继续连吃。"
-                    + note,
+                    + note
+                    + warning,
                 )
                 return
 
