@@ -1,6 +1,7 @@
 import ast
 import datetime
 import random
+import threading
 from pathlib import Path
 
 from eat_feature import EatFeatureMixin
@@ -41,6 +42,24 @@ def _feature_method(name: str):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name == name
     )
+
+
+def _state_feature(today: datetime.date):
+    feature = object.__new__(EatFeatureMixin)
+    feature.eat_daily_attempt_limit = 2
+    feature.eat_daily_success_limit = 1
+    feature.enable_eat_protection = True
+    feature.eat_protection_threshold = 1
+    feature._data_lock = threading.RLock()
+    feature._eat_success_claims = set()
+    feature.eat_state = {"version": 1, "days": {}}
+    feature._today = lambda: today
+    feature.saved_snapshots = []
+    feature._save_eat_state_locked = lambda: feature.saved_snapshots.append(
+        repr(feature.eat_state)
+    )
+    feature._record_eat_event = lambda *args, **kwargs: None
+    return feature
 
 
 def test_default_eat_rng_is_process_global_seed_isolated():
@@ -120,32 +139,89 @@ def test_random_eat_filters_both_protection_layers_before_private_selection():
 
 
 def test_success_limit_blocks_lucky_serial_eater():
-    feature = object.__new__(EatFeatureMixin)
-    feature.eat_daily_attempt_limit = 2
-    feature.eat_daily_success_limit = 1
-    feature._eat_actor_stats = lambda group_id, actor_id: (1, 1)
+    feature = _state_feature(datetime.date(2026, 8, 23))
+    group = feature._eat_group_state_locked(feature._today(), "group-a", create=True)
+    group["actors"]["user-a"] = {"attempts": 1, "successes": 1}
 
     reason = feature._eat_limit_reason("group-a", "user-a")
     assert reason is not None
     assert "已经吃饱" in reason
 
 
-def test_yesterday_success_grants_digestive_protection():
-    feature = object.__new__(EatFeatureMixin)
-    feature.enable_eat_protection = True
-    feature.eat_protection_threshold = 1
+def test_attempt_claim_is_persisted_and_second_bite_hits_daily_limit():
+    feature = _state_feature(datetime.date(2026, 8, 23))
+    weights = (15, 20, 65)
+
+    first = feature._claim_eat_attempt(
+        "group-a", "user-a", "target-a", weights=weights, cooked_bonus=0
+    )
+    second = feature._claim_eat_attempt(
+        "group-a", "user-a", "target-b", weights=weights, cooked_bonus=0
+    )
+    third = feature._claim_eat_attempt(
+        "group-a", "user-a", "target-c", weights=weights, cooked_bonus=0
+    )
+
+    assert first == (True, None, 1)
+    assert second == (True, None, 2)
+    assert third[0] is False
+    assert "胃口额度已经用完" in str(third[1])
+    assert feature._eat_actor_stats("group-a", "user-a") == (2, 0)
+    assert len(feature.saved_snapshots) == 2
+
+
+def test_success_state_blocks_serial_eating_and_records_victim():
     today = datetime.date(2026, 8, 23)
-    feature._today = lambda: today
-    feature._eat_day_events = lambda group_id, day: [
-        {
-            "kind": feature.EVENT_EAT_SUCCESS,
-            "victim_id": "target-a",
-            "actor_id": "hunter-a",
+    feature = _state_feature(today)
+    feature._claim_eat_attempt(
+        "group-a", "user-a", "target-a", weights=(15, 20, 65), cooked_bonus=0
+    )
+
+    assert feature._mark_eat_success_state("group-a", "user-a", "target-a") is True
+    assert feature._eat_actor_stats("group-a", "user-a") == (1, 1)
+    assert "已经吃饱" in feature._eat_limit_reason("group-a", "user-a")
+    assert feature.eat_state["days"][today.isoformat()]["group-a"]["victims"] == {
+        "target-a": 1
+    }
+
+
+def test_yesterday_success_grants_digestive_protection():
+    today = datetime.date(2026, 8, 23)
+    feature = _state_feature(today)
+    yesterday = today - datetime.timedelta(days=1)
+    feature.eat_state["days"][yesterday.isoformat()] = {
+        "group-a": {
+            "actors": {"hunter-a": {"attempts": 1, "successes": 1}},
+            "victims": {"target-a": 1},
         }
-    ] if day == today - datetime.timedelta(days=1) else []
+    }
 
     assert feature._eat_protection_status("group-a", "target-a") == (True, 1)
     assert feature._eat_protection_status("group-a", "target-b") == (False, 0)
+
+
+def test_eat_state_prunes_old_days_but_keeps_yesterday():
+    today = datetime.date(2026, 8, 23)
+    feature = _state_feature(today)
+    feature.eat_state["days"] = {
+        "garbage": {},
+        (today - datetime.timedelta(days=8)).isoformat(): {},
+        (today - datetime.timedelta(days=1)).isoformat(): {},
+        today.isoformat(): {},
+    }
+
+    assert feature._prune_eat_state_locked() is True
+    assert set(feature.eat_state["days"]) == {
+        (today - datetime.timedelta(days=1)).isoformat(),
+        today.isoformat(),
+    }
+
+
+def test_gameplay_event_stream_is_analytics_only_not_authoritative_ledger():
+    assert "eat_state.json" in FEATURE_SOURCE
+    assert "analytics mirror" in FEATURE_SOURCE
+    assert "_report_events" not in FEATURE_SOURCE
+    assert "max_events" not in FEATURE_SOURCE
 
 
 def test_main_entrypoint_wires_eat_mixin_and_appetite_command():
