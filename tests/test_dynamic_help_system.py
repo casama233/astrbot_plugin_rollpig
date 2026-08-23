@@ -114,6 +114,32 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     assert any("日报祭品" in command for command in commands)
 
 
+def test_native_mention_note_follows_every_at_capable_help_command():
+    sections = build_help_sections(HelpFeatureState(at_view_pig=True))
+    entries = [entry for section in sections for entry in section.entries]
+    note_text = "⚠ QQ请从@弹窗点选群友，勿复制或手打昵称"
+    expected_commands = {
+        "/今日小猪 @某人",
+        "/烤群友 @某人",
+        "/打点后厨 @某人",
+        "/添柴",
+        "/吃群友 @某人",
+    }
+    for index, entry in enumerate(entries[:-1]):
+        if entry.command in expected_commands:
+            note = entries[index + 1]
+            assert note.kind == "mention-note"
+            assert note.command == ""
+            assert note.detail == note_text
+
+    commands_with_notes = {
+        entries[index - 1].command
+        for index, entry in enumerate(entries)
+        if entry.kind == "mention-note"
+    }
+    assert commands_with_notes == expected_commands
+
+
 def test_reservation_only_configuration_still_exposes_contextual_firewood():
     commands = _commands(
         HelpFeatureState(
