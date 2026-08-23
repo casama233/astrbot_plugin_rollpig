@@ -23,6 +23,7 @@ SECTION_HEADER_HEIGHT = 38
 ROW_GAP = 3
 COMMAND_ROW_HEIGHT = 44
 FEATURE_ROW_HEIGHT = 36
+MENTION_NOTE_ROW_HEIGHT = 32
 SECTION_BOTTOM_PADDING = 12
 COMMAND_COLUMN_WIDTH = 190
 PNG_COMPRESS_LEVEL = 1
@@ -99,18 +100,24 @@ def prepare_help_sections(
 ) -> tuple[PreparedSection, ...]:
     """Pre-compute one-line summaries and compact section heights."""
 
-    detail_width = max(
-        80,
-        column_width - 28 - COMMAND_COLUMN_WIDTH - 28,
-    )
     prepared: list[PreparedSection] = []
     for section in sections:
         rows: list[PreparedEntry] = []
         for entry in section.entries:
-            detail = _ellipsize_text(entry.detail, detail_font, detail_width)
-            row_height = (
-                COMMAND_ROW_HEIGHT if entry.kind == "command" else FEATURE_ROW_HEIGHT
+            detail_width = (
+                max(120, column_width - 56)
+                if entry.kind == "mention-note"
+                else max(80, column_width - 28 - COMMAND_COLUMN_WIDTH - 28)
             )
+            detail = _ellipsize_text(entry.detail, detail_font, detail_width)
+            if entry.kind == "mention-note":
+                row_height = MENTION_NOTE_ROW_HEIGHT
+            else:
+                row_height = (
+                    COMMAND_ROW_HEIGHT
+                    if entry.kind == "command"
+                    else FEATURE_ROW_HEIGHT
+                )
             rows.append(PreparedEntry(entry, (detail,), row_height))
         content_height = sum(row.height for row in rows)
         if rows:
@@ -173,6 +180,28 @@ def _draw_entry(
     accent = palette["accent"]
     title = palette["title"]
     secondary = palette["secondary"]
+
+    if entry.kind == "mention-note":
+        notice = palette.get(
+            "notice",
+            (255, 214, 102) if palette.get("night") else (145, 83, 0),
+        )
+        notice_surface = palette.get(
+            "notice_surface",
+            (76, 59, 33) if palette.get("night") else (255, 244, 207),
+        )
+        draw.rounded_rectangle(
+            (left, top + 2, right, top + prepared.height - 2),
+            8,
+            fill=notice_surface,
+        )
+        draw.text(
+            (left + 10, top + 6),
+            prepared.detail_lines[0],
+            font=detail_font,
+            fill=notice,
+        )
+        return
 
     center_y = top + prepared.height // 2
     bar_height = 20 if entry.kind == "command" else 16
@@ -286,9 +315,9 @@ def render_help_card(
     )
     draw.text(
         (OUTER_MARGIN + 28, 91),
-        "⚠ 带 @ 的指令请手动输入后再点选群友 · 复制他人整条发送可能无效",
+        "按当前功能开关动态显示 · 原生 @ 操作已在相关指令下方标注",
         font=subtitle_font,
-        fill=palette["accent"],
+        fill=palette["secondary"],
     )
 
     for item in placed:
