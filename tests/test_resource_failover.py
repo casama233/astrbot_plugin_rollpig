@@ -53,15 +53,21 @@ class _Harness(ResourceFailoverMixin, _BaseHarness):
         _BaseHarness.__init__(self)
 
 
-
-def test_official_source_chain_keeps_primary_vercel_github_order():
+def test_official_source_chain_is_primary_only_while_public_mirrors_are_fail_closed():
     plugin = _Harness()
-    assert [name for name, _ in plugin._official_resource_sources()] == [
-        "primary",
-        "vercel",
-        "github",
+    assert plugin.PUBLIC_MIRROR_FAIL_CLOSED is True
+    assert plugin._official_resource_sources() == [
+        ("primary", plugin.OFFICIAL_RESOURCE_MANIFEST_URL)
     ]
 
+
+def test_legacy_persisted_mirror_settings_cannot_bypass_fail_closed_gate():
+    plugin = _Harness()
+    plugin.resource_vercel_mirror_url = "https://legacy.example/vercel.json"
+    plugin.resource_github_fallback_enabled = True
+    plugin.resource_github_mirror_url = "https://legacy.example/github.json"
+
+    assert [name for name, _ in plugin._official_resource_sources()] == ["primary"]
 
 
 def test_custom_manifest_does_not_fall_back_to_public_sources():
@@ -72,7 +78,6 @@ def test_custom_manifest_does_not_fall_back_to_public_sources():
     ]
 
 
-
 def test_numeric_official_versions_refuse_downgrade():
     plugin = _Harness()
     assert plugin._fallback_would_downgrade("2026.08.19.1") is True
@@ -80,79 +85,56 @@ def test_numeric_official_versions_refuse_downgrade():
     assert plugin._fallback_would_downgrade("2026.08.19.3") is False
 
 
-
-def test_failover_uses_vercel_after_primary_probe_failure_and_restores_configured_url(monkeypatch):
+def test_primary_failure_does_not_consult_public_mirrors(monkeypatch):
     plugin = _Harness()
+    probed = []
 
     async def probe(url):
-        if url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL:
-            raise OSError("primary unavailable")
-        return "2026.08.19.3"
-
-    monkeypatch.setattr(plugin, "_probe_official_resource_manifest", probe)
-    result = asyncio.run(plugin.sync_cloud_resources())
-
-    assert result["source"] == "vercel"
-    assert plugin.calls == [(plugin.resource_vercel_mirror_url, False)]
-    assert plugin.resource_manifest_url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
-    assert plugin._state["source_name"] == "vercel"
-    assert plugin._state["source_url"] == plugin.resource_vercel_mirror_url
-
-
-
-def test_failover_skips_stale_vercel_and_uses_github(monkeypatch):
-    plugin = _Harness()
-
-    async def probe(url):
-        if url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL:
-            raise OSError("primary unavailable")
-        if url == plugin.resource_vercel_mirror_url:
-            return "2026.08.19.1"
-        return "2026.08.19.3"
-
-    monkeypatch.setattr(plugin, "_probe_official_resource_manifest", probe)
-    result = asyncio.run(plugin.sync_cloud_resources())
-
-    assert result["source"] == "github"
-    assert plugin.calls == [(plugin.resource_github_mirror_url, False)]
-    assert plugin.resource_manifest_url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
-
-
-
-def test_all_official_sources_fail_without_destroying_configured_source(monkeypatch):
-    plugin = _Harness()
-
-    async def probe(_url):
-        raise OSError("offline")
+        probed.append(url)
+        raise OSError("primary unavailable")
 
     monkeypatch.setattr(plugin, "_probe_official_resource_manifest", probe)
     with pytest.raises(ValueError, match="公共猪源全部不可用"):
         asyncio.run(plugin.sync_cloud_resources())
 
+    assert probed == [plugin.OFFICIAL_RESOURCE_MANIFEST_URL]
+    assert plugin.calls == []
     assert plugin.resource_manifest_url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
     assert "primary" in plugin.last_sync_error
-    assert "vercel" in plugin.last_sync_error
-    assert "github" in plugin.last_sync_error
+    assert "vercel" not in plugin.last_sync_error
+    assert "github" not in plugin.last_sync_error
 
 
+def test_primary_success_still_records_primary_origin(monkeypatch):
+    plugin = _Harness()
 
-def test_sync_status_exposes_last_successful_remote_origin():
+    async def probe(url):
+        assert url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
+        return "2026.08.19.3"
+
+    monkeypatch.setattr(plugin, "_probe_official_resource_manifest", probe)
+    result = asyncio.run(plugin.sync_cloud_resources())
+
+    assert result["source"] == "primary"
+    assert plugin.calls == [(plugin.OFFICIAL_RESOURCE_MANIFEST_URL, False)]
+    assert plugin.resource_manifest_url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
+    assert plugin._state["source_name"] == "primary"
+    assert plugin._state["source_url"] == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
+
+
+def test_sync_status_exposes_fail_closed_public_source_chain():
     plugin = _Harness()
     plugin._state.update(
         {
-            "source_name": "vercel",
-            "source_url": plugin.resource_vercel_mirror_url,
+            "source_name": "primary",
+            "source_url": plugin.OFFICIAL_RESOURCE_MANIFEST_URL,
         }
     )
     payload = plugin._sync_status()
-    assert payload["active_remote_source"] == "vercel"
-    assert payload["active_remote_url"] == plugin.resource_vercel_mirror_url
-    assert [item["name"] for item in payload["source_chain"]] == [
-        "primary",
-        "vercel",
-        "github",
-    ]
-
+    assert payload["active_remote_source"] == "primary"
+    assert payload["active_remote_url"] == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
+    assert payload["public_mirror_fail_closed"] is True
+    assert [item["name"] for item in payload["source_chain"]] == ["primary"]
 
 
 def test_fresh_install_uses_short_jitter_before_first_sync(monkeypatch):
@@ -169,7 +151,6 @@ def test_fresh_install_uses_short_jitter_before_first_sync(monkeypatch):
     assert calls == [(3, 10)]
 
 
-
 def test_existing_cache_keeps_broader_startup_jitter(monkeypatch):
     plugin = _Harness()
     calls = []
@@ -181,7 +162,6 @@ def test_existing_cache_keeps_broader_startup_jitter(monkeypatch):
     monkeypatch.setattr("resource_failover_feature.random.randint", randint)
     assert plugin._initial_resource_sync_delay_seconds(damaged_cache=False) == 60
     assert calls == [(30, 120)]
-
 
 
 def test_damaged_cache_repair_stays_immediate_without_random_jitter(monkeypatch):
