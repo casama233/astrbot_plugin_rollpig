@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "publication_state": "staging-pending-binary-assets",
+  "scope": "derived public asset replacements",
+  "note": "This document records approved provenance decisions before the exact replacement PNG blobs are committed. Nothing in this file by itself republishes or replaces an image.",
+  "assets": {
+    "roasted-pig": {
+      "distribution_mode": "public",
+      "asset_role": "optimized-replacement",
+      "rights_basis": "derived-from-mit-upstream",
+      "source_repo": "Bearlele/nonebot-plugin-rollpig",
+      "source_path": "nonebot_plugin_rollpig/resource/image/roasted-pig.png",
+      "source_sha256": "2ac2151d9b258553f47b76a494ac37fb0fcb7c555d21c648fda15c83f540c6b1",
+      "license": "MIT",
+      "attribution": [
+        "Bear_lele",
+        "MegSopern"
+      ],
+      "replacement_sha256": "f096f63e77e109efc0cdc29cfa85aac121336ced66082a4fd84745f96ad6d547",
+      "transformation": "image optimization of the earlier Bear/Meg MIT asset",
+      "redistribution_allowed": true,
+      "binary_committed": false
+    },
+    "pigsleep": {
+      "distribution_mode": "public",
+      "asset_role": "derived-rework",
+      "rights_basis": "derived-from-mit-upstream",
+      "source_repo": "Bearlele/nonebot-plugin-rollpig",
+      "source_path": "nonebot_plugin_rollpig/resource/image/pigsleep.png",
+      "source_sha256": "6e037397c3a88d675313dc3962f9b8e3c8714ba5a5d94255406a3dd5d202ffc3",
+      "license": "MIT",
+      "attribution": [
+        "Bear_lele",
+        "MegSopern"
+      ],
+      "replacement_sha256": "5f38caab39ecdbe23be25d6df9e9ad24538779de727a9563052aa93d1a0cdeb4",
+      "transformation": "substantial redraw based on the earlier Bear/Meg MIT asset",
+      "derivation_confirmation": "The project operator confirmed on 2026-08-26 that the local replacement was made from the Bear/Meg MIT pigsleep asset.",
+      "redistribution_allowed": true,
+      "binary_committed": false
+    }
+  },
+  "withheld": {
+    "papa-pig": {
+      "rights_basis": "downloaded-external-source-unverified",
+      "redistribution_allowed": false,
+      "reason": "Wide circulation as a meme is not evidence of public-domain status or a redistribution license."
+    }
+  }
+}
