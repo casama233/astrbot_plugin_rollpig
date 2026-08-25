@@ -12,6 +12,8 @@
 
 如果 primary 不可用，插件继续使用最近一次已经完整验证的本地 cloud cache；没有可用缓存时再使用发行包内置资源。这个行为不会切换到未经当前 provenance contract 验证的公共 mirror。
 
+审计期间，官方 Vercel/GitHub mirror 的 `v1/manifest.json` 应保持不可用；出现可成功读取的公开 manifest 应视为需要立即处理的回归，而不是可接受的容灾状态。
+
 ## 私人／自定义资源源
 
 管理员显式设置的兼容 HTTPS 私人 manifest 仍保持单一来源语义，不会被本次公共 mirror hard gate 改写，也不会在失败时偷偷切回官方公共链。
