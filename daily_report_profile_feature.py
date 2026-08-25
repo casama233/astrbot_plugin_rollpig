@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import re
 import time
 from typing import Any
 
-from astrbot.api import logger
+logger = logging.getLogger(__name__)
 
 
 class DailyReportProfileMixin:
