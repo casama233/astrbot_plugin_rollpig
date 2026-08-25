@@ -1,0 +1,86 @@
+name: Provenance Restoration Audit
+
+on:
+  push:
+    branches:
+      - audit/resource-provenance-restoration
+    paths:
+      - .github/workflows/provenance-restoration-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconstruct 204-to-current resource delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import urllib.request
+          import urllib.parse
+
+          HEADERS = {
+              "Accept": "application/json",
+              "X-RollPig-Client": "astrbot_plugin_rollpig_plus",
+              "X-RollPig-Protocol": "1",
+              "User-Agent": "AstrBot-RollPig-Provenance-Audit/1",
+          }
+
+          def get(url, headers=None):
+              req = urllib.request.Request(url, headers=headers or {})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return r.read()
+
+          primary_manifest_url = "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
+          manifest_raw = get(primary_manifest_url, HEADERS)
+          manifest = json.loads(manifest_raw.decode("utf-8-sig"))
+          pig_meta = manifest["pig_json"]
+          current_pig_url = urllib.parse.urljoin(primary_manifest_url, pig_meta["path"])
+          current_raw = get(current_pig_url, HEADERS)
+          current_sha = hashlib.sha256(current_raw).hexdigest()
+          if current_sha != pig_meta["sha256"]:
+              raise SystemExit(f"current pig.json sha mismatch: {current_sha} != {pig_meta['sha256']}")
+          current = json.loads(current_raw.decode("utf-8-sig"))
+
+          old_url = (
+              "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/"
+              "aac88ec24d2a31fc532fd9cf42cc02eeaa3e7b36/public/v1/pig.json"
+          )
+          old_raw = get(old_url, {"User-Agent": "RollPig-Provenance-Audit/1"})
+          old = json.loads(old_raw.decode("utf-8-sig"))
+
+          current_ids = {str(x["id"]) for x in current}
+          old_ids = {str(x["id"]) for x in old}
+          quarantined = sorted(old_ids - current_ids)
+          added_since = sorted(current_ids - old_ids)
+
+          result = {
+              "current_resource_version": manifest.get("resource_version"),
+              "current_profile": manifest.get("profile"),
+              "current_count": len(current_ids),
+              "current_pig_sha256": current_sha,
+              "historical_count": len(old_ids),
+              "historical_commit": "aac88ec24d2a31fc532fd9cf42cc02eeaa3e7b36",
+              "quarantined_count": len(quarantined),
+              "quarantined_ids": quarantined,
+              "added_since_count": len(added_since),
+              "added_since_ids": added_since,
+          }
+          print("PROVENANCE_AUDIT_RESULT=" + json.dumps(result, ensure_ascii=False, sort_keys=True))
+          with open("provenance-audit-result.json", "w", encoding="utf-8") as f:
+              json.dump(result, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          PY
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-audit-result
+          path: provenance-audit-result.json
+          if-no-files-found: error
