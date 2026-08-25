@@ -1,0 +1,40 @@
+name: Temporary Felis EX source label fix
+
+on:
+  push:
+    branches:
+      - feat/felis-original-ex-copy
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source-label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/felis-original-ex-copy
+          fetch-depth: 0
+      - name: Preserve historical EX source labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ex_variant_feature.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        effective = build_effective_ex_variants(pigs, variants)\n        resolved_source = f"{source}+felis-copy" if felis_copy else source\n        return effective, image_root, resolved_source\n'''
+          new = '''        effective = build_effective_ex_variants(pigs, variants)\n        return effective, image_root, source\n'''
+          if old not in text:
+              raise SystemExit('first source-label block not found')
+          text = text.replace(old, new, 1)
+          old = '''        self._ex_variants = build_effective_ex_variants(pigs, felis_copy)\n        self._ex_variant_image_root = None\n        self._ex_variant_source = "felis-copy+baseline" if felis_copy else "baseline"\n        logger.info(\n            f"已加载 {self._ex_variant_source} EX 五级文案：{len(self._ex_variants)} 只小猪"\n        )\n'''
+          new = '''        self._ex_variants = build_effective_ex_variants(pigs, felis_copy)\n        self._ex_variant_image_root = None\n        self._ex_variant_source = "baseline"\n        logger.info(\n            f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪；"\n            f"其中 {len(felis_copy)} 只使用 Felis 隔离原创文案"\n        )\n'''
+          if old not in text:
+              raise SystemExit('fallback source-label block not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ex_variant_feature.py
+          git commit -m "fix: preserve existing EX source labels"
+          git push origin HEAD:feat/felis-original-ex-copy
