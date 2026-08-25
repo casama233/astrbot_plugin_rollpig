@@ -2,6 +2,8 @@
 
 ## 未發佈
 
+- Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：仅由本仓库语义规格生成 `description`/`analysis`，不读取 Felis EX/variant 文案或图片；固定 allowlist、provenance 与 text-only 合约均有回归测试。
+
 ## v3.11.12
 
 发布日期：2026-08-25
