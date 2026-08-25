@@ -2,6 +2,7 @@
 
 ## 未發佈
 
+- 公共灾备猪源在来源／再分发审计期间改为 fail-closed：官方链只访问 curryudon primary，即使旧配置仍保留 Vercel/GitHub 镜像也不会读取；主源不可用时继续使用最近一次已验证本地缓存或内置资源。
 - Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：仅由本仓库语义规格生成 `description`/`analysis`，不读取 Felis EX/variant 文案或图片；固定 allowlist、provenance 与 text-only 合约均有回归测试。
 
 ## v3.11.12
