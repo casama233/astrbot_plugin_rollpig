@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import astrbot.api.message_components as Comp
 
+try:
+    from .daily_report_profile_feature import DailyReportProfileMixin
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from daily_report_profile_feature import DailyReportProfileMixin
 
-class CommandActorMentionMixin:
+
+class CommandActorMentionMixin(DailyReportProfileMixin):
     """Add one requester mention header to the first reply of every group command.
 
     Gameplay target mentions remain part of the original response chain.  This
     wrapper only identifies who triggered the command, and it deliberately does
     nothing in private chats.
+
+    ``DailyReportProfileMixin`` sits here deliberately because this mixin is
+    already first in the plugin MRO.  That lets report profile hydration wrap
+    ``DailyReportMixin`` without changing command registration or the historical
+    entry-point inheritance order.
     """
 
     def _command_actor_mention_prefix(self, event, actor_id: str) -> tuple:
