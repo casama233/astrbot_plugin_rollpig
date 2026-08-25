@@ -162,8 +162,7 @@ class ExVariantMixin:
         # baseline remains underneath only as a safety net for non-official or
         # future local content; official CI requires 100% explicit curation.
         effective = build_effective_ex_variants(pigs, variants)
-        resolved_source = f"{source}+felis-copy" if felis_copy else source
-        return effective, image_root, resolved_source
+        return effective, image_root, source
 
     def _reload_ex_variants(self) -> None:
         """Prefer the active cloud snapshot, falling back to bundled variants."""
@@ -210,9 +209,10 @@ class ExVariantMixin:
         )
         self._ex_variants = build_effective_ex_variants(pigs, felis_copy)
         self._ex_variant_image_root = None
-        self._ex_variant_source = "felis-copy+baseline" if felis_copy else "baseline"
+        self._ex_variant_source = "baseline"
         logger.info(
-            f"已加载 {self._ex_variant_source} EX 五级文案：{len(self._ex_variants)} 只小猪"
+            f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪；"
+            f"其中 {len(felis_copy)} 只使用 Felis 隔离原创文案"
         )
 
     def _has_local_pig_override(self, pig_id: str) -> bool:
