@@ -156,7 +156,25 @@ def test_help_renderer_uses_standard_bold_font_for_every_text_role(monkeypatch):
 def test_help_renderer_fixed_copy_is_simplified_chinese():
     source = Path(help_renderer.__file__).read_text(encoding="utf-8")
     assert "今日小猪 · 快速指令" in source
-    assert "⚠ 带 @ 的指令请手动输入后再点选群友" in source
-    assert "复制他人整条发送可能无效" in source
+    assert "原生 @ 操作已在相关指令下方标注" in source
+    assert 'entry.kind == "mention-note"' in source
+    assert 'palette.get(\n            "notice"' in source
     assert "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）" in source
     assert "今日小豬 · 快速指令" not in source
+
+
+def test_mention_notes_use_compact_full_width_rows():
+    font = ImageFont.load_default()
+    sections = (
+        HelpSection(
+            "Group",
+            (
+                HelpEntry("/roast @target", "Roast one member"),
+                HelpEntry("", "Use the native mention picker", kind="mention-note"),
+            ),
+        ),
+    )
+    prepared = prepare_help_sections(sections, detail_font=font, column_width=480)
+    note = prepared[0].entries[1]
+    assert note.height == help_renderer.MENTION_NOTE_ROW_HEIGHT
+    assert note.detail_lines == ("Use the native mention picker",)
