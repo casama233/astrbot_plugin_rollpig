@@ -23,16 +23,11 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           path = Path("CHANGELOG.md")
           text = path.read_text(encoding="utf-8")
           prefix = "# 更新\n\n"
           if not text.startswith(prefix):
               raise SystemExit("unexpected CHANGELOG header")
-
-          # The v3.11.11 release left a stale 未發佈 section below v3.11.10.
-          # Remove that stale section as a unit, then restore one empty canonical
-          # 未發佈 section at the top before the new stable release entry.
           marker = "\n## 未發佈\n\n"
           old_start = text.find(marker, len(prefix))
           if old_start >= 0:
@@ -40,31 +35,7 @@ jobs:
               if next_section < 0:
                   raise SystemExit("stale 未發佈 section has no following version section")
               text = text[:old_start] + text[next_section:]
-
-          release = """## v3.11.12
-
-发布日期：2026-08-25
-
-v3.11.12 是 v3.11.11 之后的日报人物资料与帮助渲染稳定性 patch：补齐日报奖项目标的昵称／头像解析，修复帮助字体与 GitHub source archive 的中文字体保留，并把 QQ 原生 `@` 使用提醒放到相关帮助行附近。本版不新增或扩展「吃群友」玩法。
-
-### 日报人物资料
-
-- 日报 award target／victim 即使从未作为 RollPig 指令发送者，也可从结构化 mention、平台原生 ID 与可选实时群成员资料补齐 display name／avatar。
-- aiocqhttp／OneBot 实时资料查询限制为 4 秒 timeout、最多 4 路并发，并保证网络 I/O 不在插件 data lock 内执行；未知平台不会猜测头像 URL。
-- 新增 profile alias、fallback、live lookup、cache 与 MRO wiring 回归测试；不修改日报统计、奖项算法、SQLite schema 或自动投递语义。
-
-### 帮助、字体与归档
-
-- QQ 原生 `@` 提醒从帮助卡顶部下沉到相关指令附近；其中包含既有 `/吃群友 @某人` 的输入提示，但不改变该指令的成功率、状态、惩罚或其他玩法逻辑。
-- 缩短预约烤猪与次日保护的帮助文案，并更新 KNMaiyuan 字体以恢复 `1–5`、`1–9` 等范围中的 `–` 可见字形。
-- 随仓库保留 KNMaiyuan 的 SIL Open Font License 1.1 notice；GitHub source archive 不再排除运行时中文字体，避免以 source archive 安装时回退到缺少 CJK 的系统字体。
-
-### 兼容性
-
-- 可由 v3.11.11 直接升级；AstrBot 最低版本仍为 `>=4.24.2`。
-- 不新增指令、不新增配置键，不修改 SQLite schema、Resource Protocol v1、rights-v3 投稿协议或「吃群友」玩法规则。
-
-"""
+          release = "## v3.11.12\n\n发布日期：2026-08-25\n\nv3.11.12 是 v3.11.11 之后的日报人物资料与帮助渲染稳定性 patch：补齐日报奖项目标的昵称／头像解析，修复帮助字体与 GitHub source archive 的中文字体保留，并把 QQ 原生 `@` 使用提醒放到相关帮助行附近。本版不新增或扩展「吃群友」玩法。\n\n### 日报人物资料\n\n- 日报 award target／victim 即使从未作为 RollPig 指令发送者，也可从结构化 mention、平台原生 ID 与可选实时群成员资料补齐 display name／avatar。\n- aiocqhttp／OneBot 实时资料查询限制为 4 秒 timeout、最多 4 路并发，并保证网络 I/O 不在插件 data lock 内执行；未知平台不会猜测头像 URL。\n- 新增 profile alias、fallback、live lookup、cache 与 MRO wiring 回归测试；不修改日报统计、奖项算法、SQLite schema 或自动投递语义。\n\n### 帮助、字体与归档\n\n- QQ 原生 `@` 提醒从帮助卡顶部下沉到相关指令附近；其中包含既有 `/吃群友 @某人` 的输入提示，但不改变该指令的成功率、状态、惩罚或其他玩法逻辑。\n- 缩短预约烤猪与次日保护的帮助文案，并更新 KNMaiyuan 字体以恢复 `1–5`、`1–9` 等范围中的 `–` 可见字形。\n- 随仓库保留 KNMaiyuan 的 SIL Open Font License 1.1 notice；GitHub source archive 不再排除运行时中文字体，避免以 source archive 安装时回退到缺少 CJK 的系统字体。\n\n### 兼容性\n\n- 可由 v3.11.11 直接升级；AstrBot 最低版本仍为 `>=4.24.2`。\n- 不新增指令、不新增配置键，不修改 SQLite schema、Resource Protocol v1、rights-v3 投稿协议或「吃群友」玩法规则。\n\n"
           body = text[len(prefix):]
           path.write_text(prefix + "## 未發佈\n\n" + release + body, encoding="utf-8")
           PY
