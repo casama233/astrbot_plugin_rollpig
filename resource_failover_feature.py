@@ -1,9 +1,8 @@
 """Official public-resource failover for RollPig.
 
-The production curryudon source remains authoritative. Vercel and GitHub are
-read-only disaster-recovery mirrors and are only consulted when the configured
-source is the official RollPig source and a higher-priority source cannot be
-used.
+The production curryudon source remains authoritative. Public disaster-recovery
+mirrors are currently fail-closed while their provenance/redistribution contract
+is being rebuilt. Custom/private resource sources keep their existing semantics.
 """
 
 from __future__ import annotations
@@ -28,6 +27,12 @@ class ResourceFailoverMixin:
         "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/"
         "main/public/v1/manifest.json"
     )
+
+    # Provenance incident hard gate. This deliberately overrides persisted legacy
+    # mirror settings so an older configuration cannot silently revive a stale
+    # public snapshot while the mirror publication contract is under audit.
+    # Remove only together with a reviewed provenance-safe mirror validator.
+    PUBLIC_MIRROR_FAIL_CLOSED = True
 
     def __init__(self, context, config):
         config_view = config if hasattr(config, "get") else {}
@@ -69,6 +74,12 @@ class ResourceFailoverMixin:
             # into the public source chain behind their back.
             return [("custom", configured)] if configured else []
 
+        if self.PUBLIC_MIRROR_FAIL_CLOSED:
+            # Do not consult Vercel/GitHub even when legacy persisted config still
+            # points at them. A primary outage must fall back to the client's last
+            # validated local cache/bundled resources, not an unaudited mirror.
+            return [("primary", primary)] if primary else []
+
         candidates: list[tuple[str, str]] = [("primary", primary)]
         if self.resource_vercel_mirror_url:
             candidates.append(("vercel", self.resource_vercel_mirror_url))
@@ -86,7 +97,7 @@ class ResourceFailoverMixin:
         return result
 
     async def _probe_official_resource_manifest(self, url: str) -> str:
-        """Strictly preflight a mirror before the existing transactional sync."""
+        """Strictly preflight an official source before transactional sync."""
         self._validate_remote_url(url, "manifest URL")
         async with self._new_http_client(
             follow_redirects=True,
@@ -228,6 +239,7 @@ class ResourceFailoverMixin:
         state = self._cloud_state()
         payload["active_remote_source"] = str(state.get("source_name") or "")
         payload["active_remote_url"] = str(state.get("source_url") or "")
+        payload["public_mirror_fail_closed"] = bool(self.PUBLIC_MIRROR_FAIL_CLOSED)
         payload["source_chain"] = [
             {"name": name, "url": url}
             for name, url in self._official_resource_sources()
