@@ -26,10 +26,12 @@ jobs:
           import urllib.parse
 
           HEADERS = {
-              "Accept": "application/json",
+              "User-Agent": "AstrBot-RollPig/3.11.5 (+https://github.com/casama233/astrbot_plugin_rollpig)",
               "X-RollPig-Client": "astrbot_plugin_rollpig_plus",
               "X-RollPig-Protocol": "1",
-              "User-Agent": "AstrBot-RollPig-Provenance-Audit/1",
+              "Accept": "application/json, application/octet-stream;q=0.9, */*;q=0.1",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache",
           }
 
           def get(url, headers=None):
