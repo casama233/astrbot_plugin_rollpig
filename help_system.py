@@ -72,6 +72,13 @@ def build_help_sections(
             return traditional
         return simplified
 
+    def mention_note() -> HelpEntry:
+        return HelpEntry(
+            "",
+            t("help.mention.native_at_note"),
+            kind="mention-note",
+        )
+
     daily_entries = [
         HelpEntry(cmd("/今日小猪", "/今日小猪"), t("help.daily.today")),
         HelpEntry(cmd("/昨日小猪", "/昨日小猪"), t("help.daily.yesterday")),
@@ -79,10 +86,10 @@ def build_help_sections(
         HelpEntry(cmd("/本周小猪", "/本周小猪"), t("help.daily.weekly")),
     ]
     if state.at_view_pig:
-        daily_entries.insert(
-            1,
+        daily_entries[1:1] = [
             HelpEntry(cmd("/今日小猪 @某人", "/今日小猪 @某人"), t("help.daily.today_other")),
-        )
+            mention_note(),
+        ]
 
     discovery_entries = [
         HelpEntry(cmd("/我的猪圈 [页码]", "/我的猪圈 [页码]"), t("help.discovery.pigsty")),
@@ -112,8 +119,10 @@ def build_help_sections(
         group_entries.extend(
             [
                 HelpEntry("/烤群友 @某人", detail),
+                mention_note(),
                 HelpEntry(cmd("/随机烤群友", "/随机烤群友"), t("help.group.random_roast")),
                 HelpEntry(cmd("/打点后厨 @某人", "/打点后厨 @某人"), t("help.group.force_roast")),
+                mention_note(),
             ]
         )
         if state.enable_oven_refill:
@@ -124,6 +133,8 @@ def build_help_sections(
             group_entries.append(
                 HelpEntry("/添柴", t("help.group.firewood_router"))
             )
+            if state.enable_roast_reservation:
+                group_entries.append(mention_note())
 
     if state.enable_group_eat:
         group_entries.extend(
@@ -135,6 +146,7 @@ def build_help_sections(
                         percent=max(1, int(state.eat_success_percent)),
                     ),
                 ),
+                mention_note(),
                 HelpEntry(cmd("/随机吃群友", "/随机吃群友"), t("help.group.random_eat")),
             ]
         )
