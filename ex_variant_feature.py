@@ -11,6 +11,7 @@ try:
         resolve_ex_variant,
         validate_ex_variants,
     )
+    from .felis_ex_copy import load_felis_direct_ex_copy
     from .gameplay_events import EVENT_EX_LEVEL_UP
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_variants import (
@@ -18,6 +19,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         resolve_ex_variant,
         validate_ex_variants,
     )
+    from felis_ex_copy import load_felis_direct_ex_copy
     from gameplay_events import EVENT_EX_LEVEL_UP
 
 
@@ -88,6 +90,27 @@ class ExVariantMixin:
             merged.update(variants)
         return merged
 
+    def _read_felis_direct_ex_copy(
+        self,
+        pig_ids: set[str],
+        *,
+        image_extensions: set[str],
+    ) -> dict[str, dict[int, dict[str, str]]]:
+        """Load the repository-owned text layer without crossing Felis EX boundaries."""
+        allowed_ids = set(getattr(self, "FELIS_DIRECT_IDS", ()) or ())
+        if not allowed_ids:
+            return {}
+        try:
+            return load_felis_direct_ex_copy(
+                self.res_dir,
+                pig_ids,
+                allowed_ids,
+                image_extensions=image_extensions,
+            )
+        except Exception as exc:
+            logger.warning(f"Felis EX 原创文案层无效，继续使用既有 EX 基线：{exc}")
+            return {}
+
     def _read_ex_variant_source(
         self, path: Path, image_root: Path, source: str
     ) -> tuple[dict[str, dict[int, dict[str, str]]], Path, str]:
@@ -116,6 +139,18 @@ class ExVariantMixin:
                     + ", ".join(sorted(duplicates))
                 )
             variants.update(curated)
+
+        # Felis direct resources deliberately never supply EX/variant payloads.
+        # The repository-owned text-only layer is applied after cloud/bundled
+        # variants so these audited 34 IDs can never inherit a remote EX image or
+        # remote EX copy through this path.
+        felis_copy = self._read_felis_direct_ex_copy(
+            pig_ids,
+            image_extensions=image_extensions,
+        )
+        if felis_copy:
+            variants.update(felis_copy)
+
         for pig_id, levels in variants.items():
             for level, item in levels.items():
                 image = str(item.get("image") or "")
@@ -166,10 +201,19 @@ class ExVariantMixin:
             for item in getattr(self, "pig_list", [])
             if isinstance(item, dict)
         ]
-        self._ex_variants = build_effective_ex_variants(pigs)
+        pig_ids = {str(item.get("id") or "") for item in pigs}
+        image_extensions = set(getattr(self, "IMAGE_EXTENSIONS", ("png",)))
+        felis_copy = self._read_felis_direct_ex_copy(
+            pig_ids,
+            image_extensions=image_extensions,
+        )
+        self._ex_variants = build_effective_ex_variants(pigs, felis_copy)
         self._ex_variant_image_root = None
         self._ex_variant_source = "baseline"
-        logger.info(f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪")
+        logger.info(
+            f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪；"
+            f"其中 {len(felis_copy)} 只使用 Felis 隔离原创文案"
+        )
 
     def _has_local_pig_override(self, pig_id: str) -> bool:
         """Remote/bundled variants never override an administrator's local pig."""
