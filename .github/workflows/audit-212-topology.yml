@@ -1,0 +1,101 @@
+name: Audit v3.11.10 212 topology
+
+on:
+  push:
+    branches:
+      - audit/resource-provenance-restoration
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct v3.11.10 resource layers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import json
+          import subprocess
+          import urllib.parse
+          import urllib.request
+
+          TAG = "v3.11.10"
+          PRIMARY = "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
+          HEADERS = {
+              "User-Agent": "AstrBot-RollPig/3.11.10 (+https://github.com/casama233/astrbot_plugin_rollpig)",
+              "X-RollPig-Client": "astrbot_plugin_rollpig_plus",
+              "X-RollPig-Protocol": "1",
+              "Accept": "application/json, application/octet-stream;q=0.9, */*;q=0.1",
+              "Cache-Control": "no-cache",
+              "Pragma": "no-cache",
+          }
+
+          def git_show(path):
+              return subprocess.check_output(["git", "show", f"{TAG}:{path}"], text=True)
+
+          def get(url):
+              req = urllib.request.Request(url, headers=HEADERS)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return r.read()
+
+          bundled = json.loads(git_show("resource/pig.json"))
+          bundled_ids = {str(x.get("id") or "") for x in bundled if isinstance(x, dict)}
+          bundled_ids.discard("")
+
+          source = git_show("felis_direct_feature.py")
+          tree = ast.parse(source)
+          felis_ids = None
+          for node in tree.body:
+              if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "FELIS_DIRECT_IDS" for t in node.targets):
+                  call = node.value
+                  if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "frozenset"):
+                      continue
+                  arg = call.args[0]
+                  felis_ids = set(ast.literal_eval(arg))
+                  break
+          if felis_ids is None:
+              raise SystemExit("could not parse FELIS_DIRECT_IDS")
+
+          manifest = json.loads(get(PRIMARY).decode("utf-8-sig"))
+          pig_meta = manifest["pig_json"]
+          pig_url = urllib.parse.urljoin(PRIMARY, pig_meta["path"])
+          public = json.loads(get(pig_url).decode("utf-8-sig"))
+          public_ids = {str(x.get("id") or "") for x in public if isinstance(x, dict)}
+          public_ids.discard("")
+
+          candidates = bundled_ids - public_ids - felis_ids
+          bundled_missing_from_runtime_base = bundled_ids - (public_ids | felis_ids)
+          runtime_base_not_bundled = (public_ids | felis_ids) - bundled_ids
+
+          probes = [
+              "papa-pig",
+              "pighub-pig-14670a8c",
+              "pighub-pig-27a30dee",
+              "elephant-pig",
+              "fishing-pig",
+              "hanging-pig",
+          ]
+
+          print("TAG=" + TAG)
+          print("PUBLIC_VERSION=" + str(manifest.get("resource_version")))
+          print("PUBLIC_COUNT=" + str(len(public_ids)))
+          print("FELIS_COUNT=" + str(len(felis_ids)))
+          print("BUNDLED_FULL_COUNT=" + str(len(bundled_ids)))
+          print("PUBLIC_FELIS_OVERLAP=" + str(len(public_ids & felis_ids)))
+          print("PUBLIC_PLUS_FELIS_UNION=" + str(len(public_ids | felis_ids)))
+          print("BUNDLED_MINUS_PUBLIC_MINUS_FELIS_COUNT=" + str(len(candidates)))
+          print("BUNDLED_MINUS_PUBLIC_MINUS_FELIS=" + json.dumps(sorted(candidates), ensure_ascii=False))
+          print("RUNTIME_BASE_NOT_BUNDLED_COUNT=" + str(len(runtime_base_not_bundled)))
+          print("RUNTIME_BASE_NOT_BUNDLED=" + json.dumps(sorted(runtime_base_not_bundled), ensure_ascii=False))
+          print("PROBES=" + json.dumps({p: {"bundled": p in bundled_ids, "public": p in public_ids, "felis": p in felis_ids, "candidate": p in candidates} for p in probes}, ensure_ascii=False, sort_keys=True))
+          print("EXPECTED_LOCAL_OVERRIDE_COUNT=14")
+          print("IF_DISJOINT_164_34_14_TOTAL=" + str(len(public_ids | felis_ids) + 14))
+          PY
