@@ -80,9 +80,69 @@ jobs:
               f.write("\n")
           PY
 
+      - name: Trace remaining historical image blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/provenance-repos
+          cd /tmp/provenance-repos
+          repos=(
+            "Bearlele/nonebot-plugin-rollpig"
+            "MegSopern/astrbot_plugin_rollpig"
+            "Felis2026/nonebot-plugin-rollpig-plus"
+            "Felis2026/rollpig-resources"
+            "BadFish-HSrui/PigHub-DB"
+          )
+          for repo in "${repos[@]}"; do
+            dir="${repo//\//__}"
+            git clone --quiet --filter=blob:none --no-checkout "https://github.com/${repo}.git" "$dir"
+          done
+
+          cat > /tmp/targets.tsv <<'EOF'
+          elephant-pig	26d0396e16891faeae9ad11d5330bb482a780c77
+          fishing-pig	17432cb28ab4ec15a8bf7baf6b18bb9fbce90286
+          hanging-pig	d0cff749c9aacd694adf6f948da81263f68d61b3
+          papa-pig	6db3355eaa6095c58ceb010ab0251227b5dec735
+          pighub-pig-14670a8c	ec5b09bce17df7fcc16287c509571f4bf33fb5aa
+          pighub-pig-27a30dee	c84bf288f5230d164389c80786fde3694a75fc36
+          EOF
+
+          : > /tmp/blob-matches.tsv
+          while IFS=$'\t' read -r pig_id blob; do
+            for repo in "${repos[@]}"; do
+              dir="${repo//\//__}"
+              matches="$(git -C "$dir" rev-list --objects --all | awk -v b="$blob" '$1 == b {print substr($0, length($1)+2)}')"
+              if [[ -n "$matches" ]]; then
+                while IFS= read -r path; do
+                  printf '%s\t%s\t%s\t%s\n' "$pig_id" "$blob" "$repo" "$path" >> /tmp/blob-matches.tsv
+                done <<< "$matches"
+              fi
+            done
+          done < /tmp/targets.tsv
+
+          echo "BLOB_MATCHES_BEGIN"
+          cat /tmp/blob-matches.tsv || true
+          echo "BLOB_MATCHES_END"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[]
+          p=Path('/tmp/blob-matches.tsv')
+          if p.exists():
+              for line in p.read_text(encoding='utf-8').splitlines():
+                  if not line.strip():
+                      continue
+                  pig_id, blob, repo, path = line.split('\t', 3)
+                  rows.append({'id': pig_id, 'git_blob_sha1': blob, 'repository': repo, 'path': path})
+          Path('blob-trace-result.json').write_text(json.dumps(rows, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+          PY
+
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
           name: provenance-audit-result
-          path: provenance-audit-result.json
+          path: |
+            provenance-audit-result.json
+            /tmp/provenance-repos/blob-trace-result.json
           if-no-files-found: error
