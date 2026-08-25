@@ -1,0 +1,41 @@
+name: Temporary Felis EX changelog update
+
+on:
+  push:
+    branches:
+      - feat/felis-original-ex-copy
+
+permissions:
+  contents: write
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/felis-original-ex-copy
+          fetch-depth: 0
+      - name: Insert unreleased entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('CHANGELOG.md')
+          text = path.read_text(encoding='utf-8')
+          entry = '- Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：仅由本仓库语义规格生成 `description`/`analysis`，不读取 Felis EX/variant 文案或图片；固定 allowlist、provenance 与 text-only 合约均有回归测试。\n'
+          if entry in text:
+              raise SystemExit(0)
+          marker = '## 未發佈\n'
+          if marker not in text:
+              raise SystemExit('missing ## 未發佈')
+          text = text.replace(marker, marker + '\n' + entry, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          if git diff --quiet -- CHANGELOG.md; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add CHANGELOG.md
+          git commit -m "docs: record Felis original EX copy layer"
+          git push origin HEAD:feat/felis-original-ex-copy
