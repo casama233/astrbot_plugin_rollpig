@@ -38,21 +38,38 @@ jobs:
             'resource/image/pigsleep.png' >> /tmp/approved.sha256
           sha256sum --check /tmp/approved.sha256
 
-      - name: Mark exact binaries committed
+      - name: Finalize provenance and changelog
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          path = Path('resource/asset_provenance.json')
-          data = json.loads(path.read_text(encoding='utf-8'))
+          provenance = Path('resource/asset_provenance.json')
+          data = json.loads(provenance.read_text(encoding='utf-8'))
           data['publication_state'] = 'approved'
           for pig_id in ('roasted-pig', 'pigsleep'):
               data['assets'][pig_id]['binary_committed'] = True
-          path.write_text(
+          provenance.write_text(
               json.dumps(data, ensure_ascii=False, indent=2) + '\n',
               encoding='utf-8',
           )
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## 未發佈\n'
+          entry = (
+              '\n- `roasted-pig` 与 `pigsleep` 正式采用来源受控的高质量替换图：'
+              '两者沿用既有 Bearlele/MegSopern MIT 资源 ID，不增加目录数量；'
+              '前者为同图优化，后者为基于 MIT 原图的大幅重绘，并由 machine-readable '
+              'provenance 与精确 SHA-256 gate 验证。\n'
+              '- `papa-pig` 继续因外部下载来源／再分发权未证实而保持 withheld；'
+              'PigHub-only 本地资源不在本次迁移范围内。\n'
+          )
+          if '`roasted-pig` 与 `pigsleep` 正式采用来源受控' not in text:
+              if marker not in text:
+                  raise SystemExit('CHANGELOG 未找到未發佈段落')
+              text = text.replace(marker, marker + entry, 1)
+              changelog.write_text(text, encoding='utf-8')
           PY
 
       - name: Install test dependencies
