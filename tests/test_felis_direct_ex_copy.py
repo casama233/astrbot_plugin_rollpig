@@ -16,14 +16,22 @@ from felis_ex_copy import (
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_DIR = ROOT / "resource"
 
-PHASE_ONE_HANDWRITTEN_IDS = {
+HANDWRITTEN_IDS = {
     "coding-pig",
     "emoji-king-pig",
+    "ground-impact-pig",
+    "hannibal-pig",
+    "maid-pig",
     "niuma-pig",
     "noob-pig",
     "party-pig",
+    "room-check-pig",
+    "samurai-pig",
     "screenshot-pig",
+    "shit-pig",
     "shopping-pig",
+    "thief-pig",
+    "trap-pig",
     "tv-pig",
 }
 
@@ -41,11 +49,12 @@ def test_felis_original_ex_specs_are_complete_and_provenance_scoped():
     assert provenance["upstream_ex_used"] is False
     assert set(payload["pigs"]) == set(FELIS_DIRECT_IDS)
     assert len(payload["pigs"]) == 34
+    assert len(HANDWRITTEN_IDS) == 16
 
     for pig_id, spec in payload["pigs"].items():
         assert isinstance(spec, dict), pig_id
         assert "image" not in spec
-        if pig_id in PHASE_ONE_HANDWRITTEN_IDS:
+        if pig_id in HANDWRITTEN_IDS:
             assert set(spec) == {"levels"}, pig_id
             assert set(spec["levels"]) == {"1", "2", "3", "4", "5"}, pig_id
             for item in spec["levels"].values():
@@ -56,14 +65,14 @@ def test_felis_original_ex_specs_are_complete_and_provenance_scoped():
             assert all(str(value).strip() for value in spec.values()), pig_id
 
 
-def test_phase_one_handwritten_copy_is_not_generic_growth_template():
+def test_handwritten_copy_is_not_generic_growth_template():
     payload = _payload()
     forbidden_fragments = (
         "开始形成自己的节奏",
         "进入稳定期",
         "成长收在一句话里",
     )
-    for pig_id in PHASE_ONE_HANDWRITTEN_IDS:
+    for pig_id in HANDWRITTEN_IDS:
         levels = payload["pigs"][pig_id]["levels"]
         combined = "\n".join(
             item[field]
