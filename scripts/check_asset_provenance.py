@@ -7,7 +7,7 @@ import argparse
 import hashlib
 import json
 import re
-import shutil
+import subprocess
 from pathlib import Path
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
@@ -80,9 +80,47 @@ def _load_artifact_image_ids(manifest_path: Path) -> set[str]:
     return ids
 
 
+def _verify_git_committed(git_root: Path, path: Path) -> None:
+    git_root = git_root.resolve()
+    try:
+        relative = path.resolve().relative_to(git_root).as_posix()
+    except ValueError as exc:
+        raise ValueError(f"資源圖片不在 Git 工作樹內：{path}") from exc
+    try:
+        tracked = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(git_root),
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                relative,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        unchanged = subprocess.run(
+            ["git", "-C", str(git_root), "diff", "--quiet", "HEAD", "--", relative],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise ValueError(f"無法執行 Git committed-image 驗證：{exc}") from exc
+    if tracked.returncode != 0:
+        raise ValueError(f"approved replacement image 未被 Git 追蹤：{relative}")
+    if unchanged.returncode != 0:
+        raise ValueError(
+            f"approved replacement image 與當前 Git HEAD 不一致：{relative}"
+        )
+
+
 def load_and_validate(
     source_root: Path,
     artifact_manifest: Path | None = None,
+    git_root: Path | None = None,
 ) -> dict:
     source_root = source_root.resolve()
     path = source_root / "asset_provenance.json"
@@ -115,8 +153,6 @@ def load_and_validate(
             raise ValueError(
                 f"{pig_id} approved asset 必須 redistribution_allowed=true"
             )
-        if raw.get("binary_committed") is not True:
-            raise ValueError(f"{pig_id} replacement binary 尚未標記為 committed")
         for field in (
             "asset_role",
             "rights_basis",
@@ -145,6 +181,8 @@ def load_and_validate(
             raise ValueError(
                 f"{pig_id} bundled image SHA-256 不符：expected={replacement_sha} actual={actual}"
             )
+        if git_root is not None:
+            _verify_git_committed(git_root, image)
 
     for pig_id, raw in withheld.items():
         if not ID_PATTERN.fullmatch(str(pig_id)) or not isinstance(raw, dict):
@@ -181,8 +219,9 @@ def main() -> int:
     parser.add_argument("--source", type=Path, default=Path("resource"))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--artifact-manifest", type=Path)
+    parser.add_argument("--git-root", type=Path)
     args = parser.parse_args()
-    payload = load_and_validate(args.source, args.artifact_manifest)
+    payload = load_and_validate(args.source, args.artifact_manifest, args.git_root)
     if args.output is not None:
         publish(payload, args.output)
     print(
