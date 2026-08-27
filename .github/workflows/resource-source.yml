@@ -7,6 +7,7 @@ on:
       - "resource/**"
       - "ex_variants.py"
       - "scripts/build_resource_source.py"
+      - "scripts/check_asset_provenance.py"
       - "scripts/prepare_resource_catalog.py"
       - ".github/workflows/resource-source.yml"
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "resource/**"
       - "ex_variants.py"
       - "scripts/build_resource_source.py"
+      - "scripts/check_asset_provenance.py"
       - "scripts/prepare_resource_catalog.py"
       - ".github/workflows/resource-source.yml"
   workflow_dispatch:
@@ -62,10 +64,18 @@ jobs:
             --output dist/astrbot-rollpig-source \
             --version "git-${RESOURCE_VERSION:0:12}"
 
+          python scripts/check_asset_provenance.py \
+            --source resource \
+            --artifact-manifest dist/astrbot-rollpig-source/manifest.json \
+            --git-root . \
+            --output dist/astrbot-rollpig-source/asset_provenance.json
+
           python -m json.tool dist/astrbot-rollpig-source/manifest.json >/dev/null
+          python -m json.tool dist/astrbot-rollpig-source/asset_provenance.json >/dev/null
           test -f dist/astrbot-rollpig-source/health.json
           test -f dist/astrbot-rollpig-source/pig.json
           test -f dist/astrbot-rollpig-source/pig_ex_variants.json
+          test -f dist/astrbot-rollpig-source/asset_provenance.json
           test -d dist/astrbot-rollpig-source/images
           test ! -e dist/astrbot-rollpig-source/compatibility_floor.json
 
@@ -97,13 +107,22 @@ jobs:
 
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           health = json.loads((root / "health.json").read_text(encoding="utf-8"))
+          provenance = json.loads((root / "asset_provenance.json").read_text(encoding="utf-8"))
           if manifest.get("pig_count") != len(ids):
               raise SystemExit("manifest pig count does not match bundled catalog")
           if manifest.get("ex_variant_pig_count") != len(ids):
               raise SystemExit("manifest generated EX count does not match pig count")
           if health.get("ex_variant_pig_count") != len(ids):
               raise SystemExit("health generated EX count does not match pig count")
-          print(f"bundled lineage source: {len(ids)} pigs; generated EX: {len(ex_pigs)} pigs")
+          approved = provenance.get("assets", {})
+          if not approved:
+              raise SystemExit("asset provenance contains no approved derived assets")
+          if not all(item.get("redistribution_allowed") is True for item in approved.values()):
+              raise SystemExit("approved asset provenance contains a non-redistributable entry")
+          print(
+              f"bundled lineage source: {len(ids)} pigs; generated EX: {len(ex_pigs)} pigs; "
+              f"approved derived assets: {len(approved)}"
+          )
           PY
 
       - name: Upload deployable source artifact
