@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "publication_state": "staging-pending-binary-assets",
+  "publication_state": "approved",
   "scope": "derived public asset replacements",
-  "note": "This document records approved provenance decisions before the exact replacement PNG blobs are committed. Nothing in this file by itself republishes or replaces an image.",
+  "note": "This document records approved provenance decisions for the exact committed replacement PNG blobs.",
   "assets": {
     "roasted-pig": {
       "distribution_mode": "public",
@@ -19,7 +19,7 @@
       "replacement_sha256": "f096f63e77e109efc0cdc29cfa85aac121336ced66082a4fd84745f96ad6d547",
       "transformation": "image optimization of the earlier Bear/Meg MIT asset",
       "redistribution_allowed": true,
-      "binary_committed": false
+      "binary_committed": true
     },
     "pigsleep": {
       "distribution_mode": "public",
@@ -37,7 +37,7 @@
       "transformation": "substantial redraw based on the earlier Bear/Meg MIT asset",
       "derivation_confirmation": "The project operator confirmed on 2026-08-26 that the local replacement was made from the Bear/Meg MIT pigsleep asset.",
       "redistribution_allowed": true,
-      "binary_committed": false
+      "binary_committed": true
     }
   },
   "withheld": {
