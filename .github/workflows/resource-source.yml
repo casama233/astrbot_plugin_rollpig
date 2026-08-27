@@ -67,6 +67,7 @@ jobs:
           python scripts/check_asset_provenance.py \
             --source resource \
             --artifact-manifest dist/astrbot-rollpig-source/manifest.json \
+            --git-root . \
             --output dist/astrbot-rollpig-source/asset_provenance.json
 
           python -m json.tool dist/astrbot-rollpig-source/manifest.json >/dev/null

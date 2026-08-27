@@ -21,7 +21,6 @@ def _fixture(
     root: Path,
     *,
     wrong_hash: bool = False,
-    committed: bool = True,
     image_suffix: str = ".png",
     catalog_id: str = "test-pig",
 ) -> Path:
@@ -61,7 +60,6 @@ def _fixture(
                         "license": "MIT",
                         "attribution": ["Example Author"],
                         "redistribution_allowed": True,
-                        "binary_committed": committed,
                     }
                 },
                 "withheld": {
@@ -92,26 +90,54 @@ def _run(
     source: Path,
     output: Path | None = None,
     artifact_manifest: Path | None = None,
+    git_root: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     command = [sys.executable, str(CHECKER), "--source", str(source)]
     if output is not None:
         command += ["--output", str(output)]
     if artifact_manifest is not None:
         command += ["--artifact-manifest", str(artifact_manifest)]
+    if git_root is not None:
+        command += ["--git-root", str(git_root)]
     return subprocess.run(command, capture_output=True, text=True)
+
+
+def _init_git_repo(root: Path, *, include_image: bool = True) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    paths = ["resource/pig.json", "resource/asset_provenance.json"]
+    if include_image:
+        paths.append("resource/image/test-pig.png")
+    subprocess.run(["git", "add", "--", *paths], cwd=root, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-q",
+            "-m",
+            "fixture",
+        ],
+        cwd=root,
+        check=True,
+    )
 
 
 def test_asset_provenance_accepts_exact_replacement_hash_and_publishes(tmp_path):
     source = _fixture(tmp_path)
     output = tmp_path / "dist" / "asset_provenance.json"
     manifest = _manifest(tmp_path, ["test-pig.png"])
-    result = _run(source, output, manifest)
+    _init_git_repo(tmp_path)
+    result = _run(source, output, manifest, tmp_path)
     assert result.returncode == 0, result.stderr
     summary = json.loads(result.stdout)
     assert summary["approved_asset_count"] == 1
     assert summary["withheld_asset_count"] == 1
     published = json.loads(output.read_text(encoding="utf-8"))
     assert published["assets"]["test-pig"]["redistribution_allowed"] is True
+    assert "binary_committed" not in published["assets"]["test-pig"]
     assert published["withheld"]["unknown-pig"]["redistribution_allowed"] is False
 
 
@@ -122,11 +148,12 @@ def test_asset_provenance_rejects_replacement_hash_mismatch(tmp_path):
     assert "bundled image SHA-256 不符" in result.stderr
 
 
-def test_asset_provenance_rejects_uncommitted_binary(tmp_path):
-    source = _fixture(tmp_path, committed=False)
-    result = _run(source)
+def test_asset_provenance_rejects_untracked_binary(tmp_path):
+    source = _fixture(tmp_path)
+    _init_git_repo(tmp_path, include_image=False)
+    result = _run(source, git_root=tmp_path)
     assert result.returncode != 0
-    assert "replacement binary 尚未標記為 committed" in result.stderr
+    assert "approved replacement image 未被 Git 追蹤" in result.stderr
 
 
 def test_asset_provenance_accepts_mixed_case_image_extension(tmp_path):
