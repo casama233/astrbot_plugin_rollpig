@@ -2,7 +2,7 @@
 
 This note records the provenance decision for two existing RollPig IDs whose local production images are intended to replace the older bundled images. The resource IDs and catalog count do not change.
 
-The exact replacement PNGs are not yet committed on this branch. Until those binary blobs are added and their SHA-256 values are verified by CI, this branch is staging-only and must not be merged as a completed publication change.
+The exact replacement PNGs are committed on this branch. Their SHA-256 values are verified by CI before the source artifact is built.
 
 ## `roasted-pig`
 
@@ -33,12 +33,12 @@ The exact replacement PNGs are not yet committed on this branch. Until those bin
 
 ## Merge gate
 
-Before this work may be considered complete:
+Completion requirements:
 
-1. commit the exact `roasted-pig.png` whose SHA-256 is `f096f63e...6d547`;
-2. commit the exact `pigsleep.png` whose SHA-256 is `5f38caab...deb4`;
-3. add a build/CI check that the committed image hashes match the approved provenance records;
-4. ensure the resource-source builder carries the machine-readable provenance record into the generated public-source artifact;
-5. run the normal resource-source and test workflows successfully.
+1. the exact `roasted-pig.png` whose SHA-256 is `f096f63e...6d547` is committed;
+2. the exact `pigsleep.png` whose SHA-256 is `5f38caab...deb4` is committed;
+3. the build/CI check confirms the committed image hashes match the approved provenance records;
+4. the resource-source builder carries the machine-readable provenance record into the generated public-source artifact;
+5. the normal resource-source and test workflows pass.
 
 No PigHub-only item is approved by this note, and no gameplay behavior is changed.
