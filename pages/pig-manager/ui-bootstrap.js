@@ -150,18 +150,6 @@
     topActions.insertBefore(details, refreshButton || null);
   };
 
-  const installPigStudio = () => {
-    if (document.querySelector('script[data-rollpig-pig-studio-loader]')) return;
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.dataset.rollpigPigStudioLoader = '1';
-    script.src = new URL('./studio-integration.js', BOOTSTRAP_URL).href;
-    script.addEventListener('error', () => {
-      console.error('[rollpig] AI 小猪工坊前端加载失败');
-    }, {once: true});
-    document.head.appendChild(script);
-  };
-
   const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i;
 
   const setContextDoc = (host, key, show, label, href) => {
@@ -268,7 +256,6 @@
 
   installWikiStyles();
   installWikiMenu();
-  installPigStudio();
   const initialSync = pageRoot.querySelector('#syncFeedback');
   if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.textContent || '');
 

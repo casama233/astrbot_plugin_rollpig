@@ -2,10 +2,32 @@
 
 ## 未發佈
 
+- 暫無。
+
+## v3.12.0
+
+發布日期：2026-08-27
+
+v3.12.0 是面向長期維護的功能面收斂與資源穩定化版本：退役沒有持續使用價值的 AI 工坊和重複管理頁，保留唯一主管理頁內的完整 EX 能力；同時收錄 v3.11.12 後已完成的公共豬源替換、災備 fail-closed 與 Felis 直讀 EX 文案隔離。沒有新增玩家指令或玩法。
+
+### 管理面收斂
+
+- 移除 AI 小豬工坊的前端、五個 Web API 與 runtime mixin；既有 `plugin_data` 草稿與服務端設定檔保留為未使用資料，不在升級時自動刪除。
+- 移除重複的 `pig-manager-ex`／`pig-manager-ex-public-source` 獨立 Plugin Pages；EX 1–5 編輯、實際發送卡預覽、rights-v3 投稿與審核繼續保留在唯一的 `pig-manager` 主管理頁。
+- 啟動 migration 新增已退役程式與頁面 tombstone，讓歷史 overlay 安裝也會收斂到單一 AstrBot Plugin Page，不殘留幽靈入口。
+
+### 資源來源穩定化
+
 - `roasted-pig` 與 `pigsleep` 正式採用來源受控的高品質替換圖：兩者沿用既有 Bearlele/MegSopern MIT 資源 ID，不增加目錄數量；前者為同圖優化，後者為基於 MIT 原圖的大幅重繪，並由 machine-readable provenance 與精確 SHA-256 gate 驗證。
 - `papa-pig` 繼續因外部下載來源／再分發權未證實而保持 withheld；PigHub-only 本地資源不在本次遷移範圍內。
-- 公共灾备猪源在来源／再分发审计期间改为 fail-closed：官方链只访问 curryudon primary，即使旧配置仍保留 Vercel/GitHub 镜像也不会读取；主源不可用时继续使用最近一次已验证本地缓存或内置资源。
-- Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：仅由本仓库语义规格生成 `description`/`analysis`，不读取 Felis EX/variant 文案或图片；固定 allowlist、provenance 与 text-only 合约均有回归测试。
+- 公共災備豬源在來源／再分發審計期間改為 fail-closed：官方鏈只訪問 curryudon primary，即使舊配置仍保留 Vercel/GitHub 鏡像也不會讀取；主源不可用時繼續使用最近一次已驗證本地快取或內置資源。
+- Felis 34 項直讀資源新增專案自有 EX1–EX5 文案層：只由本倉庫語義規格生成 `description`／`analysis`，不讀取 Felis EX/variant 文案或圖片；固定 allowlist、provenance 與 text-only 合約均有回歸測試。
+
+### 相容性
+
+- 可由 v3.11.11 或 v3.11.12 直接升級；AstrBot 最低版本仍為 `>=4.24.2`。
+- 不修改 SQLite schema、永久豬籍、本地圖鑑與 EX 差分資料、Resource Protocol v1、rights-v3 投稿協議或玩家玩法規則。
+- 市場與 GitHub Release 必須使用新的 v3.12.0 成品；不覆寫既有 v3.11.12 tag 或資產。
 
 ## v3.11.12
 
