@@ -36,12 +36,18 @@ HANDWRITTEN_IDS = {
     "mc-pig",
     "niuma-pig",
     "noob-pig",
+    "parking-pig",
     "party-pig",
+    "pig-rice",
+    "police-pig",
     "room-check-pig",
     "samurai-pig",
     "screenshot-pig",
     "shit-pig",
     "shopping-pig",
+    "smug-pig",
+    "soup-pig",
+    "squint-pig",
     "thief-pig",
     "trap-pig",
     "tv-pig",
@@ -60,21 +66,17 @@ def test_felis_original_ex_specs_are_complete_and_provenance_scoped():
     assert provenance["scope"] == FELIS_DIRECT_EX_COPY_SCOPE
     assert provenance["upstream_ex_used"] is False
     assert set(payload["pigs"]) == set(FELIS_DIRECT_IDS)
-    assert len(payload["pigs"]) == 34
-    assert len(HANDWRITTEN_IDS) == 28
+    assert HANDWRITTEN_IDS == set(FELIS_DIRECT_IDS)
+    assert len(HANDWRITTEN_IDS) == 34
 
     for pig_id, spec in payload["pigs"].items():
         assert isinstance(spec, dict), pig_id
+        assert set(spec) == {"levels"}, pig_id
         assert "image" not in spec
-        if pig_id in HANDWRITTEN_IDS:
-            assert set(spec) == {"levels"}, pig_id
-            assert set(spec["levels"]) == {"1", "2", "3", "4", "5"}, pig_id
-            for item in spec["levels"].values():
-                assert set(item) == {"description", "analysis"}, pig_id
-                assert all(str(value).strip() for value in item.values()), pig_id
-        else:
-            assert set(spec) == {"name", "theme", "progress", "lesson"}, pig_id
-            assert all(str(value).strip() for value in spec.values()), pig_id
+        assert set(spec["levels"]) == {"1", "2", "3", "4", "5"}, pig_id
+        for item in spec["levels"].values():
+            assert set(item) == {"description", "analysis"}, pig_id
+            assert all(str(value).strip() for value in item.values()), pig_id
 
 
 def test_handwritten_copy_is_not_generic_growth_template():
