@@ -90,11 +90,8 @@ def test_main_manager_ex_modal_has_stage2_effective_preview_parity():
     assert ".ex-preview-lightbox" in css
 
 
-def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
+def test_ex_preview_has_one_canonical_management_surface():
     main_modal = integration_text()
-    standalone = (ROOT / "pages" / "pig-manager-ex" / "index.html").read_text(
-        encoding="utf-8"
-    )
     for marker in (
         "Base ↔ EX",
         "data-compare-toggle",
@@ -106,11 +103,12 @@ def test_main_and_standalone_ex_preview_entrypoints_cannot_drift_again():
         "真实发送 renderer",
     ):
         assert marker in main_modal
-        assert marker in standalone
     assert "effective: true" in main_modal
-    assert "effective:true" in standalone
     assert "base: true" in main_modal
-    assert "base:true" in standalone
+    assert not (ROOT / "pages" / "pig-manager-ex" / "index.html").exists()
+    assert not (
+        ROOT / "pages" / "pig-manager-ex-public-source" / "index.html"
+    ).exists()
 
 
 def test_main_preview_no_longer_rebuilds_card_copy_in_browser():

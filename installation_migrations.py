@@ -12,14 +12,21 @@ from typing import Any
 LEGACY_PATH_TOMBSTONES: tuple[tuple[str, ...], ...] = (
     ("pages", "ex-manager"),
     ("pages", "ex-public-source"),
+    ("pages", "pig-manager-ex"),
+    ("pages", "pig-manager-ex-public-source"),
+    ("pages", "pig-manager", "studio-integration.js"),
+    ("pig_studio_admin.py",),
+    ("pig_studio_feature.py",),
 )
 
-# Never delete a legacy Page unless its replacement actually exists in the
-# installed release. This makes the migration fail-safe if an incomplete package
-# is ever loaded.
+# Never delete a retired Page unless the canonical manager actually exists in
+# the installed release. This makes the migration fail-safe if an incomplete
+# package is ever loaded.
 LEGACY_PAGE_REPLACEMENTS: dict[str, str] = {
-    "ex-manager": "pig-manager-ex",
-    "ex-public-source": "pig-manager-ex-public-source",
+    "ex-manager": "pig-manager",
+    "ex-public-source": "pig-manager",
+    "pig-manager-ex": "pig-manager",
+    "pig-manager-ex-public-source": "pig-manager",
 }
 
 
@@ -81,9 +88,10 @@ def cleanup_legacy_installation_paths(
         if not _path_exists(legacy):
             continue
 
-        # The current tombstones are Plugin Pages. Require the renamed Page to
-        # be present before deleting the legacy path so an incomplete install
-        # cannot accidentally remove the only working management surface.
+        # First-level Page tombstones require the canonical manager to be
+        # present, so an incomplete install cannot accidentally remove the only
+        # working management surface. Nested assets and Python modules are
+        # explicit RollPig-owned program paths and never include plugin_data.
         if len(parts) == 2 and parts[0] == "pages":
             replacement_name = LEGACY_PAGE_REPLACEMENTS.get(parts[1])
             replacement_entry = (

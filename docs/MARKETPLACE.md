@@ -36,17 +36,15 @@ https://github.com/casama233/astrbot_plugin_rollpig
 
 ## 本專案的體積策略
 
-v3.2.0 的 Release ZIP 為 19,933,444 bytes，超過官方 16 MB 上限。v3.2.1 起採用以下市場分發策略：
+v3.2.0 的 Release ZIP 曾超過 16 MB。現行 workflow 採用以下市場分發策略：
 
-- 不打包測試、開發配置與 Node 測試依賴資訊；README 導航所需的 `docs/` 隨包保留。
-- 市場與 Release 精簡包不打包 `resource/font/HanyiYongZiXiaoXiongMaoFan.ttf` 與 `resource/font/荆南麦圆体.otf` 兩個大型、非核心字體。
-- 兩個字體仍保留在 Git 倉庫，原始碼 clone / 開發環境不受影響。
-- 精簡包保留 `可爱字体.ttf`、小豬圖片、資料、Plugin Pages 與全部運行程式碼；缺少裝飾/兜底字體時使用現有系統字體降級鏈。
-- Release workflow 在上傳前檢查 ZIP 大小，超過 **16,000,000 bytes** 直接失敗。
-- PR workflow 同樣建立市場尺寸的 ZIP 並使用相同保守上限，避免後續回歸。
-- `.gitattributes` 使用 `export-ignore` 標記非市場運行所需內容，配合官方建議縮減來源封裝。
+- 不打包測試、開發配置、Node 測試依賴與 runtime `plugin_data`；README 導航所需的 `docs/` 隨包保留。
+- `scripts/prepare_install_bundle.py` 把完整 authoring catalog 裁成固定 **22 項**、資料與圖片一一對應的離線 bootstrap；首次啟動後再由受驗證公共源擴充。
+- 市場與 Release 包保留目前 renderer 優先使用的 `resource/font/荆南麦圆体.otf` 及其 OFL notice，只排除不再使用的 `HanyiYongZiXiaoXiongMaoFan.ttf`。
+- Release workflow 在上傳前檢查 ZIP 大小，超過 **16,000,000 bytes** 直接失敗；PR workflow 使用同一上限。
+- v3.12.0 本機依正式流程產生的驗證包約 **6.0 MB**，保留 `metadata.yaml`、`main.py`、`requirements.txt`、唯一 `pig-manager` Plugin Page、22 項離線資源與中文 renderer 字體。
 
-AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、資源同步與管理面板功能不依賴繁體兜底字體。卡片名稱在精簡包缺少裝飾粗體時會回退到系統粗體候選。
+AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、資源同步與管理面板在離線 bootstrap 狀態即可載入，公共源不可用時不會阻止插件啟動。
 
 ## 建議提交資料
 
@@ -83,6 +81,6 @@ AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、�
 
 ## 官方提交入口
 
-優先使用 AstrBot 官方插件發佈頁提交。官方文件指出發佈需要 AstrBot Cloud 帳號。
+優先使用 AstrBot 官方插件發佈頁提交。官方文件指出發佈需要 AstrBot Cloud 帳號。GitHub tag／Release 成功只提供可下載成品，不會自行改寫市場索引；發布者仍需在官方頁面提交相同 `author/name/version` 的新版本。
 
 官方 Plugins Collection 仍保留 `Plugin Publish` Issue Form；表單要求插件 JSON、已充分測試、無惡意程式碼及同意 GitHub Code of Conduct。
