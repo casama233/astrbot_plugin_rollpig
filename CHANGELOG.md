@@ -5,7 +5,7 @@
 - `roasted-pig` 與 `pigsleep` 正式採用來源受控的高品質替換圖：兩者沿用既有 Bearlele/MegSopern MIT 資源 ID，不增加目錄數量；前者為同圖優化，後者為基於 MIT 原圖的大幅重繪，並由 machine-readable provenance 與精確 SHA-256 gate 驗證。
 - `papa-pig` 繼續因外部下載來源／再分發權未證實而保持 withheld；PigHub-only 本地資源不在本次遷移範圍內。
 - 公共灾备猪源在来源／再分发审计期间改为 fail-closed：官方链只访问 curryudon primary，即使旧配置仍保留 Vercel/GitHub 镜像也不会读取；主源不可用时继续使用最近一次已验证本地缓存或内置资源。
-- Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：仅由本仓库语义规格生成 `description`/`analysis`，不读取 Felis EX/variant 文案或图片；固定 allowlist、provenance 与 text-only 合约均有回归测试。
+- Felis 34 项直读资源新增项目自有 EX1–EX5 文案层：其中 22 只已按基础图片、原始语义与真实网络梗逐级手写，其余继续由本仓库语义种子生成；不读取 Felis EX/variant 文案或图片，固定 allowlist、provenance 与 text-only 合约均有回归测试。
 
 ## v3.11.12
 

@@ -17,7 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_DIR = ROOT / "resource"
 
 HANDWRITTEN_IDS = {
+    "awakened-pig",
+    "bull-pig",
+    "cage-pig",
+    "cart-pig",
+    "class-pig",
     "coding-pig",
+    "doomsday-pig",
     "emoji-king-pig",
     "ground-impact-pig",
     "hannibal-pig",
@@ -49,7 +55,7 @@ def test_felis_original_ex_specs_are_complete_and_provenance_scoped():
     assert provenance["upstream_ex_used"] is False
     assert set(payload["pigs"]) == set(FELIS_DIRECT_IDS)
     assert len(payload["pigs"]) == 34
-    assert len(HANDWRITTEN_IDS) == 16
+    assert len(HANDWRITTEN_IDS) == 22
 
     for pig_id, spec in payload["pigs"].items():
         assert isinstance(spec, dict), pig_id
