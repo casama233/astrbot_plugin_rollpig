@@ -21,14 +21,9 @@ def _discovered_page_names() -> list[str]:
     )
 
 
-def test_pig_manager_stays_the_default_astrbot_plugin_page():
+def test_pig_manager_is_the_only_astrbot_plugin_page():
     pages = _discovered_page_names()
-    assert pages == [
-        "pig-manager",
-        "pig-manager-ex",
-        "pig-manager-ex-public-source",
-    ]
-    assert pages[0] == "pig-manager"
+    assert pages == ["pig-manager"]
 
 
 def test_plugin_page_i18n_tracks_the_stable_page_names():
@@ -39,10 +34,26 @@ def test_plugin_page_i18n_tracks_the_stable_page_names():
             )
         )
         pages = payload["pages"]
-        assert set(pages) == {
-            "pig-manager",
-            "pig-manager-ex",
-            "pig-manager-ex-public-source",
-        }
+        assert set(pages) == {"pig-manager"}
         assert "管理" in pages["pig-manager"]["title"]
-        assert pages["pig-manager-ex"]["title"].startswith("EX ")
+
+
+def test_retired_admin_surfaces_are_absent_from_the_release_tree():
+    retired = (
+        ROOT / "pig_studio_admin.py",
+        ROOT / "pig_studio_feature.py",
+        PAGES_ROOT / "pig-manager" / "studio-integration.js",
+        PAGES_ROOT / "pig-manager-ex" / "index.html",
+        PAGES_ROOT / "pig-manager-ex-public-source" / "index.html",
+    )
+    assert all(not path.exists() for path in retired)
+
+    main = (ROOT / "main.py").read_text(encoding="utf-8")
+    page = (PAGES_ROOT / "pig-manager" / "index.html").read_text(encoding="utf-8")
+    bootstrap = (PAGES_ROOT / "pig-manager" / "ui-bootstrap.js").read_text(
+        encoding="utf-8"
+    )
+    assert "PigStudioMixin" not in main
+    assert "PigStudioAdminMixin" not in main
+    assert "studio-integration.js" not in page
+    assert "studio-integration.js" not in bootstrap

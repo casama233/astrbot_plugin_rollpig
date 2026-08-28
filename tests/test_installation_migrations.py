@@ -29,27 +29,35 @@ def _discover_pages(root: Path) -> list[str]:
     )
 
 
-def test_overlay_upgrade_legacy_pages_are_removed_and_pig_manager_is_default(tmp_path):
-    # Reproduce the real upgrade shape: old release files remain on disk while
-    # the new release merely overlays the renamed Page directories.
+def test_overlay_upgrade_retired_surfaces_are_removed(tmp_path):
+    # Reproduce the real upgrade shape: retired files remain on disk while the
+    # new release merely overlays the canonical manager page.
     _write_page(tmp_path, "ex-manager", "legacy EX manager")
     _write_page(tmp_path, "ex-public-source", "legacy EX source")
     _write_page(tmp_path, "pig-manager", "main manager")
     _write_page(tmp_path, "pig-manager-ex", "new EX manager")
     _write_page(tmp_path, "pig-manager-ex-public-source", "new EX source")
+    (tmp_path / "pages" / "pig-manager" / "studio-integration.js").write_text(
+        "retired studio frontend", encoding="utf-8"
+    )
+    (tmp_path / "pig_studio_admin.py").write_text("retired", encoding="utf-8")
+    (tmp_path / "pig_studio_feature.py").write_text("retired", encoding="utf-8")
 
     assert _discover_pages(tmp_path)[0] == "ex-manager"
 
     removed = cleanup_legacy_installation_paths(tmp_path)
 
-    assert removed == ["pages/ex-manager", "pages/ex-public-source"]
-    assert _discover_pages(tmp_path) == [
-        "pig-manager",
-        "pig-manager-ex",
-        "pig-manager-ex-public-source",
+    assert removed == [
+        "pages/ex-manager",
+        "pages/ex-public-source",
+        "pages/pig-manager-ex",
+        "pages/pig-manager-ex-public-source",
+        "pages/pig-manager/studio-integration.js",
+        "pig_studio_admin.py",
+        "pig_studio_feature.py",
     ]
-    assert not (tmp_path / "pages" / "ex-manager").exists()
-    assert not (tmp_path / "pages" / "ex-public-source").exists()
+    assert _discover_pages(tmp_path) == ["pig-manager"]
+    assert not (tmp_path / "pages" / "pig-manager" / "studio-integration.js").exists()
 
 
 def test_real_self_updater_overlay_converges_after_startup_migration(tmp_path):
@@ -62,16 +70,20 @@ def test_real_self_updater_overlay_converges_after_startup_migration(tmp_path):
     staging.mkdir()
     backup.mkdir()
 
-    # Old installation before #109.
+    # Old overlay installation containing every historical page generation.
     _write_page(plugin, "ex-manager", "legacy EX manager")
     _write_page(plugin, "ex-public-source", "legacy EX source")
     _write_page(plugin, "pig-manager", "main manager")
+    _write_page(plugin, "pig-manager-ex", "standalone EX manager")
+    _write_page(plugin, "pig-manager-ex-public-source", "standalone EX source")
+    (plugin / "pages" / "pig-manager" / "studio-integration.js").write_text(
+        "retired studio frontend", encoding="utf-8"
+    )
+    (plugin / "pig_studio_feature.py").write_text("retired", encoding="utf-8")
 
-    # New release payload after #109. The historical updater overlays these
-    # paths but does not itself remove names absent from the archive.
+    # The final maintenance release ships only the canonical manager page. The
+    # historical updater overlays it but does not remove absent paths itself.
     _write_page(staging, "pig-manager", "main manager v2")
-    _write_page(staging, "pig-manager-ex", "new EX manager")
-    _write_page(staging, "pig-manager-ex-public-source", "new EX source")
 
     manager = PluginUpdateManager(plugin, data)
     manager._overlay_install(staging, backup)
@@ -79,26 +91,25 @@ def test_real_self_updater_overlay_converges_after_startup_migration(tmp_path):
 
     cleanup_legacy_installation_paths(plugin)
 
-    assert _discover_pages(plugin) == [
-        "pig-manager",
-        "pig-manager-ex",
-        "pig-manager-ex-public-source",
-    ]
+    assert _discover_pages(plugin) == ["pig-manager"]
+    assert not (plugin / "pig_studio_feature.py").exists()
 
 
 def test_cleanup_does_not_touch_unrelated_or_user_owned_pages(tmp_path):
     _write_page(tmp_path, "pig-manager")
-    _write_page(tmp_path, "pig-manager-ex")
-    _write_page(tmp_path, "pig-manager-ex-public-source")
     _write_page(tmp_path, "my-local-tool")
+    data = tmp_path / "plugin_data" / "pig_studio_config.json"
+    data.parent.mkdir()
+    data.write_text("secret stays untouched", encoding="utf-8")
 
     cleanup_legacy_installation_paths(tmp_path)
 
     assert (tmp_path / "pages" / "my-local-tool" / "index.html").is_file()
+    assert data.read_text(encoding="utf-8") == "secret stays untouched"
 
 
-def test_cleanup_requires_replacement_page_before_removing_legacy_page(tmp_path):
-    legacy = _write_page(tmp_path, "ex-manager")
+def test_cleanup_requires_main_manager_before_removing_retired_page(tmp_path):
+    legacy = _write_page(tmp_path, "pig-manager-ex")
 
     removed = cleanup_legacy_installation_paths(tmp_path)
 
@@ -110,7 +121,7 @@ def test_cleanup_neutralizes_legacy_page_when_directory_removal_fails(
     tmp_path, monkeypatch
 ):
     legacy = _write_page(tmp_path, "ex-manager")
-    _write_page(tmp_path, "pig-manager-ex")
+    _write_page(tmp_path, "pig-manager")
 
     def fail_rmtree(_path):
         raise OSError("simulated directory permission failure")
@@ -128,7 +139,7 @@ def test_cleanup_neutralizes_legacy_page_when_directory_removal_fails(
 
 def test_cleanup_is_idempotent(tmp_path):
     _write_page(tmp_path, "ex-manager")
-    _write_page(tmp_path, "pig-manager-ex")
+    _write_page(tmp_path, "pig-manager")
 
     assert cleanup_legacy_installation_paths(tmp_path) == ["pages/ex-manager"]
     assert cleanup_legacy_installation_paths(tmp_path) == []

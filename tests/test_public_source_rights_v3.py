@@ -136,12 +136,6 @@ def test_main_manager_loads_rights_integration_without_dropping_ex_manager():
     assert "[data-submit]" in rights_ui
 
 
-def test_legacy_ex_public_source_page_no_longer_claims_approval_publishes():
+def test_retired_ex_public_source_page_is_not_shipped():
     root = Path(__file__).resolve().parents[1]
-    page = (root / "pages/pig-manager-ex-public-source/index.html").read_text(
-        encoding="utf-8"
-    )
-    assert "旧 envelope v2" in page
-    assert "管理员审核通过也不会自动发布" in page
-    assert "批准并发布" not in page
-    assert "apiPost" not in page
+    assert not (root / "pages/pig-manager-ex-public-source/index.html").exists()
