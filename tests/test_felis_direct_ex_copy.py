@@ -123,7 +123,6 @@ def test_felis_original_ex_is_filtered_to_runtime_catalog_without_weakening_pack
         RESOURCE_DIR,
         active,
         FELIS_DIRECT_IDS,
-        FELIS_DIRECT_IDS,
         image_extensions={"png"},
     )
     assert set(variants) == active
