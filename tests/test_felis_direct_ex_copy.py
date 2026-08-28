@@ -24,10 +24,16 @@ HANDWRITTEN_IDS = {
     "class-pig",
     "coding-pig",
     "doomsday-pig",
+    "duel-pig",
     "emoji-king-pig",
+    "flu-pig",
     "ground-impact-pig",
     "hannibal-pig",
+    "jelly-pig",
+    "katsu-rice-pig",
+    "kiss-pig",
     "maid-pig",
+    "mc-pig",
     "niuma-pig",
     "noob-pig",
     "party-pig",
@@ -55,7 +61,7 @@ def test_felis_original_ex_specs_are_complete_and_provenance_scoped():
     assert provenance["upstream_ex_used"] is False
     assert set(payload["pigs"]) == set(FELIS_DIRECT_IDS)
     assert len(payload["pigs"]) == 34
-    assert len(HANDWRITTEN_IDS) == 22
+    assert len(HANDWRITTEN_IDS) == 28
 
     for pig_id, spec in payload["pigs"].items():
         assert isinstance(spec, dict), pig_id
@@ -116,6 +122,7 @@ def test_felis_original_ex_is_filtered_to_runtime_catalog_without_weakening_pack
     variants = load_felis_direct_ex_copy(
         RESOURCE_DIR,
         active,
+        FELIS_DIRECT_IDS,
         FELIS_DIRECT_IDS,
         image_extensions={"png"},
     )
