@@ -151,15 +151,17 @@ def test_ex_card_preview_delegates_to_runtime_renderer_and_cleans_temp_file(tmp_
 
 
 def test_ex_editor_previews_exact_runtime_cards_instead_of_fake_browser_cards():
-    source = Path("pages/pig-manager-ex/index.html").read_text(encoding="utf-8")
+    source = Path("pages/pig-manager/ex-integration-core.js").read_text(
+        encoding="utf-8"
+    )
     assert "ex/variants/card" in source
     assert "data-effective-card-image" in source
     assert "data-base-card-image" in source
     assert "真实发送 renderer" in source
-    assert "effective:true" in source
-    assert "base:true" in source
+    assert "effective: true" in source
+    assert "base: true" in source
     assert "FileReader" in source
-    assert 'class="chat-card chat-card-ex"' in source
+    assert "ex-preview-card-effective" in source
     assert "data-compare-toggle" in source
     assert '<div class="chat-body">' not in source
     assert "data-effective-image" not in source
