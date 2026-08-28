@@ -6,6 +6,7 @@ from pathlib import Path
 from astrbot.api import logger
 
 try:
+    from .bundled_ex_copy import load_bundled_ex_copy
     from .ex_variants import (
         build_effective_ex_variants,
         resolve_ex_variant,
@@ -14,6 +15,7 @@ try:
     from .felis_ex_copy import load_felis_direct_ex_copy
     from .gameplay_events import EVENT_EX_LEVEL_UP
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from bundled_ex_copy import load_bundled_ex_copy
     from ex_variants import (
         build_effective_ex_variants,
         resolve_ex_variant,
@@ -90,6 +92,32 @@ class ExVariantMixin:
             merged.update(variants)
         return merged
 
+    def _read_bundled_ex_copy(
+        self,
+        pig_ids: set[str],
+        *,
+        image_extensions: set[str],
+    ) -> dict[str, dict[int, dict[str, str]]]:
+        """Load project-owned text for IDs rooted in the bundled base catalog."""
+        try:
+            raw = json.loads((self.res_dir / "pig.json").read_text(encoding="utf-8-sig"))
+            bundled_ids = {
+                str(item.get("id") or "")
+                for item in raw
+                if isinstance(item, dict) and str(item.get("id") or "")
+            }
+            return load_bundled_ex_copy(
+                self.res_dir,
+                pig_ids,
+                bundled_ids,
+                image_extensions=image_extensions,
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Bundled EX 手写文案层无效，继续使用 deterministic baseline：{exc}"
+            )
+            return {}
+
     def _read_felis_direct_ex_copy(
         self,
         pig_ids: set[str],
@@ -140,10 +168,19 @@ class ExVariantMixin:
                 )
             variants.update(curated)
 
+        # Project-owned bundled-lineage copy is deliberately separate from the
+        # quarantined historical authored EX packs. It only targets IDs that are
+        # also present in the audited bundled base catalog and never carries images.
+        bundled_copy = self._read_bundled_ex_copy(
+            pig_ids,
+            image_extensions=image_extensions,
+        )
+        if bundled_copy:
+            variants.update(bundled_copy)
+
         # Felis direct resources deliberately never supply EX/variant payloads.
-        # The repository-owned text-only layer is applied after cloud/bundled
-        # variants so these audited 34 IDs can never inherit a remote EX image or
-        # remote EX copy through this path.
+        # The repository-owned text-only layer is applied last so these audited
+        # 34 IDs can never inherit a remote or bundled-lineage EX image/copy.
         felis_copy = self._read_felis_direct_ex_copy(
             pig_ids,
             image_extensions=image_extensions,
@@ -158,9 +195,9 @@ class ExVariantMixin:
                     raise ValueError(
                         f"{source} EX 差分缺少图片：{pig_id} EX Lv.{level} -> {image}"
                     )
-        # Explicit curated resources stay authoring layers. The deterministic
-        # baseline remains underneath only as a safety net for non-official or
-        # future local content; official CI requires 100% explicit curation.
+        # Explicit authored resources stay authoring layers. The deterministic
+        # baseline remains underneath as the safety net for as-yet-unwritten,
+        # future-cloud or administrator-local content.
         effective = build_effective_ex_variants(pigs, variants)
         return effective, image_root, source
 
@@ -192,7 +229,7 @@ class ExVariantMixin:
             self._ex_variant_image_root = root
             self._ex_variant_source = resolved_source
             logger.info(
-                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪（官方目录使用精品五级文案）"
+                f"已加载 {resolved_source} EX 差分：{len(variants)} 只小猪（含项目自有手写文案层）"
             )
             return
 
@@ -203,16 +240,23 @@ class ExVariantMixin:
         ]
         pig_ids = {str(item.get("id") or "") for item in pigs}
         image_extensions = set(getattr(self, "IMAGE_EXTENSIONS", ("png",)))
+        bundled_copy = self._read_bundled_ex_copy(
+            pig_ids,
+            image_extensions=image_extensions,
+        )
         felis_copy = self._read_felis_direct_ex_copy(
             pig_ids,
             image_extensions=image_extensions,
         )
-        self._ex_variants = build_effective_ex_variants(pigs, felis_copy)
+        project_copy = dict(bundled_copy)
+        project_copy.update(felis_copy)
+        self._ex_variants = build_effective_ex_variants(pigs, project_copy)
         self._ex_variant_image_root = None
         self._ex_variant_source = "baseline"
         logger.info(
             f"已加载 EX 五级安全基线：{len(self._ex_variants)} 只小猪；"
-            f"其中 {len(felis_copy)} 只使用 Felis 隔离原创文案"
+            f"其中 {len(bundled_copy)} 只使用 bundled-lineage 手写文案，"
+            f"{len(felis_copy)} 只使用 Felis 隔离原创文案"
         )
 
     def _has_local_pig_override(self, pig_id: str) -> bool:
