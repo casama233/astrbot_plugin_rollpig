@@ -27,8 +27,6 @@ try:
     from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
-    from .pig_studio_admin import PigStudioAdminMixin
-    from .pig_studio_feature import PigStudioMixin
     from .random_roast_feature import RandomRoastMixin
     from .resource_failover_feature import ResourceFailoverMixin
     from .renderers.daily_report import render_daily_report_dashboard
@@ -48,8 +46,6 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
-    from pig_studio_admin import PigStudioAdminMixin
-    from pig_studio_feature import PigStudioMixin
     from random_roast_feature import RandomRoastMixin
     from resource_failover_feature import ResourceFailoverMixin
     from renderers.daily_report import render_daily_report_dashboard
@@ -67,8 +63,6 @@ class RollPigPlugin(
     RandomRoastMixin,
     RoastReservationMixin,
     DailyReportMixin,
-    PigStudioAdminMixin,
-    PigStudioMixin,
     ExPublicSourceMixin,
     ExAdminMixin,
     ExVariantMixin,
@@ -84,8 +78,8 @@ class RollPigPlugin(
         # Historical self-updates were overlay installs, so paths removed from a
         # newer release could survive indefinitely. Reconcile explicit
         # tombstones before AstrBot serves Plugin Pages; its Page discovery reads
-        # the filesystem dynamically, so removing legacy ex-manager entries here
-        # restores pig-manager as the default surface on affected installations.
+        # the filesystem dynamically, so removing retired surfaces here keeps
+        # pig-manager as the one canonical Page on overlay-upgraded installs.
         cleanup_legacy_installation_paths(
             Path(__file__).resolve().parent, logger=logger
         )
