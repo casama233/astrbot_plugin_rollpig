@@ -1,0 +1,422 @@
+name: Bootstrap RollPig P1 release gate
+
+on:
+  push:
+    branches:
+      - fix/p1-release-ci-gate
+    paths:
+      - .github/workflows/p1-release-gate-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact bootstrap revision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --depth=1 origin "${REVISION}"
+          git checkout -B "${BRANCH}" FETCH_HEAD
+
+      - name: Write tested-SHA release gate and regression contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def expression(value: str) -> str:
+              return "$" + "{{ " + value + " }}"
+
+          ci = """name: CI
+
+          on:
+            push:
+              branches:
+                - main
+            pull_request:
+              branches:
+                - main
+
+          permissions:
+            contents: read
+
+          concurrency:
+            group: ci-__GITHUB_WORKFLOW__-__GITHUB_REF__
+            cancel-in-progress: true
+
+          jobs:
+            test:
+              name: test (3.12)
+              runs-on: ubuntu-latest
+              steps:
+                - name: Check out repository
+                  uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+                  with:
+                    fetch-depth: 0
+
+                - name: Set up Python 3.12
+                  uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+                  with:
+                    python-version: "3.12"
+                    cache: pip
+                    cache-dependency-path: requirements.txt
+
+                - name: Set up Node.js 20
+                  uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+                  with:
+                    node-version: "20"
+                    cache: npm
+                    cache-dependency-path: package-lock.json
+
+                - name: Enforce PR changelog and Wiki contract
+                  if: github.event_name == 'pull_request'
+                  run: >-
+                    python scripts/maintenance_contract.py pr
+                    --base "__PR_BASE_SHA__"
+                    --head "__PR_HEAD_SHA__"
+                    --event "__GITHUB_EVENT_PATH__"
+
+                - name: Verify current Wiki command and configuration coverage
+                  run: python scripts/maintenance_contract.py coverage
+
+                - name: Compile source
+                  run: python -m compileall -q main.py legacy_main.py felis_direct_feature.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py display_copy.py storage services scripts/maintenance_contract.py scripts/check_display_copy.py
+
+                - name: Install dependencies
+                  run: |
+                    python -m pip install -r requirements.txt pytest pre-commit fonttools
+                    python -m pip check
+
+                - name: Verify Simplified display copy and font coverage
+                  run: python scripts/check_display_copy.py
+
+                - name: Run tests
+                  run: pytest -q
+
+                - name: Run repeat-draw browser regression
+                  run: |
+                    npm ci --ignore-scripts --no-audit --no-fund
+                    node --test --test-timeout=15000 tests/browser/dashboard-repeat-metric.test.mjs
+
+                - name: Run pre-commit checks
+                  run: pre-commit run --all-files --show-diff-on-failure
+          """
+          ci = ci.replace("          ", "")
+          ci = (
+              ci.replace("__GITHUB_WORKFLOW__", expression("github.workflow"))
+              .replace("__GITHUB_REF__", expression("github.ref"))
+              .replace(
+                  "__PR_BASE_SHA__",
+                  expression("github.event.pull_request.base.sha"),
+              )
+              .replace(
+                  "__PR_HEAD_SHA__",
+                  expression("github.event.pull_request.head.sha"),
+              )
+              .replace("__GITHUB_EVENT_PATH__", "$GITHUB_EVENT_PATH")
+          )
+
+          release = """name: Release
+
+          on:
+            workflow_run:
+              workflows:
+                - CI
+              types:
+                - completed
+
+          permissions:
+            contents: write
+
+          concurrency:
+            group: release-main
+            cancel-in-progress: false
+
+          jobs:
+            publish:
+              if: >-
+                __RUN_CONCLUSION__ == 'success' &&
+                __RUN_EVENT__ == 'push' &&
+                __RUN_BRANCH__ == 'main'
+              runs-on: ubuntu-latest
+              timeout-minutes: 20
+              steps:
+                - name: Check out the exact CI-tested revision
+                  uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+                  with:
+                    ref: __RUN_HEAD_SHA__
+                    fetch-depth: 0
+
+                - name: Reject a stale or substituted revision
+                  id: current
+                  env:
+                    TESTED_SHA: __RUN_HEAD_SHA__
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    checked_out_sha="$(git rev-parse HEAD)"
+                    if [[ "$checked_out_sha" != "$TESTED_SHA" ]]; then
+                      echo "::error::Checked-out revision does not match the successful CI revision"
+                      exit 1
+                    fi
+
+                    git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+                    latest_main_sha="$(git rev-parse refs/remotes/origin/main)"
+                    if [[ "$latest_main_sha" != "$TESTED_SHA" ]]; then
+                      echo "current=false" >> "$GITHUB_OUTPUT"
+                      echo "::notice::Skipping stale tested revision $TESTED_SHA; main is now $latest_main_sha"
+                      exit 0
+                    fi
+                    echo "current=true" >> "$GITHUB_OUTPUT"
+
+                - name: Set up Python 3.12
+                  if: steps.current.outputs.current == 'true'
+                  uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+                  with:
+                    python-version: "3.12"
+
+                - name: Resolve stable release metadata
+                  if: steps.current.outputs.current == 'true'
+                  id: meta
+                  shell: bash
+                  run: |
+                    python - <<'PYMETA' >> "$GITHUB_OUTPUT"
+                    import re
+                    from pathlib import Path
+
+                    text = Path('metadata.yaml').read_text(encoding='utf-8')
+
+                    def field(name: str) -> str:
+                        match = re.search(
+                            rf'^{re.escape(name)}:\s*["\x27]?([^"\x27\n]+?)["\x27]?\s*$',
+                            text,
+                            re.MULTILINE,
+                        )
+                        if not match:
+                            raise SystemExit(f'metadata.yaml missing {name}')
+                        return match.group(1).strip()
+
+                    version = field('version')
+                    plugin_name = field('name')
+                    display_name = field('display_name')
+                    if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+                        raise SystemExit('metadata.yaml must contain a stable x.y.z version')
+                    if not re.fullmatch(r'[A-Za-z0-9_.-]+', plugin_name):
+                        raise SystemExit('metadata.yaml contains an unsafe plugin name')
+
+                    print(f'version={version}')
+                    print(f'tag=v{version}')
+                    print(f'plugin_name={plugin_name}')
+                    print(f'display_name={display_name}')
+                    print(f'archive={plugin_name}-v{version}.zip')
+                    PYMETA
+
+                - name: Enforce release changelog and Wiki contract
+                  if: steps.current.outputs.current == 'true'
+                  run: python scripts/maintenance_contract.py release
+
+                - name: Check whether the stable release already exists
+                  if: steps.current.outputs.current == 'true'
+                  id: existing
+                  env:
+                    GH_TOKEN: __GITHUB_TOKEN__
+                    TAG: __META_TAG__
+                  run: |
+                    if gh release view "$TAG" >/dev/null 2>&1; then
+                      echo "exists=true" >> "$GITHUB_OUTPUT"
+                      echo "Stable release $TAG already exists; no release mutation is required."
+                    else
+                      echo "exists=false" >> "$GITHUB_OUTPUT"
+                    fi
+
+                - name: Build release archive and checksum
+                  if: steps.current.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+                  env:
+                    PLUGIN_NAME: __META_PLUGIN__
+                    ARCHIVE: __META_ARCHIVE__
+                  run: |
+                    mkdir -p "dist/$PLUGIN_NAME"
+                    rsync -a ./ "dist/$PLUGIN_NAME/" \
+                      --exclude '.git/' \
+                      --exclude '.github/' \
+                      --exclude '.venv/' \
+                      --exclude '__pycache__/' \
+                      --exclude '.pytest_cache/' \
+                      --exclude 'dist/' \
+                      --exclude 'tests/' \
+                      --exclude 'scripts/' \
+                      --exclude 'deploy/' \
+                      --exclude 'source_service/' \
+                      --exclude 'node_modules/' \
+                      --exclude 'package.json' \
+                      --exclude 'package-lock.json' \
+                      --exclude '.pre-commit-config.yaml' \
+                      --exclude 'CONTRIBUTING.md' \
+                      --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
+                      --exclude '*.pyc' \
+                      --exclude '*.pyo' \
+                      --exclude '.env' \
+                      --exclude 'data/' \
+                      --exclude 'plugin_data/'
+
+                    python scripts/prepare_install_bundle.py "dist/$PLUGIN_NAME"
+                    python - <<PYBUNDLE
+                    import json
+                    from pathlib import Path
+                    root = Path("dist/$PLUGIN_NAME/resource")
+                    pigs = json.loads((root / "pig.json").read_text(encoding="utf-8-sig"))
+                    images = [p for p in (root / "image").iterdir() if p.is_file()]
+                    assert len(pigs) == 22, len(pigs)
+                    assert len(images) == 22, len(images)
+                    PYBUNDLE
+
+                    test -f "dist/$PLUGIN_NAME/resource/font/荆南麦圆体.otf"
+                    (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
+
+                    archive_size=$(stat -c%s "dist/$ARCHIVE")
+                    marketplace_limit=16000000
+                    echo "Release archive size: $archive_size bytes"
+                    if [ "$archive_size" -gt "$marketplace_limit" ]; then
+                      echo "::error::Release archive exceeds AstrBot marketplace limit: $archive_size > $marketplace_limit bytes (16 MB)"
+                      exit 1
+                    fi
+
+                    (cd dist && sha256sum "$ARCHIVE" > SHA256SUMS)
+
+                - name: Publish stable GitHub Release
+                  if: steps.current.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
+                  env:
+                    GH_TOKEN: __GITHUB_TOKEN__
+                    TAG: __META_TAG__
+                    DISPLAY_NAME: __META_DISPLAY__
+                    VERSION: __META_VERSION__
+                    ARCHIVE: __META_ARCHIVE__
+                    TESTED_SHA: __RUN_HEAD_SHA__
+                  run: |
+                    notes_file=".github/release-v${VERSION}.md"
+                    if [[ -f "$notes_file" ]]; then
+                      notes_args=(--notes-file "$notes_file")
+                    else
+                      notes_args=(--generate-notes)
+                    fi
+                    gh release create "$TAG" \
+                      "dist/$ARCHIVE" \
+                      "dist/SHA256SUMS" \
+                      --target "$TESTED_SHA" \
+                      --title "$DISPLAY_NAME v$VERSION" \
+                      "${notes_args[@]}"
+          """
+          release = release.replace("          ", "")
+          replacements = {
+              "__RUN_CONCLUSION__": expression("github.event.workflow_run.conclusion"),
+              "__RUN_EVENT__": expression("github.event.workflow_run.event"),
+              "__RUN_BRANCH__": expression("github.event.workflow_run.head_branch"),
+              "__RUN_HEAD_SHA__": expression("github.event.workflow_run.head_sha"),
+              "__GITHUB_TOKEN__": expression("github.token"),
+              "__META_TAG__": expression("steps.meta.outputs.tag"),
+              "__META_PLUGIN__": expression("steps.meta.outputs.plugin_name"),
+              "__META_ARCHIVE__": expression("steps.meta.outputs.archive"),
+              "__META_DISPLAY__": expression("steps.meta.outputs.display_name"),
+              "__META_VERSION__": expression("steps.meta.outputs.version"),
+          }
+          for key, value in replacements.items():
+              release = release.replace(key, value)
+
+          test = r'''from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          CI = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+          RELEASE = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+
+
+          def _action_refs(text: str) -> list[str]:
+              return re.findall(r"(?m)^\s*uses:\s*[^\s@]+@([^\s#]+)", text)
+
+
+          def test_official_actions_are_pinned_to_full_commit_shas():
+              refs = _action_refs(CI) + _action_refs(RELEASE)
+              assert refs
+              assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in refs), refs
+
+
+          def test_ci_declares_deterministic_python_and_node_toolchains():
+              assert "python-version: \"3.12\"" in CI
+              assert "node-version: \"20\"" in CI
+              assert "cache-dependency-path: requirements.txt" in CI
+              assert "cache-dependency-path: package-lock.json" in CI
+
+
+          def test_release_is_driven_only_by_successful_main_push_ci():
+              assert "workflow_run:" in RELEASE
+              assert "- CI" in RELEASE
+              assert "github.event.workflow_run.conclusion" in RELEASE
+              assert "github.event.workflow_run.event" in RELEASE
+              assert "github.event.workflow_run.head_branch" in RELEASE
+              assert "== 'success'" in RELEASE
+              assert "== 'push'" in RELEASE
+              assert "== 'main'" in RELEASE
+              assert "paths:\n      - metadata.yaml" not in RELEASE
+
+
+          def test_release_checks_out_and_publishes_the_tested_sha():
+              assert "github.event.workflow_run.head_sha" in RELEASE
+              assert "checked_out_sha=\"$(git rev-parse HEAD)\"" in RELEASE
+              assert "refs/remotes/origin/main" in RELEASE
+              assert "Skipping stale tested revision" in RELEASE
+              assert "--target \"$TESTED_SHA\"" in RELEASE
+
+
+          def test_existing_stable_release_is_a_noop():
+              assert "already exists; no release mutation is required" in RELEASE
+              assert "gh release edit" not in RELEASE
+          '''
+          test = test.replace("          ", "")
+
+          Path(".github/workflows/ci.yml").write_text(ci, encoding="utf-8")
+          Path(".github/workflows/release.yml").write_text(release, encoding="utf-8")
+          Path("tests/test_release_workflow_contract.py").write_text(test, encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8")
+          marker = "# 更新\n\n## 未發佈\n\n"
+          bullet = (
+              "- GitHub Release 改為只在 `main` 的 CI 成功後處理同一個已測試 commit，"
+              "並在該 SHA 已落後於主線時安全跳過；CI／Release 的官方 Actions 全部鎖定"
+              "完整 commit SHA，Node 與 Python 工具鏈亦明確固定，避免發布競態與浮動 action 供應鏈漂移。\n"
+          )
+          if marker not in text:
+              raise SystemExit("CHANGELOG.md 未找到未發佈區段")
+          if bullet not in text:
+              text = text.replace(marker, marker + bullet, 1)
+              changelog.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Run focused workflow contract
+        run: python -m pytest -q tests/test_release_workflow_contract.py
+
+      - name: Commit generated repair
+        env:
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml .github/workflows/release.yml tests/test_release_workflow_contract.py CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "fix(P1): gate releases on the tested CI revision"
+          git push origin "HEAD:${BRANCH}"
