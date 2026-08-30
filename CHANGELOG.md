@@ -2,6 +2,7 @@
 
 ## 未發佈
 
+- GitHub Release 改為只在 `main` 的 CI 成功後處理同一個已測試 commit，並在該 SHA 已落後於主線時安全跳過；CI／Release 的官方 Actions 全部鎖定完整 commit SHA，Node 與 Python 工具鏈亦明確固定，避免發布競態與浮動 action 供應鏈漂移。
 - 自更新新增可恢复事务日志与受管安装清单：文件替换期间异常中断会在下次启动自动回滚，后续版本可安全清理 manifest 已知的废弃代码／资源；同时纠正 AstrBot 最低版本声明为 `>=4.26.0`，Market Smoke 同时验证最低正式版与当前 master，并扩大核心源码触发范围。
 - 管理面板「近 14 日猪圈脉搏」将与日活重复的每日抽取序列替换为「重复抽中」，按 `max(0, draws - new_unlocks)` 派生，并同步图例、提示、无障碍标签与 14 日摘要；累计抽取与后端 overview 数据契约保持不变。
 - Felis 34 項直讀資源的專案自有 EX1–EX5 文案層已完成前三批逐豬精修：目前 22 隻按基礎圖片、原始語義與實際網路梗逐級手寫，其餘 12 隻繼續由本倉庫語義種子生成；不讀取 Felis EX/variant 文案或圖片，固定 allowlist、provenance 與 text-only 合約維持不變。
