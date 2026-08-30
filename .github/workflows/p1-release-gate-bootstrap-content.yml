@@ -1,0 +1,93 @@
+name: Commit validated RollPig release support files
+
+on:
+  push:
+    branches:
+      - fix/p1-release-ci-gate
+    paths:
+      - .github/workflows/p1-release-gate-bootstrap-content.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact repair revision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --depth=1 origin "${REVISION}"
+          git checkout -B "${BRANCH}" FETCH_HEAD
+
+      - name: Recreate the fully validated candidate files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          source = Path('.github/workflows/p1-release-gate-bootstrap-testfix.yml').read_text(encoding='utf-8')
+          blocks = (
+              (
+                  '      - name: Re-run the validated workflow generators\n        run: |\n',
+                  '\n      - name: Write parser tests without nested string escaping\n',
+                  '/tmp/regenerate.sh',
+              ),
+              (
+                  '      - name: Write parser tests without nested string escaping\n        run: |\n',
+                  '\n      - name: Install focused validation dependencies\n',
+                  '/tmp/write-parser-tests.sh',
+              ),
+          )
+          for start, end, output in blocks:
+              if start not in source or end not in source:
+                  raise SystemExit(f'无法定位已验证生成步骤: {output}')
+              block = source.split(start, 1)[1].split(end, 1)[0]
+              Path(output).write_text(dedent(block), encoding='utf-8')
+          PY
+          bash /tmp/regenerate.sh
+          bash /tmp/write-parser-tests.sh
+
+      - name: Validate all generated candidates again
+        run: |
+          python -m pip install --disable-pip-version-check pytest PyYAML
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in (
+              Path('.github/workflows/ci.yml'),
+              Path('.github/workflows/release.yml'),
+          ):
+              document = yaml.safe_load(path.read_text(encoding='utf-8'))
+              if not isinstance(document, dict) or 'jobs' not in document:
+                  raise SystemExit(f'{path} is not a valid workflow mapping')
+          PY
+          python -m pytest -q \
+            tests/test_release_workflow_contract.py \
+            tests/test_release_metadata.py
+          python scripts/release_metadata.py > /tmp/release-metadata.out
+          grep -Fx 'tag=v3.12.0' /tmp/release-metadata.out
+
+      - name: Commit only files allowed by the Actions token
+        env:
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/release_metadata.py \
+            tests/test_release_workflow_contract.py \
+            tests/test_release_metadata.py \
+            CHANGELOG.md
+          git commit -m "test(P1): add RollPig release gate contracts"
+          git push origin "HEAD:${BRANCH}"
