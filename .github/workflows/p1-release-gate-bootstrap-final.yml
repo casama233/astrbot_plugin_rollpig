@@ -1,0 +1,87 @@
+name: Finalize RollPig P1 release gate bootstrap
+
+on:
+  push:
+    branches:
+      - fix/p1-release-ci-gate
+    paths:
+      - .github/workflows/p1-release-gate-bootstrap-final.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact repair revision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --depth=1 origin "${REVISION}"
+          git checkout -B "${BRANCH}" FETCH_HEAD
+
+      - name: Run the audited generator without destructive dedenting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          source = Path('.github/workflows/p1-release-gate-bootstrap.yml').read_text(encoding='utf-8')
+          start_marker = (
+              '      - name: Write tested-SHA release gate and regression contract\n'
+              '        run: |\n'
+          )
+          end_marker = '\n      - name: Run focused workflow contract\n'
+          if start_marker not in source or end_marker not in source:
+              raise SystemExit('无法定位已审计的生成脚本')
+          block = source.split(start_marker, 1)[1].split(end_marker, 1)[0]
+          block = dedent(block)
+          for old, new in (
+              ('ci = ci.replace("          ", "")', 'ci = ci'),
+              ('release = release.replace("          ", "")', 'release = release'),
+              ('test = test.replace("          ", "")', 'test = test'),
+          ):
+              if old not in block:
+                  raise SystemExit(f'无法定位生成器修正点: {old}')
+              block = block.replace(old, new, 1)
+          Path('/tmp/apply-release-gate.sh').write_text(block, encoding='utf-8')
+          PY
+          bash /tmp/apply-release-gate.sh
+
+      - name: Install focused validation dependencies
+        run: python -m pip install --disable-pip-version-check pytest PyYAML
+
+      - name: Parse workflows and run release contract tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in (
+              Path('.github/workflows/ci.yml'),
+              Path('.github/workflows/release.yml'),
+          ):
+              document = yaml.safe_load(path.read_text(encoding='utf-8'))
+              if not isinstance(document, dict) or 'jobs' not in document:
+                  raise SystemExit(f'{path} is not a valid workflow mapping')
+          PY
+          python -m pytest -q tests/test_release_workflow_contract.py
+
+      - name: Commit generated repair
+        env:
+          BRANCH: fix/p1-release-ci-gate
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml .github/workflows/release.yml tests/test_release_workflow_contract.py CHANGELOG.md
+          git commit -m "fix(P1): gate releases on the tested CI revision"
+          git push origin "HEAD:${BRANCH}"
