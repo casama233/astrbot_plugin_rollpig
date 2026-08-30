@@ -1,65 +1,73 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - metadata.yaml
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-main
   cancel-in-progress: false
 
 jobs:
   publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Check out the exact CI-tested revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
 
-      - name: Resolve stable release metadata
-        id: meta
+      - name: Reject a stale or substituted revision
+        id: current
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import re
-          from pathlib import Path
+          set -euo pipefail
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$TESTED_SHA" ]]; then
+            echo "::error::Checked-out revision does not match the successful CI revision"
+            exit 1
+          fi
 
-          text = Path('metadata.yaml').read_text(encoding='utf-8')
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          latest_main_sha="$(git rev-parse refs/remotes/origin/main)"
+          if [[ "$latest_main_sha" != "$TESTED_SHA" ]]; then
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping stale tested revision $TESTED_SHA; main is now $latest_main_sha"
+            exit 0
+          fi
+          echo "current=true" >> "$GITHUB_OUTPUT"
 
-          def field(name: str) -> str:
-              match = re.search(
-                  rf'^{re.escape(name)}:\s*["\x27]?([^"\x27\n]+?)["\x27]?\s*$',
-                  text,
-                  re.MULTILINE,
-              )
-              if not match:
-                  raise SystemExit(f'metadata.yaml missing {name}')
-              return match.group(1).strip()
+      - name: Set up Python 3.12
+        if: steps.current.outputs.current == 'true'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
 
-          version = field('version')
-          plugin_name = field('name')
-          display_name = field('display_name')
-          if not re.fullmatch(r'\d+\.\d+\.\d+', version):
-              raise SystemExit('metadata.yaml must contain a stable x.y.z version')
-          if not re.fullmatch(r'[A-Za-z0-9_.-]+', plugin_name):
-              raise SystemExit('metadata.yaml contains an unsafe plugin name')
-
-          print(f'version={version}')
-          print(f'tag=v{version}')
-          print(f'plugin_name={plugin_name}')
-          print(f'display_name={display_name}')
-          print(f'archive={plugin_name}-v{version}.zip')
-          PY
+      - name: Resolve stable release metadata
+        if: steps.current.outputs.current == 'true'
+        id: meta
+        run: python scripts/release_metadata.py >> "$GITHUB_OUTPUT"
 
       - name: Enforce release changelog and Wiki contract
+        if: steps.current.outputs.current == 'true'
         run: python scripts/maintenance_contract.py release
 
-      - name: Check whether release exists
+      - name: Check whether the stable release already exists
+        if: steps.current.outputs.current == 'true'
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,27 +75,13 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Stable release $TAG already exists; no release mutation is required."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Refresh existing stable GitHub Release notes
-        if: steps.existing.outputs.exists == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.meta.outputs.tag }}
-          DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: |
-          notes_file=".github/release-v${VERSION}.md"
-          if [[ -f "$notes_file" ]]; then
-            gh release edit "$TAG" \
-              --title "$DISPLAY_NAME v$VERSION" \
-              --notes-file "$notes_file"
-          fi
-
       - name: Build release archive and checksum
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.current.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
         env:
           PLUGIN_NAME: ${{ steps.meta.outputs.plugin_name }}
           ARCHIVE: ${{ steps.meta.outputs.archive }}
@@ -117,20 +111,21 @@ jobs:
             --exclude 'plugin_data/'
 
           python scripts/prepare_install_bundle.py "dist/$PLUGIN_NAME"
-          python - <<PY
+          python - <<PYBUNDLE
           import json
           from pathlib import Path
+
           root = Path("dist/$PLUGIN_NAME/resource")
           pigs = json.loads((root / "pig.json").read_text(encoding="utf-8-sig"))
-          images = [p for p in (root / "image").iterdir() if p.is_file()]
+          images = [path for path in (root / "image").iterdir() if path.is_file()]
           assert len(pigs) == 22, len(pigs)
           assert len(images) == 22, len(images)
-          PY
+          PYBUNDLE
 
           test -f "dist/$PLUGIN_NAME/resource/font/荆南麦圆体.otf"
           (cd dist && zip -qr "$ARCHIVE" "$PLUGIN_NAME")
 
-          archive_size=$(stat -c%s "dist/$ARCHIVE")
+          archive_size="$(stat -c%s "dist/$ARCHIVE")"
           marketplace_limit=16000000
           echo "Release archive size: $archive_size bytes"
           if [ "$archive_size" -gt "$marketplace_limit" ]; then
@@ -141,13 +136,14 @@ jobs:
           (cd dist && sha256sum "$ARCHIVE" > SHA256SUMS)
 
       - name: Publish stable GitHub Release
-        if: steps.existing.outputs.exists == 'false'
+        if: steps.current.outputs.current == 'true' && steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.meta.outputs.tag }}
           DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
           VERSION: ${{ steps.meta.outputs.version }}
           ARCHIVE: ${{ steps.meta.outputs.archive }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           notes_file=".github/release-v${VERSION}.md"
           if [[ -f "$notes_file" ]]; then
@@ -158,6 +154,6 @@ jobs:
           gh release create "$TAG" \
             "dist/$ARCHIVE" \
             "dist/SHA256SUMS" \
-            --target "$GITHUB_SHA" \
+            --target "$TESTED_SHA" \
             --title "$DISPLAY_NAME v$VERSION" \
             "${notes_args[@]}"
