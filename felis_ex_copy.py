@@ -12,7 +12,10 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 FELIS_DIRECT_EX_COPY_FILENAME = "felis_direct_ex_copy.json"
 FELIS_DIRECT_EX_COPY_SCOPE = "felis-direct-text-only"
-_REQUIRED_SPEC_FIELDS = {"name", "theme", "progress", "lesson"}
+_LEGACY_SPEC_FIELDS = {"name", "theme", "progress", "lesson"}
+_EXPLICIT_SPEC_FIELDS = {"levels"}
+_REQUIRED_LEVELS = {"1", "2", "3", "4", "5"}
+_REQUIRED_COPY_FIELDS = {"description", "analysis"}
 
 _DESCRIPTION_PATTERNS = (
     "{name} EX1：第一次把{theme}从本能反应变成有意识的练习",
@@ -30,15 +33,50 @@ _ANALYSIS_PATTERNS = (
 )
 
 
+def _normalize_explicit_levels(
+    pig_id: str,
+    raw_levels: object,
+) -> dict[str, dict[str, str]]:
+    if not isinstance(raw_levels, dict) or set(map(str, raw_levels)) != _REQUIRED_LEVELS:
+        raise ValueError(f"{pig_id} 的 Felis EX 手写文案必须完整提供 EX1-EX5")
+
+    levels: dict[str, dict[str, str]] = {}
+    for raw_level, raw_item in raw_levels.items():
+        level = str(raw_level)
+        if not isinstance(raw_item, dict) or set(raw_item) != _REQUIRED_COPY_FIELDS:
+            raise ValueError(f"{pig_id} EX{level} 的手写文案字段不完整")
+        values = {
+            key: str(raw_item.get(key) or "").strip()
+            for key in _REQUIRED_COPY_FIELDS
+        }
+        if not all(values.values()):
+            raise ValueError(f"{pig_id} EX{level} 的手写文案存在空字段")
+        levels[level] = values
+    return levels
+
+
 def _expand_spec_copy(raw_specs: dict[str, object]) -> dict[str, object]:
     pigs: dict[str, dict[str, dict[str, str]]] = {}
     for raw_pig_id, raw_spec in raw_specs.items():
         pig_id = str(raw_pig_id or "").strip()
-        if not isinstance(raw_spec, dict) or set(raw_spec) != _REQUIRED_SPEC_FIELDS:
+        if not isinstance(raw_spec, dict):
             raise ValueError(f"{pig_id} 的 Felis EX 原创规格字段不完整")
-        values = {key: str(raw_spec.get(key) or "").strip() for key in _REQUIRED_SPEC_FIELDS}
+
+        fields = set(raw_spec)
+        if fields == _EXPLICIT_SPEC_FIELDS:
+            pigs[pig_id] = _normalize_explicit_levels(pig_id, raw_spec.get("levels"))
+            continue
+
+        if fields != _LEGACY_SPEC_FIELDS:
+            raise ValueError(f"{pig_id} 的 Felis EX 原创规格字段不完整")
+
+        values = {
+            key: str(raw_spec.get(key) or "").strip()
+            for key in _LEGACY_SPEC_FIELDS
+        }
         if not all(values.values()):
             raise ValueError(f"{pig_id} 的 Felis EX 原创规格存在空字段")
+
         levels: dict[str, dict[str, str]] = {}
         for index in range(5):
             levels[str(index + 1)] = {
@@ -46,6 +84,7 @@ def _expand_spec_copy(raw_specs: dict[str, object]) -> dict[str, object]:
                 "analysis": _ANALYSIS_PATTERNS[index].format(**values),
             }
         pigs[pig_id] = levels
+
     return {"schema_version": 1, "pigs": pigs}
 
 
@@ -58,10 +97,10 @@ def load_felis_direct_ex_copy(
 ) -> dict[str, dict[int, dict[str, str]]]:
     """Load repository-owned EX1-EX5 text for the Felis direct allowlist.
 
-    The authoring file stores only four semantic seed fields per pig and uses a
-    project-owned schema that is deliberately incompatible with Felis upstream
-    EX/variant payloads.  Runtime expansion produces description/analysis only;
-    there is no image field or upstream EX download path.
+    The authoring file supports both the earlier four-field semantic seed format
+    and explicit per-level handwritten copy. This lets the project migrate pigs
+    to fully authored EX1-EX5 prose in reviewable batches without ever importing
+    Felis upstream EX text or EX images.
     """
 
     path = Path(resource_dir) / FELIS_DIRECT_EX_COPY_FILENAME
