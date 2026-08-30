@@ -16,7 +16,7 @@ import time
 import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -31,8 +31,9 @@ class PluginUpdateManager:
 
     The updater deliberately has no arbitrary URL, branch or prerelease input.
     User data lives under AstrBot's plugin data directory and is never included
-    in the replacement set.  Code is staged, validated and backed up before an
-    overlay replacement; a failed replacement restores the previous files.
+    in the replacement set. Code is staged, validated and backed up before an
+    overlay replacement. A durable transaction journal makes interrupted file
+    replacement recoverable on the next plugin load.
     """
 
     OFFICIAL_REPOSITORY = "casama233/astrbot_plugin_rollpig"
@@ -67,6 +68,12 @@ class PluginUpdateManager:
         "data",
         "plugin_data",
     }
+    PROTECTED_FILE_NAMES = {
+        ".env",
+        "update_state.json",
+        "update_manifest.json",
+        "update_transaction.json",
+    }
 
     def __init__(
         self,
@@ -89,7 +96,10 @@ class PluginUpdateManager:
         self._last_result: dict[str, Any] | None = None
         self.backup_root = self.data_dir / "update_backups"
         self.state_path = self.data_dir / "update_state.json"
-        self.backup_root.mkdir(parents=True, exist_ok=True)
+        self.manifest_path = self.data_dir / "update_manifest.json"
+        self.journal_path = self.data_dir / "update_transaction.json"
+        self._ensure_directory_durable(self.backup_root)
+        self._recover_interrupted_update()
 
     @staticmethod
     def _normalise_version(value: str) -> str:
@@ -448,6 +458,7 @@ class PluginUpdateManager:
     def _stage_validate_and_apply(
         self, raw: bytes, release: dict[str, Any], actual_sha256: str
     ) -> dict[str, Any]:
+        warnings: list[str] = []
         with tempfile.TemporaryDirectory(prefix="rollpig-update-") as temporary_root:
             root = Path(temporary_root)
             archive_path = root / "release.zip"
@@ -456,12 +467,84 @@ class PluginUpdateManager:
             staging.mkdir()
             self._safe_extract(archive_path, staging)
             self._validate_staging(staging, str(release["latest_version"]))
+
+            target_files = self._tree_manifest(staging)
+            previous_files = self._load_install_manifest()
+            obsolete_files = sorted(previous_files.difference(target_files))
+            planned_created = sorted(
+                relative
+                for relative in target_files
+                if not (self.plugin_dir / Path(relative)).exists()
+            )
+            removed_count = sum(
+                1
+                for relative in obsolete_files
+                if (self.plugin_dir / Path(relative)).is_file()
+                or (self.plugin_dir / Path(relative)).is_symlink()
+            )
+
             backup_dir = self._create_backup(str(release["current_version"]))
+            replacing = {
+                "status": "replacing",
+                "from_version": str(release["current_version"]),
+                "to_version": str(release["latest_version"]),
+                "backup_dir": str(backup_dir),
+                "created_files": planned_created,
+                "obsolete_files": obsolete_files,
+                "started_at": int(time.time()),
+            }
+            self._write_journal(replacing)
             try:
-                written_count = self._overlay_install(staging, backup_dir)
+                written_count = self._overlay_install(
+                    staging,
+                    backup_dir,
+                    obsolete_files=obsolete_files,
+                )
+                self._write_journal(
+                    {
+                        **replacing,
+                        "status": "committed",
+                        "manifest_version": str(release["latest_version"]),
+                        "manifest_files": sorted(target_files),
+                        "committed_at": int(time.time()),
+                    }
+                )
             except Exception as exc:
-                self._restore_backup(backup_dir)
+                try:
+                    self._restore_backup(backup_dir)
+                    self._remove_created_files(planned_created)
+                    self._clear_journal()
+                except Exception as rollback_exc:
+                    raise UpdateError(
+                        "文件替换失败，立即回滚未完成；已保留恢复日志，"
+                        f"下次启动将再次尝试恢复：{rollback_exc}"
+                    ) from exc
                 raise UpdateError(f"文件替换失败，已回滚：{exc}") from exc
+
+        # The committed journal is the durable commit point. If the process is
+        # killed before it is written, the next manager construction restores
+        # the backup. If it is killed afterwards, the new plugin is retained.
+        manifest_written = False
+        try:
+            self._write_install_manifest(
+                str(release["latest_version"]), target_files
+            )
+            manifest_written = True
+        except OSError as exc:
+            warning = f"代码已更新，但安装清单写入失败：{type(exc).__name__}"
+            warnings.append(warning)
+            self._log("warning", warning)
+        if manifest_written:
+            try:
+                self._clear_journal()
+            except OSError as exc:
+                warning = f"代码已更新，但事务日志清理失败：{type(exc).__name__}"
+                warnings.append(warning)
+                self._log("warning", warning)
+        else:
+            warning = "已保留 committed 更新事务日志，下次启动会补写安装清单"
+            warnings.append(warning)
+            self._log("warning", warning)
 
         state = {
             "status": "installed-restart-required",
@@ -472,9 +555,9 @@ class PluginUpdateManager:
             "checksum_verified": bool(release.get("checksum_available")),
             "backup_dir": str(backup_dir),
             "written_files": written_count,
+            "removed_files": removed_count,
             "restart_required": True,
         }
-        warnings: list[str] = []
         try:
             self._write_state(state)
         except OSError as exc:
@@ -522,19 +605,25 @@ class PluginUpdateManager:
                     raise UpdateError("ZIP 包含符号链接，已拒绝")
                 if item.file_size > self.MAX_SINGLE_FILE_BYTES:
                     raise UpdateError(f"ZIP 单文件过大：{item.filename}")
-                if item.compress_size and item.file_size > item.compress_size * 250 + 1024 * 1024:
+                if (
+                    item.compress_size
+                    and item.file_size
+                    > item.compress_size * 250 + 1024 * 1024
+                ):
                     raise UpdateError(f"ZIP 文件压缩比异常：{item.filename}")
                 parsed.append((item, tuple(path.parts)))
 
             first_parts = {parts[0] for _, parts in parsed}
-            strip_root = len(first_parts) == 1 and all(len(parts) > 1 for _, parts in parsed)
+            strip_root = len(first_parts) == 1 and all(
+                len(parts) > 1 for _, parts in parsed
+            )
             for item, parts in parsed:
                 relative_parts = parts[1:] if strip_root else parts
                 if not relative_parts:
                     continue
                 if relative_parts[0] in self.PROTECTED_TOP_LEVEL:
                     continue
-                if relative_parts[-1] in {".env", "update_state.json"}:
+                if relative_parts[-1] in self.PROTECTED_FILE_NAMES:
                     continue
                 relative = Path(*relative_parts)
                 destination = (staging / relative).resolve()
@@ -545,19 +634,31 @@ class PluginUpdateManager:
                     shutil.copyfileobj(source, target, length=1024 * 1024)
 
     def _validate_staging(self, staging: Path, expected_version: str) -> None:
-        required = [staging / "main.py", staging / "metadata.yaml", staging / "resource" / "pig.json"]
+        required = [
+            staging / "main.py",
+            staging / "metadata.yaml",
+            staging / "resource" / "pig.json",
+        ]
         if any(not path.is_file() for path in required):
             raise UpdateError("Release 缺少 main.py、metadata.yaml 或 resource/pig.json")
         metadata = (staging / "metadata.yaml").read_text(encoding="utf-8")
         name = re.search(r'^name:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
-        author = re.search(r'^author:\s*["\']?([^"\'\n]+?)["\']?\s*$', metadata, re.MULTILINE)
+        author = re.search(
+            r'^author:\s*["\']?([^"\'\n]+?)["\']?\s*$', metadata, re.MULTILINE
+        )
         repo = re.search(r'^repo:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
-        version = re.search(r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
+        version = re.search(
+            r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE
+        )
         if not name or name.group(1) != "astrbot_plugin_rollpig_plus":
             raise UpdateError("Release metadata 插件名不匹配")
         if not author or author.group(1).strip() != "casama233":
             raise UpdateError("Release metadata 作者身份不匹配")
-        if not repo or repo.group(1).rstrip("/") != f"https://github.com/{self.OFFICIAL_REPOSITORY}":
+        if (
+            not repo
+            or repo.group(1).rstrip("/")
+            != f"https://github.com/{self.OFFICIAL_REPOSITORY}"
+        ):
             raise UpdateError("Release metadata 官方仓库不匹配")
         if not version or self._normalise_version(version.group(1)) != expected_version:
             raise UpdateError("Release metadata 版本与 GitHub tag 不匹配")
@@ -587,47 +688,49 @@ class PluginUpdateManager:
             return ignored
 
         shutil.copytree(self.plugin_dir, plugin_backup, ignore=ignore)
+        self._fsync_tree(plugin_backup)
+        self._fsync_directory(backup_dir)
+        self._fsync_directory(self.backup_root)
         return backup_dir
 
-    def _overlay_install(self, staging: Path, backup_dir: Path) -> int:
-        created: list[Path] = []
+    def _overlay_install(
+        self,
+        staging: Path,
+        backup_dir: Path,
+        *,
+        obsolete_files: Iterable[str] = (),
+    ) -> int:
+        sources = sorted(path for path in staging.rglob("*") if path.is_file())
+        created = [
+            self.plugin_dir / source.relative_to(staging)
+            for source in sources
+            if not (self.plugin_dir / source.relative_to(staging)).exists()
+        ]
+        # Persist this before mutating plugin files so normal exception rollback
+        # and legacy recovery both know which files did not exist beforehand.
+        self._atomic_write_json(
+            backup_dir / "created_files.json",
+            [str(path.relative_to(self.plugin_dir)) for path in created],
+        )
         written = 0
-        try:
-            for source in sorted(path for path in staging.rglob("*") if path.is_file()):
-                relative = source.relative_to(staging)
-                target = self.plugin_dir / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                if not target.exists():
-                    created.append(target)
-                temporary = target.with_name(f".{target.name}.update-{uuid.uuid4().hex}")
-                shutil.copy2(source, temporary)
-                os.replace(temporary, target)
-                written += 1
-            (backup_dir / "created_files.json").write_text(
-                json.dumps(
-                    [str(path.relative_to(self.plugin_dir)) for path in created],
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
-            return written
-        except Exception:
-            for target in created:
-                try:
-                    target.unlink(missing_ok=True)
-                except OSError:
-                    pass
-            raise
+        for source in sources:
+            relative = source.relative_to(staging)
+            target = self.plugin_dir / relative
+            self._ensure_directory_durable(target.parent)
+            temporary = target.with_name(f".{target.name}.update-{uuid.uuid4().hex}")
+            self._copy_replace_durable(source, temporary, target)
+            written += 1
+        self._remove_obsolete_files(obsolete_files)
+        return written
 
     def _restore_backup(self, backup_dir: Path) -> None:
         plugin_backup = backup_dir / "plugin"
         created_file = backup_dir / "created_files.json"
         if created_file.exists():
             try:
-                for relative in json.loads(created_file.read_text(encoding="utf-8")):
-                    target = self.plugin_dir / str(relative)
-                    target.unlink(missing_ok=True)
+                created = json.loads(created_file.read_text(encoding="utf-8"))
+                if isinstance(created, list):
+                    self._remove_created_files(str(item) for item in created)
             except (OSError, ValueError, json.JSONDecodeError):
                 pass
         if not plugin_backup.exists():
@@ -635,18 +738,210 @@ class PluginUpdateManager:
         for source in sorted(path for path in plugin_backup.rglob("*") if path.is_file()):
             relative = source.relative_to(plugin_backup)
             target = self.plugin_dir / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            temporary = target.with_name(f".{target.name}.rollback-{uuid.uuid4().hex}")
-            shutil.copy2(source, temporary)
-            os.replace(temporary, target)
+            self._ensure_directory_durable(target.parent)
+            temporary = target.with_name(
+                f".{target.name}.rollback-{uuid.uuid4().hex}"
+            )
+            self._copy_replace_durable(source, temporary, target)
+
+    def _tree_manifest(self, root: Path) -> set[str]:
+        return {
+            path.relative_to(root).as_posix()
+            for path in root.rglob("*")
+            if path.is_file()
+        }
+
+    def _safe_managed_relative(self, value: Any) -> str | None:
+        text = str(value or "")
+        if not text or "\\" in text or "\x00" in text:
+            return None
+        path = PurePosixPath(text)
+        if path.is_absolute() or not path.parts or ".." in path.parts:
+            return None
+        if path.parts[0] in self.PROTECTED_TOP_LEVEL:
+            return None
+        if path.name in self.PROTECTED_FILE_NAMES:
+            return None
+        return path.as_posix()
+
+    def _load_install_manifest(self) -> set[str]:
+        if not self.manifest_path.exists():
+            return set()
+        try:
+            payload = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            self._log(
+                "warning",
+                f"更新安装清单无法读取，本次将跳过旧文件清理：{type(exc).__name__}",
+            )
+            return set()
+        files = payload.get("files") if isinstance(payload, dict) else None
+        if not isinstance(files, list):
+            return set()
+        result: set[str] = set()
+        for item in files:
+            safe = self._safe_managed_relative(item)
+            if safe:
+                result.add(safe)
+        return result
+
+    def _write_install_manifest(self, version: str, files: Iterable[str]) -> None:
+        safe_files = sorted(
+            safe
+            for item in files
+            if (safe := self._safe_managed_relative(item)) is not None
+        )
+        payload = {
+            "version": self._normalise_version(version),
+            "files": safe_files,
+            "written_at": int(time.time()),
+        }
+        self._atomic_write_json(self.manifest_path, payload)
+
+    def _remove_obsolete_files(self, relative_files: Iterable[str]) -> None:
+        for item in relative_files:
+            safe = self._safe_managed_relative(item)
+            if not safe:
+                continue
+            target = self.plugin_dir / Path(safe)
+            if target.is_file() or target.is_symlink():
+                target.unlink(missing_ok=True)
+                self._fsync_directory(target.parent)
+
+    def _remove_created_files(self, relative_files: Iterable[str]) -> None:
+        for item in relative_files:
+            safe = self._safe_managed_relative(item)
+            if not safe:
+                continue
+            target = self.plugin_dir / Path(safe)
+            if target.is_file() or target.is_symlink():
+                target.unlink(missing_ok=True)
+                self._fsync_directory(target.parent)
+
+    def _write_journal(self, payload: dict[str, Any]) -> None:
+        self._atomic_write_json(self.journal_path, payload)
+
+    def _clear_journal(self) -> None:
+        if not self.journal_path.exists():
+            return
+        self.journal_path.unlink()
+        self._fsync_directory(self.journal_path.parent)
+
+    def _journal_backup_dir(self, value: Any) -> Path:
+        try:
+            candidate = Path(str(value or "")).resolve()
+        except (OSError, RuntimeError) as exc:
+            raise UpdateError("更新恢复日志中的备份路径无效") from exc
+        root = self.backup_root.resolve()
+        if candidate == root or root not in candidate.parents:
+            raise UpdateError("更新恢复日志中的备份路径越界")
+        return candidate
+
+    def _recover_interrupted_update(self) -> None:
+        if not self.journal_path.exists():
+            return
+        try:
+            payload = json.loads(self.journal_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise UpdateError("检测到损坏的更新恢复日志，已停止自动更新恢复") from exc
+        if not isinstance(payload, dict):
+            raise UpdateError("检测到无效的更新恢复日志，已停止自动更新恢复")
+
+        status = str(payload.get("status") or "")
+        if status == "committed":
+            manifest_files = payload.get("manifest_files")
+            manifest_version = str(
+                payload.get("manifest_version") or payload.get("to_version") or ""
+            )
+            if isinstance(manifest_files, list) and manifest_version:
+                self._write_install_manifest(
+                    manifest_version, (str(item) for item in manifest_files)
+                )
+            self._clear_journal()
+            return
+        if status != "replacing":
+            raise UpdateError(f"检测到未知更新事务状态：{status or 'empty'}")
+
+        backup_dir = self._journal_backup_dir(payload.get("backup_dir"))
+        if not (backup_dir / "plugin").is_dir():
+            raise UpdateError("检测到未完成更新，但对应备份不存在，无法自动恢复")
+        created = payload.get("created_files")
+        created_files = created if isinstance(created, list) else []
+
+        try:
+            self._restore_backup(backup_dir)
+            self._remove_created_files(str(item) for item in created_files)
+            self._clear_journal()
+        except Exception as exc:
+            raise UpdateError(f"未完成更新自动恢复失败：{exc}") from exc
+        self._log(
+            "warning",
+            "检测到上次更新在文件替换期间中断，已从备份自动恢复旧版本",
+        )
+
+    def _atomic_write_json(self, path: Path, payload: Any) -> None:
+        self._ensure_directory_durable(path.parent)
+        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        self._fsync_directory(path.parent)
+
+    def _ensure_directory_durable(self, path: Path) -> None:
+        if path.exists():
+            return
+        missing: list[Path] = []
+        current = path
+        while not current.exists():
+            missing.append(current)
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        for directory in reversed(missing):
+            directory.mkdir(exist_ok=True)
+            self._fsync_directory(directory.parent)
+
+    @staticmethod
+    def _fsync_directory(path: Path) -> None:
+        if os.name == "nt":
+            return
+        descriptor = os.open(
+            path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        )
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    def _fsync_tree(self, root: Path) -> None:
+        for item in root.rglob("*"):
+            if item.is_file():
+                with item.open("rb") as handle:
+                    os.fsync(handle.fileno())
+        if os.name != "nt":
+            directories = sorted(
+                (item for item in root.rglob("*") if item.is_dir()),
+                key=lambda item: len(item.parts),
+                reverse=True,
+            )
+            for directory in directories:
+                self._fsync_directory(directory)
+            self._fsync_directory(root)
+
+    def _copy_replace_durable(
+        self, source: Path, temporary: Path, target: Path
+    ) -> None:
+        shutil.copy2(source, temporary)
+        with temporary.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        self._fsync_directory(target.parent)
 
     def _write_state(self, state: dict[str, Any]) -> None:
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.state_path.with_name(f".{self.state_path.name}.{uuid.uuid4().hex}.tmp")
-        temporary.write_text(
-            json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        os.replace(temporary, self.state_path)
+        self._atomic_write_json(self.state_path, state)
 
     def _prune_backups(self) -> None:
         backups = sorted(
