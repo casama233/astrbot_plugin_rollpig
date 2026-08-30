@@ -47,6 +47,24 @@ def _release_zip(version: str = "2.8.0", extra: dict[str, bytes] | None = None) 
     return buffer.getvalue()
 
 
+def _apply_release(
+    manager: PluginUpdateManager,
+    raw: bytes,
+    *,
+    current_version: str,
+    latest_version: str,
+) -> dict:
+    return manager._stage_validate_and_apply(
+        raw,
+        {
+            "current_version": current_version,
+            "latest_version": latest_version,
+            "checksum_available": True,
+        },
+        hashlib.sha256(raw).hexdigest(),
+    )
+
+
 def test_json_storage_preserves_default_and_recovers_backup(tmp_path):
     path = tmp_path / "state.json"
     storage = JSONStorage()
@@ -113,20 +131,174 @@ def test_updater_rejects_zip_slip(tmp_path):
 def test_updater_stages_valid_official_release(tmp_path):
     manager = _manager(tmp_path)
     raw = _release_zip(extra={"updater.py": b"VALUE = 3\n"})
-    result = manager._stage_validate_and_apply(
+    result = _apply_release(
+        manager,
         raw,
-        {
-            "current_version": "2.7.0",
-            "latest_version": "2.8.0",
-            "checksum_available": True,
-        },
-        hashlib.sha256(raw).hexdigest(),
+        current_version="2.7.0",
+        latest_version="2.8.0",
     )
     assert result["to_version"] == "2.8.0"
     assert result["restart_required"] is True
     assert (manager.plugin_dir / "main.py").read_text(encoding="utf-8") == "VALUE = 2\n"
     assert (manager.data_dir / "update_state.json").exists()
+    assert (manager.data_dir / "update_manifest.json").exists()
+    assert not (manager.data_dir / "update_transaction.json").exists()
     assert list((manager.data_dir / "update_backups").iterdir())
+
+
+def test_updater_recovers_interrupted_replacement_on_next_start(tmp_path):
+    manager = _manager(tmp_path)
+    backup_dir = manager._create_backup("2.7.0")
+    manager._write_journal(
+        {
+            "status": "replacing",
+            "from_version": "2.7.0",
+            "to_version": "2.8.0",
+            "backup_dir": str(backup_dir),
+            "created_files": ["new_module.py"],
+        }
+    )
+
+    (manager.plugin_dir / "main.py").write_text("VALUE = 999\n", encoding="utf-8")
+    (manager.plugin_dir / "new_module.py").write_text("NEW = True\n", encoding="utf-8")
+
+    recovered = PluginUpdateManager(manager.plugin_dir, manager.data_dir)
+    assert (recovered.plugin_dir / "main.py").read_text(encoding="utf-8") == "VALUE = 1\n"
+    assert not (recovered.plugin_dir / "new_module.py").exists()
+    assert not recovered.journal_path.exists()
+
+
+def test_updater_committed_journal_finishes_manifest_without_rollback(tmp_path):
+    manager = _manager(tmp_path)
+    backup_dir = manager._create_backup("2.7.0")
+    (manager.plugin_dir / "main.py").write_text("VALUE = 2\n", encoding="utf-8")
+    manager._write_journal(
+        {
+            "status": "committed",
+            "to_version": "2.8.0",
+            "backup_dir": str(backup_dir),
+            "manifest_version": "2.8.0",
+            "manifest_files": ["main.py", "metadata.yaml", "resource/pig.json"],
+        }
+    )
+
+    recovered = PluginUpdateManager(manager.plugin_dir, manager.data_dir)
+    assert (recovered.plugin_dir / "main.py").read_text(encoding="utf-8") == "VALUE = 2\n"
+    manifest = json.loads(recovered.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["version"] == "2.8.0"
+    assert "main.py" in manifest["files"]
+    assert not recovered.journal_path.exists()
+
+
+def test_updater_keeps_committed_journal_when_manifest_write_fails(tmp_path, monkeypatch):
+    manager = _manager(tmp_path)
+    raw = _release_zip()
+    real_write_manifest = manager._write_install_manifest
+    calls = 0
+
+    def fail_once(version, files):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("simulated manifest persistence failure")
+        return real_write_manifest(version, files)
+
+    monkeypatch.setattr(manager, "_write_install_manifest", fail_once)
+    result = _apply_release(
+        manager,
+        raw,
+        current_version="2.7.0",
+        latest_version="2.8.0",
+    )
+
+    assert result["status"] == "installed-restart-required"
+    assert manager.journal_path.exists()
+    journal = json.loads(manager.journal_path.read_text(encoding="utf-8"))
+    assert journal["status"] == "committed"
+    assert journal["manifest_version"] == "2.8.0"
+    assert "main.py" in journal["manifest_files"]
+
+    recovered = PluginUpdateManager(manager.plugin_dir, manager.data_dir)
+    assert recovered.manifest_path.exists()
+    assert not recovered.journal_path.exists()
+
+
+def test_updater_fsyncs_parents_when_creating_new_directory_tree(tmp_path, monkeypatch):
+    manager = _manager(tmp_path)
+    calls = []
+
+    monkeypatch.setattr(manager, "_fsync_directory", lambda path: calls.append(path.resolve()))
+    nested = manager.plugin_dir / "new-package" / "nested"
+    manager._ensure_directory_durable(nested)
+
+    assert nested.is_dir()
+    assert manager.plugin_dir.resolve() in calls
+    assert (manager.plugin_dir / "new-package").resolve() in calls
+
+
+def test_atomic_json_write_fsyncs_file_and_directory(tmp_path, monkeypatch):
+    manager = _manager(tmp_path)
+    real_fsync = os.fsync
+    calls = []
+
+    def recording_fsync(fd):
+        calls.append(fd)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", recording_fsync)
+    manager._atomic_write_json(manager.data_dir / "durable.json", {"ok": True})
+
+    assert calls
+    if os.name != "nt":
+        assert len(calls) >= 2
+
+
+def test_updater_manifest_removes_only_previously_managed_obsolete_files(tmp_path):
+    manager = _manager(tmp_path)
+    local_file = manager.plugin_dir / "local-note.txt"
+    local_file.write_text("keep local file\n", encoding="utf-8")
+
+    first = _release_zip(
+        extra={
+            "obsolete.py": b"OLD = True\n",
+            "kept.py": b"VALUE = 1\n",
+        }
+    )
+    _apply_release(
+        manager,
+        first,
+        current_version="2.7.0",
+        latest_version="2.8.0",
+    )
+    assert (manager.plugin_dir / "obsolete.py").exists()
+
+    second = _release_zip("2.9.0", extra={"kept.py": b"VALUE = 2\n"})
+    result = _apply_release(
+        manager,
+        second,
+        current_version="2.8.0",
+        latest_version="2.9.0",
+    )
+
+    assert not (manager.plugin_dir / "obsolete.py").exists()
+    assert local_file.exists()
+    assert result["removed_files"] == 1
+    manifest = json.loads(manager.manifest_path.read_text(encoding="utf-8"))
+    assert "obsolete.py" not in manifest["files"]
+    assert "kept.py" in manifest["files"]
+
+
+def test_updater_recovery_rejects_backup_path_outside_managed_root(tmp_path):
+    manager = _manager(tmp_path)
+    manager._write_journal(
+        {
+            "status": "replacing",
+            "backup_dir": str(tmp_path / "outside"),
+            "created_files": [],
+        }
+    )
+    with pytest.raises(UpdateError, match="备份路径越界"):
+        PluginUpdateManager(manager.plugin_dir, manager.data_dir)
 
 
 def test_unsigned_release_requires_explicit_confirmation(tmp_path, monkeypatch):
@@ -177,14 +349,11 @@ def test_state_write_failure_is_reported_as_warning_after_valid_install(tmp_path
         raise OSError("disk metadata write failure")
 
     monkeypatch.setattr(manager, "_write_state", fail_state)
-    result = manager._stage_validate_and_apply(
+    result = _apply_release(
+        manager,
         raw,
-        {
-            "current_version": "2.7.0",
-            "latest_version": "2.8.0",
-            "checksum_available": True,
-        },
-        hashlib.sha256(raw).hexdigest(),
+        current_version="2.7.0",
+        latest_version="2.8.0",
     )
 
     assert result["status"] == "installed-restart-required"

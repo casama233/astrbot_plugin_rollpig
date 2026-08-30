@@ -5,7 +5,11 @@ on:
     branches:
       - main
     paths:
-      - "main.py"
+      - "*.py"
+      - "storage/**"
+      - "services/**"
+      - "renderers/**"
+      - "resource/**"
       - "metadata.yaml"
       - "requirements.txt"
       - "_conf_schema.json"
@@ -16,7 +20,16 @@ on:
 
 jobs:
   official-market-smoke:
+    name: AstrBot ${{ matrix.astrbot_ref }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        astrbot_ref:
+          - v4.26.0
+          - master
+    env:
+      ASTRBOT_REF: ${{ matrix.astrbot_ref }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -29,15 +42,15 @@ jobs:
       - name: Install validator dependencies
         run: python -m pip install --upgrade pip pyyaml
 
-      - name: Clone current AstrBot and official market validator
+      - name: Clone target AstrBot and official market validator
         run: |
-          git clone --depth 1 --branch master https://github.com/AstrBotDevs/AstrBot .cache/AstrBot
+          git clone --depth 1 --branch "$ASTRBOT_REF" https://github.com/AstrBotDevs/AstrBot .cache/AstrBot
           git clone --depth 1 --branch main https://github.com/AstrBotDevs/AstrBot_Plugins_Collection .cache/PluginCollection
 
       - name: Install AstrBot dependencies
         run: python -m pip install -r .cache/AstrBot/requirements.txt
 
-      - name: Verify command dispatch ownership and script compatibility on current AstrBot
+      - name: Verify command dispatch ownership and script compatibility
         run: |
           mkdir -p .cache/runtime/data/plugins
           ln -s "$GITHUB_WORKSPACE" .cache/runtime/data/plugins/astrbot_plugin_rollpig_plus
@@ -236,6 +249,7 @@ jobs:
               },
               'results': [payload],
               'checked_revision': os.environ.get('GITHUB_SHA'),
+              'astrbot_ref': os.environ.get('ASTRBOT_REF'),
               'validation_mode': 'official-worker-current-checkout',
           }
           Path('astrbot-market-smoke-report.json').write_text(
@@ -249,6 +263,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: astrbot-market-smoke-report
+          name: astrbot-market-smoke-report-${{ matrix.astrbot_ref }}
           path: astrbot-market-smoke-report.json
           if-no-files-found: warn
