@@ -6,7 +6,7 @@ desc: "基於 AstrBot RollPig 持續維護並擴展；部分後續功能參考�
 version: "3.12.0"
 author: "casama233"
 repo: "https://github.com/casama233/astrbot_plugin_rollpig"
-astrbot_version: ">=4.24.2"
+astrbot_version: ">=4.26.0"
 social_link: "https://github.com/casama233"
 tags:
   - "娛樂"
