@@ -3,6 +3,7 @@
 ## 未發佈
 
 - P2 架構收斂新增 `legacy_main.py` shrink-only budget：以 2026-08-31 的 286,646 bytes 為硬上限，CI 禁止 legacy 相容層重新膨脹；新功能必須進入 canonical `main.py`、feature、service、renderer 或 storage 邊界，後續每次成功拆分都應同步下調上限。
+
 - RollPig 發布鏈改為只在 `main` 的 CI 成功後，針對該次已測試的精確 commit 發布；加入 stale-SHA 阻擋、不可變 Action SHA、固定 Python／Node 工具鏈與政策回歸測試，消除 `metadata.yaml` 推送與測試並行的發版競態。
 - 自更新新增可恢复事务日志与受管安装清单：文件替换期间异常中断会在下次启动自动回滚，后续版本可安全清理 manifest 已知的废弃代码／资源；同时纠正 AstrBot 最低版本声明为 `>=4.26.0`，Market Smoke 同时验证最低正式版与当前 master，并扩大核心源码触发范围。
 - 管理面板「近 14 日猪圈脉搏」将与日活重复的每日抽取序列替换为「重复抽中」，按 `max(0, draws - new_unlocks)` 派生，并同步图例、提示、无障碍标签与 14 日摘要；累计抽取与后端 overview 数据契约保持不变。
@@ -72,7 +73,7 @@ v3.11.11 是 v3.11.10 之后的玩家文案与 Wiki 一致性修复版：被吃�
 
 - `docs/COMMANDS.md` 的今日小猪、吃群友与 FAQ 说明同步改为强制重复猪语义。
 - 排障 Wiki 明确说明默认 20% 命中时仍正常完成抽取，不会锁到自然日结束。
-- 既有配置键 `eaten_next_day_failure_percent`、默认值、SQLite schema、Resource Protocol v1 與 rights-v3 投稿協議均不变；可由 v3.11.10 直接升级。
+- 既有配置键 `eaten_next_day_failure_percent`、默认值、SQLite schema、Resource Protocol v1 与 rights-v3 投稿协议均不变；可由 v3.11.10 直接升级。
 
 ## v3.11.10
 
@@ -139,7 +140,7 @@ v3.11.8 是 v3.11.7 之后的稳定性与玩法体验 patch，合入此前待处
 
 ### 来源与公共源边界
 
-- 延续 v3.11.7 的 credit-first / provenance-safe 整改；不恢复当前 47 项隔离资源、旧 authored EX、舊 roast-copy 或 compatibility-floor 自动发布路径。
+- 延续 v3.11.7 的 credit-first / provenance-safe 整改；不恢复当前 47 项隔离资源、旧 authored EX、旧 roast-copy 或 compatibility-floor 自动发布路径。
 - 公共源投稿继续要求 rights-aware `submission_version: 3`；审核批准继续保持 `not_published`，正式发布仍必须经过独立 provenance-safe 流程。
 - 本版本不改变当前生产 157 项 base-only 公共静态源，也不对所有历史内容作 blanket license／法律权属结论。
 
@@ -166,7 +167,7 @@ v3.11.7 是公共猪源来源与再分发控制的安全整改版本。投稿客
 
 - 管理员批准投稿必须显式确认 `rights_verified=true`，并留下至少 8 字的权利审核备注；缺少 rights-v3 证据的历史投稿禁止批准。
 - “批准”只代表内容与权利资料通过审核，结果保持 `publication_status=not_published`，不会直接产生新的正式公共源版本。
-- “批准”不再描述为“批准并发布”；正式发布必须另行进入 provenance-safe 流程，并重新验证 NOTICE／PROVENANCE／LICENSES 与资源内容后才能切换公开 `v1`。
+- 管理面板不再把批准描述为“批准并发布”；正式发布必须另行进入 provenance-safe 流程，并重新验证 NOTICE／PROVENANCE／LICENSES 与资源内容后才能切换公开 `v1`。
 - 原 EX 公共源独立页面改为迁移提示，防止继续使用旧 envelope-v2／批准即发布语义。
 
 ### 当前安全边界
@@ -207,7 +208,7 @@ v3.11.6 是在 v3.11.5 基础上的稳定整合 patch：完成公共猪源多层
 ### 兼容性
 
 - 可由 v3.11.5 直接升级。
-- SQLite schema、Resource Protocol v1、插件身份、命令集合、抽取／保底／EX／烤豬规则均不变。
+- SQLite schema、Resource Protocol v1、插件身份、命令集合、抽取／保底／EX／烤猪规则均不变。
 - AstrBot 最低版本仍为 `>=4.24.2`；本地 override 与 tombstone 继续高于公共资源层。
 
 ## v3.11.5
@@ -332,7 +333,7 @@ v3.11.0 聚焦管理面板資訊語義、EX 日常管理入口的一致性，以
 ### 管理面板語義與視覺
 
 - 重整總覽 KPI 與資訊密度：累計抽取不再偽裝成短期趨勢，今日活躍明確標示近 14 日範圍，熱門小豬改為緊湊排行榜並移除大片無效留白。
-- AI 文案運行健康改為狀態驅動：區分未啟用、已啟用無樣本、生成中與已有完成樣本；生成中不進成功率分母，未啟用時不再顯示誤導性的 0%。
+- AI 烤豬文案運行健康改為狀態驅動：區分未啟用、已啟用無樣本、生成中與已有完成樣本；生成中不進成功率分母，未啟用時不再顯示誤導性的 0%。
 - 新增管理面板回歸契約，鎖定資源版本相容、AI 狀態語義、累計值呈現與排行榜版式。
 
 ### EX 成長管理入口一致性
@@ -398,7 +399,7 @@ v3.10.0 是一次功能整合版本：收斂目前仍有獨立價值的待合工
 
 - 修正管理面板 KPI 迷你图数据语义：累计抽取改为真实近 14 日每日抽取；没有历史序列的快照指标不再展示伪趋势。
 - README 首屏加入 AI 生成代码风险提示，明确建议重要环境部署前自行审查与测试。
-- PR／Release 维护门禁要求 Changelog 与 Wiki-Impact；canonical 指令或配置 schema 改動必須同步 Wiki。
+- PR／Release 维护门禁要求 Changelog 与 Wiki-Impact；canonical 指令或配置 schema 改动必须同步 Wiki。
 - CI 移除重复／低价值检查，保留 Python 3.12、Marketplace Package、AstrBot 官方加载、Changelog/Wiki 与 pre-commit 等实质发布门禁。
 
 ### 本版整合工作
@@ -423,10 +424,9 @@ v3.10.0 是一次功能整合版本：收斂目前仍有獨立價值的待合工
 - 整合树全量 pytest：453 passed。
 - pre-commit：全部通过。
 - 各来源 PR 的 Python／Marketplace／AstrBot smoke 已逐一审查；最终 Release PR 再跑合并后正式门禁。
-
 ## v3.9.1 (2026-08-17)
 
-v3.9.1 是 v3.9.0 的维护版本，集中修正 **管理面板迷你趋势图失真** 與 **动态帮助卡繁简混排／字体问题**，不改游戏规则、数据格式或资源协议。
+v3.9.1 是 v3.9.0 的维护版本，集中修正 **管理面板迷你趋势图失真** 与 **动态帮助卡繁简混排／字体问题**，不改游戏规则、数据格式或资源协议。
 
 ## 管理面板
 
@@ -702,7 +702,7 @@ MkDocs Material 的左右 navigation / TOC 会先吃掉桌面宽度，所以现�
 
 本版已把入口顺序重新固定为：
 
-1. `pig-manager` — 猪圈管理（默认首页）
+1. `pig-manager` — 猪圈管理（默认）
 2. `pig-manager-ex` — EX 成长管理
 3. `pig-manager-ex-public-source` — EX 公共源
 
@@ -828,12 +828,12 @@ MkDocs Material 的左右 navigation / TOC 会先吃掉桌面宽度，所以现�
 
 公开插件仓库**继续保留**：
 
-- 插件侧投稿 / 审核整合與管理 UI；
+- 插件侧投稿 / 审核整合与管理 UI；
 - Resource Protocol v1 公开契约与资源 builder；
 - EX schema / manifest 行为；
 - 兼容性基线逻辑与客户端回归测试。
 
-但公共猪源的**服务端实现、systemd / Nginx 生产配置、线上迁移命令与服务端审核回归**不再留在目前公开插件 tree 中，由服务端运维侧独立维护。
+但公共源的**服务端实现、systemd / Nginx 生产配置、线上迁移命令与服务端审核回归**不再留在目前公开插件 tree 中，由服务端运维侧独立维护。
 
 这不是 Git 历史重写；以前已公开的 commit 仍然存在。这次只是把「插件应该公开的协议 / 客户端」和「服务端生产运维面」重新划清边界。
 
@@ -996,7 +996,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ### 🧭 动态帮助系统
 
-- `/猪猪帮助` 升级为依目前功能、配置與指令面动态生成的帮助内容。
+- `/猪猪帮助` 升级为依目前功能、配置与指令面动态生成的帮助内容。
 - 帮助渲染拆到独立 renderer / feature boundary，避免把命令注册、业务逻辑与 PIL 绘图重新混在一起。
 - 新增帮助卡与文字 fallback 测试，确保新功能加入后不再依赖手动维护一张容易过期的静态说明。
 
@@ -1085,15 +1085,15 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ### 修复
 
-- 修复 catalog read boundary 在 `_reload_catalog_layers()` 已改以 `self.pig_list` 接收合并结果后，仍以已移除的 `merged` 变量保存 catalog，导致完整插件初始化可触发 `NameError`；新增持久化契约测试防止回歸。
+- 修复 catalog read boundary 在 `_reload_catalog_layers()` 已改以 `self.pig_list` 接收合并结果后，仍以已移除的 `merged` 变量保存 catalog，导致完整插件初始化可触发 `NameError`；新增持久化契约测试防止回归。
 - 修复永久猪圈把「目前 active catalog」错当成永久收藏全集：玩家已解锁、但后来退出现役公共猪源的历史小猪会由 `pig_snapshots` 补入 `/我的猪圈` read model，保留收藏可见性与历史数据；退役小猪不会重新加入每日抽池、随机／搜索 catalog，管理员 tombstone 仍可明确隐藏。
 - 修复 `DailyReportMixin.pigsty_daily_report()` 在模块重载／MRO class identity 变化后使用零参 `super()._event_sender_id(event)` 可能触发 `TypeError: super(type, obj)`；改由 live plugin instance `self._event_sender_id(event)` 分派，并避免重复写入日报会话数据。
 
 ### 架构
 
 - 完成 command registration boundary：15 个 RollPig 指令 decorator 全部收回 `main.py` 真正 Star 入口，helper/mixin 仅保留业务方法；每个 command 显式 `priority=1000` 并由薄 wrapper 委派，移除 v3.6.2 的 runtime handler rebind / registry 重排 workaround。
-- 完成 catalog/resource read boundary：新增纯 `CatalogService`，集中 base/local/tombstone 合并、ID 查找、图鑑排序、页数、随机与搜索；新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 图片解析顺位。
-- 完成 renderer boundary：单猪卡、永久图鑑、随机／搜索九宫格、本周小猪与料理卡的 PIL 绘制移入 `renderers/`；renderer 不取得 AstrBot/storage/sync 依赖，domain read 仍由插件 orchestration 准备。
+- 完成 catalog/resource read boundary：新增纯 `CatalogService`，集中 base/local/tombstone 合并、ID 查找、图鉴排序、页数、随机与搜索；新增 `ResourceReadService` 固定 local override → EX variant → cloud → bundled 图片解析顺位。
+- 完成 renderer boundary：单猪卡、永久图鉴、随机／搜索九宫格、本周小猪与料理卡的 PIL 绘制移入 `renderers/`；renderer 不取得 AstrBot/storage/sync 依赖，domain read 仍由插件 orchestration 准备。
 - 完成 roast/group interaction boundary：普通烤群友与预约烤猪共用 `RoastService` 的单一 60/30/10 outcome policy；`DailyReportMixin` 改为 outcome event hook，不再复制完整烤猪流程。
 - AstrBot Market Smoke 现在对 PR checked-out revision 建干净 snapshot，直接交给官方 validator worker 的 `PluginManager.load()`，避免 PR CI 实际偷验 default branch。
 
@@ -1111,11 +1111,11 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 - 修复 v3.6.0 将 decorated handlers 拆到 `legacy_main.py`／feature mixin 后，AstrBot 仍以函数定义模块记录 `handler_module_path`，而真正 Star 只注册在 `main.py`，造成 `/今日小猪` 等指令可被指令管理器发现、却在 `StarRequestSubStage` 执行时因 `star_map` 找不到 helper module 而被跳过，最后落入其他插件／LLM 的严重回归。
 - `main.py` 现在在 feature import 完成后，把本插件 handler metadata 统一重新绑定到真正的 Star 入口，恢复 v3.5.x 时「插件入口与 handler owner 一致」的派发语义；函数本体、存储与数据格式不变。
 - RollPig command handler 明确提升至 priority `1000` 并重排 registry；搭配 v3.6.1 已加入的 handler 入口 `stop_event()`，形成「先执行 RollPig 指令，再停止后续通用 AI／消息 handler」的双层隔离。
-- AstrBot Market Smoke 新增真实 runtime registry 契约：以 `data.plugins.astrbot_plugin_rollpig_plus.main` 实际导入插件后，必须验证所有 RollPig handler owner 均为 `main`、所有 command priority ≥ 1000，且 `roll_pig` handler 存在；避免未来再次出现「指令列表可见但实际不派发」的回歸。
+- AstrBot Market Smoke 新增真实 runtime registry 契约：以 `data.plugins.astrbot_plugin_rollpig_plus.main` 实际导入插件后，必须验证所有 RollPig handler owner 均为 `main`、所有 command priority ≥ 1000，且 `roll_pig` handler 存在；避免未来再次出现「指令列表可见但实际不派发」的回归。
 
 ### 兼容性
 
-- 可由 **v3.6.0 / v3.6.1 直接升级**；SQLite／JSON、永久图鑑、本地 override、历史记录、EX 差分、日报与预约烤猪数据均不需要 migration。
+- 可由 **v3.6.0 / v3.6.1 直接升级**；SQLite／JSON、永久图鉴、本地 override、历史记录、EX 差分、日报与预约烤猪数据均不需要 migration。
 - 本版不新增玩法、不修改资源协议与数据 schema，只修正 AstrBot handler registry metadata 与指令执行顺序。
 
 ## v3.6.1 (2026-08-14)
@@ -1137,6 +1137,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ### 新功能
 
 - 猪圈日报升级为可配置统计海报与自动推送系统：加入真实并列称号、平台头像、跨午夜日期锁定、重启补发与可选「今日祭品」；手动查看不触发祭品。
+
 - 新增可配置预约烤猪：明确指定尚未抽猪的目标时，第一位主厨支付普通冷却建立同群当日预约，后续群友可免费添柴；目标本人在同群显示今日小猪后一次性按原 60/30/10 结算。
 - 预约默认最多 12 人（可配置 2–20），建立时尊重昨日被烤保护；随机烤与后门不建立预约，添柴不直接提高成功率。
 - 预约状态在消息投递前先标记 resolved，避免适配器超时造成重复结算；流程接入 `roast_reservation_created/joined/triggered` 与既有烧烤 outcome Gameplay Event，因此日报可沿用原统计。
@@ -1146,6 +1147,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 - 本地小猪 override 仍高于远端／内置 EX 差分；`/明日小猪` 预测不套用玩家已拥有的 EX 成长，避免把收藏状态泄漏到未来结果。
 - 群聊本人重复抽取可写入去重的 `ex_level_up` Gameplay Event，为后续日报与成就统计提供数据，不改变收藏权威状态。
 - 新增 [`docs/EX-VARIANTS.md`](docs/EX-VARIANTS.md) 说明格式、继承、安全边界与目前尚未包含的管理面板 EX 编辑／投稿范围。
+
 
 ### 修复
 
@@ -1237,7 +1239,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v3.2.1 (2026-08-12)
 
-### AstrBot 市場分發
+### AstrBot 市场分发
 
 - Release 包切换为独立身份 `astrbot_plugin_rollpig_plus-vX.Y.Z.zip`，与 v3.1.4 旧身份桥接通道分离。
 - 精简发版字体与开发文件，使正式 ZIP 符合 AstrBot 市场 16 MB 上限。
@@ -1377,7 +1379,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ## v2.11.1 (2026-08-04)
 ### 被吃惩罚与每日抽取原子性热修复
 - 修复 SQL 主写路径在“探测今日状态”阶段提前消费成功惩罚的问题；探测现在只判断失败或返回待选猪状态。
-- 成功消费次日惩罚只会与 `daily_draws`、图鑑和统计写入在同一个 `BEGIN IMMEDIATE` 事务中提交。
+- 成功消费次日惩罚只会与 `daily_draws`、图鉴和统计写入在同一个 `BEGIN IMMEDIATE` 事务中提交。
 - 若抽取写入、兼容文档同步或进程在提交前失败，惩罚与所有抽取记录会一起回滚，不会出现“惩罚消失但没有抽到猪”。
 
 ## v2.11.0 (2026-08-04)
@@ -1397,7 +1399,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ## v2.10.0 (2026-08-04)
 ### SQLite 查询路径与投影修复
 - 新增 schema migration v2：身份补充 legacy/创建时间索引，群成员关系拆为 `daily_draw_groups`，避免继续查询 `group_ids_json`。
-- SQLite 的用户图鑑、每日结果、群成员和被吃名单改为直接 SQL 查询；JSON 后端仍保留原有兼容读取。
+- SQLite 的用户图鉴、每日结果、群成员和被吃名单改为直接 SQL 查询；JSON 后端仍保留原有兼容读取。
 - 修复 `transaction()` 只有 Python 锁而没有数据库事务的问题，现在使用独立连接与 `BEGIN IMMEDIATE`，异常必定回滚并关闭连接。
 - 数据库验证新增文档与投影逐表计数对账；启动时可自动重建仅投影损坏的数据库，管理面板也新增手动“重建索引”。
 - 抽取保底与烤／吃特殊形态规则移入 `services/`，继续缩小 `main.py` 的业务职责。
@@ -1424,7 +1426,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ### SQLite 存储与可回滚迁移
 - 新增 `SQLiteStorage` 与 `StorageManager`；默认 `auto` 只在数据库存在且完整时启用 SQLite，旧安装继续安全使用 JSON。
 - 迁移流程先备份七份关键 JSON，临时建库、刷新正交投影、逐文件 SHA-256 对账并执行 SQLite 完整性与外键检查，全部通过后才原子切换。
-- 新增 `schema_migrations`、兼容文档表及每日抽取、用户图鑑／统计、猪快照、被吃惩罚／事件、冷却、每日烤猪、后门、AI 文案、图鑑覆盖／删除投影表。
+- 新增 `schema_migrations`、兼容文档表及每日抽取、用户图鉴／统计、猪快照、被吃惩罚／事件、冷却、每日烤猪、后门、AI 文案、图鉴覆盖／删除投影表。
 - 管理面板新增存储状态、迁移、验证、JSON ZIP 导出和安全回滚；所有写操作沿用同源与 CSRF 校验，不接受自定义文件路径。
 - SQLite 使用 WAL、外键、`synchronous=NORMAL` 和可配置写锁等待；云资源与 PigHub 缓存继续使用 JSON，不纳入关键事务数据库。
 
@@ -1437,16 +1439,16 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v2.7.0 (2026-08-03)
 ### 管理面板视觉升级
-- 管理面板重构为「数据总览」与「猪猪图鑑」两个独立分页，并使用 URL 锚点保存当前分页，支持浏览器前进／返回。
+- 管理面板重构为「数据总览」与「猪猪图鉴」两个独立分页，并使用 URL 锚点保存当前分页，支持浏览器前进／返回。
 - 六项核心指标改为数字递增与微型趋势线；14 日趋势升级为动态面积折线图，支持逐日悬停查看使用人数、抽取次数及新解锁。
 - 平均收藏率改为动态环形进度图，热门小猪改为流畅进场的横向排行；图表缩放只依据实际展示序列，避免累计抽取量压扁趋势线。
-- 新增柔和光晕、玻璃层次、卡片分段进场、图鑑悬停与弹窗弹性转场，并完整支持系统深色模式及“减少动态效果”。
+- 新增柔和光晕、玻璃层次、卡片分段进场、图鉴悬停与弹窗弹性转场，并完整支持系统深色模式及“减少动态效果”。
 - 新增／编辑小猪表单加入「选择图片 → 补全资料 → 检查发布」实时流程指示，现有 PigHub、AI 文案和云同步功能保持兼容。
 
 ## v2.6.0 (2026-08-03)
 ### 跨平台兼容
-- 身份键加入 AstrBot 适配器实例 ID，避免同一类型的多个 QQ／Discord 等机器人共享猪圈、冷却与惩罚；旧 `v2|平台|...` 和更早的裸 ID 会按实例懒认领，不会直接清空既有图鑑。
-- Telegram 记录 username 与数字用户 ID 的双向别名，`@username`、回复消息、随机玩法和数字 ID 可以指向同一份今日小猪记录。
+- 身份键加入 AstrBot 适配器实例 ID，避免同一类型的多个 QQ／Discord 等机器人共享猪圈、冷却与惩罚；旧 `v2|平台|...` 和更早的裸 ID 会按实例懒认领，不会直接清空既有图鉴。
+- Telegram 记录 username 与数字用户 ID 的双向别名，`@username`、回复消息、随机点名和数字 ID 可以指向同一份今日小猪记录。
 - 出站点名按平台编码：OneBot、Discord、飞书和 WhatsApp 使用标准 At；Telegram 使用 username 或 `tg://user?id=`；Slack 与 QQ 官方使用平台原生文本 mention。
 - 增加 OneBot 原始消息段与 WhatsApp `mentionedJids` 后备解析，适配器未生成标准 At 段时仍能识别目标。
 - WhatsApp 优先使用 PN／手机号并保留无法解析的 LID JID，降低第三方适配器或 LID 缓存缺失时认错用户的风险。
@@ -1467,7 +1469,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v2.4.0 (2026-08-03)
 ### 稳定性与安全
-- 修复并发抽取可能令当日缓存与永久图鑑不一致的问题；相关 JSON 采用预写、备份与失败回滚的批量提交。
+- 修复并发抽取可能令当日缓存与永久图鉴不一致的问题；相关 JSON 采用预写、备份与失败回滚的批量提交。
 - `@他人` 现在只读取对方已有结果，不再替对方抽取，也不能借此绕过次日惩罚。
 - 新增平台命名空间与旧 ID 认领记录：既有数据由首次使用的平台继续继承，其他平台的同号用户保持隔离。
 - JSON 损坏时保留 `.corrupt-*` 副本并优先从 `.bak` 恢复，避免静默覆盖原始数据。
@@ -1491,7 +1493,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v2.2.0 (2026-08-03)
 ### 管理面板优化
-- PigHub 选图后可一键调用当前 AstrBot AI 模型，参考小猪名称与现有图鑑文案生成描述和完整文案草稿；生成结果仍可继续手动修改。
+- PigHub 选图后可一键调用当前 AstrBot AI 模型，参考小猪名称与现有图鉴文案生成描述和完整文案草稿；生成结果仍可继续手动修改。
 - 新增／编辑小猪弹窗不再因点击外部遮罩关闭，避免误触丢失尚未保存的内容。
 
 ## v2.1.0 (2026-08-02)
@@ -1531,7 +1533,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ## v1.8.3 (2026-08-02)
 ### 优化
 - AI 烤猪文案按「小猪 ID + 日期」全局限流：每只猪每天至多调用一次模型，文案持久化保留最近 7 天；同日再次烤该猪会随机复用这 7 天内的已有文案。
-- `/我的猪圈` 调整为已解锁小猪优先展示，未解锁小猪顺延至后续页面；两个区间内部仍保留管理员维护的图鑑排序。
+- `/我的猪圈` 调整为已解锁小猪优先展示，未解锁小猪顺延至后续页面；两个区间内部仍保留管理员维护的图鉴排序。
 
 ## v1.8.2 (2026-08-02)
 ### 优化
@@ -1566,7 +1568,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 - 修复管理面板趋势折线的 X 坐标计算优先级错误：最后数日的数据点不再被绘制到 SVG 范围外并被裁切，已有用户／解锁数据会正常显示。
 
 ### 元数据
-- 显示名称改为「今日小豬 · 增強版」，描述明确为独立维护 fork；内部插件 ID `astrbot_plugin_rollpig` 保持不变，以保留既有配置、图鑑、历史数据和管理页路径。
+- 显示名称改为「今日小豬 · 增強版」，描述明确为独立维护 fork；内部插件 ID `astrbot_plugin_rollpig` 保持不变，以保留既有配置、图鉴、历史数据和管理页路径。
 
 ## v1.6.8 (2026-08-02)
 ### 优化
@@ -1574,16 +1576,16 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v1.6.7 (2026-08-02)
 ### 新增
-- 新增 `/猪猪帮助`／`/豬豬幫助` 指令，集中说明全部聊天指令、页码与搜索参数、料理卡、图鑑，以及管理员同步与管理面板功能。
+- 新增 `/猪猪帮助`／`/豬豬幫助` 指令，集中说明全部聊天指令、页码与搜索参数、料理卡、图鉴，以及管理员同步与管理面板功能。
 - 帮助会根据 `at_view_pig` 当前配置明确提示是否可用 `/今日小豬 @某人` 查看他人的今日小猪。
 
 ## v1.6.6 (2026-08-02)
 ### 新增
-- 机器人发送的今日小猪、图鑑、随机／搜索结果、周报与烤猪图片新增日夜主题：默认在 19:00-06:59 自动切换为低亮度夜间配色；可通过 `image_theme` 配置固定为 `light` 或 `dark`。
+- 机器人发送的今日小猪、图鉴、随机／搜索结果、周报与烤猪图片新增日夜主题：默认在 19:00-06:59 自动切换为低亮度夜间配色；可通过 `image_theme` 配置固定为 `light` 或 `dark`。
 
 ## v1.6.5 (2026-08-02)
 ### 修复
-- 管理图鑑缩略图改为 192×192 RGBA Canvas 像素，完整保留 PNG 透明度和边缘细节；不再将 128px RGB 缩略图放大，卡片预览与编辑页显示一致。
+- 管理图鉴缩略图改为 192×192 RGBA Canvas 像素，完整保留 PNG 透明度和边缘细节；不再将 128px RGB 缩略图放大，卡片预览与编辑页显示一致。
 
 ## v1.6.4 (2026-08-02)
 ### 修复
@@ -1598,7 +1600,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 
 ## v1.6.2 (2026-08-02)
 ### 修复
-- 彻底移除管理图鑑对 `data:`／`blob:` 图片 URL 的依赖，后端改为提供 RGB 缩略像素并由前端 Canvas 直接绘制，兼容 AstrBot 的沙箱 iframe。
+- 彻底移除管理图鉴对 `data:`／`blob:` 图片 URL 的依赖，后端改为提供 RGB 缩略像素并由前端 Canvas 直接绘制，兼容 AstrBot 的沙箱 iframe。
 - 编辑弹窗沿用 Canvas 显示当前图片；本地上传通过 `createImageBitmap` 直接预览，不再创建 Blob URL。
 - PigHub 选图新增服务端安全预览接口，避免跨域或鉴权策略导致预览破图。
 
@@ -1608,19 +1610,19 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 - 修复首次同步接近两百张云端图片时容易触发 `httpx.ReadTimeout` 的问题。
 - 云同步改为后台任务，Dashboard 请求无需等待整包下载完成。
 - 图片下载改为 4 路并发、至少 45 秒读取窗口与最多 3 次退避重试。
-- 网络异常现在显示可读原因；旧缓存、本地图鑑覆盖与删除屏蔽继续保留。
+- 网络异常现在显示可读原因；旧缓存、本地图鉴覆盖与删除屏蔽继续保留。
 
 ## v1.6.0 (2026-08-02)
 ### 新增
 - 新增公有小猪云资源同步，兼容 rollpig-plus 的版本化 manifest、尺寸与 SHA-256 校验。
-- 新增“云端／内置基础层 → 本地管理覆盖层 → 删除屏蔽层”的图鑑合并策略。
+- 新增“云端／内置基础层 → 本地管理覆盖层 → 删除屏蔽层”的图鉴合并策略。
 - 管理面板新增云资源状态、手动同步以及 `/同步小猪资源` 管理员指令。
 - 新增 PigHub 图片挑选器，可搜索／分页／随机浏览图片，再手动填写名称、描述与文案。
 
 ### 安全与稳定性
 - 云资源先下载到暂存目录，全部校验成功后才原子替换；失败继续使用旧缓存或内置资源。
 - PigHub 图片由服务端从受信任的 `pighub.top/data/` 下载，统一校验并转为 512×512 PNG。
-- 旧版整份本地图鑑会自动迁移为覆盖层与删除屏蔽，不丢失管理员已有修改。
+- 旧版整份本地图鉴会自动迁移为覆盖层与删除屏蔽，不丢失管理员已有修改。
 
 ## v1.5.0 (2026-08-02)
 ### 新增
@@ -1636,7 +1638,7 @@ v3.7.0 是 v3.6.5 之后的玩法与架构大型更新。本版把「烤群友�
 ## v1.4.0 (2026-08-02)
 ### 新增
 - `/今日小猪` 同时兼容繁体、简体指令与常用别名。
-- 新增 `/我的猪圈 [页码]` 永久解锁图鑑，兼容 `/我的豬圈`。
+- 新增 `/我的猪圈 [页码]` 永久解锁图鉴，兼容 `/我的豬圈`。
 - 新增 AstrBot Plugin Page 管理面板，支持小猪素材的一条龙新增、编辑和删除。
 - 上传图片自动校验、居中裁切并转换为 512×512 PNG。
 - 新增使用人数、抽取次数、平均解锁率、趋势与热门小猪统计。
