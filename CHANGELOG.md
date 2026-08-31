@@ -2,6 +2,8 @@
 
 ## 未發佈
 
+- P2 架構收斂新增 `legacy_main.py` shrink-only budget：以 2026-08-31 的 286,646 bytes 為硬上限，CI 禁止 legacy 相容層重新膨脹；新功能必須進入 canonical `main.py`、feature、service、renderer 或 storage 邊界，後續每次成功拆分都應同步下調上限。
+
 - RollPig 發布鏈改為只在 `main` 的 CI 成功後，針對該次已測試的精確 commit 發布；加入 stale-SHA 阻擋、不可變 Action SHA、固定 Python／Node 工具鏈與政策回歸測試，消除 `metadata.yaml` 推送與測試並行的發版競態。
 - 自更新新增可恢复事务日志与受管安装清单：文件替换期间异常中断会在下次启动自动回滚，后续版本可安全清理 manifest 已知的废弃代码／资源；同时纠正 AstrBot 最低版本声明为 `>=4.26.0`，Market Smoke 同时验证最低正式版与当前 master，并扩大核心源码触发范围。
 - 管理面板「近 14 日猪圈脉搏」将与日活重复的每日抽取序列替换为「重复抽中」，按 `max(0, draws - new_unlocks)` 派生，并同步图例、提示、无障碍标签与 14 日摘要；累计抽取与后端 overview 数据契约保持不变。
