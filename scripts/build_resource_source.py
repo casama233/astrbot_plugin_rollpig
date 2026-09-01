@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bundled_ex_copy import load_bundled_ex_copy
 from ex_variants import (
     build_effective_ex_variants,
     serialize_ex_variants,
@@ -146,31 +147,51 @@ def _read_variant_document(
     )
 
 
+def _merge_explicit_layer(
+    explicit: dict[str, dict[int, dict[str, str]]],
+    variants: dict[str, dict[int, dict[str, str]]],
+    label: str,
+) -> None:
+    duplicates = set(explicit).intersection(variants)
+    if duplicates:
+        raise ValueError(
+            f"EX authoring 重复小猪（{label}）：" + ", ".join(sorted(duplicates))
+        )
+    explicit.update(variants)
+
+
 def _load_explicit_ex_authoring(
     source_root: Path,
     pig_ids: set[str],
 ) -> dict[str, dict[int, dict[str, str]]]:
-    """Merge the base EX document and optional curated authoring packs."""
-    explicit: dict[str, dict[int, dict[str, str]]] = {}
+    """Merge project-owned text with any supported explicit EX documents."""
+    explicit = load_bundled_ex_copy(
+        source_root,
+        pig_ids,
+        pig_ids,
+        image_extensions={item.lstrip(".") for item in IMAGE_EXTENSIONS},
+    )
+
     variants_path = source_root / "pig_ex_variants.json"
     if variants_path.exists():
-        explicit.update(_read_variant_document(variants_path, pig_ids))
+        _merge_explicit_layer(
+            explicit,
+            _read_variant_document(variants_path, pig_ids),
+            variants_path.name,
+        )
 
     curated_root = source_root / "ex_curated"
     if curated_root.is_dir():
         for pack in sorted(curated_root.glob("*.json")):
-            variants = _read_variant_document(
-                pack,
-                pig_ids,
-                allow_foreign_ids=True,
+            _merge_explicit_layer(
+                explicit,
+                _read_variant_document(
+                    pack,
+                    pig_ids,
+                    allow_foreign_ids=True,
+                ),
+                pack.name,
             )
-            duplicates = set(explicit).intersection(variants)
-            if duplicates:
-                raise ValueError(
-                    f"EX authoring 重复小猪（{pack.name}）："
-                    + ", ".join(sorted(duplicates))
-                )
-            explicit.update(variants)
     return explicit
 
 
@@ -180,10 +201,10 @@ def _load_ex_variants(
     pig_ids = {str(item["id"]) for item in records}
     explicit = _load_explicit_ex_authoring(source_root, pig_ids)
 
-    # Materialize one canonical Resource Protocol document. Official releases
-    # are gated separately to require explicit curated EX1-EX5 copy for every
-    # official ID; the deterministic baseline remains only a safety fallback for
-    # generic fixtures, local content and future non-official catalogs.
+    # Materialize one canonical Resource Protocol document. The project-owned
+    # bundled-lineage handwritten layer replaces the generic baseline only for
+    # IDs explicitly authored in resource/bundled_ex_copy.json; all remaining
+    # IDs retain the deterministic safety fallback.
     effective = build_effective_ex_variants(records, explicit)
     canonical = serialize_ex_variants(effective)
     declared = {

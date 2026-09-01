@@ -2,9 +2,7 @@
 
 ## 未發佈
 
-- P2 架構收斂新增 `legacy_main.py` shrink-only budget：以 2026-08-31 的 286,646 bytes 為硬上限，CI 禁止 legacy 相容層重新膨脹；新功能必須進入 canonical `main.py`、feature、service、renderer 或 storage 邊界，後續每次成功拆分都應同步下調上限。
-
-- RollPig 發布鏈改為只在 `main` 的 CI 成功後，針對該次已測試的精確 commit 發布；加入 stale-SHA 阻擋、不可變 Action SHA、固定 Python／Node 工具鏈與政策回歸測試，消除 `metadata.yaml` 推送與測試並行的發版競態。
+- 完成当前 bundled lineage **99/99** 只小猪的项目自有、纯文本 EX1–EX5 手写文案层，共 495 组逐图、逐原文、逐梗查证后的独立 `description`／`analysis`；最后补齐 `bamboo-pig`、`curator-pig`、`upper-class-pig`、`alien-pig`、`tiramisu-pig`、`antibacterial-pig`、`pigskin-pig`、`muscle-pig`、`elephant-pig`、`hanging-pig`，覆盖夺笋、主理人、正式礼服、外星配色、提拉米苏词源与层次、99.9% 功效边界、疲惫休息、健美夸张、猪鼻插大葱歇后语和安全吊运；同步将图片误读的 `elephant-pig` 基础文案修正为「装象猪／猪鼻插葱，装相」，将吊带绕身而非绕颈的 `hanging-pig` 修正为「吊运猪／吊带绕身，安全落地」。当前 bundled ID 不再依赖 generic baseline 作为最终文案，deterministic baseline 继续为 cloud-only、未来新增和非 bundled lineage 内容兜底；下一阶段转入公共猪源独有项的独立 provenance 审查。
 - 自更新新增可恢复事务日志与受管安装清单：文件替换期间异常中断会在下次启动自动回滚，后续版本可安全清理 manifest 已知的废弃代码／资源；同时纠正 AstrBot 最低版本声明为 `>=4.26.0`，Market Smoke 同时验证最低正式版与当前 master，并扩大核心源码触发范围。
 - 管理面板「近 14 日猪圈脉搏」将与日活重复的每日抽取序列替换为「重复抽中」，按 `max(0, draws - new_unlocks)` 派生，并同步图例、提示、无障碍标签与 14 日摘要；累计抽取与后端 overview 数据契约保持不变。
 - Felis 34 項直讀資源的專案自有 EX1–EX5 文案層已完成前三批逐豬精修：目前 22 隻按基礎圖片、原始語義與實際網路梗逐級手寫，其餘 12 隻繼續由本倉庫語義種子生成；不讀取 Felis EX/variant 文案或圖片，固定 allowlist、provenance 與 text-only 合約維持不變。

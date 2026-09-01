@@ -18,14 +18,10 @@ on:
   schedule:
     - cron: "20 3 * * 1"
 
-permissions:
-  contents: read
-
 jobs:
   official-market-smoke:
     name: AstrBot ${{ matrix.astrbot_ref }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -36,10 +32,10 @@ jobs:
       ASTRBOT_REF: ${{ matrix.astrbot_ref }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -265,7 +261,7 @@ jobs:
 
       - name: Upload smoke report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: astrbot-market-smoke-report-${{ matrix.astrbot_ref }}
           path: astrbot-market-smoke-report.json

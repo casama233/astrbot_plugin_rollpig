@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "scope": "bundled-lineage-text-only",
+    "source_basis": "resource/pig.json base semantics plus repository-authored copy; no quarantined authored EX packs were used",
+    "quarantined_ex_used": false
+  },
+  "pigs": {
+    "taffy-pig": {
+      "levels": {
+        "1": {
+          "description": "关注塔菲谢谢喵",
+          "analysis": "粉发、护目镜和天使环刚在猪圈露面，你先不报名字，只把『关注塔菲喵，关注塔菲谢谢喵』完整播了一遍。群友以为这是自我介绍，后来才发现这是永厨的开机音效。"
+        },
+        "2": {
+          "description": "雏草姬猪籍已办",
+          "analysis": "原本说只看一段切片，转眼直播、录播、表情包和装扮全进了收藏夹，群名片也悄悄换成雏草姬。别人问你是不是入坑了，你说没有，只是关注得比较全面。"
+        },
+        "3": {
+          "description": "永厨浓度开始超标",
+          "analysis": "聊单机能拐到塔菲，聊 V 圈能拐到塔菲，群友随口打一个『喵』也能被你接成关注口号。大家本来只是讨论晚饭，最后却被安排看完三段切片——这不是安利，是灌注。"
+        },
+        "4": {
+          "description": "塔不灭，厨力不断电",
+          "analysis": "『塔不灭』已经从口号变成条件反射，看到粉毛护目镜就自动立正，听见谢谢喵就顺手接下一句。嘴上还强调自己很理性，头像、表情和收藏夹却组成了完整证据链。"
+        },
+        "5": {
+          "description": "永远喜欢塔菲喵",
+          "analysis": "你终于把名字解释清楚：永猪塔菲的『永』不是时光机型号，也不是年龄保修，而是永远喜欢塔菲。关注口号刷到最后，猪圈档案只剩一句最终结论——塔不灭，永厨不下线，关注塔菲谢谢喵。"
+        }
+      }
+    }
+  }
+}
