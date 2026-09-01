@@ -1,0 +1,113 @@
+name: PR 196 one-shot remove unrelated mainline drift
+
+on:
+  push:
+    branches:
+      - content/handcrafted-nonfelis-ex-phase1
+    paths:
+      - ".github/workflows/pr196-remove-unrelated-drift-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out authoring branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: content/handcrafted-nonfelis-ex-phase1
+          fetch-depth: 0
+
+      - name: Restore unrelated files from current main and keep only the EX integration delta
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("CHANGELOG.md")
+          entries = [
+              line
+              for line in path.read_text(encoding="utf-8").splitlines()
+              if line.startswith("- 完成当前 bundled lineage **99/99**")
+          ]
+          if len(entries) != 1:
+              raise SystemExit(f"expected one 99/99 changelog entry, found {len(entries)}")
+          Path("/tmp/pr196-changelog-entry.txt").write_text(entries[0], encoding="utf-8")
+          PY
+
+          git checkout origin/main -- \
+            .github/workflows/astrbot-market-smoke.yml \
+            .github/workflows/ci.yml \
+            .github/workflows/marketplace-package.yml \
+            .github/workflows/release.yml \
+            .github/workflows/resource-source.yml \
+            .github/workflows/wiki.yml \
+            CHANGELOG.md \
+            docs/LEGACY-MODERNIZATION.md \
+            scripts/check_display_copy.py \
+            tests/test_legacy_shrink_budget.py \
+            tests/test_release_workflow_policy.py
+
+          python - <<'PY'
+          from pathlib import Path
+
+          changelog_path = Path("CHANGELOG.md")
+          changelog = changelog_path.read_text(encoding="utf-8")
+          entry = Path("/tmp/pr196-changelog-entry.txt").read_text(encoding="utf-8")
+          heading = "## 未發佈\n\n"
+          if heading not in changelog:
+              raise SystemExit("missing Changelog Unreleased heading")
+          if entry not in changelog:
+              changelog = changelog.replace(heading, heading + entry + "\n\n", 1)
+          changelog_path.write_text(changelog.rstrip() + "\n", encoding="utf-8")
+
+          display_path = Path("scripts/check_display_copy.py")
+          display = display_path.read_text(encoding="utf-8")
+          glob_line = '    *sorted((ROOT / "resource").glob("bundled_ex_copy*.json")),\n'
+          anchor = '    ROOT / "resource" / "pig_ex_variants.json",\n'
+          if glob_line not in display:
+              if display.count(anchor) != 1:
+                  raise SystemExit("display-copy target insertion anchor missing")
+              display = display.replace(anchor, anchor + glob_line, 1)
+          display_path.write_text(display, encoding="utf-8")
+          PY
+
+          git rm .github/workflows/pr196-remove-unrelated-drift-once.yml
+
+          # These paths are not part of the copy feature and must now be byte-for-byte main.
+          git diff --exit-code origin/main -- \
+            .github/workflows/astrbot-market-smoke.yml \
+            .github/workflows/ci.yml \
+            .github/workflows/marketplace-package.yml \
+            .github/workflows/release.yml \
+            .github/workflows/resource-source.yml \
+            .github/workflows/wiki.yml \
+            docs/LEGACY-MODERNIZATION.md \
+            tests/test_legacy_shrink_budget.py \
+            tests/test_release_workflow_policy.py
+
+          git add -A
+          git diff --cached --check
+          git commit -m "chore: remove unrelated mainline drift from EX copy PR"
+          git push origin HEAD:content/handcrafted-nonfelis-ex-phase1
+
+      - name: Verify the final PR file set is content-scoped
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          unexpected="$({
+            git diff --name-only origin/main...HEAD \
+              | grep -vE '^(CHANGELOG\.md|bundled_ex_copy\.py|docs/BUNDLED-EX-COPY\.md|ex_variant_feature\.py|resource/bundled_ex_copy(_phase[0-9]+)?\.json|resource/pig\.json|scripts/build_resource_source\.py|scripts/check_display_copy\.py|tests/test_bundled_ex_(content|copy|phase[0-9]+)\.py|tests/test_project_ex_copy_integration\.py)$' \
+              || true
+          })"
+          if [ -n "$unexpected" ]; then
+            printf 'Unexpected files remain in PR:\n%s\n' "$unexpected" >&2
+            exit 1
+          fi
+          git diff --name-status origin/main...HEAD
