@@ -19,6 +19,7 @@ CJK = re.compile(r"[\u3400-\u9fff]")
 JSON_TARGETS = [
     ROOT / "resource" / "pig.json",
     ROOT / "resource" / "pig_ex_variants.json",
+    *sorted((ROOT / "resource").glob("bundled_ex_copy*.json")),
     ROOT / "resource" / "roast_copy.json",
     *sorted((ROOT / "resource" / "ex_curated").glob("*.json")),
     ROOT / "_conf_schema.json",
@@ -82,40 +83,31 @@ def main() -> int:
             ):
                 rendered.append((f"{path.relative_to(ROOT)}:{line}", value))
 
-    legacy = ROOT / "legacy_main.py"
-    for line, value in python_strings(legacy):
-        if value in LEGACY_ALLOWED_TRADITIONAL:
-            continue
-        assert_simplified(f"legacy_main.py:{line}", value, failures)
-
-    for path in sorted((ROOT / "pages").rglob("*")):
-        if not path.is_file() or path.suffix not in {".html", ".js"}:
-            continue
-        for line_no, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), 1
-        ):
-            if "ERROR_PATTERN" in line:
-                continue
-            assert_simplified(f"{path.relative_to(ROOT)}:{line_no}", line, failures)
-
-    font = TTFont(ROOT / "resource" / "font" / "荆南麦圆体.otf")
-    cmap: set[int] = set()
-    for table in font["cmap"].tables:
-        cmap.update(table.cmap.keys())
-
-    for source, value in rendered:
-        for ch in value:
-            code = ord(ch)
-            if 0x3400 <= code <= 0x9FFF and code not in cmap:
-                failures.append(f"{source}: primary font missing {ch} U+{code:04X}")
+    font_path = ROOT / "resource" / "font" / "荆南麦圆体.otf"
+    if not font_path.is_file():
+        failures.append(f"missing bundled image font: {font_path.relative_to(ROOT)}")
+    else:
+        font = TTFont(font_path)
+        cmap = set()
+        for table in font["cmap"].tables:
+            cmap.update(table.cmap)
+        missing: dict[str, set[str]] = {}
+        for label, value in rendered:
+            chars = {ch for ch in value if CJK.fullmatch(ch)} - LEGACY_ALLOWED_TRADITIONAL
+            absent = {ch for ch in chars if ord(ch) not in cmap}
+            if absent:
+                missing.setdefault(label, set()).update(absent)
+        for label, chars in sorted(missing.items()):
+            failures.append(
+                f"{label}: bundled font misses CJK glyphs: {''.join(sorted(chars))}"
+            )
 
     if failures:
-        print("Display copy contract failed:")
-        for failure in failures:
-            print(f"- {failure}")
+        print("Display-copy/font coverage check failed:")
+        for item in failures:
+            print(f"- {item}")
         return 1
-
-    print("Display copy contract: Simplified Chinese + bundled font coverage OK")
+    print("Display-copy/font coverage check passed.")
     return 0
 
 

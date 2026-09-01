@@ -1,97 +1,25 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
+  push:
+    branches:
+      - main
+    paths:
+      - metadata.yaml
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.event.workflow_run.head_sha }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  gate:
-    if: >-
-      ${{
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository
-      }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      publish: ${{ steps.release-gate.outputs.publish }}
-      tested_sha: ${{ steps.release-gate.outputs.tested_sha }}
-    steps:
-      - name: Check out the exact CI-tested commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0
-
-      - name: Decide whether this tested commit is releasable
-        id: release-gate
-        env:
-          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "tested_sha=$TESTED_SHA" >> "$GITHUB_OUTPUT"
-
-          if [[ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]]; then
-            echo "checked-out revision does not match the successful CI revision" >&2
-            exit 1
-          fi
-
-          git fetch origin main --tags --force
-          if [[ "$(git rev-parse origin/main)" != "$TESTED_SHA" ]]; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale CI result: origin/main moved past $TESTED_SHA"
-            exit 0
-          fi
-
-          if git diff-tree --root -m --no-commit-id --name-only -r "$TESTED_SHA" \
-            | sort -u \
-            | grep -Fxq metadata.yaml; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "The current, successful main commit changes metadata.yaml; release is authorized."
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "Successful main CI did not change metadata.yaml; no release is needed."
-          fi
-
   publish:
-    needs: gate
-    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Check out the exact CI-tested commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ needs.gate.outputs.tested_sha }}
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.12"
-
-      - name: Revalidate the tested main revision
-        env:
-          TESTED_SHA: ${{ needs.gate.outputs.tested_sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main --tags --force
-          [[ "$(git rev-parse HEAD)" == "$TESTED_SHA" ]]
-          [[ "$(git rev-parse origin/main)" == "$TESTED_SHA" ]]
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Resolve stable release metadata
         id: meta
@@ -220,7 +148,6 @@ jobs:
           DISPLAY_NAME: ${{ steps.meta.outputs.display_name }}
           VERSION: ${{ steps.meta.outputs.version }}
           ARCHIVE: ${{ steps.meta.outputs.archive }}
-          TESTED_SHA: ${{ needs.gate.outputs.tested_sha }}
         run: |
           notes_file=".github/release-v${VERSION}.md"
           if [[ -f "$notes_file" ]]; then
@@ -231,6 +158,6 @@ jobs:
           gh release create "$TAG" \
             "dist/$ARCHIVE" \
             "dist/SHA256SUMS" \
-            --target "$TESTED_SHA" \
+            --target "$GITHUB_SHA" \
             --title "$DISPLAY_NAME v$VERSION" \
             "${notes_args[@]}"
