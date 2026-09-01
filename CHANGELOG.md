@@ -2,6 +2,8 @@
 
 ## 未發佈
 
+- 完成当前 bundled lineage **99/99** 只小猪的项目自有、纯文本 EX1–EX5 手写文案层，共 495 组逐图、逐原文、逐梗查证后的独立 `description`／`analysis`；最后补齐 `bamboo-pig`、`curator-pig`、`upper-class-pig`、`alien-pig`、`tiramisu-pig`、`antibacterial-pig`、`pigskin-pig`、`muscle-pig`、`elephant-pig`、`hanging-pig`，覆盖夺笋、主理人、正式礼服、外星配色、提拉米苏词源与层次、99.9% 功效边界、疲惫休息、健美夸张、猪鼻插大葱歇后语和安全吊运；同步将图片误读的 `elephant-pig` 基础文案修正为「装象猪／猪鼻插葱，装相」，将吊带绕身而非绕颈的 `hanging-pig` 修正为「吊运猪／吊带绕身，安全落地」。当前 bundled ID 不再依赖 generic baseline 作为最终文案，deterministic baseline 继续为 cloud-only、未来新增和非 bundled lineage 内容兜底；下一阶段转入公共猪源独有项的独立 provenance 审查。
+
 - P2 架構收斂新增 `legacy_main.py` shrink-only budget：以 2026-08-31 的 286,646 bytes 為硬上限，CI 禁止 legacy 相容層重新膨脹；新功能必須進入 canonical `main.py`、feature、service、renderer 或 storage 邊界，後續每次成功拆分都應同步下調上限。
 
 - RollPig 發布鏈改為只在 `main` 的 CI 成功後，針對該次已測試的精確 commit 發布；加入 stale-SHA 阻擋、不可變 Action SHA、固定 Python／Node 工具鏈與政策回歸測試，消除 `metadata.yaml` 推送與測試並行的發版競態。
