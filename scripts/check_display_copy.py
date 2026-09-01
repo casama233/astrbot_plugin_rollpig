@@ -14,8 +14,8 @@ CJK = re.compile(r"[\u3400-\u9fff]")
 
 # Authored EX JSON is intentionally optional. During provenance quarantine the
 # explicit bundled EX files may be absent; runtime then uses the deterministic
-# baseline, which has its own behavior/content tests. If authored files are
-# reintroduced later, this gate automatically resumes checking their copy.
+# baseline, which has its own behavior/content tests. When authored files are
+# present, every phased bundled_ex_copy shard is scanned for display safety.
 JSON_TARGETS = [
     ROOT / "resource" / "pig.json",
     ROOT / "resource" / "pig_ex_variants.json",
