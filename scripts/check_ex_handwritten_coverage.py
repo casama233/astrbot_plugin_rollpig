@@ -182,8 +182,18 @@ def _load_python_string_ids(path: Path, variable_name: str) -> set[str]:
     if value_node is None:
         raise CoverageError(f"{path} 缺少 {variable_name}")
 
+    literal_node = value_node
+    if isinstance(value_node, ast.Call):
+        if (
+            not isinstance(value_node.func, ast.Name)
+            or value_node.func.id not in {"frozenset", "set", "tuple", "list"}
+            or len(value_node.args) != 1
+            or value_node.keywords
+        ):
+            raise CoverageError(f"{variable_name} 必须是静态字符串序列")
+        literal_node = value_node.args[0]
     try:
-        raw_value = ast.literal_eval(value_node)
+        raw_value = ast.literal_eval(literal_node)
     except (ValueError, TypeError) as exc:
         raise CoverageError(f"{variable_name} 必须是静态字符串序列") from exc
     if not isinstance(raw_value, (tuple, list, set, frozenset)) or not raw_value:
