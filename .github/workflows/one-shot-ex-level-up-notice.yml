@@ -1,0 +1,447 @@
+name: One-shot EX level-up notice
+
+on:
+  push:
+    branches:
+      - fix/ex-level-up-notice
+    paths:
+      - .github/workflows/one-shot-ex-level-up-notice.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: fix/ex-level-up-notice
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Implement one-time EX level-up notice
+        shell: bash
+        run: |
+          cat > /tmp/apply_ex_notice.py <<'PY'
+          from __future__ import annotations
+
+          import ast
+          from pathlib import Path
+
+
+          ROOT = Path.cwd()
+          EX_FILE = ROOT / "ex_variant_feature.py"
+          LEGACY_FILE = ROOT / "legacy_main.py"
+
+
+          NOTICE_MODULE = '''from __future__ import annotations
+
+          from contextvars import ContextVar
+          from typing import Any, Mapping
+
+
+          _PENDING_EX_LEVEL_UP_NOTICE: ContextVar[str | None] = ContextVar(
+              "rollpig_pending_ex_level_up_notice",
+              default=None,
+          )
+
+
+          def _first_present(values: Mapping[str, Any], names: tuple[str, ...]) -> Any:
+              for name in names:
+                  if name in values and values[name] is not None:
+                      return values[name]
+              return None
+
+
+          def build_ex_level_up_notice(*, ex_level: Any, count: Any = None) -> str | None:
+              """Build a notice for a real repeat draw, preserving uncapped EX levels."""
+
+              try:
+                  level = int(ex_level)
+              except (TypeError, ValueError):
+                  return None
+              if level <= 0:
+                  return None
+
+              try:
+                  encounters = int(count)
+              except (TypeError, ValueError):
+                  encounters = level + 1
+              if encounters < 2 or encounters != level + 1:
+                  encounters = level + 1
+
+              return f"✨ 重逢第 {encounters} 次 · EX Lv.{level - 1} → Lv.{level}"
+
+
+          def queue_ex_level_up_notice(*, ex_level: Any, count: Any = None) -> bool:
+              """Queue one notice in the current command task; invalid/EX0 input fails closed."""
+
+              notice = build_ex_level_up_notice(ex_level=ex_level, count=count)
+              if notice is None:
+                  return False
+              _PENDING_EX_LEVEL_UP_NOTICE.set(notice)
+              return True
+
+
+          def queue_ex_level_up_notice_from_locals(values: Mapping[str, Any]) -> bool:
+              """Bridge the event writer without coupling to its local variable spelling."""
+
+              ex_level = _first_present(
+                  values,
+                  (
+                      "new_ex_level",
+                      "ex_level",
+                      "current_ex_level",
+                      "level",
+                      "_ex_level",
+                  ),
+              )
+              count = _first_present(
+                  values,
+                  (
+                      "new_count",
+                      "count",
+                      "draw_count",
+                      "encounter_count",
+                  ),
+              )
+              if count is None:
+                  record = _first_present(
+                      values,
+                      ("record", "pig_record", "collection_record"),
+                  )
+                  if isinstance(record, Mapping):
+                      count = record.get("count")
+              return queue_ex_level_up_notice(ex_level=ex_level, count=count)
+
+
+          def consume_ex_level_up_notice() -> str | None:
+              """Return a queued notice once and clear it immediately."""
+
+              notice = _PENDING_EX_LEVEL_UP_NOTICE.get()
+              _PENDING_EX_LEVEL_UP_NOTICE.set(None)
+              return notice
+
+
+          def clear_ex_level_up_notice() -> None:
+              """Clear task-local state, mainly for explicit error handling and tests."""
+
+              _PENDING_EX_LEVEL_UP_NOTICE.set(None)
+          '''
+
+
+          TEST_MODULE = '''from __future__ import annotations
+
+          from contextvars import Context
+          from pathlib import Path
+
+          from ex_level_notice import (
+              build_ex_level_up_notice,
+              clear_ex_level_up_notice,
+              consume_ex_level_up_notice,
+              queue_ex_level_up_notice,
+              queue_ex_level_up_notice_from_locals,
+          )
+
+
+          def setup_function() -> None:
+              clear_ex_level_up_notice()
+
+
+          def test_first_repeat_draw_builds_ex1_notice() -> None:
+              assert build_ex_level_up_notice(ex_level=1, count=2) == (
+                  "✨ 重逢第 2 次 · EX Lv.0 → Lv.1"
+              )
+
+
+          def test_uncapped_collection_level_is_not_clamped_to_ex5() -> None:
+              assert build_ex_level_up_notice(ex_level=9, count=10) == (
+                  "✨ 重逢第 10 次 · EX Lv.8 → Lv.9"
+              )
+
+
+          def test_first_unlock_and_invalid_values_fail_closed() -> None:
+              assert build_ex_level_up_notice(ex_level=0, count=1) is None
+              assert build_ex_level_up_notice(ex_level=None, count=None) is None
+              assert queue_ex_level_up_notice(ex_level=0, count=1) is False
+              assert consume_ex_level_up_notice() is None
+
+
+          def test_notice_is_consumed_once() -> None:
+              assert queue_ex_level_up_notice(ex_level=3, count=4) is True
+              assert consume_ex_level_up_notice() == (
+                  "✨ 重逢第 4 次 · EX Lv.2 → Lv.3"
+              )
+              assert consume_ex_level_up_notice() is None
+
+
+          def test_event_writer_local_bridge_accepts_record_count() -> None:
+              assert queue_ex_level_up_notice_from_locals(
+                  {"ex_level": 4, "record": {"count": 5}}
+              ) is True
+              assert consume_ex_level_up_notice() == (
+                  "✨ 重逢第 5 次 · EX Lv.3 → Lv.4"
+              )
+
+
+          def test_pending_notice_is_context_local() -> None:
+              assert queue_ex_level_up_notice(ex_level=2, count=3) is True
+              isolated = Context()
+              assert isolated.run(consume_ex_level_up_notice) is None
+              assert consume_ex_level_up_notice() == (
+                  "✨ 重逢第 3 次 · EX Lv.1 → Lv.2"
+              )
+
+
+          def test_runtime_wiring_uses_successful_event_result_and_one_shot_consumer() -> None:
+              root = Path(__file__).resolve().parents[1]
+              ex_source = (root / "ex_variant_feature.py").read_text(encoding="utf-8")
+              legacy_source = (root / "legacy_main.py").read_text(encoding="utf-8")
+
+              assert "if _ex_event_created is True:" in ex_source
+              assert "_queue_ex_level_notice_from_locals(locals())" in ex_source
+              assert "_consume_ex_level_up_notice()" in legacy_source
+              assert 'intro = f"{intro}\\n{_ex_level_notice}"' in legacy_source
+          '''
+
+
+          def insert_import(source: str, import_block: str) -> str:
+              if import_block.splitlines()[1].strip() in source:
+                  return source
+              tree = ast.parse(source)
+              insert_after = 0
+              body = tree.body
+              index = 0
+              if body and isinstance(body[0], ast.Expr) and isinstance(
+                  body[0].value, ast.Constant
+              ) and isinstance(body[0].value.value, str):
+                  insert_after = body[0].end_lineno or body[0].lineno
+                  index = 1
+              while index < len(body):
+                  node = body[index]
+                  if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+                      insert_after = node.end_lineno or node.lineno
+                      index += 1
+                      continue
+                  break
+              lines = source.splitlines(keepends=True)
+              lines.insert(insert_after, "\n" + import_block.strip() + "\n")
+              return "".join(lines)
+
+
+          def find_method(tree: ast.AST, name: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
+              matches = [
+                  node
+                  for node in ast.walk(tree)
+                  if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                  and node.name == name
+              ]
+              if len(matches) != 1:
+                  raise RuntimeError(f"expected exactly one {name}, found {len(matches)}")
+              return matches[0]
+
+
+          def patch_event_writer(source: str) -> str:
+              if "if _ex_event_created is True:" in source:
+                  return source
+              tree = ast.parse(source)
+              method = find_method(tree, "_maybe_record_ex_level_event")
+              parent: dict[ast.AST, ast.AST] = {}
+              for node in ast.walk(method):
+                  for child in ast.iter_child_nodes(node):
+                      parent[child] = node
+
+              candidates: list[ast.Call] = []
+              for node in ast.walk(method):
+                  if not isinstance(node, ast.Call):
+                      continue
+                  func = node.func
+                  terminal = ""
+                  if isinstance(func, ast.Attribute):
+                      terminal = func.attr
+                  elif isinstance(func, ast.Name):
+                      terminal = func.id
+                  lowered = terminal.lower()
+                  if "event" not in lowered:
+                      continue
+                  if any(word in lowered for word in ("append", "record", "emit", "write")):
+                      if not any(word in lowered for word in ("build", "make", "create")):
+                          candidates.append(node)
+              if not candidates:
+                  raise RuntimeError("could not locate the gameplay-event persistence call")
+
+              call = sorted(candidates, key=lambda node: (node.lineno, node.col_offset))[-1]
+              statement: ast.AST = call
+              while statement in parent and not isinstance(
+                  statement,
+                  (ast.Expr, ast.Return, ast.Assign, ast.AnnAssign),
+              ):
+                  statement = parent[statement]
+              if not isinstance(statement, (ast.Expr, ast.Return, ast.Assign, ast.AnnAssign)):
+                  raise RuntimeError("event call is not in a supported statement")
+
+              lines = source.splitlines(keepends=True)
+              start = statement.lineno - 1
+              end = statement.end_lineno or statement.lineno
+              indent = " " * statement.col_offset
+              segment = "".join(lines[start:end])
+
+              if isinstance(statement, ast.Expr):
+                  expression = ast.get_source_segment(source, statement.value)
+                  replacement = (
+                      f"{indent}_ex_event_created = {expression}\n"
+                      f"{indent}if _ex_event_created is True:\n"
+                      f"{indent}    _queue_ex_level_notice_from_locals(locals())\n"
+                  )
+              elif isinstance(statement, ast.Return):
+                  expression = ast.get_source_segment(source, statement.value)
+                  replacement = (
+                      f"{indent}_ex_event_created = {expression}\n"
+                      f"{indent}if _ex_event_created is True:\n"
+                      f"{indent}    _queue_ex_level_notice_from_locals(locals())\n"
+                      f"{indent}return _ex_event_created\n"
+                  )
+              elif isinstance(statement, ast.Assign):
+                  if len(statement.targets) != 1 or not isinstance(statement.targets[0], ast.Name):
+                      raise RuntimeError("unsupported event result assignment target")
+                  target = statement.targets[0].id
+                  replacement = segment
+                  if not replacement.endswith("\n"):
+                      replacement += "\n"
+                  replacement += (
+                      f"{indent}if {target} is True:\n"
+                      f"{indent}    _queue_ex_level_notice_from_locals(locals())\n"
+                  )
+              else:
+                  if not isinstance(statement.target, ast.Name):
+                      raise RuntimeError("unsupported annotated event result target")
+                  target = statement.target.id
+                  replacement = segment
+                  if not replacement.endswith("\n"):
+                      replacement += "\n"
+                  replacement += (
+                      f"{indent}if {target} is True:\n"
+                      f"{indent}    _queue_ex_level_notice_from_locals(locals())\n"
+                  )
+
+              lines[start:end] = [replacement]
+              patched = "".join(lines)
+              ast.parse(patched)
+              return patched
+
+
+          def patch_renderer_sender(source: str) -> str:
+              if "_consume_ex_level_up_notice()" in source:
+                  return source
+              tree = ast.parse(source)
+              method = find_method(tree, "send_rendered_pig")
+              arg_names = {
+                  arg.arg
+                  for arg in (
+                      list(method.args.posonlyargs)
+                      + list(method.args.args)
+                      + list(method.args.kwonlyargs)
+                  )
+              }
+              if "intro" not in arg_names:
+                  raise RuntimeError("send_rendered_pig no longer has an intro parameter")
+
+              body = method.body
+              index = 0
+              if body and isinstance(body[0], ast.Expr) and isinstance(
+                  body[0].value, ast.Constant
+              ) and isinstance(body[0].value.value, str):
+                  index = 1
+              if index >= len(body):
+                  raise RuntimeError("send_rendered_pig has no executable body")
+              line_index = body[index].lineno - 1
+              indent = " " * body[index].col_offset
+              block = (
+                  f"{indent}_ex_level_notice = _consume_ex_level_up_notice()\n"
+                  f"{indent}if _ex_level_notice:\n"
+                  f"{indent}    intro = f\"{{intro}}\\n{{_ex_level_notice}}\" if intro else _ex_level_notice\n"
+                  "\n"
+              )
+              lines = source.splitlines(keepends=True)
+              lines.insert(line_index, block)
+              patched = "".join(lines)
+              ast.parse(patched)
+              return patched
+
+
+          ex_import = '''try:
+              from .ex_level_notice import (
+                  queue_ex_level_up_notice_from_locals as _queue_ex_level_notice_from_locals,
+              )
+          except ImportError:  # pragma: no cover - direct-module test fallback
+              from ex_level_notice import (
+                  queue_ex_level_up_notice_from_locals as _queue_ex_level_notice_from_locals,
+              )'''
+
+          legacy_import = '''try:
+              from .ex_level_notice import consume_ex_level_up_notice as _consume_ex_level_up_notice
+          except ImportError:  # pragma: no cover - direct-module test fallback
+              from ex_level_notice import consume_ex_level_up_notice as _consume_ex_level_up_notice'''
+
+          ex_source = EX_FILE.read_text(encoding="utf-8")
+          ex_source = insert_import(ex_source, ex_import)
+          ex_source = patch_event_writer(ex_source)
+          EX_FILE.write_text(ex_source, encoding="utf-8")
+
+          legacy_source = LEGACY_FILE.read_text(encoding="utf-8")
+          legacy_source = insert_import(legacy_source, legacy_import)
+          legacy_source = patch_renderer_sender(legacy_source)
+          LEGACY_FILE.write_text(legacy_source, encoding="utf-8")
+
+          (ROOT / "ex_level_notice.py").write_text(
+              NOTICE_MODULE.replace("          ", ""),
+              encoding="utf-8",
+          )
+          (ROOT / "tests" / "test_ex_level_notice.py").write_text(
+              TEST_MODULE.replace("          ", ""),
+              encoding="utf-8",
+          )
+
+          changelog = ROOT / "CHANGELOG.md"
+          text = changelog.read_text(encoding="utf-8")
+          entry = (
+              "- EX 升級回饋：真正完成當日重複抽取且 `ex_level_up` 事件首次寫入時，"
+              "單張卡訊息會顯示 `✨ 重逢第 N 次 · EX Lv.X → Lv.Y`；重看、首次解鎖、"
+              "預測與無法確認首次事件時不提示，EX5 以上繼續顯示真實收藏等級。"
+          )
+          if entry not in text:
+              heading = "## 未發佈\n"
+              if heading not in text:
+                  raise RuntimeError("CHANGELOG.md is missing the unreleased section")
+              text = text.replace(heading, heading + "\n" + entry + "\n", 1)
+              changelog.write_text(text, encoding="utf-8")
+          PY
+
+          python /tmp/apply_ex_notice.py
+          rm -f .github/workflows/one-shot-ex-level-up-notice.yml
+
+      - name: Validate focused behavior
+        shell: bash
+        run: |
+          python -m py_compile \
+            ex_level_notice.py \
+            ex_variant_feature.py \
+            legacy_main.py \
+            tests/test_ex_level_notice.py
+          python -m pip install --disable-pip-version-check -q pytest
+          python -m pytest -q tests/test_ex_level_notice.py
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: show one-time EX level-up notice"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
