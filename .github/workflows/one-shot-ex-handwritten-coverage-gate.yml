@@ -1,0 +1,539 @@
+name: One-shot EX handwritten coverage gate
+
+on:
+  push:
+    branches:
+      - fix/ex-handwritten-coverage-gate
+    paths:
+      - .github/workflows/one-shot-ex-handwritten-coverage-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: fix/ex-handwritten-coverage-gate
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Rebase work on the current main branch
+        shell: bash
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Add explicit authoring coverage gate
+        shell: bash
+        run: |
+          cat > scripts/check_ex_handwritten_coverage.py <<'PY'
+          from __future__ import annotations
+
+          import argparse
+          import glob
+          import json
+          import re
+          import sys
+          from dataclasses import asdict, dataclass
+          from pathlib import Path
+          from typing import Any, Iterable, Mapping, Sequence
+
+
+          LEVELS = (1, 2, 3, 4, 5)
+          META_KEYS = {
+              "schema_version",
+              "version",
+              "generated_at",
+              "updated_at",
+              "metadata",
+              "meta",
+              "description",
+              "source",
+          }
+
+
+          class CoverageError(ValueError):
+              """Raised when explicit handwritten EX authoring is incomplete or invalid."""
+
+
+          @dataclass(frozen=True)
+          class CoverageReport:
+              catalog_count: int
+              handwritten_count: int
+              fragment_count: int
+              missing_ids: tuple[str, ...]
+              unknown_ids: tuple[str, ...]
+              duplicate_ids: tuple[str, ...]
+
+              @property
+              def complete(self) -> bool:
+                  return not (self.missing_ids or self.unknown_ids or self.duplicate_ids)
+
+
+          def _read_json(path: Path) -> Any:
+              try:
+                  return json.loads(path.read_text(encoding="utf-8"))
+              except FileNotFoundError as exc:
+                  raise CoverageError(f"missing JSON file: {path}") from exc
+              except json.JSONDecodeError as exc:
+                  raise CoverageError(f"invalid JSON in {path}: {exc}") from exc
+
+
+          def _normalise_id(value: Any, *, source: Path) -> str:
+              pig_id = str(value).strip()
+              if not pig_id:
+                  raise CoverageError(f"empty pig id in {source}")
+              return pig_id
+
+
+          def _rows_to_ids(rows: Sequence[Any], *, source: Path) -> set[str]:
+              ids: set[str] = set()
+              for index, row in enumerate(rows):
+                  if isinstance(row, str):
+                      pig_id = _normalise_id(row, source=source)
+                  elif isinstance(row, Mapping):
+                      raw_id = row.get("id", row.get("pig_id"))
+                      if raw_id is None:
+                          raise CoverageError(
+                              f"catalog row {index} in {source} has no id/pig_id"
+                          )
+                      pig_id = _normalise_id(raw_id, source=source)
+                  else:
+                      raise CoverageError(
+                          f"unsupported catalog row {index} in {source}: "
+                          f"{type(row).__name__}"
+                      )
+                  if pig_id in ids:
+                      raise CoverageError(f"duplicate catalog id {pig_id!r} in {source}")
+                  ids.add(pig_id)
+              return ids
+
+
+          def load_catalog_ids(path: Path) -> set[str]:
+              payload = _read_json(path)
+              if isinstance(payload, list):
+                  ids = _rows_to_ids(payload, source=path)
+              elif isinstance(payload, Mapping):
+                  nested = None
+                  for key in ("pigs", "items", "catalog", "data"):
+                      candidate = payload.get(key)
+                      if isinstance(candidate, (list, Mapping)):
+                          nested = candidate
+                          break
+                  if isinstance(nested, list):
+                      ids = _rows_to_ids(nested, source=path)
+                  elif isinstance(nested, Mapping):
+                      ids = {
+                          _normalise_id(key, source=path)
+                          for key in nested
+                          if str(key) not in META_KEYS
+                      }
+                  else:
+                      ids = {
+                          _normalise_id(key, source=path)
+                          for key, value in payload.items()
+                          if str(key) not in META_KEYS and isinstance(value, Mapping)
+                      }
+              else:
+                  raise CoverageError(
+                      f"unsupported catalog root in {path}: {type(payload).__name__}"
+                  )
+              if not ids:
+                  raise CoverageError(f"catalog {path} contains no pig ids")
+              return ids
+
+
+          def _extract_fragment_entries(payload: Any, *, source: Path) -> Mapping[str, Any]:
+              if not isinstance(payload, Mapping):
+                  raise CoverageError(f"EX fragment root in {source} must be an object")
+              for key in ("pigs", "variants", "entries", "data"):
+                  candidate = payload.get(key)
+                  if isinstance(candidate, Mapping):
+                      return candidate
+              entries = {
+                  str(key): value
+                  for key, value in payload.items()
+                  if str(key) not in META_KEYS and isinstance(value, Mapping)
+              }
+              if not entries:
+                  raise CoverageError(f"EX fragment {source} contains no pig entries")
+              return entries
+
+
+          def _normalise_level_key(raw: Any) -> int | None:
+              if isinstance(raw, int):
+                  return raw if raw in LEVELS else None
+              text = str(raw).strip().lower()
+              if text.isdigit():
+                  value = int(text)
+                  return value if value in LEVELS else None
+              match = re.fullmatch(r"ex[ _.-]*(?:lv[ _.-]*)?([1-5])", text)
+              return int(match.group(1)) if match else None
+
+
+          def _extract_levels(entry: Any, *, pig_id: str, source: Path) -> dict[int, Mapping[str, Any]]:
+              if not isinstance(entry, Mapping):
+                  raise CoverageError(
+                      f"EX entry {pig_id!r} in {source} must be an object"
+                  )
+              levels_root: Any = entry
+              for key in ("levels", "variants", "ex"):
+                  candidate = entry.get(key)
+                  if isinstance(candidate, Mapping):
+                      levels_root = candidate
+                      break
+              levels: dict[int, Mapping[str, Any]] = {}
+              for raw_level, value in levels_root.items():
+                  level = _normalise_level_key(raw_level)
+                  if level is None:
+                      continue
+                  if not isinstance(value, Mapping):
+                      raise CoverageError(
+                          f"{pig_id!r} EX{level} in {source} must be an object"
+                      )
+                  if level in levels:
+                      raise CoverageError(
+                          f"{pig_id!r} repeats EX{level} in {source}"
+                      )
+                  levels[level] = value
+              missing = [level for level in LEVELS if level not in levels]
+              if missing:
+                  raise CoverageError(
+                      f"{pig_id!r} in {source} is missing explicit levels: {missing}"
+                  )
+              return levels
+
+
+          def _non_empty_text(value: Any) -> str:
+              return value.strip() if isinstance(value, str) else ""
+
+
+          def validate_entry(entry: Any, *, pig_id: str, source: Path) -> None:
+              levels = _extract_levels(entry, pig_id=pig_id, source=source)
+              descriptions: list[str] = []
+              analyses: list[str] = []
+              for level in LEVELS:
+                  payload = levels[level]
+                  description = _non_empty_text(payload.get("description"))
+                  analysis = _non_empty_text(payload.get("analysis"))
+                  if not description or not analysis:
+                      raise CoverageError(
+                          f"{pig_id!r} EX{level} in {source} requires non-empty "
+                          "description and analysis"
+                      )
+                  descriptions.append(description)
+                  analyses.append(analysis)
+              if len(set(descriptions)) != len(LEVELS):
+                  raise CoverageError(
+                      f"{pig_id!r} in {source} repeats a description across EX1-EX5"
+                  )
+              if len(set(analyses)) != len(LEVELS):
+                  raise CoverageError(
+                      f"{pig_id!r} in {source} repeats an analysis across EX1-EX5"
+                  )
+
+
+          def expand_fragment_paths(patterns: Iterable[str]) -> list[Path]:
+              paths: list[Path] = []
+              for pattern in patterns:
+                  matches = sorted(Path(match) for match in glob.glob(pattern))
+                  if not matches:
+                      candidate = Path(pattern)
+                      if candidate.is_file():
+                          matches = [candidate]
+                  paths.extend(matches)
+              unique = list(dict.fromkeys(path.resolve() for path in paths))
+              if not unique:
+                  raise CoverageError("no handwritten EX fragment files matched")
+              return unique
+
+
+          def audit_coverage(catalog_path: Path, fragment_paths: Sequence[Path]) -> CoverageReport:
+              catalog_ids = load_catalog_ids(catalog_path)
+              authored: dict[str, Path] = {}
+              duplicates: set[str] = set()
+              for path in fragment_paths:
+                  entries = _extract_fragment_entries(_read_json(path), source=path)
+                  for raw_id, entry in entries.items():
+                      pig_id = _normalise_id(raw_id, source=path)
+                      validate_entry(entry, pig_id=pig_id, source=path)
+                      if pig_id in authored:
+                          duplicates.add(pig_id)
+                      else:
+                          authored[pig_id] = path
+              authored_ids = set(authored)
+              return CoverageReport(
+                  catalog_count=len(catalog_ids),
+                  handwritten_count=len(authored_ids & catalog_ids),
+                  fragment_count=len(fragment_paths),
+                  missing_ids=tuple(sorted(catalog_ids - authored_ids)),
+                  unknown_ids=tuple(sorted(authored_ids - catalog_ids)),
+                  duplicate_ids=tuple(sorted(duplicates)),
+              )
+
+
+          def _markdown(report: CoverageReport) -> str:
+              status = "PASS" if report.complete else "FAIL"
+              lines = [
+                  "## Explicit bundled EX authoring coverage",
+                  "",
+                  f"**{status}: {report.handwritten_count}/{report.catalog_count}** "
+                  "catalog pigs have explicit handwritten EX1-EX5.",
+                  "",
+                  f"Fragments checked: `{report.fragment_count}`",
+              ]
+              for label, values in (
+                  ("Missing catalog IDs", report.missing_ids),
+                  ("Unknown authored IDs", report.unknown_ids),
+                  ("Duplicate authored IDs", report.duplicate_ids),
+              ):
+                  if values:
+                      lines.extend(("", f"- {label}: `{', '.join(values)}`"))
+              return "\n".join(lines) + "\n"
+
+
+          def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+              parser = argparse.ArgumentParser(
+                  description=(
+                      "Verify that every bundled catalog pig has an explicit, complete, "
+                      "non-duplicated handwritten EX1-EX5 entry. Generated fallbacks are "
+                      "intentionally not counted."
+                  )
+              )
+              parser.add_argument("--catalog", type=Path, required=True)
+              parser.add_argument(
+                  "--fragments",
+                  action="append",
+                  required=True,
+                  help="Glob or path; repeat for multiple fragment groups",
+              )
+              parser.add_argument("--json-out", type=Path)
+              parser.add_argument("--summary-file", type=Path)
+              return parser.parse_args(argv)
+
+
+          def main(argv: Sequence[str] | None = None) -> int:
+              args = parse_args(argv)
+              try:
+                  fragments = expand_fragment_paths(args.fragments)
+                  report = audit_coverage(args.catalog.resolve(), fragments)
+              except CoverageError as exc:
+                  print(f"EX handwritten coverage check failed: {exc}", file=sys.stderr)
+                  return 1
+
+              payload = asdict(report) | {"complete": report.complete}
+              print(json.dumps(payload, ensure_ascii=False, indent=2))
+              if args.json_out:
+                  args.json_out.parent.mkdir(parents=True, exist_ok=True)
+                  args.json_out.write_text(
+                      json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                      encoding="utf-8",
+                  )
+              if args.summary_file:
+                  args.summary_file.parent.mkdir(parents=True, exist_ok=True)
+                  with args.summary_file.open("a", encoding="utf-8") as handle:
+                      handle.write(_markdown(report))
+              if not report.complete:
+                  print(_markdown(report), file=sys.stderr)
+                  return 1
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+
+          cat > tests/test_ex_handwritten_coverage.py <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          import pytest
+
+          from scripts.check_ex_handwritten_coverage import (
+              CoverageError,
+              audit_coverage,
+              expand_fragment_paths,
+          )
+
+
+          ROOT = Path(__file__).resolve().parents[1]
+
+
+          def _write(path: Path, payload: object) -> Path:
+              path.write_text(
+                  json.dumps(payload, ensure_ascii=False, indent=2),
+                  encoding="utf-8",
+              )
+              return path
+
+
+          def _entry(prefix: str) -> dict[str, dict[str, str]]:
+              return {
+                  str(level): {
+                      "description": f"{prefix} description {level}",
+                      "analysis": f"{prefix} analysis {level}",
+                  }
+                  for level in range(1, 6)
+              }
+
+
+          def test_repository_bundled_catalog_is_fully_explicit() -> None:
+              fragments = expand_fragment_paths(
+                  [str(ROOT / "resource" / "bundled_ex_copy*.json")]
+              )
+              report = audit_coverage(ROOT / "resource" / "pig.json", fragments)
+              assert report.complete
+              assert report.handwritten_count == report.catalog_count
+              assert report.catalog_count > 0
+
+
+          def test_generated_fallback_cannot_hide_missing_authoring(tmp_path: Path) -> None:
+              catalog = _write(
+                  tmp_path / "pig.json",
+                  [{"id": "alpha"}, {"id": "beta"}],
+              )
+              fragment = _write(
+                  tmp_path / "bundled_ex_copy.json",
+                  {"schema_version": 1, "pigs": {"alpha": _entry("a")}},
+              )
+              report = audit_coverage(catalog, [fragment])
+              assert not report.complete
+              assert report.missing_ids == ("beta",)
+
+
+          def test_duplicate_id_across_fragments_is_rejected(tmp_path: Path) -> None:
+              catalog = _write(tmp_path / "pig.json", [{"id": "alpha"}])
+              first = _write(
+                  tmp_path / "bundled_ex_copy.json",
+                  {"pigs": {"alpha": _entry("a")}},
+              )
+              second = _write(
+                  tmp_path / "bundled_ex_copy_phase2.json",
+                  {"pigs": {"alpha": _entry("b")}},
+              )
+              report = audit_coverage(catalog, [first, second])
+              assert not report.complete
+              assert report.duplicate_ids == ("alpha",)
+
+
+          def test_each_explicit_entry_requires_all_five_distinct_levels(
+              tmp_path: Path,
+          ) -> None:
+              catalog = _write(tmp_path / "pig.json", [{"id": "alpha"}])
+              entry = _entry("a")
+              del entry["5"]
+              fragment = _write(
+                  tmp_path / "bundled_ex_copy.json",
+                  {"pigs": {"alpha": entry}},
+              )
+              with pytest.raises(CoverageError, match="missing explicit levels"):
+                  audit_coverage(catalog, [fragment])
+
+
+          def test_repeated_level_copy_is_not_counted_as_handwritten_quality(
+              tmp_path: Path,
+          ) -> None:
+              catalog = _write(tmp_path / "pig.json", [{"id": "alpha"}])
+              entry = _entry("a")
+              entry["5"]["analysis"] = entry["4"]["analysis"]
+              fragment = _write(
+                  tmp_path / "bundled_ex_copy.json",
+                  {"pigs": {"alpha": entry}},
+              )
+              with pytest.raises(CoverageError, match="repeats an analysis"):
+                  audit_coverage(catalog, [fragment])
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/resource-source.yml')
+          text = workflow.read_text(encoding='utf-8')
+          marker = 'Check explicit bundled EX authoring coverage'
+          if marker not in text:
+              lines = text.splitlines(keepends=True)
+              build_index = next(
+                  index
+                  for index, line in enumerate(lines)
+                  if 'python scripts/build_resource_source.py' in line
+              )
+              step_index = build_index
+              while step_index >= 0 and '- name:' not in lines[step_index]:
+                  step_index -= 1
+              if step_index < 0:
+                  raise SystemExit('could not locate Resource Source build step')
+              indent = lines[step_index].split('- name:', 1)[0]
+              block = (
+                  f"{indent}- name: {marker}\n"
+                  f"{indent}  run: |\n"
+                  f"{indent}    python scripts/check_ex_handwritten_coverage.py \\\n"
+                  f"{indent}      --catalog resource/pig.json \\\n"
+                  f"{indent}      --fragments 'resource/bundled_ex_copy*.json' \\\n"
+                  f"{indent}      --json-out /tmp/ex-handwritten-coverage.json \\\n"
+                  f"{indent}      --summary-file \"$GITHUB_STEP_SUMMARY\"\n\n"
+              )
+              lines.insert(step_index, block)
+              workflow.write_text(''.join(lines), encoding='utf-8')
+
+          docs = Path('docs/EX-VARIANTS.md')
+          doc_text = docs.read_text(encoding='utf-8')
+          anchor = '這些 gate 證明的是「生成後完整可用」，**不會單憑物化輸出證明每個 ID 都由人工撰寫**。'
+          addition = (
+              '`scripts/check_ex_handwritten_coverage.py` 另行把 `resource/pig.json` '
+              '與 `resource/bundled_ex_copy*.json` 做精確集合比對；任何 bundled ID 缺少明確五級、'
+              '出現陌生 ID、跨分片重複，或五級文案不完整／重複，Resource Source CI 都會失敗。'
+              '這個 gate 不讀取 builder 的 deterministic fallback，因此 fallback 不能再把人工覆蓋缺口偽裝成 100%。\n\n'
+          )
+          if addition not in doc_text:
+              if anchor not in doc_text:
+                  raise SystemExit('could not locate EX CI contract paragraph')
+              doc_text = doc_text.replace(anchor, addition + anchor, 1)
+              docs.write_text(doc_text, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          change_text = changelog.read_text(encoding='utf-8')
+          entry = (
+              '- EX 手寫覆蓋 CI：新增 `scripts/check_ex_handwritten_coverage.py`，將 bundled catalog '
+              '與 `bundled_ex_copy*.json` 的明確五級文案逐 ID 比對；缺漏、陌生 ID、跨分片重複、'
+              '不完整或重複級別都會直接阻止 Resource Source 建置，deterministic baseline 不再能掩蓋人工覆蓋退化。'
+          )
+          if entry not in change_text:
+              heading = '## 未發佈\n'
+              if heading not in change_text:
+                  raise SystemExit('CHANGELOG.md is missing the unreleased section')
+              change_text = change_text.replace(heading, heading + '\n' + entry + '\n', 1)
+              changelog.write_text(change_text, encoding='utf-8')
+          PY
+
+      - name: Validate the new gate against real and adversarial fixtures
+        shell: bash
+        run: |
+          python -m py_compile \
+            scripts/check_ex_handwritten_coverage.py \
+            tests/test_ex_handwritten_coverage.py
+          python scripts/check_ex_handwritten_coverage.py \
+            --catalog resource/pig.json \
+            --fragments 'resource/bundled_ex_copy*.json' \
+            --json-out /tmp/ex-handwritten-coverage.json
+          python -m pip install --disable-pip-version-check -q pytest
+          python -m pytest -q tests/test_ex_handwritten_coverage.py
+
+      - name: Commit clean implementation
+        shell: bash
+        run: |
+          rm -f .github/workflows/one-shot-ex-handwritten-coverage-gate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "ci: enforce explicit bundled EX authoring coverage"
+          git push --force-with-lease origin "HEAD:${GITHUB_REF_NAME}"
