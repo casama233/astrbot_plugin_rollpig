@@ -18,6 +18,25 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      - name: Repair temporary generator quoting
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/one_shot_ex_level_up_patch.py")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          start = lines.index('replacement = """    @staticmethod')
+          lines[start] = "replacement = '''    @staticmethod"
+          for index in range(start + 1, len(lines)):
+              if lines[index] == '""".splitlines()':
+                  lines[index] = "'''.splitlines()"
+                  break
+          else:
+              raise SystemExit("EX replacement closing delimiter not found")
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
       - name: Apply structural EX feedback patch
         run: python .github/one_shot_ex_level_up_patch.py
 
