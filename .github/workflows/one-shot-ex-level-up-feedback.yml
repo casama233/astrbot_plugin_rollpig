@@ -42,6 +42,13 @@ jobs:
           else:
               raise SystemExit("EX replacement closing delimiter not found")
 
+          notice = lines.index(
+              r'        "今天抽到：\n✨ 重逢第 4 次 · EX Lv.2 → Lv.3"'
+          )
+          lines[notice] = (
+              r'        "今天抽到：\\n✨ 重逢第 4 次 · EX Lv.2 → Lv.3"'
+          )
+
           path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
