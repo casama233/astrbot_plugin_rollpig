@@ -79,3 +79,28 @@ def test_prune_uses_same_keep_window_as_daily_report():
     assert prune_gameplay_events(state, datetime.date(2026, 8, 14), keep_days=14)
     assert "2026-07-01" not in state
     assert "2026-08-13" in state
+
+
+def test_append_can_dedupe_event_id_across_scopes():
+    event = build_gameplay_event(EVENT_EX_LEVEL_UP, event_id="global", at=1)
+
+    default_state: dict[str, object] = {}
+    assert append_gameplay_event(default_state, "2026-08-14", "g1", event)
+    assert append_gameplay_event(default_state, "2026-08-14", "g2", event)
+
+    global_state: dict[str, object] = {}
+    assert append_gameplay_event(
+        global_state,
+        "2026-08-14",
+        "g1",
+        event,
+        dedupe_across_scopes=True,
+    )
+    assert not append_gameplay_event(
+        global_state,
+        "2026-08-14",
+        "private:u1",
+        event,
+        dedupe_across_scopes=True,
+    )
+    assert not read_gameplay_events(global_state, "2026-08-14", "private:u1")

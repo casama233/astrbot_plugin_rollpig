@@ -340,6 +340,7 @@ class DailyReportMixin:
         metadata: dict[str, Any] | None = None,
         draw_date: str | None = None,
         event_id: str = "",
+        dedupe_across_scopes: bool = False,
     ) -> bool:
         """Write one shared gameplay event without changing core domain state."""
         if not group_id:
@@ -361,7 +362,12 @@ class DailyReportMixin:
                 events = {}
                 self.daily_report_state["events"] = events
             if not append_gameplay_event(
-                events, date_key, str(group_id), payload, max_events=2000
+                events,
+                date_key,
+                str(group_id),
+                payload,
+                max_events=2000,
+                dedupe_across_scopes=dedupe_across_scopes,
             ):
                 return False
             prune_state(
