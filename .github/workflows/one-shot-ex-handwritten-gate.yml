@@ -68,7 +68,7 @@ jobs:
           test.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
 
-      - name: Wire coverage audit into CI and docs
+      - name: Update handwritten coverage documentation
         run: python .github/one_shot_ex_handwritten_gate.py
 
       - name: Install focused test dependencies
@@ -89,15 +89,13 @@ jobs:
           python scripts/maintenance_contract.py coverage
           git diff --check
 
-      - name: Commit workflow and documentation wiring
+      - name: Commit coverage implementation and docs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             scripts/check_ex_handwritten_coverage.py \
             tests/test_ex_handwritten_coverage.py \
-            .github/workflows/ci.yml \
-            .github/workflows/resource-source.yml \
             docs/EX-VARIANTS.md \
             CHANGELOG.md
           git commit -m "ci: enforce handwritten EX coverage before materialization"
