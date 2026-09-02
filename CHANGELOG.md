@@ -2,6 +2,8 @@
 
 ## 未發佈
 
+- 新增 canonical EX 手寫覆蓋閘門 `scripts/check_ex_handwritten_coverage.py`：一般 CI 與 Resource Source 均直接比對 bundled 99/99、Felis 34/34 的顯式 authoring、固定 allowlist、分片與 provenance，且必須在 deterministic baseline 物化前通過；另以反例測試證明即使 `dist/pig_ex_variants.json` 完整，canonical 少一隻仍會失敗。
+
 - Felis 直讀 EX 文案契約收斂為 34/34 顯式手寫：補正過期的 22/34 文件口徑，將 `felis_direct_ex_copy.json` 升為 schema v3，並在運行時拒絕舊語義種子模板，避免 generated fallback 再被誤算為人工精修。
 
 - 今日小豬新增一次性 EX 成長提示：真正重複抽中時顯示 `✨ 重逢第 N 次 · EX Lv.a → Lv.b`，沿用 `ex_level_up` Gameplay Event 作為持久化去重憑證；同日跨群／私聊重看不重播，私聊作用域不污染群組日報，EX5 以上仍顯示真實未封頂等級，事件寫入失敗則安全降級為只發卡。

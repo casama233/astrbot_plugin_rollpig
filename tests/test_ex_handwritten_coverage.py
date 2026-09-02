@@ -67,7 +67,7 @@ def _fixture_repo(
         },
     )
     (root / "felis_direct_feature.py").write_text(
-        "FELIS_DIRECT_IDS = " + repr(felis_ids) + "\n",
+        "FELIS_DIRECT_IDS = frozenset(" + repr(felis_ids) + ")\n",
         encoding="utf-8",
     )
     _write_json(
