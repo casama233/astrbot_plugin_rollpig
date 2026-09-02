@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 PIG_CARD_CACHE_MAX_ITEMS = 32
 PIG_CARD_CACHE_MAX_BYTES = 16 * 1024 * 1024
-_PIG_CARD_CACHE_VERSION = 1
+_PIG_CARD_CACHE_VERSION = 2
 _pig_card_cache: OrderedDict[tuple[object, ...], bytes] = OrderedDict()
 _pig_card_cache_bytes = 0
 _pig_card_cache_lock = threading.RLock()
@@ -36,12 +36,74 @@ class PigCardLayout:
     canvas_height: int = 800
     avatar_size: int = 280
     spacing_avatar_name: int = 20
+    spacing_avatar_badge: int = 12
+    spacing_badge_name: int = 14
     spacing_name_desc: int = 25
     spacing_desc_analysis: int = 30
     desc_font_size: int = 32
     analysis_font_size: int = 28
     analysis_line_height_factor: float = 1.6
     analysis_width_ratio: float = 0.85
+    ex_badge_font_size: int = 24
+    ex_badge_padding_x: int = 16
+    ex_badge_padding_y: int = 7
+
+
+def ex_level_badge_metrics(
+    ex_level: int,
+    font_regular: ImageFont.FreeTypeFont,
+    layout: PigCardLayout,
+) -> tuple[str, ImageFont.FreeTypeFont, int, int]:
+    """Return the uncapped EX label and its compact pill geometry."""
+    level = max(0, int(ex_level or 0))
+    label = f"EX Lv.{level}"
+    badge_font = font_regular.font_variant(size=max(1, layout.ex_badge_font_size))
+    text_w, text_h = get_text_size(label, badge_font)
+    width = text_w + max(0, layout.ex_badge_padding_x) * 2
+    height = text_h + max(0, layout.ex_badge_padding_y) * 2
+    return label, badge_font, width, height
+
+
+def draw_ex_level_badge(
+    draw: ImageDraw.ImageDraw,
+    *,
+    center_x: int,
+    top: int,
+    ex_level: int,
+    palette: Mapping[str, object],
+    font_regular: ImageFont.FreeTypeFont,
+    layout: PigCardLayout,
+) -> None:
+    """Draw an explicit EX level pill without capping levels above EX5."""
+    label, badge_font, width, height = ex_level_badge_metrics(
+        ex_level,
+        font_regular,
+        layout,
+    )
+    left = int(center_x - width / 2)
+    right = left + width
+    bottom = top + height
+    draw.rounded_rectangle(
+        (left, top, right, bottom),
+        radius=max(1, height // 2),
+        fill=palette["accent"],
+    )
+    try:
+        bbox = draw.textbbox((0, 0), label, font=badge_font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        text_x = left + (width - text_w) // 2 - bbox[0]
+        text_y = top + (height - text_h) // 2 - bbox[1]
+    except Exception:
+        text_w, text_h = get_text_size(label, badge_font)
+        text_x = left + (width - text_w) // 2
+        text_y = top + (height - text_h) // 2
+    draw.text(
+        (text_x, text_y),
+        label,
+        fill=palette["canvas"],
+        font=badge_font,
+    )
 
 
 def _font_identity(font: ImageFont.FreeTypeFont) -> tuple[object, ...]:
@@ -133,7 +195,8 @@ def render_pig_card(
     pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
     pig_desc = str(pig_data.get("description", "无描述") or "无描述")
     pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
-    ex_level = int(pig_data.get("_ex_level", 0) or 0)
+    ex_level = max(0, int(pig_data.get("_ex_level", 0) or 0))
+    show_ex_badge = "_ex_level" in pig_data
 
     avatar_path = image_resolver(pig_id, ex_level)
     avatar_key, cacheable = _avatar_identity(avatar_path)
@@ -144,6 +207,7 @@ def render_pig_card(
         pig_desc,
         pig_analysis,
         ex_level,
+        show_ex_badge,
         layout,
         _palette_identity(palette),
         _font_identity(font_bold),
@@ -177,6 +241,14 @@ def render_pig_card(
     name_font = font_bold
     name_w, name_h = get_text_size(pig_name, name_font)
 
+    badge_h = 0
+    if show_ex_badge:
+        _label, _badge_font, _badge_w, badge_h = ex_level_badge_metrics(
+            ex_level,
+            font_regular,
+            layout,
+        )
+
     desc_font = font_regular.font_variant(size=layout.desc_font_size)
     desc_w, desc_h = get_text_size(pig_desc, desc_font)
 
@@ -193,9 +265,14 @@ def render_pig_card(
     )
     analysis_total_h = len(analysis_lines) * line_height
 
+    avatar_name_spacing = layout.spacing_avatar_name
+    if show_ex_badge:
+        avatar_name_spacing = (
+            layout.spacing_avatar_badge + badge_h + layout.spacing_badge_name
+        )
     total_content_h = (
         avatar_h
-        + layout.spacing_avatar_name
+        + avatar_name_spacing
         + name_h
         + layout.spacing_name_desc
         + desc_h
@@ -224,7 +301,20 @@ def render_pig_card(
             font=error_font,
         )
 
-    name_y = avatar_y + avatar_h + layout.spacing_avatar_name
+    if show_ex_badge:
+        badge_y = avatar_y + avatar_h + layout.spacing_avatar_badge
+        draw_ex_level_badge(
+            draw,
+            center_x=canvas_width // 2,
+            top=badge_y,
+            ex_level=ex_level,
+            palette=palette,
+            font_regular=font_regular,
+            layout=layout,
+        )
+        name_y = badge_y + badge_h + layout.spacing_badge_name
+    else:
+        name_y = avatar_y + avatar_h + layout.spacing_avatar_name
     name_x = (canvas_width - name_w) // 2
     draw_bold_text(
         draw,

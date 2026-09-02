@@ -14,7 +14,11 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from animated_images import load_fitted_gif_frames
 
 from .common import draw_bold_text, get_text_size, wrap_text
-from .pig_card import PigCardLayout
+from .pig_card import (
+    PigCardLayout,
+    draw_ex_level_badge,
+    ex_level_badge_metrics,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -26,6 +30,7 @@ def _render_frame(
     pig_name: str,
     pig_desc: str,
     pig_analysis: str,
+    ex_level: int | None,
     palette: Mapping[str, object],
     font_bold: ImageFont.FreeTypeFont,
     font_regular: ImageFont.FreeTypeFont,
@@ -39,6 +44,13 @@ def _render_frame(
     avatar_w = avatar_h = layout.avatar_size
     name_font = font_bold
     name_w, name_h = get_text_size(pig_name, name_font)
+    badge_h = 0
+    if ex_level is not None:
+        _label, _badge_font, _badge_w, badge_h = ex_level_badge_metrics(
+            ex_level,
+            font_regular,
+            layout,
+        )
     desc_font = font_regular.font_variant(size=layout.desc_font_size)
     desc_w, desc_h = get_text_size(pig_desc, desc_font)
     analysis_font = font_regular.font_variant(size=layout.analysis_font_size)
@@ -51,9 +63,14 @@ def _render_frame(
         max_lines=6,
     )
     analysis_total_h = len(analysis_lines) * line_height
+    avatar_name_spacing = layout.spacing_avatar_name
+    if ex_level is not None:
+        avatar_name_spacing = (
+            layout.spacing_avatar_badge + badge_h + layout.spacing_badge_name
+        )
     total_content_h = (
         avatar_h
-        + layout.spacing_avatar_name
+        + avatar_name_spacing
         + name_h
         + layout.spacing_name_desc
         + desc_h
@@ -70,7 +87,20 @@ def _render_frame(
         mask=avatar if avatar.mode == "RGBA" else None,
     )
 
-    name_y = avatar_y + avatar_h + layout.spacing_avatar_name
+    if ex_level is not None:
+        badge_y = avatar_y + avatar_h + layout.spacing_avatar_badge
+        draw_ex_level_badge(
+            draw,
+            center_x=canvas_width // 2,
+            top=badge_y,
+            ex_level=ex_level,
+            palette=palette,
+            font_regular=font_regular,
+            layout=layout,
+        )
+        name_y = badge_y + badge_h + layout.spacing_badge_name
+    else:
+        name_y = avatar_y + avatar_h + layout.spacing_avatar_name
     name_x = (canvas_width - name_w) // 2
     draw_bold_text(
         draw,
@@ -122,6 +152,11 @@ def render_animated_pig_card(
         pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
         pig_desc = str(pig_data.get("description", "无描述") or "无描述")
         pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
+        ex_level = (
+            max(0, int(pig_data.get("_ex_level", 0) or 0))
+            if "_ex_level" in pig_data
+            else None
+        )
         palette_mode = getattr(
             getattr(PILImage, "Palette", PILImage),
             "ADAPTIVE",
@@ -133,6 +168,7 @@ def render_animated_pig_card(
                 pig_name=pig_name,
                 pig_desc=pig_desc,
                 pig_analysis=pig_analysis,
+                ex_level=ex_level,
                 palette=palette,
                 font_bold=font_bold,
                 font_regular=font_regular,
