@@ -1,0 +1,61 @@
+name: One-shot handwritten EX coverage gate
+
+on:
+  push:
+    branches:
+      - ci/ex-handwritten-coverage-gate
+    paths:
+      - .github/workflows/one-shot-ex-handwritten-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  wire-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Wire coverage audit into CI and docs
+        run: python .github/one_shot_ex_handwritten_gate.py
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install -r requirements.txt pytest
+          python -m pip check
+
+      - name: Validate canonical handwritten coverage gate
+        run: |
+          python -m py_compile \
+            scripts/check_ex_handwritten_coverage.py \
+            tests/test_ex_handwritten_coverage.py
+          python scripts/check_ex_handwritten_coverage.py --root .
+          pytest -q \
+            tests/test_ex_handwritten_coverage.py \
+            tests/test_bundled_ex_copy.py \
+            tests/test_felis_direct_ex_copy.py
+          python scripts/maintenance_contract.py coverage
+          git diff --check
+
+      - name: Commit workflow and documentation wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/ci.yml \
+            .github/workflows/resource-source.yml \
+            docs/EX-VARIANTS.md \
+            CHANGELOG.md
+          git commit -m "ci: enforce handwritten EX coverage before materialization"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
