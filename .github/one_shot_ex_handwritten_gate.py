@@ -18,44 +18,6 @@ def replace_exact(path: str, old: str, new: str, *, expected: int = 1) -> None:
 
 
 replace_exact(
-    ".github/workflows/ci.yml",
-    "scripts/maintenance_contract.py scripts/check_display_copy.py\n\n"
-    "      - name: Install dependencies",
-    "scripts/maintenance_contract.py scripts/check_display_copy.py "
-    "scripts/check_ex_handwritten_coverage.py\n\n"
-    "      - name: Verify canonical handwritten EX coverage\n"
-    "        run: python scripts/check_ex_handwritten_coverage.py --root .\n\n"
-    "      - name: Install dependencies",
-)
-
-replace_exact(
-    ".github/workflows/resource-source.yml",
-    '      - "resource/**"\n      - "ex_variants.py"\n',
-    '      - "resource/**"\n'
-    '      - "bundled_ex_copy.py"\n'
-    '      - "felis_direct_feature.py"\n'
-    '      - "felis_ex_copy.py"\n'
-    '      - "ex_variants.py"\n'
-    '      - "scripts/check_ex_handwritten_coverage.py"\n',
-    expected=2,
-)
-replace_exact(
-    ".github/workflows/resource-source.yml",
-    "      - name: Enforce quarantined authored resource boundary\n"
-    "        run: |\n"
-    "          test ! -e resource/pig_ex_variants.json\n"
-    "          test ! -d resource/ex_curated\n\n"
-    "      - name: Verify legacy compatibility helper fails closed",
-    "      - name: Enforce quarantined authored resource boundary\n"
-    "        run: |\n"
-    "          test ! -e resource/pig_ex_variants.json\n"
-    "          test ! -d resource/ex_curated\n\n"
-    "      - name: Verify canonical handwritten EX coverage before materialization\n"
-    "        run: python scripts/check_ex_handwritten_coverage.py --root .\n\n"
-    "      - name: Verify legacy compatibility helper fails closed",
-)
-
-replace_exact(
     "docs/EX-VARIANTS.md",
     "Resource Source workflow 目前保證：\n\n"
     "- canonical `resource/` 不提交 `pig_ex_variants.json` 或 `ex_curated/`；",
