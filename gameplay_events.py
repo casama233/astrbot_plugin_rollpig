@@ -70,8 +70,9 @@ def append_gameplay_event(
     event: Mapping[str, Any],
     *,
     max_events: int = 2000,
+    dedupe_across_scopes: bool = False,
 ) -> bool:
-    """Append one event idempotently to the existing date/group bucket."""
+    """Append one event idempotently to one scope or the whole date."""
     date_key = str(date_key or "").strip()
     group_id = str(group_id or "").strip()
     if not date_key or not group_id or not isinstance(event, Mapping):
@@ -88,9 +89,15 @@ def append_gameplay_event(
 
     payload = dict(event)
     event_id = str(payload.get("id") or "")
+    buckets = (
+        (bucket for bucket in by_date.values() if isinstance(bucket, list))
+        if dedupe_across_scopes
+        else (rows,)
+    )
     if event_id and any(
         isinstance(item, dict) and str(item.get("id") or "") == event_id
-        for item in rows
+        for bucket in buckets
+        for item in bucket
     ):
         return False
 
