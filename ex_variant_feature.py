@@ -317,44 +317,66 @@ class ExVariantMixin:
         pig, eaten = super()._get_weekly_pig(user_id, date_value)
         return self._decorate_ex_variant(pig, str(user_id)), eaten
 
+    @staticmethod
+    def _ex_level_up_notice(ex_level: int) -> str:
+        return (
+            f"✨ 重逢第 {ex_level + 1} 次 · "
+            f"EX Lv.{ex_level - 1} → Lv.{ex_level}"
+        )
+
     def _maybe_record_ex_level_event(
         self, event, pig: dict | None, user_id: str, fallback_title: str
-    ) -> None:
-        """Record today's duplicate growth once, without changing draw state."""
-        if fallback_title != "今日小猪" or not isinstance(pig, dict):
-            return
+    ) -> str:
+        """Claim today's duplicate growth and return its one-time notice."""
+        target_user_id = str(user_id or "")
+        if (
+            fallback_title != "今日小猪"
+            or not target_user_id
+            or not isinstance(pig, dict)
+        ):
+            return ""
         try:
             sender_id = str(self._event_sender_id(event))
+            group_id = str(self._event_group_id(event) or "")
         except Exception:
-            return
-        if sender_id != str(user_id):
-            return
-        group_id = str(self._event_group_id(event) or "")
-        if not group_id:
-            return
+            return ""
+        if sender_id != target_user_id:
+            return ""
         pig_id = str(pig.get("id") or "")
-        ex_level = self._ex_level_for_user(user_id, pig_id)
+        if not pig_id:
+            return ""
+        ex_level = self._ex_level_for_user(target_user_id, pig_id)
         if ex_level <= 0:
-            return
-        user = self._get_user_collection(str(user_id))
+            return ""
+        today = self._today().isoformat()
+        user = self._get_user_collection(target_user_id)
         pigs = user.get("pigs", {}) if isinstance(user, dict) else {}
         record = pigs.get(pig_id, {}) if isinstance(pigs, dict) else {}
-        if str(record.get("last_drawn") or "") != self._today().isoformat():
-            return
+        if str(record.get("last_drawn") or "") != today:
+            return ""
         writer = getattr(self, "_record_gameplay_event", None)
         if not callable(writer):
-            return
-        writer(
-            group_id,
-            EVENT_EX_LEVEL_UP,
-            actor_id=str(user_id),
-            pig_id=pig_id,
-            metadata={"from": ex_level - 1, "to": ex_level},
-            draw_date=self._today().isoformat(),
-            event_id=(
-                f"ex:{self._today().isoformat()}:{user_id}:{pig_id}:{ex_level}"
-            ),
-        )
+            return ""
+        event_scope = group_id or f"private:{target_user_id}"
+        try:
+            created = bool(
+                writer(
+                    event_scope,
+                    EVENT_EX_LEVEL_UP,
+                    actor_id=target_user_id,
+                    pig_id=pig_id,
+                    metadata={"from": ex_level - 1, "to": ex_level},
+                    draw_date=today,
+                    event_id=f"ex:{today}:{target_user_id}:{pig_id}:{ex_level}",
+                    dedupe_across_scopes=True,
+                )
+            )
+        except Exception as exc:
+            logger.warning(f"EX 升级事件记录失败，已跳过一次性提示：{exc}")
+            return ""
+        if not created:
+            return ""
+        return self._ex_level_up_notice(ex_level)
 
     async def send_rendered_pig(
         self,
@@ -371,7 +393,11 @@ class ExVariantMixin:
             if fallback_title == "明日小猪预测"
             else self._decorate_ex_variant(pig_data, str(user_id)) or dict(pig_data)
         )
-        self._maybe_record_ex_level_event(event, display, str(user_id), fallback_title)
+        level_up_notice = self._maybe_record_ex_level_event(
+            event, display, str(user_id), fallback_title
+        )
+        if level_up_notice:
+            intro = f"{intro}\n{level_up_notice}" if intro else level_up_notice
         return await super().send_rendered_pig(
             event,
             display,
