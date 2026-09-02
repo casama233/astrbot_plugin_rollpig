@@ -1,80 +1,54 @@
-# EX Lv. 成長差分
+# EX Lv. 成長與差分契約
 
-EX 差分讓同一隻已解鎖小豬在重複抽取後，隨既有 `EX Lv.` 顯示不同圖片、描述或完整文案，而不改變小豬 ID、名稱、抽取機率或玩法規則。
+EX 差分讓同一隻已解鎖小豬在重複抽取後，隨 `EX Lv.` 使用不同圖片、短描述或完整文案，而不改變小豬 ID、名稱、抽取機率或玩法規則。
 
-## 1. EX Lv. 如何計算
+本頁同時定義運行時行為、資源來源、覆蓋率口徑與 CI 保證。**「每隻豬都有可用 EX1～EX5」與「每隻豬的五級文案都由人工逐隻撰寫」是兩個不同指標，不得混用。**
 
-本功能**不新增玩家存儲欄位**。沿用永久圖鑑原本的抽取次數：
+## 1. 現況快照（2026-09-02）
+
+目前可以確認的三組數字如下：
+
+| 指標 | 現況 | 代表的意思 |
+| --- | ---: | --- |
+| 運行／物化 EX 覆蓋 | 進入有效 catalog 的 ID 均可得到 EX1～EX5 | 明確 authoring 不足時，由 deterministic baseline 補齊，因此是可用性指標 |
+| bundled lineage 手寫文案 | **99 / 99** | `resource/pig.json` 內 99 隻 bundled 小豬均有專案自有、完整 EX1～EX5 `description`／`analysis` |
+| Felis 直讀精修文案 | **22 / 34** | 34 個固定 Felis 直讀 ID 中，22 個已逐圖、逐原義與逐梗精修；其餘 12 個仍使用本倉庫語義種子生成 |
+
+以目前互不重疊的 bundled 與 Felis 直讀範圍計算，已逐隻人工精修的有效總數為 **121**。這個數字不包括 deterministic baseline，也不等於公共豬源全部 ID 的手寫覆蓋率。
+
+因此，對外描述應使用：
+
+- 「所有有效小豬都有可運行的 EX1～EX5」描述**物化覆蓋**；
+- 「bundled 99/99 手寫、Felis 22/34 精修」描述**人工內容覆蓋**；
+- 公共豬源獨有項應另行按 provenance 與文案審查進度統計，不能沿用舊的 `201/201 全手寫` 說法。
+
+## 2. EX Lv. 如何計算與顯示
+
+本功能不新增玩家存儲欄位，沿用永久圖鑑中的實際抽取次數：
 
 ```text
 EX Lv. = max(0, count - 1)
 ```
 
-第一次解鎖為 `EX Lv.0`；第二次抽中為 `EX Lv.1`，依此類推。玩家 EX 等級可以高於 5，但資源差分目前只配置 `EX Lv.1`～`EX Lv.5`；高於 5 時繼續使用 Lv.5 的最後有效差分。
+第一次解鎖為 `EX Lv.0`，第二次抽中為 `EX Lv.1`，依此類推。
 
-## 2. 官方 201 隻全部精品手寫
+玩家等級本身**不封頂**。例如第十次抽中同一隻小豬時，卡面與圖鑑顯示 `EX Lv.9`；目前內容差分只定義 EX1～EX5，因此 EX6 以上繼續沿用最高可用差分，不會把收藏等級偽裝成 EX5。
 
-目前正式官方目錄合併後共 **201 隻小豬**：
+EX 差分用於玩家已擁有的小豬，包括今日、昨日／歷史、本週、永久圖鑑及相關料理卡。`/明日小豬` 只是預測，不代表已取得明日結果，因此不提前套用玩家收藏等級。
 
-- bundled 主目錄：99 隻；
-- 凍結 pre-v3.4 compatibility floor 恢復：102 隻；
-- 人工 curated EX 覆蓋：**201 / 201**。
+單張靜態卡與 GIF 卡只有在資料明確帶有 `_ex_level` 時才顯示 `EX Lv.n` 徽章：真正的 EX0 會顯示，沒有擁有狀態的預測卡不會被誤標。
 
-這 201 隻不是靠統一模板加等級後綴，也不是由生成器臨時補文案。每一隻都明確 authoring：
+## 3. 差分資料模型
 
-- EX1、EX2、EX3、EX4、EX5 五級；
-- 五句互不相同的 `description`；
-- 五段互不相同的 `analysis`；
-- 文案沿著該角色原本的梗、性格或設定形成連續的五段成長弧。
+每個 EX 等級只允許以下可選欄位：
 
-例如有的角色從「只會整活」逐步成長到「能控制整活的邊界」，有的從「被動適應」走到「主動選擇」，也有純喜劇角色一路把原始梗養成穩定招牌。EX 因此不是只換一句形容詞，而是在重複抽取時真正多一段角色內容。
+- `image`
+- `description`
+- `analysis`
 
-### Authoring 結構
+EX 差分不能修改小豬 ID、名稱、抽取權重、保底、熟食／人類／可烤／可吃等玩法標記，也不能改寫玩家收藏次數或其他權威狀態。
 
-為了避免把 201 × 5 級內容塞進一個難維護的巨型 JSON，官方 authoring 分成：
-
-```text
-resource/
-├─ pig.json
-├─ pig_ex_variants.json       # 最早 10 隻精品手寫
-├─ ex_curated/
-│  ├─ 01-origin-and-classics.json
-│  ├─ 02-life-and-personality.json
-│  ├─ ...
-│  └─ 10-compat-final-curated-pack.json
-├─ image/
-└─ ex_variants/               # 可選 EX 圖片
-```
-
-`pig_ex_variants.json` 與 `ex_curated/*.json` 使用同一套 schema。正式 Resource Source builder 會在發布前合併它們，最後只輸出一份標準的 `pig_ex_variants.json` 給客戶端，因此 **Resource Protocol 不需要知道 authoring pack 的存在**。
-
-bundled 插件本地只有 99 隻主目錄豬，所以載入 `ex_curated/` 時會只取當前 `pig_list` 存在的 ID；那 102 隻 compatibility-only 文案會等 Resource Source 合併出完整 201 隻 catalog 後再一起物化。
-
-## 3. 生成基線現在只是一層安全兜底
-
-程式仍保留確定性的五級 baseline generator，原因是：
-
-- 本地自建小豬可能沒有官方 curated 文案；
-- 測試 fixture / 非官方資源需要向後兼容；
-- 未來新 ID 在內容尚未補齊時不應直接讓展示崩潰。
-
-但對**正式官方 release**，生成基線不算完成內容。CI 會在 builder 之前先檢查 authoring corpus：
-
-```text
-handcrafted EX IDs == official merged pig IDs
-```
-
-目前必須是：
-
-```text
-201 == 201
-```
-
-而且每一隻都必須明確有 Lv1～Lv5、五個不同描述、五段不同完整文案。只要新增官方豬卻沒有補精品手寫 EX，Resource Source gate 會直接失敗，即使生成器理論上能兜底也不能放行正式發布。
-
-## 4. 創作者仍可使用稀疏覆寫
-
-官方全量精品內容不改變原本的稀疏 EX 協議。自訂／本地／投稿作者仍然只需要寫真正改變的部分，例如：
+資料仍支援逐欄位稀疏繼承。例如：
 
 ```json
 {
@@ -82,7 +56,6 @@ handcrafted EX IDs == official merged pig IDs
   "pigs": {
     "sleep-pig": {
       "2": {
-        "image": "sleep-pig-ex2.png",
         "description": "睡得更香了"
       },
       "4": {
@@ -96,99 +69,118 @@ handcrafted EX IDs == official merged pig IDs
 }
 ```
 
-圖片、`description`、`analysis` 仍採**逐欄位向高級繼承**：EX2 寫了 `description`，它會沿用到更高級，直到後面再次覆寫 `description`；其他欄位同理。
+EX2 寫入的 `description` 會沿用到更高級，直到後續等級再次覆寫同一欄位；`image` 與 `analysis` 同理。官方 bundled 手寫層要求完整五級，但本地作者與投稿者不需要機械複製沒有變化的欄位。
 
-因此「官方 201 隻全部手寫五級」是官方內容品質要求，不會強迫第三方作者也機械複製五份資料。
+## 4. 倉庫內的 canonical 來源
 
-## 5. 可修改與不可修改欄位
-
-每個 EX 等級只允許 `image`、`description`、`analysis`。EX 差分**不能**修改：
-
-- 小豬 ID / 名稱；
-- 抽取權重與保底；
-- 熟食、人類、可烤、可吃等玩法規則；
-- 玩家收藏次數與其他權威狀態。
-
-因此 EX 成長是展示與收藏層，不會讓同一 ID 在高等級突然變成另一個玩法實體。
-
-## 6. 發布物化與 Resource Protocol v1
-
-正式 Resource Source 流程先合併 bundled 主 catalog 與凍結 compatibility floor，再保留 `ex_curated/` authoring packs，最後由 builder：
-
-1. 驗證 base authoring + curated packs 沒有重複 ID；
-2. 驗證官方 handcrafted ID 集合與合併後 `pig.json` **完全相等**；
-3. 驗證每隻恰好 EX1～EX5；
-4. 驗證五級描述與五級完整文案均非空且各不相同；
-5. 合併任何 EX 圖片與稀疏欄位繼承；
-6. 物化成單一發布版 `pig_ex_variants.json`；
-7. 寫入 manifest / health 的 EX 覆蓋統計。
-
-正式發布要求：
+目前受版本控制的主要來源是：
 
 ```text
-ex_variant_pig_count == pig_count == 201
+resource/
+├─ pig.json                         # bundled 99 隻基礎 catalog
+├─ image/                           # bundled 基礎圖片
+├─ bundled_ex_copy.json             # bundled 手寫文案首個分片
+├─ bundled_ex_copy_phase*.json      # bundled 手寫文案後續分片
+├─ felis_direct_ex_copy.json        # 34 個 Felis 直讀 ID 的專案自有文字層
+└─ ex_variants/                     # 只有被差分明確引用時才存在／使用
 ```
 
-EX 仍使用 **AstrBot Resource Protocol v1 的可選欄位**，不提升 `schema_version`。manifest 可包含：
+`bundled_ex_copy*.json` 由 `bundled_ex_copy.py` 合併與驗證，必須：
 
-```json
-{
-  "ex_variant_pig_count": 201,
-  "ex_variants": {
-    "path": "pig_ex_variants.json",
-    "size": 1234,
-    "sha256": "..."
-  },
-  "variant_images": []
-}
-```
+- 只引用 `resource/pig.json` 中的 ID；
+- 每隻完整提供 EX1～EX5；
+- 每級同時有非空 `description` 與 `analysis`；
+- 五級描述互不相同、五級完整文案互不相同；
+- 不包含圖片欄位；
+- 不允許不同分片重複定義同一 ID。
 
-差分 JSON 與圖片和基礎資源一樣走大小、SHA-256、圖片解碼、整包預算、staging 與原子切換校驗。任何 EX 差分驗證失敗時，不會用半套內容覆蓋目前 active 資源。
-
-## 7. 顯示規則與優先級
-
-EX 差分用於玩家**已擁有**的小豬展示，包括今日／歷史／週視圖、永久圖鑑及相關料理卡片。
-
-`/明日小豬` 是預測，不代表玩家已擁有明日結果，因此不提前套用玩家目前的 EX 收藏成長。
-
-官方／公共來源優先級仍是：
+以下是 builder 為相容舊輸入仍可理解、但 canonical 倉庫與 Resource Source workflow **禁止提交**的生成／舊 authoring 路徑：
 
 ```text
-雲端 EX → 內建 curated EX → 安全 baseline
+resource/pig_ex_variants.json
+resource/ex_curated/
 ```
 
-安全 baseline 對官方 201 隻正常情況下不應被用到；它只負責非官方／本地／未完整資料的容錯。
+它們不能再被文檔寫成目前的正式手寫來源，也不能和發布物中的同名輸出混為一談。
 
-若管理員只覆蓋某隻小豬的基礎資料而沒有建立本地 EX，公共 EX 不會偷偷改寫該本地豬；管理員明確建立本地 EX 後，本地 EX 仍取得最高展示優先級。
+## 5. Resource Source 如何物化
 
-## 8. Gameplay Event 與回歸 Gate
+`.github/workflows/resource-source.yml` 會執行：
 
-玩家完成當天重複抽取並形成 `EX Lv.` 成長時，插件可記錄 Gameplay Event v1 `ex_level_up`。事件使用確定性 ID 去重，同一天重複查看今日結果不會重複記錄。
+```text
+python scripts/build_resource_source.py \
+  --source resource \
+  --output dist/astrbot-rollpig-source \
+  --version <resource-version>
+```
 
-全鏈路 contract test 固定：收藏次數 → EX 等級、今日／歷史／週視圖、料理卡、圖片解析、明日預測隔離、事件去重、本地 override，以及壞掉的 active EX 回退 bundled EX。
+builder 會：
 
-內容 gate 額外固定：
+1. 驗證 `resource/pig.json` 與基礎圖片一一對應；
+2. 載入 `bundled_ex_copy*.json` 的明確手寫層；
+3. 對沒有明確 authoring 的有效 ID 使用 deterministic baseline；
+4. 把稀疏資料物化成每隻 EX1～EX5 的單一 Resource Protocol v1 文件；
+5. 校驗差分圖片、安全預算、尺寸與解碼；
+6. 原子生成完整發布目錄。
 
-- base + 10 個 curated documents 無重複 ID；
-- 原始 10 隻 + 新增 191 隻 = 201 隻 explicit handcrafted；
-- bundled 99 隻全部在 handcrafted 集合；
-- compatibility-only 102 隻全部在 handcrafted 集合；
-- 每隻恰好 Lv1～Lv5；
-- 五級 `description` 各不相同；
-- 五級 `analysis` 各不相同；
-- Resource Source 合併後 handcrafted set == `pig.json` set；
-- manifest / health 的 `ex_variant_pig_count == pig_count`。
+目前發布輸出為：
 
-## 9. 本地 EX 視覺化編輯
+```text
+dist/astrbot-rollpig-source/
+├─ pig.json
+├─ images/
+├─ pig_ex_variants.json
+├─ ex_variants/
+├─ manifest.json
+├─ health.json
+└─ asset_provenance.json
+```
 
-AstrBot Plugin Page 提供獨立的 **EX 成長管理** 頁，不需要手改 JSON：
+發布物中的 `pig_ex_variants.json` 是**物化結果**，不是倉庫內人工 authoring 的唯一來源。
 
-- 按小豬搜尋與選擇；
-- 分別編輯 EX Lv.1–5；
-- 短描述與完整文案留空即按本地稀疏規則繼承；
-- 每級可上傳／移除差分圖片；
-- 可單獨重設某一級；
-- 顯示「實際生效預覽」。
+## 6. CI 實際保證什麼
+
+Resource Source workflow 目前保證：
+
+- canonical `resource/` 不提交 `pig_ex_variants.json` 或 `ex_curated/`；
+- 發布版 `pig_ex_variants.json` 的 ID 集合與該次 `pig.json` 完全一致；
+- 每個 ID 恰好有 EX1～EX5；
+- 五級 `description` 均非空且互不相同；
+- 五級 `analysis` 均非空且互不相同；
+- manifest 與 health 的 `ex_variant_pig_count` 等於該次 catalog 數量；
+- 基礎與差分資源通過圖片、大小、SHA-256、provenance 與整包安全檢查。
+
+這些 gate 證明的是「生成後完整可用」，**不會單憑物化輸出證明每個 ID 都由人工撰寫**。人工覆蓋必須另外由 `bundled_ex_copy*.json`、Felis 精修清單及公共源審查記錄統計。
+
+## 7. 運行時來源優先級與失敗回退
+
+正常展示優先級是：
+
+```text
+管理員本地 EX
+  → 已驗證的 active cloud／Resource Source EX
+  → 內建專案自有 EX 文案
+  → deterministic safety baseline
+```
+
+具體約束：
+
+- 管理員明確建立的本地 EX 具有最高優先級；
+- active cloud EX 必須先通過 schema、ID、圖片與完整包校驗，損壞資料不得半套生效；
+- 雲端 EX 無效或缺失時回退內建 authoring，再不足才使用安全 baseline；
+- 管理員只覆蓋某隻豬的基礎資料、但沒有建立本地 EX 時，公共 EX 不得偷偷改寫該本地豬；
+- Felis 直讀層只使用本倉庫維護的文字規格，不讀取 Felis 上游 EX／variant 文案或圖片。
+
+## 8. 本地 EX 管理
+
+AstrBot Plugin Page 的 EX 成長工作區可：
+
+- 搜尋與選擇小豬；
+- 分別編輯 EX1～EX5；
+- 編輯短描述、完整文案與差分圖片；
+- 以留空方式使用本地稀疏繼承；
+- 單獨重設某一級；
+- 查看實際生效預覽。
 
 本地資料保存在：
 
@@ -196,31 +188,37 @@ AstrBot Plugin Page 提供獨立的 **EX 成長管理** 頁，不需要手改 JS
 plugin_data/
 ├─ local_ex_variants.json
 └─ local_ex_variants/
-   └─ <pig-id>-ex<1-5>.png
+   └─ <pig-id>-ex<1-5>.<ext>
 ```
 
-## 10. 公共源投稿與審核
+本地資料不會因公共資源同步而被覆蓋。
 
-EX 公共源工作流使用**投稿 envelope v2**，正式資源仍是 **Resource Protocol v1**。兩個版本彼此獨立。
+## 9. 升級事件與回歸範圍
 
-EX-aware 投稿一次包含基礎 record／圖片、`ex_variants` 與可選 `variant_images`。公開契約保證：
+玩家當天真正完成重複抽取並形成 EX 成長時，可記錄 Gameplay Event v1 `ex_level_up`。事件 ID 必須可確定性去重，同一天重複查看今日結果不能再次記錄升級。
 
-- 舊 base-only 投稿保持 envelope v1 相容；
-- EX 投稿只能攜帶目前小豬的 Lv.1–5 差分；
-- EX 圖片固定 `<pig-id>-ex<level>.png`，最多五張；
-- 引用圖片與實際提交集合必須完全一致；
-- 審核員可在批准前查看基礎資料／圖片與每級 EX 差分／圖片；
-- reject 不改動目前正式資源；
-- approve 只有在 base + EX 整包驗證成功後才發布成同一個新 resource version。
+回歸測試應至少固定：
 
-通用 builder 對沒有完整 EX 的非官方／投稿候選仍有安全 baseline，避免協議斷裂；但一個 ID 若要正式納入**官方 curated catalog**，仍必須補完明確的五級精品文案才能通過官方 handcrafted gate。
+- `count` 到 EX 等級的換算；
+- EX0、EX1、EX5 與 EX5 以上的展示；
+- 今日、歷史、本週、圖鑑與料理卡套用；
+- 靜態卡與 GIF 卡的等級徽章；
+- 明日預測隔離；
+- 稀疏欄位繼承與最高級回退；
+- active cloud 損壞時回退 bundled；
+- 本地基礎覆蓋隔離與本地 EX 最高優先級；
+- `ex_level_up` 去重。
 
-因此不允許出現「官方基礎豬已納入 release，但精品 EX 內容仍靠生成兜底」的狀態。
+## 10. 覆蓋率更新規則
 
-> 公共源服務端實作、持久化細節、反向代理與 production 部署配置由私有運維倉庫維護。公開倉庫承諾客戶端／投稿契約與 Resource Protocol 行為。
+每次增刪 catalog、完成一批人工文案或調整 Felis allowlist 時，維護者應分別更新：
 
-## 11. 完成範圍
+1. **catalog 數量**：當前被統計範圍有多少 ID；
+2. **物化覆蓋率**：其中多少 ID 能生成完整 EX1～EX5；
+3. **人工文案覆蓋率**：其中多少 ID 的五級內容經逐隻人工審查；
+4. **差分圖片覆蓋率**：其中多少 ID／等級有獨立圖片；
+5. **來源範圍**：bundled、Felis 直讀與公共豬源必須分開列示。
 
-EX 產品閉環現在包含：差分資料模型、**201 隻官方豬的五級精品手寫文案**、安全 baseline、稀疏覆寫、Resource Protocol v1 EX 資源、同步安全校驗、玩家展示、Gameplay Event、本地視覺化編輯、EX 公共投稿／人工審核，以及 base + EX 同版發布契約。
+不得以「CI 生成後 100%」替代「人工文案 100%」，也不得把過去 compatibility catalog 的舊總數直接套到目前 bundled catalog、Felis allowlist 或公共豬源。
 
-production 是否完成仍以 [`EX-ACCEPTANCE.md`](EX-ACCEPTANCE.md) 的真實部署／同步 smoke gate 為準；「倉庫內 201/201 全手寫」不等於宣稱尚未執行的 production 部署已完成。
+最後更新：2026-09-02
