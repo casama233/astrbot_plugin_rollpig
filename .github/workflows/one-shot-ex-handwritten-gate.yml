@@ -27,6 +27,47 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Support a static frozenset allowlist without importing runtime code
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script = Path("scripts/check_ex_handwritten_coverage.py")
+          text = script.read_text(encoding="utf-8")
+          old = '''    try:
+                  raw_value = ast.literal_eval(value_node)
+              except (ValueError, TypeError) as exc:
+                  raise CoverageError(f"{variable_name} 必须是静态字符串序列") from exc
+          '''
+          new = '''    literal_node = value_node
+              if isinstance(value_node, ast.Call):
+                  if (
+                      not isinstance(value_node.func, ast.Name)
+                      or value_node.func.id not in {"frozenset", "set", "tuple", "list"}
+                      or len(value_node.args) != 1
+                      or value_node.keywords
+                  ):
+                      raise CoverageError(f"{variable_name} 必须是静态字符串序列")
+                  literal_node = value_node.args[0]
+              try:
+                  raw_value = ast.literal_eval(literal_node)
+              except (ValueError, TypeError) as exc:
+                  raise CoverageError(f"{variable_name} 必须是静态字符串序列") from exc
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("static allowlist parser patch target not found")
+          script.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          test = Path("tests/test_ex_handwritten_coverage.py")
+          text = test.read_text(encoding="utf-8")
+          old = '        "FELIS_DIRECT_IDS = " + repr(felis_ids) + "\\n",'
+          new = '        "FELIS_DIRECT_IDS = frozenset(" + repr(felis_ids) + ")\\n",'
+          if text.count(old) != 1:
+              raise SystemExit("frozenset fixture patch target not found")
+          test.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Wire coverage audit into CI and docs
         run: python .github/one_shot_ex_handwritten_gate.py
 
@@ -53,6 +94,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
+            scripts/check_ex_handwritten_coverage.py \
+            tests/test_ex_handwritten_coverage.py \
             .github/workflows/ci.yml \
             .github/workflows/resource-source.yml \
             docs/EX-VARIANTS.md \
