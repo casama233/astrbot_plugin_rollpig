@@ -1,0 +1,53 @@
+name: One-shot Felis explicit EX contract
+
+on:
+  push:
+    branches:
+      - fix/felis-explicit-ex-contract
+    paths:
+      - .github/workflows/one-shot-felis-explicit-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Apply resource and documentation migration
+        run: python .github/one_shot_felis_explicit_contract.py
+
+      - name: Install focused test dependencies
+        run: |
+          python -m pip install -r requirements.txt pytest
+          python -m pip check
+
+      - name: Validate explicit Felis authoring contract
+        run: |
+          python -m py_compile felis_ex_copy.py tests/test_felis_direct_ex_copy.py
+          pytest -q tests/test_felis_direct_ex_copy.py tests/test_felis_direct_feature.py
+          git diff --check
+
+      - name: Commit migrated contract
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            resource/felis_direct_ex_copy.json \
+            docs/EX-VARIANTS.md \
+            CHANGELOG.md
+          git commit -m "docs: certify Felis EX copy as 34/34 explicit"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
