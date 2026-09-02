@@ -2,9 +2,11 @@
 
 ## 未發佈
 
+- Felis 直讀 EX 文案契約收斂為 34/34 顯式手寫：補正過期的 22/34 文件口徑，將 `felis_direct_ex_copy.json` 升為 schema v3，並在運行時拒絕舊語義種子模板，避免 generated fallback 再被誤算為人工精修。
+
 - 今日小豬新增一次性 EX 成長提示：真正重複抽中時顯示 `✨ 重逢第 N 次 · EX Lv.a → Lv.b`，沿用 `ex_level_up` Gameplay Event 作為持久化去重憑證；同日跨群／私聊重看不重播，私聊作用域不污染群組日報，EX5 以上仍顯示真實未封頂等級，事件寫入失敗則安全降級為只發卡。
 
-- EX 覆蓋率文件契約修正：重寫 `docs/EX-VARIANTS.md`，明確區分所有有效小豬可物化的 EX1～EX5 運行覆蓋、bundled 99/99 手寫文案與 Felis 22/34 精修文案；同步移除已刪除／禁止提交的舊 authoring 路徑與 `201/201 全手寫` 說法，改為現行 `scripts/build_resource_source.py` 及 Resource Source workflow 契約。
+- EX 覆蓋率文件契約修正：重寫 `docs/EX-VARIANTS.md`，明確區分所有有效小豬可物化的 EX1～EX5 運行覆蓋、bundled 99/99 手寫文案與 Felis 34/34 顯式五級手寫文案；同步移除已刪除／禁止提交的舊 authoring 路徑與 `201/201 全手寫` 說法，改為現行 `scripts/build_resource_source.py` 及 Resource Source workflow 契約。
 
 - 今日小猪静态卡与动画 GIF 卡新增明确的 `EX Lv.n` 徽章：拥有状态会从 EX0 起显示实际未封顶等级，EX5 以上继续显示真实收藏等级并沿用既有最高差分内容；明日预测等未携带 `_ex_level` 元数据的卡片不显示徽章，静态成品缓存同步隔离有／无徽章结果。
 
@@ -15,7 +17,7 @@
 - RollPig 發布鏈改為只在 `main` 的 CI 成功後，針對該次已測試的精確 commit 發布；加入 stale-SHA 阻擋、不可變 Action SHA、固定 Python／Node 工具鏈與政策回歸測試，消除 `metadata.yaml` 推送與測試並行的發版競態。
 - 自更新新增可恢复事务日志与受管安装清单：文件替换期间异常中断会在下次启动自动回滚，后续版本可安全清理 manifest 已知的废弃代码／资源；同时纠正 AstrBot 最低版本声明为 `>=4.26.0`，Market Smoke 同时验证最低正式版与当前 master，并扩大核心源码触发范围。
 - 管理面板「近 14 日猪圈脉搏」将与日活重复的每日抽取序列替换为「重复抽中」，按 `max(0, draws - new_unlocks)` 派生，并同步图例、提示、无障碍标签与 14 日摘要；累计抽取与后端 overview 数据契约保持不变。
-- Felis 34 項直讀資源的專案自有 EX1–EX5 文案層已完成前三批逐豬精修：目前 22 隻按基礎圖片、原始語義與實際網路梗逐級手寫，其餘 12 隻繼續由本倉庫語義種子生成；不讀取 Felis EX/variant 文案或圖片，固定 allowlist、provenance 與 text-only 合約維持不變。
+- Felis 34 項直讀資源的專案自有 EX1–EX5 文案層已完成全量逐豬精修：34/34 均按基礎圖片、原始語義與實際網路梗顯式手寫五級 `description`／`analysis`；schema 升至 v3，移除 `name/theme/progress/lesson` 語義種子生成通道，並以 `authoring_mode=explicit-ex1-ex5`、`handwritten_id_count=34`、固定 allowlist、provenance 與 text-only 回歸合約防止模板回退。
 
 ## v3.12.0
 

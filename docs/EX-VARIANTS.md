@@ -12,14 +12,14 @@ EX 差分讓同一隻已解鎖小豬在重複抽取後，隨 `EX Lv.` 使用不�
 | --- | ---: | --- |
 | 運行／物化 EX 覆蓋 | 進入有效 catalog 的 ID 均可得到 EX1～EX5 | 明確 authoring 不足時，由 deterministic baseline 補齊，因此是可用性指標 |
 | bundled lineage 手寫文案 | **99 / 99** | `resource/pig.json` 內 99 隻 bundled 小豬均有專案自有、完整 EX1～EX5 `description`／`analysis` |
-| Felis 直讀精修文案 | **22 / 34** | 34 個固定 Felis 直讀 ID 中，22 個已逐圖、逐原義與逐梗精修；其餘 12 個仍使用本倉庫語義種子生成 |
+| Felis 直讀手寫文案 | **34 / 34** | 34 個固定 Felis 直讀 ID 均已逐圖、逐原義與逐梗審查，完整顯式提供 EX1～EX5 `description`／`analysis`；運行時不再接受語義種子模板 |
 
-以目前互不重疊的 bundled 與 Felis 直讀範圍計算，已逐隻人工精修的有效總數為 **121**。這個數字不包括 deterministic baseline，也不等於公共豬源全部 ID 的手寫覆蓋率。
+以目前互不重疊的 bundled 與 Felis 直讀範圍計算，已逐隻人工精修的有效總數為 **133**（99 + 34），共 **665** 組 EX1～EX5 `description`／`analysis`。這個數字不包括 deterministic baseline，也不等於公共豬源全部 ID 的手寫覆蓋率。
 
 因此，對外描述應使用：
 
 - 「所有有效小豬都有可運行的 EX1～EX5」描述**物化覆蓋**；
-- 「bundled 99/99 手寫、Felis 22/34 精修」描述**人工內容覆蓋**；
+- 「bundled 99/99 手寫、Felis 34/34 手寫」描述**人工內容覆蓋**；
 - 公共豬源獨有項應另行按 provenance 與文案審查進度統計，不能沿用舊的 `201/201 全手寫` 說法。
 
 ## 2. EX Lv. 如何計算與顯示
@@ -81,7 +81,7 @@ resource/
 ├─ image/                           # bundled 基礎圖片
 ├─ bundled_ex_copy.json             # bundled 手寫文案首個分片
 ├─ bundled_ex_copy_phase*.json      # bundled 手寫文案後續分片
-├─ felis_direct_ex_copy.json        # 34 個 Felis 直讀 ID 的專案自有文字層
+├─ felis_direct_ex_copy.json        # Felis 34/34 顯式手寫 EX1～EX5 文字層
 └─ ex_variants/                     # 只有被差分明確引用時才存在／使用
 ```
 
@@ -93,6 +93,13 @@ resource/
 - 五級描述互不相同、五級完整文案互不相同；
 - 不包含圖片欄位；
 - 不允許不同分片重複定義同一 ID。
+
+`felis_direct_ex_copy.json` 由 `felis_ex_copy.py` 驗證，採用 schema v3，並額外要求：
+
+- `pigs` 的 ID 集合與固定 `FELIS_DIRECT_IDS` 完全一致；
+- 34 隻全部以 `levels` 顯式提供 EX1～EX5，不接受 `name/theme/progress/lesson` 語義種子；
+- provenance 必須聲明 `authoring_mode=explicit-ex1-ex5`、`handwritten_id_count=34` 與 `upstream_ex_used=false`；
+- 只保存本倉庫撰寫的文字，不讀取或攜帶 Felis 上游 EX／variant 文案與圖片。
 
 以下是 builder 為相容舊輸入仍可理解、但 canonical 倉庫與 Resource Source workflow **禁止提交**的生成／舊 authoring 路徑：
 
@@ -169,7 +176,7 @@ Resource Source workflow 目前保證：
 - active cloud EX 必須先通過 schema、ID、圖片與完整包校驗，損壞資料不得半套生效；
 - 雲端 EX 無效或缺失時回退內建 authoring，再不足才使用安全 baseline；
 - 管理員只覆蓋某隻豬的基礎資料、但沒有建立本地 EX 時，公共 EX 不得偷偷改寫該本地豬；
-- Felis 直讀層只使用本倉庫維護的文字規格，不讀取 Felis 上游 EX／variant 文案或圖片。
+- Felis 直讀層只使用本倉庫維護的 34/34 顯式五級手寫文字，不接受語義種子模板，也不讀取 Felis 上游 EX／variant 文案或圖片。
 
 ## 8. 本地 EX 管理
 
@@ -207,7 +214,8 @@ plugin_data/
 - 稀疏欄位繼承與最高級回退；
 - active cloud 損壞時回退 bundled；
 - 本地基礎覆蓋隔離與本地 EX 最高優先級；
-- `ex_level_up` 去重。
+- `ex_level_up` 去重；
+- Felis 34/34 顯式五級集合、schema v3 provenance 與舊語義種子拒絕。
 
 ## 10. 覆蓋率更新規則
 
