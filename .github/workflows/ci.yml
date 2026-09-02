@@ -50,7 +50,10 @@ jobs:
         run: python scripts/maintenance_contract.py coverage
 
       - name: Compile source
-        run: python -m compileall -q main.py legacy_main.py felis_direct_feature.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py display_copy.py storage services scripts/maintenance_contract.py scripts/check_display_copy.py
+        run: python -m compileall -q main.py legacy_main.py felis_direct_feature.py daily_report_core.py daily_report_feature.py gameplay_events.py ex_variants.py ex_variant_feature.py installation_migrations.py random_roast_feature.py roast_reservations.py roast_reservation_feature.py rollpig_core.py updater.py display_copy.py storage services scripts/maintenance_contract.py scripts/check_display_copy.py scripts/check_ex_handwritten_coverage.py
+
+      - name: Verify canonical handwritten EX coverage
+        run: python scripts/check_ex_handwritten_coverage.py --root .
 
       - name: Install dependencies
         run: |

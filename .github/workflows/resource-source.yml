@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - "resource/**"
+      - "bundled_ex_copy.py"
+      - "felis_direct_feature.py"
+      - "felis_ex_copy.py"
       - "ex_variants.py"
+      - "scripts/check_ex_handwritten_coverage.py"
       - "scripts/build_resource_source.py"
       - "scripts/check_asset_provenance.py"
       - "scripts/prepare_resource_catalog.py"
@@ -14,7 +18,11 @@ on:
     branches: [main]
     paths:
       - "resource/**"
+      - "bundled_ex_copy.py"
+      - "felis_direct_feature.py"
+      - "felis_ex_copy.py"
       - "ex_variants.py"
+      - "scripts/check_ex_handwritten_coverage.py"
       - "scripts/build_resource_source.py"
       - "scripts/check_asset_provenance.py"
       - "scripts/prepare_resource_catalog.py"
@@ -43,6 +51,9 @@ jobs:
         run: |
           test ! -e resource/pig_ex_variants.json
           test ! -d resource/ex_curated
+
+      - name: Verify canonical handwritten EX coverage before materialization
+        run: python scripts/check_ex_handwritten_coverage.py --root .
 
       - name: Verify legacy compatibility helper fails closed
         run: |
