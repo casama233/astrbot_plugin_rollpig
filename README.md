@@ -4,13 +4,15 @@
 
 # 今日小豬 · 增強版
 
+目前版本：**v3.12.1** · EX 等級徽章置底、逐豬文案與安全更新修正。正式更新以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準，不以 main 合併代替發版。
+
 ### 每天抽一隻。抽著抽著，群裡就多了一座豬圈和一間後廚。
 
 `astrbot_plugin_rollpig_plus` · AstrBot 每日互動 × 永久豬籍 × EX 成長 × 群聊後廚
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
-[![AstrBot](https://img.shields.io/badge/AstrBot-4.24.2%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
+[![AstrBot](https://img.shields.io/badge/AstrBot-4.26.0%2B-f59e42)](https://github.com/AstrBotDevs/AstrBot)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
 
@@ -54,7 +56,7 @@
 
 | 項目 | 要求 |
 | --- | --- |
-| AstrBot | `>= 4.24.2` |
+| AstrBot | `>= 4.26.0` |
 | Python | `>= 3.10` |
 | Python 依賴 | `Pillow >= 10.0.0`、`httpx >= 0.27.0, < 1.0.0` |
 | 插件身份 | `astrbot_plugin_rollpig_plus` |
