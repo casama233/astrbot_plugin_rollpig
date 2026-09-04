@@ -2,6 +2,8 @@
 
 ## 未發佈
 
+- 單張小豬卡的 `EX Lv.n` 徽章改為底部置中，不再插在圖片與名稱之間；靜態 PNG 與 GIF 共用底部留白及避讓計算，長文案必要時增加卡高，避免遮擋／裁切；同步升級成品快取版本，保留 EX0、未封頂等級及無收藏元資料不顯示徽章的規則。
+
 - 新增 canonical EX 手寫覆蓋閘門 `scripts/check_ex_handwritten_coverage.py`：一般 CI 與 Resource Source 均直接比對 bundled 99/99、Felis 34/34 的顯式 authoring、固定 allowlist、分片與 provenance，且必須在 deterministic baseline 物化前通過；另以反例測試證明即使 `dist/pig_ex_variants.json` 完整，canonical 少一隻仍會失敗。
 
 - Felis 直讀 EX 文案契約收斂為 34/34 顯式手寫：補正過期的 22/34 文件口徑，將 `felis_direct_ex_copy.json` 升為 schema v3，並在運行時拒絕舊語義種子模板，避免 generated fallback 再被誤算為人工精修。

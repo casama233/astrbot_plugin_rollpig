@@ -18,6 +18,7 @@ from .pig_card import (
     PigCardLayout,
     draw_ex_level_badge,
     ex_level_badge_metrics,
+    pig_card_vertical_layout,
 )
 
 
@@ -37,9 +38,6 @@ def _render_frame(
     layout: PigCardLayout,
 ) -> PILImage.Image:
     canvas_width = layout.canvas_width
-    canvas_height = layout.canvas_height
-    canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
-    draw = ImageDraw.Draw(canvas)
 
     avatar_w = avatar_h = layout.avatar_size
     name_font = font_bold
@@ -63,21 +61,20 @@ def _render_frame(
         max_lines=6,
     )
     analysis_total_h = len(analysis_lines) * line_height
-    avatar_name_spacing = layout.spacing_avatar_name
-    if ex_level is not None:
-        avatar_name_spacing = (
-            layout.spacing_avatar_badge + badge_h + layout.spacing_badge_name
-        )
     total_content_h = (
         avatar_h
-        + avatar_name_spacing
+        + layout.spacing_avatar_name
         + name_h
         + layout.spacing_name_desc
         + desc_h
         + layout.spacing_desc_analysis
         + analysis_total_h
     )
-    start_y = (canvas_height - total_content_h) // 2
+    canvas_height, start_y, badge_y = pig_card_vertical_layout(
+        total_content_h, badge_h, layout
+    )
+    canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
+    draw = ImageDraw.Draw(canvas)
 
     avatar_x = (canvas_width - avatar_w) // 2
     avatar_y = start_y
@@ -87,20 +84,7 @@ def _render_frame(
         mask=avatar if avatar.mode == "RGBA" else None,
     )
 
-    if ex_level is not None:
-        badge_y = avatar_y + avatar_h + layout.spacing_avatar_badge
-        draw_ex_level_badge(
-            draw,
-            center_x=canvas_width // 2,
-            top=badge_y,
-            ex_level=ex_level,
-            palette=palette,
-            font_regular=font_regular,
-            layout=layout,
-        )
-        name_y = badge_y + badge_h + layout.spacing_badge_name
-    else:
-        name_y = avatar_y + avatar_h + layout.spacing_avatar_name
+    name_y = avatar_y + avatar_h + layout.spacing_avatar_name
     name_x = (canvas_width - name_w) // 2
     draw_bold_text(
         draw,
@@ -130,6 +114,17 @@ def _render_frame(
             font=analysis_font,
         )
         analysis_y += line_height
+
+    if badge_y is not None:
+        draw_ex_level_badge(
+            draw,
+            center_x=canvas_width // 2,
+            top=badge_y,
+            ex_level=ex_level,
+            palette=palette,
+            font_regular=font_regular,
+            layout=layout,
+        )
     return canvas
 
 
