@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 PIG_CARD_CACHE_MAX_ITEMS = 32
 PIG_CARD_CACHE_MAX_BYTES = 16 * 1024 * 1024
-_PIG_CARD_CACHE_VERSION = 2
+_PIG_CARD_CACHE_VERSION = 3
 _pig_card_cache: OrderedDict[tuple[object, ...], bytes] = OrderedDict()
 _pig_card_cache_bytes = 0
 _pig_card_cache_lock = threading.RLock()
@@ -36,6 +36,7 @@ class PigCardLayout:
     canvas_height: int = 800
     avatar_size: int = 280
     spacing_avatar_name: int = 20
+    # Retained for constructor compatibility; EX now occupies a footer.
     spacing_avatar_badge: int = 12
     spacing_badge_name: int = 14
     spacing_name_desc: int = 25
@@ -47,6 +48,43 @@ class PigCardLayout:
     ex_badge_font_size: int = 24
     ex_badge_padding_x: int = 16
     ex_badge_padding_y: int = 7
+    spacing_analysis_badge: int = 24
+    ex_badge_bottom_margin: int = 48
+    content_top_margin: int = 32
+
+
+def pig_card_vertical_layout(
+    content_height: int,
+    badge_height: int,
+    layout: PigCardLayout,
+) -> tuple[int, int, int | None]:
+    """Return canvas height, body top and bottom-anchored EX badge top.
+
+    Short cards keep their original centered artwork/name/copy composition.
+    A footer never splits artwork from the name. For longer copy, shift the
+    body upward and only grow the canvas when needed to avoid clipping it.
+    Static cards and every animated frame share this geometry.
+    """
+    canvas_height = layout.canvas_height
+    if badge_height <= 0:
+        return canvas_height, (canvas_height - content_height) // 2, None
+
+    top_margin = max(0, layout.content_top_margin)
+    bottom_margin = max(1, layout.ex_badge_bottom_margin)
+    gap = max(0, layout.spacing_analysis_badge)
+    canvas_height = max(
+        canvas_height,
+        top_margin + content_height + gap + badge_height + bottom_margin,
+    )
+    badge_y = canvas_height - bottom_margin - badge_height
+    body_y = max(
+        top_margin,
+        min(
+            (canvas_height - content_height) // 2,
+            badge_y - gap - content_height,
+        ),
+    )
+    return canvas_height, body_y, badge_y
 
 
 def ex_level_badge_metrics(
@@ -224,9 +262,6 @@ def render_pig_card(
             logger.warning("写入小猪卡缓存临时文件失败，将重新渲染：%s", exc)
 
     canvas_width = layout.canvas_width
-    canvas_height = layout.canvas_height
-    canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
-    draw = ImageDraw.Draw(canvas)
 
     avatar_w = avatar_h = layout.avatar_size
     avatar = None
@@ -265,21 +300,20 @@ def render_pig_card(
     )
     analysis_total_h = len(analysis_lines) * line_height
 
-    avatar_name_spacing = layout.spacing_avatar_name
-    if show_ex_badge:
-        avatar_name_spacing = (
-            layout.spacing_avatar_badge + badge_h + layout.spacing_badge_name
-        )
     total_content_h = (
         avatar_h
-        + avatar_name_spacing
+        + layout.spacing_avatar_name
         + name_h
         + layout.spacing_name_desc
         + desc_h
         + layout.spacing_desc_analysis
         + analysis_total_h
     )
-    start_y = (canvas_height - total_content_h) // 2
+    canvas_height, start_y, badge_y = pig_card_vertical_layout(
+        total_content_h, badge_h, layout
+    )
+    canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
+    draw = ImageDraw.Draw(canvas)
 
     avatar_x = (canvas_width - avatar_w) // 2
     avatar_y = start_y
@@ -301,20 +335,7 @@ def render_pig_card(
             font=error_font,
         )
 
-    if show_ex_badge:
-        badge_y = avatar_y + avatar_h + layout.spacing_avatar_badge
-        draw_ex_level_badge(
-            draw,
-            center_x=canvas_width // 2,
-            top=badge_y,
-            ex_level=ex_level,
-            palette=palette,
-            font_regular=font_regular,
-            layout=layout,
-        )
-        name_y = badge_y + badge_h + layout.spacing_badge_name
-    else:
-        name_y = avatar_y + avatar_h + layout.spacing_avatar_name
+    name_y = avatar_y + avatar_h + layout.spacing_avatar_name
     name_x = (canvas_width - name_w) // 2
     draw_bold_text(
         draw,
@@ -344,6 +365,17 @@ def render_pig_card(
             font=analysis_font,
         )
         analysis_y += line_height
+
+    if badge_y is not None:
+        draw_ex_level_badge(
+            draw,
+            center_x=canvas_width // 2,
+            top=badge_y,
+            ex_level=ex_level,
+            palette=palette,
+            font_regular=font_regular,
+            layout=layout,
+        )
 
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
