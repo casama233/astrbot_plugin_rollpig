@@ -10,6 +10,8 @@
 
 依保守版本規則發布 patch，收錄 v3.12.0 後已合併的修正；本版包含 EX 底部徽章與成長提示、逐豬五級文案、更新恢復及維護閘門。AstrBot 最低版本聲明為 >=4.26.0；不改玩家資料 schema、插件身份或資源協議。
 
+- 修正穩定 Release／Marketplace 打包的 EX 資料一致性：裁剪為 22 隻離線基礎豬時，同步裁剪 bundled EX 分片並移除空分片，避免殘留 99 隻 authoring 令運行時拒絕載入並退回模板；新回歸以真實 canonical 文案驗證 22/22、110 級可直接載入、重複打包一致及 canonical／Felis 來源不變。
+
 - 單張小豬卡的 `EX Lv.n` 徽章改為底部置中，不再插在圖片與名稱之間；靜態 PNG 與 GIF 共用底部留白及避讓計算，長文案必要時增加卡高，避免遮擋／裁切；同步升級成品快取版本，保留 EX0、未封頂等級及無收藏元資料不顯示徽章的規則。
 
 - 新增 canonical EX 手寫覆蓋閘門 `scripts/check_ex_handwritten_coverage.py`：一般 CI 與 Resource Source 均直接比對 bundled 99/99、Felis 34/34 的顯式 authoring、固定 allowlist、分片與 provenance，且必須在 deterministic baseline 物化前通過；另以反例測試證明即使 `dist/pig_ex_variants.json` 完整，canonical 少一隻仍會失敗。

@@ -56,6 +56,50 @@ def _write_json(path: Path, payload, *, indent: int) -> None:
     )
 
 
+def _prune_bundled_ex_copy(
+    resource: Path, selected: set[str], source_ids: set[str]
+) -> None:
+    """Keep staged text shards consistent with the offline catalog.
+
+    Validate all shard IDs before pruning anything. Empty shards are
+    removed because the runtime requires a non-empty pigs mapping.
+    The canonical checkout and independent Felis copy are not touched.
+    """
+    plans = []
+    seen: set[str] = set()
+    for path in sorted(resource.glob("bundled_ex_copy*.json")):
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"unsafe bundled EX authoring shard: {path.name}")
+        payload = _load_json(path)
+        pigs = payload.get("pigs") if isinstance(payload, dict) else None
+        if not isinstance(pigs, dict) or not pigs:
+            raise ValueError(f"invalid bundled EX authoring shard: {path.name}")
+        ids = set(pigs)
+        unknown = ids - source_ids
+        duplicates = ids & seen
+        if unknown or duplicates:
+            raise ValueError(
+                f"invalid bundled EX IDs in {path.name}: "
+                f"unknown={sorted(unknown)}, duplicate={sorted(duplicates)}"
+            )
+        seen.update(ids)
+        filtered = dict(payload)
+        filtered["pigs"] = {
+            pig_id: levels for pig_id, levels in pigs.items() if pig_id in selected
+        }
+        plans.append((path, filtered))
+    if plans and selected - seen:
+        raise ValueError(
+            "bootstrap pigs missing explicit bundled EX: "
+            + ", ".join(sorted(selected - seen))
+        )
+    for path, payload in plans:
+        if payload["pigs"]:
+            _write_json(path, payload, indent=2)
+        else:
+            path.unlink()
+
+
 def prepare_install_bundle(
     root: Path,
     *,
@@ -104,6 +148,7 @@ def prepare_install_bundle(
     filtered_ids = {str(item["id"]).strip() for item in filtered_pigs}
     if filtered_ids != selected or len(filtered_pigs) != len(selected):
         raise ValueError("bootstrap catalog filtering produced an inconsistent ID set")
+    _prune_bundled_ex_copy(resource, selected, set(source_by_id))
     _write_json(pig_path, filtered_pigs, indent=4)
 
     if variants_path.is_file():
