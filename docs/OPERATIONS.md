@@ -4,9 +4,11 @@
 
 ## 1. 版本與身份
 
-### v3.12.1 穩定版更新
+### v3.12.1 更新前確認
 
-本版最低支援 AstrBot `>=4.26.0`。請從插件管理工作台的安全更新功能檢查穩定版本，確認取得 v3.12.1 後執行更新，完成後重載插件或重啟 AstrBot。新渲染器會將 EX Lv.n 固定在卡片底部；PNG 與 GIF 使用相同布局。
+本分支程式版本為 v3.12.1，最低支援 AstrBot `>=4.26.0`。先確認 GitHub 已建立非草稿、非預發布的 v3.12.1 Release，以及對應 tag、ZIP 與 SHA256SUMS；若 main CI／Release workflow 仍在執行或失敗，可更新版本仍以最近一次成功發布的穩定版為準，不要把本頁的分支版本當成已發布狀態。
+
+確認 v3.12.1 正式發布後，再從插件管理工作台的安全更新功能檢查並取得該版本，完成後重載插件或重啟 AstrBot。新渲染器會將 EX Lv.n 固定在卡片底部；PNG 與 GIF 使用相同布局。
 
 `main` 合併只是原始碼更新。正式發版必須同步 metadata.yaml、Changelog 與 Release Notes，經 PR 檢查及合併後 main CI 通過，再由 Release workflow 對該精確提交建立新 tag、ZIP 和 SHA256SUMS。既有穩定版 tag 與 ZIP 不應覆寫，也不應繞過安全更新器安裝任意分支。
 

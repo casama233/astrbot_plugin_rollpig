@@ -4,7 +4,7 @@
 
 # 今日小豬 · 增強版
 
-目前版本：**v3.12.1** · EX 等級徽章置底、逐豬文案與安全更新修正。正式更新以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準，不以 main 合併代替發版。
+本分支程式版本：**v3.12.1** · EX 等級徽章置底、逐豬文案與安全更新修正。**可更新的穩定版本**以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準；只有對應 tag、ZIP 與 SHA256SUMS 建立完成才算正式發布，main 合併本身不代表已可更新。
 
 ### 每天抽一隻。抽著抽著，群裡就多了一座豬圈和一間後廚。
 
