@@ -1,0 +1,55 @@
+name: Clarify release availability
+on:
+  push:
+    branches: [release/v3.12.1]
+    paths: [.github/workflows/clarify-release-availability.yml]
+permissions:
+  contents: write
+jobs:
+  clarify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.ref }}
+      - name: Apply guarded documentation corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          edits = {
+              'README.md': (
+                  '9f3f3dd53fc48d8b4f97b15677ba4e4ebf04f2c2',
+                  '目前版本：**v3.12.1** · EX 等級徽章置底、逐豬文案與安全更新修正。正式更新以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準，不以 main 合併代替發版。',
+                  '本分支程式版本：**v3.12.1** · EX 等級徽章置底、逐豬文案與安全更新修正。**可更新的穩定版本**以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準；只有對應 tag、ZIP 與 SHA256SUMS 建立完成才算正式發布，main 合併本身不代表已可更新。',
+              ),
+              'docs/OPERATIONS.md': (
+                  'bbff419f4b1b8edc29b258fa6645663ea75a9bc1',
+                  '### v3.12.1 穩定版更新\n\n本版最低支援 AstrBot `>=4.26.0`。請從插件管理工作台的安全更新功能檢查穩定版本，確認取得 v3.12.1 後執行更新，完成後重載插件或重啟 AstrBot。新渲染器會將 EX Lv.n 固定在卡片底部；PNG 與 GIF 使用相同布局。',
+                  '### v3.12.1 更新前確認\n\n本分支程式版本為 v3.12.1，最低支援 AstrBot `>=4.26.0`。先確認 GitHub 已建立非草稿、非預發布的 v3.12.1 Release，以及對應 tag、ZIP 與 SHA256SUMS；若 main CI／Release workflow 仍在執行或失敗，可更新版本仍以最近一次成功發布的穩定版為準，不要把本頁的分支版本當成已發布狀態。\n\n確認 v3.12.1 正式發布後，再從插件管理工作台的安全更新功能檢查並取得該版本，完成後重載插件或重啟 AstrBot。新渲染器會將 EX Lv.n 固定在卡片底部；PNG 與 GIF 使用相同布局。',
+              ),
+          }
+          for name, (sha, old, new) in edits.items():
+              if subprocess.check_output(['git', 'hash-object', name], text=True).strip() != sha:
+                  raise SystemExit(f'Changed input: {name}')
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'Ambiguous anchor: {name}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python3 scripts/maintenance_contract.py release
+          git diff --check
+      - name: Commit documentation only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/OPERATIONS.md
+          git commit -m 'docs: distinguish branch version from published stable release'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
