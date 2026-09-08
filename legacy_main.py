@@ -56,7 +56,7 @@ try:
         select_local_roast_copy,
         validate_roast_copy_catalog,
     )
-    from .services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
+    from .services import CatalogService, CollectionService, DrawService, ResourceReadService, ResourceSyncSettings, RoastService
     from .renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -91,7 +91,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         select_local_roast_copy,
         validate_roast_copy_catalog,
     )
-    from services import CatalogService, CollectionService, DrawService, ResourceReadService, RoastService
+    from services import CatalogService, CollectionService, DrawService, ResourceReadService, ResourceSyncSettings, RoastService
     from renderers import (
         PigCardLayout,
         WeeklyEntry,
@@ -307,29 +307,11 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 except Exception as exc:
                     logger.warning(f"保存 AstrBot 专用资源源迁移配置失败：{exc}")
             logger.info("已把失效的 nonebot 资源地址迁移为 AstrBot 专用资源源")
-        try:
-            sync_hours = float(
-                self.config.get("resource_sync_interval_hours", 6)
-            )
-        except (TypeError, ValueError):
-            sync_hours = 6
-        self.resource_sync_interval_hours = min(168, max(1, sync_hours))
-        try:
-            sync_timeout = float(self.config.get("resource_sync_timeout", 30))
-        except (TypeError, ValueError):
-            sync_timeout = 30
-        self.resource_sync_timeout = min(120, max(2, sync_timeout))
-        proxy_setting = self.config.get("resource_use_system_proxy", False)
-        self.resource_use_system_proxy = (
-            proxy_setting
-            if isinstance(proxy_setting, bool)
-            else str(proxy_setting).strip().lower() in {"1", "true", "yes", "on"}
-        )
-        try:
-            max_file_mb = int(self.config.get("resource_max_file_size_mb", 10))
-        except (TypeError, ValueError):
-            max_file_mb = 10
-        self.resource_max_file_size = min(50, max(1, max_file_mb)) * 1024 * 1024
+        resource_settings = ResourceSyncSettings.from_config(self.config)
+        self.resource_sync_interval_hours = resource_settings.interval_hours
+        self.resource_sync_timeout = resource_settings.timeout
+        self.resource_use_system_proxy = resource_settings.use_system_proxy
+        self.resource_max_file_size = resource_settings.max_file_size
         self.panel_update_enabled = bool(self.config.get("panel_update_enabled", True))
         try:
             panel_update_timeout = float(self.config.get("panel_update_timeout", 30))
