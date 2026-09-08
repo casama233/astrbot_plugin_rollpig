@@ -55,8 +55,8 @@ def test_player_copy_locale_aliases_and_strict_formatting():
     assert normalize_player_locale("zh-SG") == "zh-CN"
     assert normalize_player_locale("unknown") == "zh-TW"
 
-    assert "3 格" in copy_text(
-        "help.mechanic.oven_energy", locale="zh-CN", capacity=3
+    assert "3格" in copy_text(
+        "help.mechanic.oven_energy", locale="zh-CN", capacity=3, hours=1.5
     )
     with pytest.raises(KeyError):
         copy_text("help.mechanic.oven_energy", locale="zh-TW")

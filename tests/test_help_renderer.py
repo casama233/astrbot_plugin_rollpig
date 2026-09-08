@@ -88,6 +88,26 @@ def test_full_feature_help_stays_short_enough_for_chat_image_delivery():
     assert help_card_height(prepared) <= 1180
 
 
+def test_important_rules_are_not_clipped_by_the_bundled_font():
+    font_path = Path(__file__).resolve().parents[1] / "resource/font/荆南麦圆体.otf"
+    font = ImageFont.truetype(str(font_path), 15)
+    sections = build_help_sections(HelpFeatureState(
+        at_view_pig=True,
+        group_roast_max_charges=5,
+        group_roast_recovery_hours=1.5,
+        eat_success_percent=80,
+        roast_reservation_max_participants=50,
+    ))
+    important = {"/烤群友 @某人", "/吃群友 @某人", "/添柴", "烤箱 Charge", "预约烤猪", "EX 成长"}
+    prepared = prepare_help_sections(
+        sections, detail_font=font, column_width=(CARD_WIDTH - 26 * 2 - 16) // 2,
+    )
+    for section in prepared:
+        for row in section.entries:
+            if row.entry.command in important:
+                assert row.detail_lines == (row.entry.detail,), row.entry.command
+
+
 def test_help_renderer_matches_precomputed_dynamic_size():
     font = ImageFont.load_default()
     sections = (
