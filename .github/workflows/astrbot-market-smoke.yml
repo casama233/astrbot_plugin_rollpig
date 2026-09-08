@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'maintenance/**'
     paths:
       - "*.py"
       - "storage/**"

@@ -10,7 +10,7 @@ LEGACY_MAIN = ROOT / "legacy_main.py"
 # This is intentionally a shrink-only ceiling: extracting legacy code should
 # lower the number; new features belong in main.py, feature modules, services,
 # renderers, or storage modules rather than growing legacy_main.py again.
-LEGACY_MAIN_MAX_BYTES = 286_646
+LEGACY_MAIN_MAX_BYTES = 286_027
 
 
 def test_legacy_main_is_shrink_only() -> None:
