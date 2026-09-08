@@ -31,8 +31,9 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
     assert "全群添柴" in simplified["help.group.oven_refill"]
     assert "补货就添柴" in traditional["help.group.firewood_router"]
     assert "补货就添柴" in simplified["help.group.firewood_router"]
-    assert "EX Lv.1–5" in traditional["help.mechanic.ex_growth"]
-    assert "EX Lv.1–5" in simplified["help.mechanic.ex_growth"]
+    for catalog in (traditional, simplified):
+        assert "EX 可超5" in catalog["help.mechanic.ex_growth"]
+        assert "最高可用差分" in catalog["help.mechanic.ex_growth"]
 
     # Quick-help copy must stay short enough to scan inside a chat image.
     for locale, catalog in PLAYER_COPY.items():

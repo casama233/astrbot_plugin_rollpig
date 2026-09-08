@@ -66,10 +66,10 @@ jobs:
       - name: Run tests
         run: pytest -q
 
-      - name: Run repeat-draw browser regression
+      - name: Run maintenance-status and repeat-draw browser regression
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          node --test --test-timeout=15000 tests/browser/dashboard-repeat-metric.test.mjs
+          node --test --test-timeout=15000 tests/browser/dashboard-repeat-metric.test.mjs tests/browser/admin-ui.test.mjs
 
       - name: Run pre-commit checks
         run: pre-commit run --all-files --show-diff-on-failure
