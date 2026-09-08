@@ -110,9 +110,9 @@
 | `felis_direct_enabled` | bool | `true` | bool | 非商業 Bot 直接讀取 Felis 官方 34 項 overlay 並本機快取；關閉不刪既有快取 |
 | `felis_direct_manifest_url` | string | Felis 官方 raw manifest | 固定官方 HTTPS URL | 只允許 `Felis2026/rollpig-resources` 官方 manifest，不作本站 CDN／公共 Manifest 鏡像 |
 | `resource_manifest_url` | string | 官方 AstrBot v1 | HTTPS URL | 可改成有權使用的相容私人 manifest；自訂後不啟用官方備援鏈 |
-| `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 舊配置兼容保留；目前不生效，不能以改地址解除審計封鎖 |
-| `resource_github_fallback_enabled` | bool | `true` | bool | 舊配置兼容保留；目前不生效，為 true 亦不訪問公共鏡像 |
-| `resource_github_mirror_url` | string | 官方 GitHub 鏡像 | HTTPS URL | 舊配置兼容保留；目前不生效，不是可用災備承諾 |
+| `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 僅接受預設官方地址，留空關閉；切換前核對獨立批准清單與完整快照 |
+| `resource_github_fallback_enabled` | bool | `true` | bool | 主源及 Vercel 不可用時嘗試 GitHub，仍須完整核驗 |
+| `resource_github_mirror_url` | string | 官方 GitHub 鏡像 | HTTPS URL | 僅接受預設官方地址；未批准、撤回及較舊快照拒絕啟用 |
 | `resource_sync_interval_hours` | float | `6` | `1-168` | 新安裝自動檢查間隔；既有明確配置保持原值 |
 | `resource_sync_timeout` | float | `30` | `2-120` | 連線超時；圖片讀取另有較寬下限與重試 |
 | `resource_use_system_proxy` | bool | `false` | bool | 是否信任系統代理環境；預設直連 |
@@ -124,7 +124,7 @@
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-`PUBLIC_MIRROR_FAIL_CLOSED` 生效期間，官方遠端鏈僅訪問 curryudon 主源。主源失敗時繼續使用最近一次已完整驗證的本地快取，沒有快取才用內置資源；不訪問 Vercel／GitHub 公共鏡像。舊配置鍵、地址與預設值保留，不代表目前已啟用。解除封鎖須完成獨立的授權、來源、客戶端驗證及發布審查，見 [公共災備邊界](PUBLIC-MIRROR-FAIL-CLOSED.md)。
+v3.12.3 起，官方遠端鏈為主源 → 預設 Vercel → 預設 GitHub。鏡像只接受固定 GitHub 倉庫當前批准的 exact snapshot，包含來源、授權、EX 發布記錄及逐檔大小／SHA-256。批准表讀取失敗不啟用新鏡像；較舊版本不覆蓋本地新版。撤回被讀取後停用對應鏡像快取。自訂私人源仍不進入公共鏈，詳見 [公共災備邊界](PUBLIC-MIRROR-FAIL-CLOSED.md)。
 
 舊 `pig.felislab.cc` 精確地址會遷移到 AstrBot 專用源；其他自訂 HTTPS 私人 manifest 不改寫，失敗時不偷偷切回官方公共鏈。同步成功只代表資源已驗證，不代表第三方素材取得新的再分發許可。
 
@@ -191,4 +191,4 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 
 ## 改完沒生效？
 
-部分設定在插件初始化時讀入。先在 AstrBot 管理介面重新載入插件；仍沒變再重啟 AstrBot。鏡像兼容選項在審計封鎖期間不生效，重載也不會解除封鎖。更深排查見 [OPERATIONS.md](OPERATIONS.md)。
+部分設定在插件初始化時讀入。先在 AstrBot 管理介面重新載入插件；仍沒變再重啟 AstrBot。鏡像地址只接受預設官方值；重載不會讓未批准或撤回快照通過驗證。更深排查見 [OPERATIONS.md](OPERATIONS.md)。

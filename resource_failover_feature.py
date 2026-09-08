@@ -1,8 +1,8 @@
 """Official public-resource failover for RollPig.
 
 The production curryudon source remains authoritative. Public disaster-recovery
-mirrors are currently fail-closed while their provenance/redistribution contract
-is being rebuilt. Custom/private resource sources keep their existing semantics.
+mirrors accept only complete snapshots matching the independent reviewed
+publication policy. Custom/private resource sources keep their existing semantics.
 """
 
 from __future__ import annotations
@@ -12,6 +12,17 @@ import json
 import random
 import re
 import time
+import tempfile
+from pathlib import Path
+
+try:
+    from .services.mirror_snapshot import approved_review, fetch_snapshot
+    from .services.publication_policy import validate_publication
+    from .services.snapshot_protocol import MAX_PROVENANCE, parse_json
+except ImportError:
+    from services.mirror_snapshot import approved_review, fetch_snapshot
+    from services.publication_policy import validate_publication
+    from services.snapshot_protocol import MAX_PROVENANCE, parse_json
 from urllib.parse import urlsplit
 
 from astrbot.api import logger
@@ -28,11 +39,12 @@ class ResourceFailoverMixin:
         "main/public/v1/manifest.json"
     )
 
-    # Provenance incident hard gate. This deliberately overrides persisted legacy
-    # mirror settings so an older configuration cannot silently revive a stale
-    # public snapshot while the mirror publication contract is under audit.
-    # Remove only together with a reviewed provenance-safe mirror validator.
-    PUBLIC_MIRROR_FAIL_CLOSED = True
+    # The authority for mirror approval is fixed independently of mirror URLs.
+    MIRROR_POLICY_URL = (
+        "https://api.github.com/repos/casama233/rollpig-public-source-mirror/"
+        "contents/publication-approvals.json?ref=main"
+    )
+    PUBLIC_MIRROR_FAIL_CLOSED = False
 
     def __init__(self, context, config):
         config_view = config if hasattr(config, "get") else {}
@@ -81,9 +93,10 @@ class ResourceFailoverMixin:
             return [("primary", primary)] if primary else []
 
         candidates: list[tuple[str, str]] = [("primary", primary)]
-        if self.resource_vercel_mirror_url:
+        if self.resource_vercel_mirror_url == self.VERCEL_RESOURCE_MANIFEST_URL:
             candidates.append(("vercel", self.resource_vercel_mirror_url))
-        if self.resource_github_fallback_enabled and self.resource_github_mirror_url:
+        if (self.resource_github_fallback_enabled
+                and self.resource_github_mirror_url == self.GITHUB_RESOURCE_MANIFEST_URL):
             candidates.append(("github", self.resource_github_mirror_url))
 
         result: list[tuple[str, str]] = []
@@ -141,6 +154,14 @@ class ResourceFailoverMixin:
         self.save_json(self.resource_state_path, state)
 
     async def sync_cloud_resources(self, force: bool = False) -> dict:
+        # Hold this across preflight, policy validation, staging and origin save;
+        # the base lock alone does not protect temporary source selection.
+        if not hasattr(self, "_resource_failover_lock"):
+            self._resource_failover_lock = asyncio.Lock()
+        async with self._resource_failover_lock:
+            return await self._sync_with_failover(force)
+
+    async def _sync_with_failover(self, force: bool) -> dict:
         configured_url = str(getattr(self, "resource_manifest_url", "") or "").strip()
         sources = self._official_resource_sources()
         if not sources or sources[0][0] == "custom":
@@ -149,23 +170,15 @@ class ResourceFailoverMixin:
                 self._record_resource_origin("custom", configured_url)
             return result
 
+        self._resource_sync_sources = sources
         failures: list[str] = []
         try:
             for source_name, source_url in sources:
                 try:
-                    candidate_version = await self._probe_official_resource_manifest(
-                        source_url
-                    )
-                    if source_name != "primary" and self._fallback_would_downgrade(
-                        candidate_version
-                    ):
-                        current = str(
-                            self._cloud_state().get("resource_version") or ""
-                        ).strip()
-                        raise ValueError(
-                            f"备用源版本 {candidate_version} 旧于本地 {current}，拒绝降级"
-                        )
-
+                    if source_name != "primary":
+                        result = await self._sync_reviewed_mirror(source_name, source_url, force)
+                        return {**result, "source": source_name, "source_url": source_url}
+                    await self._probe_official_resource_manifest(source_url)
                     self.resource_manifest_url = source_url
                     result = await super().sync_cloud_resources(force=force)
                     self._record_resource_origin(source_name, source_url)
@@ -190,12 +203,95 @@ class ResourceFailoverMixin:
                     )
         finally:
             self.resource_manifest_url = configured_url
+            self._resource_sync_sources = None
 
         message = "公共猪源全部不可用；继续使用最近一次已验证缓存或内置资源：" + "；".join(
             failures
         )
         self._save_sync_status(error=message)
         raise ValueError(message)
+
+    async def _read_mirror_policy(self) -> bytes:
+        async with self._new_http_client(
+            follow_redirects=False,
+            request_timeout=min(12.0, float(self.resource_sync_timeout)),
+            extra_headers={"Accept": "application/vnd.github.raw+json", "Cache-Control": "no-cache"},
+        ) as client:
+            raw = await super()._download_limited(
+                client, self.MIRROR_POLICY_URL + "&checked=" + str(time.time_ns()),
+                MAX_PROVENANCE, attempts=1,
+            )
+        policy = parse_json(raw)
+        if (not isinstance(policy, dict) or type(policy.get("schema_version")) is not int
+                or policy["schema_version"] != 2 or not isinstance(policy.get("approved_snapshots"), dict)):
+            raise ValueError("镜像批准清单格式无效")
+        return raw
+
+    def _withdraw_revoked_mirror_cache(self, policy_raw: bytes) -> None:
+        state = self._cloud_state()
+        if state.get("source_name") not in {"vercel", "github"}:
+            return
+        previous_hash = state.get("approved_manifest_sha256")
+        review = parse_json(policy_raw)["approved_snapshots"].get(previous_hash, {})
+        if previous_hash and review.get("status") == "approved":
+            return
+        # Keep recovery materials, but remove withdrawn files from active lookup.
+        active = self.resource_active_dir
+        if active.exists():
+            quarantined = self.resource_root / (".withdrawn-" + str(time.time_ns()))
+            active.rename(quarantined)
+        self.save_json(self.resource_state_path, {})
+        self._reload_catalog_layers()
+        self._save_sync_status(error="已撤回的镜像缓存已停用，继续使用内置及本地资源")
+
+    async def _sync_reviewed_mirror(self, source_name, source_url, force):
+        policy_raw = await self._read_mirror_policy()
+        self._withdraw_revoked_mirror_cache(policy_raw)
+        with tempfile.TemporaryDirectory(prefix=".mirror-review-", dir=self.resource_root) as temporary:
+            async with self._new_http_client(
+                follow_redirects=False, extra_headers=self._resource_request_headers(),
+            ) as client:
+                async def download(url, limit):
+                    return await super(ResourceFailoverMixin, self)._download_limited(
+                        client, url, limit, attempts=1,
+                    )
+                candidate = await fetch_snapshot(
+                    root=Path(temporary), manifest_url=source_url,
+                    policy_raw=policy_raw, download=download,
+                )
+            if self._fallback_would_downgrade(candidate["resource_version"]):
+                raise ValueError("备用源版本旧于本地，拒绝降级")
+            # Recheck after downloads. A withdrawal during transfer must not win
+            # a race with activation, even when the resource version is unchanged.
+            latest_policy = await self._read_mirror_policy()
+            self._withdraw_revoked_mirror_cache(latest_policy)
+            approved_review(latest_policy, (candidate["root"] / "manifest.json").read_bytes())
+            (Path(temporary) / "policy.json").write_bytes(latest_policy)
+            validate_publication(candidate["root"], Path(temporary) / "policy.json")
+            self.resource_manifest_url = source_url
+            self._reviewed_mirror_snapshot = (source_url.rsplit("/", 1)[0] + "/", candidate["root"])
+            try:
+                result = await super().sync_cloud_resources(force=True)
+            finally:
+                self._reviewed_mirror_snapshot = None
+            self._record_resource_origin(source_name, source_url)
+            state = self._cloud_state()
+            state["approved_manifest_sha256"] = candidate["manifest_sha256"]
+            self.save_json(self.resource_state_path, state)
+            return result
+
+    async def _download_limited(self, client, url, max_size, attempts=3):
+        reviewed = getattr(self, "_reviewed_mirror_snapshot", None)
+        if reviewed and url.startswith(reviewed[0]):
+            relative = url[len(reviewed[0]):]
+            from_path = reviewed[1] / relative
+            if not from_path.resolve().is_relative_to(reviewed[1].resolve()):
+                raise ValueError("镜像路径越界")
+            raw = from_path.read_bytes()
+            if len(raw) > max_size:
+                raise ValueError("镜像文件超过单档大小限制")
+            return raw
+        return await super()._download_limited(client, url, max_size, attempts=attempts)
 
     def _initial_resource_sync_delay_seconds(self, *, damaged_cache: bool) -> int:
         """Fresh lightweight installs should expand quickly without a startup herd."""
@@ -240,8 +336,10 @@ class ResourceFailoverMixin:
         payload["active_remote_source"] = str(state.get("source_name") or "")
         payload["active_remote_url"] = str(state.get("source_url") or "")
         payload["public_mirror_fail_closed"] = bool(self.PUBLIC_MIRROR_FAIL_CLOSED)
+        payload["public_mirror_policy"] = "reviewed-snapshot-only"
+        payload["approved_manifest_sha256"] = str(state.get("approved_manifest_sha256") or "")
         payload["source_chain"] = [
             {"name": name, "url": url}
-            for name, url in self._official_resource_sources()
+            for name, url in (getattr(self, "_resource_sync_sources", None) or self._official_resource_sources())
         ]
         return payload
