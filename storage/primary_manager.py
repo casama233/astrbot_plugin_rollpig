@@ -17,7 +17,7 @@ from .sqlite_primary import SQLitePrimaryStorage
 
 
 class PrimaryStorageManager(LegacyStorageManager):
-    """v3 storage selector with automatic verified SQLite bootstrap."""
+    """v3 storage selector with verified bootstrap and fail-closed recovery."""
 
     # Preserve the public v2 path set for integrations that instantiate the
     # legacy SQLiteStorage directly. v3 itself stores only runtime authority
@@ -301,14 +301,51 @@ class PrimaryStorageManager(LegacyStorageManager):
         except Exception as exc:
             temporary.unlink(missing_ok=True)
             self._remove_sqlite_sidecars(temporary)
-            self.backend = self.json_storage
             self._last_error = str(exc)
+            # Once a database exists, compatibility JSON is not a proven
+            # recovery point. Do not switch the live instance after promotion.
+            self._assert_json_authority()
+            self.backend = self.json_storage
             if isinstance(exc, StorageMigrationError):
                 raise
             raise StorageMigrationError(f"SQLite 迁移失败：{exc}") from exc
 
+    def _recovery_required(self, reason: str) -> None:
+        self._last_error = (
+            f"SQLite 需要恢复，已停止插件载入／迁移，未切换到旧或空 JSON：{reason}。"
+            "请先停止插件并备份整个插件数据目录（包括 rollpig.db、WAL、SHM），"
+            "核验并恢复数据库或已验证备份后再重载；不要删除数据库或修改存储模式来绕过检查。"
+            "恢复步骤见 docs/SQLITE-RECOVERY.md。"
+        )
+        raise StorageMigrationError(self._last_error)
+
+    def _assert_json_authority(self) -> None:
+        """Never infer a fresh installation merely from a missing DB file.
+
+        Read the authority marker without JSONStorage: that helper creates or
+        repairs missing/broken JSON, which is unsafe during recovery preflight.
+        Explicit JSON mode is only valid for JSON-native or completed rollback
+        installations, not a shortcut around a rejected SQL authority.
+        """
+        if self.database_path.exists() or any(
+            Path(f"{self.database_path}{suffix}").exists()
+            for suffix in ("-wal", "-shm")
+        ):
+            self._recovery_required("发现现有 SQLite 数据库或未处理的 sidecar")
+        if not self.state_path.exists():
+            return
+        try:
+            state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            self._recovery_required(f"无法核验 storage_state.json：{exc}")
+        if not isinstance(state, dict):
+            self._recovery_required("storage_state.json 不是有效对象")
+        if state.get("active_backend") != "json":
+            self._recovery_required("存储记录不是已确认的 JSON 权威，数据库可能缺失")
+
     def _select_initial_backend(self) -> None:
         if self.mode == "json":
+            self._assert_json_authority()
             self.backend = self.json_storage
             return
         if self.database_path.exists():
@@ -334,18 +371,21 @@ class PrimaryStorageManager(LegacyStorageManager):
                 return
             except Exception as exc:
                 self._rejected_sidecar_snapshots = sidecar_snapshots
-                self.backend = self.json_storage
-                self._last_error = f"SQLite 不可用，已回退 JSON：{exc}"
-                return
+                self._recovery_required(str(exc))
+        self._assert_json_authority()
+        # Invalid legacy JSON must not fall through to a helper that overwrites
+        # it with empty defaults. Only a failed, uncommitted SQL migration of
+        # readable JSON may retain the original JSON authority.
+        documents = self._read_existing_json()
         try:
-            documents = self._read_existing_json()
             if documents:
                 self._migrate_documents_to_sqlite(documents, automatic=True)
             else:
                 self._create_empty_sqlite()
         except Exception as exc:
+            self._assert_json_authority()
             self.backend = self.json_storage
-            self._last_error = f"SQLite 自动建立失败，已安全回退 JSON：{exc}"
+            self._last_error = f"SQLite 初次建立失败，仍使用原 JSON：{exc}"
 
     def migrate_to_sqlite(self) -> dict[str, Any]:
         with self._lock:
@@ -363,6 +403,8 @@ class PrimaryStorageManager(LegacyStorageManager):
                     }
                     self._last_action = result
                     return result
+                self._recovery_required("当前 SQLite 未通过验证，禁止以旧 JSON 重建替换")
+            self._assert_json_authority()
             documents = self._read_existing_json()
             if documents:
                 return self._migrate_documents_to_sqlite(documents, automatic=False)
