@@ -7,7 +7,7 @@ def test_resource_sync_supports_optional_roast_copy_pack():
     assert 'manifest roast_copy 必须是对象' in source
     assert 'validate_roast_copy_catalog(' in source
     assert '(staging / "roast_copy.json").write_bytes(roast_copy_raw)' in source
-    assert 'package_total = len(pig_raw) + len(ex_raw) + len(roast_copy_raw)' in source
+    assert 'initial_size=len(pig_raw) + len(ex_raw) + len(roast_copy_raw)' in source
     assert 'not isinstance(manifest.get("roast_copy"), dict)' in source
     assert '(self.resource_active_dir / "roast_copy.json").is_file()' in source
 
