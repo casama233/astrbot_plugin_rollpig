@@ -55,7 +55,7 @@
     },
     "enable_roast_reservation": {
         "description": "开启预约烤猪",
-        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友优先用 /添柴 @目标 加入，再次 /烤群友 @同一目标 仍兼容；目标在本群抽猪后自动按 60/30/10 结算",
+        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友优先用 /添柴 @目标 加入，再次 /烤群友 @同一目标 仍兼容；目标在本群抽猪后按成功 70%、逃脱 20%、反噬 10% 结算",
         "type": "bool",
         "default": true
     },
@@ -192,20 +192,20 @@
         "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
     },
     "resource_vercel_mirror_url": {
-        "description": "Vercel 公共猪源备用 manifest",
-        "hint": "仅在使用默认官方公共源且主源不可用时尝试；留空可关闭这一层备用源",
+        "description": "Vercel 备用地址（当前不生效）",
+        "hint": "旧配置兼容保留；PUBLIC_MIRROR_FAIL_CLOSED 生效期间不会访问公共镜像，填写地址不能解除授权审计封锁。主源失败时保留已验证本地缓存或内置资源",
         "type": "string",
         "default": "https://rollpig-public-source-mirror.vercel.app/v1/manifest.json"
     },
     "resource_github_fallback_enabled": {
-        "description": "启用 GitHub 公共猪源最终备用",
-        "hint": "仅在默认官方主源和 Vercel 镜像均不可用时尝试公开 GitHub 快照；不会影响私人 manifest",
+        "description": "GitHub 备用开关（当前不生效）",
+        "hint": "旧配置兼容保留；即使为 true，授权审计封锁期间也不会访问 GitHub 公共镜像。私人源仍只访问管理员指定的来源",
         "type": "bool",
         "default": true
     },
     "resource_github_mirror_url": {
-        "description": "GitHub 公共猪源备用 manifest",
-        "hint": "默认指向项目公开只读镜像；通常无需修改",
+        "description": "GitHub 备用地址（当前不生效）",
+        "hint": "旧配置兼容保留；授权审计封锁期间不会访问此地址，不能通过改地址恢复公共镜像",
         "type": "string",
         "default": "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/main/public/v1/manifest.json"
     },
@@ -259,7 +259,7 @@
     },
     "storage_backend": {
         "description": "数据存储后端",
-        "hint": "auto：新安装直接建立 SQLite，旧 JSON 会先备份并完整对账后自动迁移；json：仅用于紧急灾难回退；sqlite：要求 SQLite，数据库无效时安全回退 JSON",
+        "hint": "auto 推荐：新安装建立 SQLite，旧 JSON 先备份、迁移并对账。已有 SQLite 无法验证时停止插件载入，不自动回退旧或空 JSON；json 仅用于原生 JSON 或已完成对账回滚的安装，仍会预检既有 JSON；sqlite 同样保留恢复保护。详见 docs/SQLITE-RECOVERY.md",
         "type": "string",
         "default": "auto"
     },
