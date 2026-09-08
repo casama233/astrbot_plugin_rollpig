@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
 from pathlib import Path
 
 from help_system import HelpFeatureState, build_help_sections, help_sections_fingerprint
@@ -193,3 +194,35 @@ def test_help_fingerprint_tracks_visible_content_and_theme():
     assert help_sections_fingerprint(base, theme="light") != help_sections_fingerprint(
         base, theme="night"
     )
+
+
+def test_help_explains_configured_cost_recovery_risk_and_ex_content():
+    state = HelpFeatureState(
+        group_roast_max_charges=3,
+        group_roast_recovery_hours=1.5,
+        eat_success_percent=27,
+        roast_reservation_max_participants=9,
+    )
+    entries = {
+        entry.command: entry.detail
+        for section in build_help_sections(state)
+        for entry in section.entries
+    }
+    assert "每人每群3格" in entries["烤箱 Charge"]
+    assert "每1.5小时回1格" in entries["烤箱 Charge"]
+    assert "消耗1格，逃脱不退" in entries["/烤群友 @某人"]
+    assert "27%成功；失败吃掉自己" in entries["/吃群友 @某人"]
+    assert "最多9人，加入不扣格" in entries["预约烤猪"]
+    assert "EX 可超5" in entries["EX 成长"]
+    assert "文案沿用最高可用差分" in entries["EX 成长"]
+
+    # A cached bitmap must change whenever a displayed rule changes.
+    original = help_sections_fingerprint(build_help_sections(state))
+    for field, value in (
+        ("group_roast_max_charges", 5),
+        ("group_roast_recovery_hours", 2.5),
+        ("eat_success_percent", 33),
+        ("roast_reservation_max_participants", 10),
+    ):
+        changed = build_help_sections(replace(state, **{field: value}))
+        assert help_sections_fingerprint(changed) != original, field

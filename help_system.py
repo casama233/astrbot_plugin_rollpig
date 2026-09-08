@@ -103,8 +103,6 @@ def build_help_sections(
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
-        capacity = max(1, int(state.group_roast_max_charges))
-        recovery = max(1, round(float(state.group_roast_recovery_hours)))
         reservation_suffix = (
             t("help.group.roast_reservation_suffix")
             if state.enable_roast_reservation
@@ -112,8 +110,6 @@ def build_help_sections(
         )
         detail = t(
             "help.group.roast_target",
-            capacity=capacity,
-            recovery=recovery,
             reservation_suffix=reservation_suffix,
         )
         group_entries.extend(
@@ -200,6 +196,7 @@ def build_help_sections(
                 t(
                     "help.mechanic.oven_energy",
                     capacity=max(1, int(state.group_roast_max_charges)),
+                    hours=f"{max(1.0, float(state.group_roast_recovery_hours)):g}",
                 ),
                 kind="feature",
             )
