@@ -671,7 +671,7 @@
 <script type="module">
 const bridge=window.AstrBotPluginPage;
 const $=id=>document.getElementById(id);
-let page=1,pages=1,search='',items=[],localOverrides=[],blockedPigs=[],reviewItems=[],publicSourcePage=1,publicSourcePages=1,publicSourceSearch='',publicSourceItems=[],publicSourceRenderToken=0,pendingReviewDecision=null,imageData='',pighubUrl='',pighubFilename='',hubPage=1,hubPages=1,hubSearch='',hubItems=[],syncPolling=false,hubRenderToken=0,aiProgressTimer=null,aiProgressHideTimer=null,overviewData=null,publicSourceReviewEnabled=false;
+let page=1,pages=1,search='',items=[],localOverrides=[],blockedPigs=[],reviewItems=[],publicSourcePage=1,publicSourcePages=1,publicSourceSearch='',publicSourceItems=[],publicSourceRenderToken=0,pendingReviewDecision=null,imageData='',pighubUrl='',pighubFilename='',hubPage=1,hubPages=1,hubSearch='',hubItems=[],hubRenderToken=0,aiProgressTimer=null,aiProgressHideTimer=null,overviewData=null,publicSourceReviewEnabled=false;
 const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');
 const applyTheme=()=>document.documentElement.dataset.theme=themeMedia.matches?'dark':'light';applyTheme();themeMedia.addEventListener?.('change',applyTheme);
@@ -691,16 +691,98 @@ const busy=value=>$('loading').classList.toggle('show',value);
 async function get(path,params){return unwrap(await bridge.apiGet(path,params||{}))}
 let csrfToken='';async function post(path,payload){return unwrap(await bridge.apiPost(path,{...(payload||{}),__rollpig_csrf:csrfToken}))}
 const formatTime=value=>value?new Date(value*1000).toLocaleString():'尚未成功同步';const setSyncFeedback=message=>{const host=$('syncFeedback');host.textContent=message;window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,message)};
-async function loadResourceStatus(){const d=await get('resources/status'),attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步',sourceLabel=d.source==='cloud'?(d.official_source?'AstrBot 源缓存':'私人源缓存'):'内置兜底';$('syncStatus').innerHTML=`<span class="pill ${d.running||d.source==='cloud'?'ok':''}">${d.running?'同步中…':sourceLabel}</span><span class="pill ${d.official_source?'ok':''}">${d.official_source?'AstrBot v1 专用源':'自定义私人源'}</span><span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span><span class="pill">版本 ${esc(d.version)}</span><span class="pill">${esc(attempt)}</span><span class="pill">本地覆盖 ${d.local_overrides}</span><span class="pill">删除屏蔽 ${d.deleted_count}</span>${d.last_error?`<span class="pill warn">上次错误：${esc(d.last_error)}</span>`:''}`;$('syncBtn').disabled=Boolean(d.running)||!d.manifest_url||Boolean(d.source_rejected);$('syncBtn').textContent=d.running?'同步中…':d.source_rejected?'来源不可用':'立即同步';setSyncFeedback(d.running?'正在后台下载并校验资源；完成后会自动刷新图鉴。':(d.diagnosis||d.last_error)?`${d.diagnosis||`同步失败：${d.last_error}`}（现有资源已保留）`:d.last_success?`最近一次同步已成功：${formatTime(d.last_success)}。`:'资源源已配置，可先执行一次手动同步。');return d}
-let updateSnapshot=null;
+let resourceSnapshot=null;
+function renderResourceStatus(d){
+  resourceSnapshot=d;
+  const names={primary:'AstrBot 主源',custom:'私人源',vercel:'Vercel 镜像',github:'GitHub 镜像'};
+  const sourceName=name=>names[name]||name||'来源未记录';
+  const cached=d.source==='cloud'?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:'云端缓存（来源未记录）'):'内置兜底';
+  const allowed=Array.isArray(d.source_chain)?d.source_chain.map(item=>sourceName(item.name)).join(' → '):'';
+  const attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步';
+  $('syncStatus').innerHTML=`<span class="pill ${d.source==='cloud'?'ok':''}">当前资源：${esc(cached)}</span>
+    <span class="pill">可用远端：${esc(allowed||'尚未读取')}</span>
+    ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':''}
+    ${d.running?'<span class="pill">同步中…</span>':''}
+    <span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span>
+    <span class="pill">版本 ${esc(d.version||'—')}</span><span class="pill">${esc(attempt)}</span>
+    <span class="pill">本地覆盖 ${esc(d.local_overrides||0)}</span><span class="pill">删除屏蔽 ${esc(d.deleted_count||0)}</span>`;
+  $('syncBtn').disabled=Boolean(d.running)||!d.manifest_url||Boolean(d.source_rejected);
+  $('syncBtn').textContent=d.running?'同步中…':d.source_rejected?'来源不可用':'立即同步';
+  if(d.running)setSyncFeedback('正在后台下载并校验资源；请点击右上角刷新查看结果和图鉴。');
+  else if(d.last_error)setSyncFeedback(`同步失败：${d.last_error}；现有资源已保留。${d.diagnosis||'请稍后手动重试。'}`);
+  else if(d.last_success)setSyncFeedback(`最近一次同步已成功：${formatTime(d.last_success)}。${d.diagnosis||''}`);
+  else setSyncFeedback(d.diagnosis||(d.manifest_url?'尚未成功同步，可执行一次手动同步。':'尚未配置资源源，请先检查插件配置。'));
+}
+async function loadResourceStatus(){const d=await get('resources/status');renderResourceStatus(d);return d}
+async function startResourceSync(){
+  const previous=resourceSnapshot;
+  let accepted=false;
+  $('syncBtn').disabled=true;
+  setSyncFeedback('正在启动云资源同步任务…');
+  try{
+    const result=await post('resources/sync',{});
+    accepted=true;
+    if(result.sync)renderResourceStatus(result.sync);
+    toast(result.started===false?'已有云资源同步任务运行中':'云资源同步已在后台开始');
+    await loadResourceStatus();
+  }catch(e){
+    try{await loadResourceStatus()}catch{if(!accepted&&previous)renderResourceStatus(previous)}
+    setSyncFeedback(accepted
+      ?`同步请求已受理，暂时无法读取最新状态：${e.message}。请点击右上角刷新查看结果。`
+      :`同步请求失败：${e.message}。请刷新状态后重试。`);
+    toast(e.message);
+  }
+}
+let updateSnapshot=null,updateStatusSnapshot=null;
 const setUpdateFeedback=message=>$('updateFeedback').textContent=message;
-function renderUpdateStatus(d){const p=d.pending||d;updateSnapshot=p;const current=d.current_version||p.current_version||'—',latest=p.latest_version||current,available=Boolean(p.update_available),signed=Boolean(p.checksum_available),storage=d.storage||p.storage||{};$('updateStatus').innerHTML=`<span class="pill ok">当前 ${esc(current)}</span><span class="pill ${available?'warn':''}">${available?`可更新 ${esc(latest)}`:'已是最新稳定版'}</span><span class="pill ${signed?'ok':'warn'}">${signed?'SHA-256 可验证':'未附校验文件'}</span><span class="pill">存储 ${esc(storage.backend||'json')}</span>`;$('updateCheckBtn').disabled=Boolean(d.busy)||d.enabled===false;$('updateApplyBtn').disabled=!available||Boolean(d.busy)||d.enabled===false;$('updateApplyBtn').textContent=available?`更新到 ${latest}`:'安全更新';$('updateNotes').textContent=p.notes||'';if(d.enabled===false)setUpdateFeedback('管理面板更新功能已在插件配置中关闭。');else if(d.last_result?.restart_required)setUpdateFeedback(`已安装 ${d.last_result.to_version}；请在合适时机重启 AstrBot 载入新版本。`);else if(available)setUpdateFeedback(signed?'Release 提供 SHA-256，更新时会强制核对。':'Release 未提供 SHA-256；点击更新后必须再次人工确认。');else setUpdateFeedback('只会检查官方仓库的最新稳定 Release，不会自动更新或自动重启。')}
+function renderUpdateStatus(d){
+  updateStatusSnapshot=d;
+  const p=d.pending||null,current=d.current_version||'—';
+  const checked=Boolean(Number(d.last_check_at)>0&&p?.latest_version&&typeof p.update_available==='boolean');
+  const restart=Boolean(d.last_result?.restart_required),error=String(d.last_error||'');
+  const available=checked&&p.update_available===true,signed=checked&&p.checksum_available===true;
+  updateSnapshot=checked&&!restart&&!error?p:null;
+  let label='尚未检查更新';
+  if(restart)label='已安装，等待重载';
+  else if(error)label='更新操作失败';
+  else if(d.busy)label='正在检查或更新…';
+  else if(checked)label=available?`可更新 ${p.latest_version}`:'已是最新稳定版';
+  $('updateStatus').innerHTML=`<span class="pill">已安装 ${esc(current)}</span>
+    <span class="pill ${restart||error||available?'warn':checked&&!d.busy?'ok':''}">${esc(label)}</span>
+    ${checked?`<span class="pill">上次成功检查 ${esc(formatTime(d.last_check_at))}</span>`:''}
+    ${error&&checked?`<span class="pill">上次结果：${available?`可更新 ${esc(p.latest_version)}`:`当时已是最新稳定版 ${esc(p.latest_version)}`}</span>`:''}
+    ${checked?`<span class="pill ${signed?'ok':'warn'}">${signed?'SHA-256 可验证':'未附校验文件'}</span>`:''}
+    <span class="pill">存储 ${esc(d.storage?.backend||'未知')}</span>`;
+  $('updateCheckBtn').disabled=Boolean(d.busy)||d.enabled===false;
+  $('updateApplyBtn').disabled=!updateSnapshot||!available||Boolean(d.busy)||d.enabled===false;
+  $('updateApplyBtn').textContent=available&&!restart?`更新到 ${p.latest_version}`:'安全更新';
+  $('updateNotes').textContent=checked?p.notes||'':'';
+  const messages=[];
+  if(restart)messages.push(`已安装 ${d.last_result.to_version||current}；请重载插件或重启 AstrBot 使新版本生效。`);
+  if(error)messages.push(`上次更新操作失败：${error}。请重新检查更新后再安装。`);
+  if(d.enabled===false)messages.push('管理面板更新功能已在插件配置中关闭。');
+  if(!messages.length&&available)messages.push(signed?'Release 提供 SHA-256，更新时会强制核对。':'Release 未提供 SHA-256；点击更新后必须再次人工确认。');
+  if(!messages.length)messages.push(checked?'只检查官方稳定 Release，不会自动更新或重启。':'请点击检查更新；尚未取得可用的稳定版检查结果。');
+  setUpdateFeedback(messages.join(' '));
+}
 async function loadUpdateStatus(){const d=await get('updates/status');renderUpdateStatus(d);return d}
-async function checkPluginUpdate(){const d=await post('updates/check',{});renderUpdateStatus(d);toast(d.update_available?`发现稳定版 ${d.latest_version}`:'当前已是最新稳定版');return d}
+async function checkPluginUpdate(){
+  try{
+    const result=await post('updates/check',{});
+    await loadUpdateStatus();
+    toast(result.update_available?`发现稳定版 ${result.latest_version}`:'当前已是最新稳定版');
+    return result;
+  }catch(e){
+    let status=updateStatusSnapshot||{};
+    try{status=await get('updates/status')}catch{}
+    renderUpdateStatus({...status,last_error:e.message});
+    throw e;
+  }
+}
 let storageSnapshot=null;
 const setStorageFeedback=message=>$('storageFeedback').textContent=message;
 function formatStorageRepair(h){if(!h.last_repair_action)return'尚无修复记录';const reason=h.last_repair_reason?` · ${h.last_repair_reason}`:'';const when=Number(h.last_repair_at||0)?` · ${new Date(Number(h.last_repair_at)*1000).toLocaleString()}`:'';return`${h.last_repair_action}${reason}${when}`}
-function renderStorageStatus(d){storageSnapshot=d;const h=d.health||{},sqlite=d.active_backend==='sqlite',ok=Boolean(h.ok),mode=d.configured_mode||'auto',sqlAnalytics=h.analytics_source==='normalized-sql',repair=formatStorageRepair(h),authority=String(h.write_authority||'compatibility-documents'),onDemand=h.compatibility_mode==='on-demand';$('storageStatus').innerHTML=`<span class="pill ${sqlite?'ok':''}">当前 ${esc(d.active_backend||'json')}</span><span class="pill">配置 ${esc(mode)}</span><span class="pill ${ok?'ok':'warn'}">${d.database_exists?(ok?'数据库完整':'数据库需检查'):'尚未建库'}</span>${h.schema_version?`<span class="pill">Schema ${h.schema_version}</span>`:''}${sqlAnalytics?'<span class="pill ok">统计 SQL</span>':'<span class="pill">统计 JSON</span>'}${sqlite?`<span class="pill">写入权威 ${esc(authority)}</span><span class="pill ${onDemand?'ok':''}">兼容 JSON ${onDemand?'按需生成':'同步保存'}</span>`:''}${h.documents!==undefined?`<span class="pill">文档 ${h.documents}</span>`:''}${h.users!==undefined?`<span class="pill">用户 ${h.users}</span>`:''}${h.last_repair_action?`<span class="pill">最近修复 ${esc(h.last_repair_reason||'manual')}</span>`:''}`;$('storageMigrateBtn').disabled=sqlite||mode==='json';$('storageRollbackBtn').disabled=!sqlite;$('storageVerifyBtn').disabled=!d.database_exists;$('storageRebuildBtn').disabled=!d.database_exists;if(d.last_error)setStorageFeedback(`后端已安全降级：${d.last_error}`);else if(sqlite)setStorageFeedback(`SQLite 正在使用 WAL 与事务；运行时权威：${authority}；兼容 JSON：${onDemand?'仅在导出或回滚时按需生成':'仍同步保存'}；最近修复：${repair}；最近迁移备份：${d.latest_backup||'无'}。`);else if(mode==='json')setStorageFeedback('配置已强制使用 JSON；需要改为 auto 后才能从面板迁移。');else setStorageFeedback('当前已安全回退 JSON；重试迁移会先备份、临时建库、事实对账并通过完整性检查后才切换。')}
+function renderStorageStatus(d){storageSnapshot=d;const h=d.health||{},sqlite=d.active_backend==='sqlite',ok=Boolean(h.ok),mode=d.configured_mode||'auto',sqlAnalytics=h.analytics_source==='normalized-sql',repair=formatStorageRepair(h),authority=String(h.write_authority||'compatibility-documents'),onDemand=h.compatibility_mode==='on-demand';$('storageStatus').innerHTML=`<span class="pill ${sqlite?'ok':''}">当前 ${esc(d.active_backend||'json')}</span><span class="pill">配置 ${esc(mode)}</span><span class="pill ${ok?'ok':'warn'}">${d.database_exists?(ok?'数据库完整':'数据库需检查'):'尚未建库'}</span>${h.schema_version?`<span class="pill">Schema ${h.schema_version}</span>`:''}${sqlAnalytics?'<span class="pill ok">统计 SQL</span>':'<span class="pill">统计 JSON</span>'}${sqlite?`<span class="pill">写入权威 ${esc(authority)}</span><span class="pill ${onDemand?'ok':''}">兼容 JSON ${onDemand?'按需生成':'同步保存'}</span>`:''}${h.documents!==undefined?`<span class="pill">文档 ${h.documents}</span>`:''}${h.users!==undefined?`<span class="pill">用户 ${h.users}</span>`:''}${h.last_repair_action?`<span class="pill">最近修复 ${esc(h.last_repair_reason||'manual')}</span>`:''}`;$('storageMigrateBtn').disabled=sqlite||mode==='json';$('storageRollbackBtn').disabled=!sqlite;$('storageVerifyBtn').disabled=!d.database_exists;$('storageRebuildBtn').disabled=!d.database_exists;if(d.last_error)setStorageFeedback(`存储操作失败：${d.last_error}；请核查当前后端与日志。`);else if(sqlite)setStorageFeedback(`SQLite 正在使用 WAL 与事务；运行时权威：${authority}；兼容 JSON：${onDemand?'仅在导出或回滚时按需生成':'仍同步保存'}；最近修复：${repair}；最近迁移备份：${d.latest_backup||'无'}。`);else if(mode==='json')setStorageFeedback('配置已强制使用 JSON；需要改为 auto 后才能从面板迁移。');else setStorageFeedback('当前使用 JSON；迁移会先备份、临时建库、事实对账并通过完整性检查后才切换。')}
 async function loadStorageStatus(){const d=await get('storage/status');renderStorageStatus(d);return d}
 async function migrateStorage(){if(storageSnapshot?.configured_mode==='json'){toast('请先把 storage_backend 改为 auto');return}if(!window.confirm('确定重试迁移到 SQLite 吗？系统会先完整备份旧 JSON，任何事实对账或完整性检查失败都不会切换。'))return;busy(true);setStorageFeedback('正在备份旧 JSON、建立临时数据库并执行事实对账…');try{const d=await post('storage/migrate',{confirm:true});toast(`已迁移 ${d.documents||0} 份文档到 SQLite`);await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`迁移失败：${e.message}；仍使用原 JSON。`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
 async function verifyStorage(){busy(true);setStorageFeedback('正在执行 integrity_check 与 foreign_key_check…');try{const d=await post('storage/verify',{});toast(d.ok?'数据库完整性正常':'数据库验证未通过');await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
@@ -708,11 +790,9 @@ async function rebuildStorage(){if(!window.confirm('确定检查并修复 SQLite
 async function exportStorage(){busy(true);try{const d=await post('storage/export',{});toast(`已导出 ${d.filename}`);setStorageFeedback(`已从当前 SQL 按需生成 ${d.filename}；SHA-256：${d.sha256}`);await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
 async function rollbackStorage(){if(!window.confirm('确定把 SQLite 中的最新数据写回 JSON 并停用数据库吗？原数据库会改名保留，不会删除。'))return;if(!window.confirm('再次确认：回滚完成后当前运行实例会立即改用 JSON。'))return;busy(true);setStorageFeedback('正在导出 SQLite 最新文档、原子写回 JSON 并对账…');try{const d=await post('storage/rollback',{confirm:true});toast('已安全回滚到 JSON');await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`回滚失败：${e.message}`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
 async function applyPluginUpdate(){if(!updateSnapshot?.update_available){toast('请先检查更新');return}const unsigned=!updateSnapshot.checksum_available;if(unsigned&&!window.confirm('这个官方 Release 没有附带 SHA-256 校验文件。系统仍会执行仓库身份、HTTPS、ZIP 路径、文件数量、体积、metadata 与 Python 语法检查，并在替换前完整备份。确定继续吗？'))return;busy(true);$('updateApplyBtn').disabled=true;setUpdateFeedback('正在下载、校验、备份并替换插件代码…');try{const d=await post('updates/apply',{confirm_unsigned:unsigned});toast(`已安装 ${d.to_version}，请重启 AstrBot`);setUpdateFeedback(`安装完成，备份已保留。请在合适时机重启 AstrBot 载入 ${d.to_version}。`);await loadUpdateStatus()}catch(e){setUpdateFeedback(`更新失败：${e.message}；现有插件与数据已保留或回滚。`);toast(e.message);try{await loadUpdateStatus()}catch{}}finally{busy(false)}}
-const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function paintRgbaCanvas(canvas,thumbnail){const w=Number(thumbnail?.width),h=Number(thumbnail?.height),png=String(thumbnail?.png||'');if(!w||!h||w>512||h>512||!png)throw new Error('缩略图数据无效');const image=new Image();image.src='data:image/png;base64,'+png;await image.decode();canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(image,0,0,w,h)}
 function clearPreview(){const canvas=$('imagePreview'),ctx=canvas.getContext('2d');canvas.width=192;canvas.height=192;ctx.clearRect(0,0,192,192)}
 function paintBitmapPreview(bitmap){const canvas=$('imagePreview'),ctx=canvas.getContext('2d');canvas.width=192;canvas.height=192;const scale=Math.max(192/bitmap.width,192/bitmap.height),w=bitmap.width*scale,h=bitmap.height*scale;ctx.clearRect(0,0,192,192);ctx.drawImage(bitmap,(192-w)/2,(192-h)/2,w,h)}
-async function pollSyncCompletion(){setSyncFeedback('同步任务已启动；已关闭自动轮询，请点击右上角刷新查看最新状态。')}
 function renderHub(){const token=++hubRenderToken;if(!hubItems.length){$('pighubGrid').innerHTML='<div class="empty">没有找到符合条件的 PigHub 图片</div>';return}$('pighubGrid').innerHTML=hubItems.map((p,i)=>`<button type="button" class="hub-card ${pighubUrl===p.image_url?'selected':''}" style="--delay:${Math.min(i,12)*30}ms" data-hub="${i}"><div class="hub-thumb"><canvas width="160" height="160" data-hub-canvas="${i}" aria-label="${esc(p.title)}"></canvas><div class="image-fallback">🐽</div></div><div class="hub-title">${esc(p.title)}</div><div class="hub-file">${esc(p.filename)}</div></button>`).join('');document.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>selectHub(hubItems[+b.dataset.hub]));loadHubThumbnails(token)}
 async function loadHubThumbnails(token){let next=0;const source=hubItems.slice();const worker=async()=>{while(next<source.length){const index=next++;try{const thumbnail=await get('pighub/thumbnail',{url:source[index].image_url});if(token!==hubRenderToken)return;source[index].thumbnail=thumbnail;const canvas=document.querySelector(`[data-hub-canvas="${index}"]`);if(canvas)await paintRgbaCanvas(canvas,thumbnail)}catch{if(token!==hubRenderToken)return;const canvas=document.querySelector(`[data-hub-canvas="${index}"]`);if(canvas)canvas.closest('.hub-thumb').classList.add('broken')}}};await Promise.all(Array.from({length:Math.min(3,source.length)},worker))}
 const withTimeout=(promise,ms,message)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
@@ -848,9 +928,9 @@ $('pigForm').onsubmit=async e=>{e.preventDefault();const original=$('originalId'
 $('imageFile').onchange=async function(){const file=this.files&&this.files[0];if(!file)return;if(file.size>10*1024*1024){toast('图片不能超过 10MB');this.value='';return}setImageSource('local');pighubFilename='';try{const bitmap=await createImageBitmap(file);paintBitmapPreview(bitmap);bitmap.close()}catch{clearPreview();toast('无法预览这张图片，但仍可尝试保存')}const reader=new FileReader();reader.onload=()=>{pighubUrl='';imageData=String(reader.result||'');$('sourceNote').textContent='已选择本地上传图片';updateFlow()};reader.readAsDataURL(file)};
 $('pighubBtn').onclick=async()=>{$('pighubModal').classList.add('open');busy(true);try{await loadHub(false)}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};$('pighubClose').onclick=()=>$('pighubModal').classList.remove('open');$('pighubModal').onclick=e=>{if(e.target===$('pighubModal'))$('pighubClose').click()};$('hubPrev').onclick=()=>{if(hubPage>1){hubPage--;loadHub().catch(e=>toast(e.message))}};$('hubNext').onclick=()=>{if(hubPage<hubPages){hubPage++;loadHub().catch(e=>toast(e.message))}};$('pighubRandom').onclick=()=>{hubSearch='';$('pighubSearch').value='';hubPage=Math.max(1,Math.floor(Math.random()*hubPages)+1);loadHub().catch(e=>toast(e.message))};$('pighubRefresh').onclick=async()=>{busy(true);try{hubPage=1;await loadHub(true);toast('PigHub 索引已刷新')}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};let hubSearchTimer;$('pighubSearch').oninput=e=>{clearTimeout(hubSearchTimer);hubSearchTimer=setTimeout(()=>{hubSearch=e.target.value.trim();hubPage=1;loadHub().catch(err=>toast(err.message))},260)};
 $('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast('公共猪源已刷新')}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()};
-$('syncBtn').onclick=async()=>{$('syncBtn').disabled=true;setSyncFeedback('正在启动云资源同步任务…');try{await post('resources/sync',{});toast('云资源同步已在后台开始');await loadResourceStatus();pollSyncCompletion()}catch(e){setSyncFeedback(`同步启动失败：${e.message}`);toast(e.message);try{await loadResourceStatus()}catch{}}};$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`检查失败：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
+$('syncBtn').onclick=startResourceSync;$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`检查失败：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
 ['pigId','pigName','pigDescription','pigAnalysis'].forEach(id=>$(id).addEventListener('input',updateFlow));$('pigAnalysis').oninput=e=>{$('copyCount').textContent=e.target.value.length;updateFlow()};$('aiDraftBtn').onclick=generateAiDraft;$('chooseImageBtn').onclick=()=>$('imageFile').click();$('downloadOriginalBtn').onclick=downloadOriginalImage;$('addBtn').onclick=openCreate;$('closeBtn').onclick=$('cancelBtn').onclick=closeModal;$('prevBtn').onclick=()=>{if(page>1){page--;loadPigs()}};$('nextBtn').onclick=()=>{if(page<pages){page++;loadPigs()}};let searchTimer;$('searchInput').oninput=e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{search=e.target.value.trim();page=1;loadPigs()},260)};$('refreshBtn').onclick=async()=>{busy(true);try{await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()]);toast('数据已刷新')}catch(e){toast(e.message)}finally{busy(false)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeReviewModal();$('pighubModal').classList.remove('open');$('publicSourceModal').classList.remove('open');$('publicSourceDetailModal').classList.remove('open')}});
-if(!bridge){document.body.innerHTML='<div class="empty">AstrBot Plugin Page Bridge 不可用</div>'}else{await bridge.ready();busy(true);try{await loadOverview();const [,,,sync]=await Promise.all([loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()]);if(sync.running)pollSyncCompletion()}catch(e){toast(e.message)}finally{busy(false)}}
+if(!bridge){document.body.innerHTML='<div class="empty">AstrBot Plugin Page Bridge 不可用</div>'}else{await bridge.ready();busy(true);try{await loadOverview();await Promise.all([loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
 </script>
 </body>
 </html>

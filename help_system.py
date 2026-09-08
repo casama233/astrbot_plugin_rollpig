@@ -67,11 +67,6 @@ def build_help_sections(
     def t(key: str, **values: object) -> str:
         return copy_text(key, locale=locale_name, **values)
 
-    def cmd(simplified: str, traditional: str | None = None) -> str:
-        if locale_name == "zh-TW" and traditional is not None:
-            return traditional
-        return simplified
-
     def mention_note() -> HelpEntry:
         return HelpEntry(
             "",
@@ -80,31 +75,29 @@ def build_help_sections(
         )
 
     daily_entries = [
-        HelpEntry(cmd("/今日小猪", "/今日小猪"), t("help.daily.today")),
-        HelpEntry(cmd("/昨日小猪", "/昨日小猪"), t("help.daily.yesterday")),
-        HelpEntry(cmd("/明日小猪", "/明日小猪"), t("help.daily.tomorrow")),
-        HelpEntry(cmd("/本周小猪", "/本周小猪"), t("help.daily.weekly")),
+        HelpEntry("/今日小猪", t("help.daily.today")),
+        HelpEntry("/昨日小猪", t("help.daily.yesterday")),
+        HelpEntry("/明日小猪", t("help.daily.tomorrow")),
+        HelpEntry("/本周小猪", t("help.daily.weekly")),
     ]
     if state.at_view_pig:
         daily_entries[1:1] = [
-            HelpEntry(cmd("/今日小猪 @某人", "/今日小猪 @某人"), t("help.daily.today_other")),
+            HelpEntry("/今日小猪 @某人", t("help.daily.today_other")),
             mention_note(),
         ]
 
     discovery_entries = [
-        HelpEntry(cmd("/我的猪圈 [页码]", "/我的猪圈 [页码]"), t("help.discovery.pigsty")),
-        HelpEntry(cmd("/随机小猪 [1-9]", "/随机小猪 [1-9]"), t("help.discovery.random")),
-        HelpEntry(cmd("/找猪／搜猪 关键词", "/找猪／搜猪 关键词"), t("help.discovery.search")),
+        HelpEntry("/我的猪圈 [页码]", t("help.discovery.pigsty")),
+        HelpEntry("/随机小猪 [1-9]", t("help.discovery.random")),
+        HelpEntry("/找猪／搜猪 关键词", t("help.discovery.search")),
     ]
 
     group_entries: list[HelpEntry] = []
     if state.enable_roast:
-        group_entries.append(HelpEntry(cmd("/今日烤猪", "/今日烤猪"), t("help.group.roast_today")))
+        group_entries.append(HelpEntry("/今日烤猪", t("help.group.roast_today")))
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
-        capacity = max(1, int(state.group_roast_max_charges))
-        recovery = max(1, round(float(state.group_roast_recovery_hours)))
         reservation_suffix = (
             t("help.group.roast_reservation_suffix")
             if state.enable_roast_reservation
@@ -112,22 +105,20 @@ def build_help_sections(
         )
         detail = t(
             "help.group.roast_target",
-            capacity=capacity,
-            recovery=recovery,
             reservation_suffix=reservation_suffix,
         )
         group_entries.extend(
             [
                 HelpEntry("/烤群友 @某人", detail),
                 mention_note(),
-                HelpEntry(cmd("/随机烤群友", "/随机烤群友"), t("help.group.random_roast")),
-                HelpEntry(cmd("/打点后厨 @某人", "/打点后厨 @某人"), t("help.group.force_roast")),
+                HelpEntry("/随机烤群友", t("help.group.random_roast")),
+                HelpEntry("/打点后厨 @某人", t("help.group.force_roast")),
                 mention_note(),
             ]
         )
         if state.enable_oven_refill:
             group_entries.append(
-                HelpEntry(cmd("/烤箱补货", "/烤箱补货"), t("help.group.oven_refill"))
+                HelpEntry("/烤箱补货", t("help.group.oven_refill"))
             )
         if state.enable_oven_refill or state.enable_roast_reservation:
             group_entries.append(
@@ -147,7 +138,7 @@ def build_help_sections(
                     ),
                 ),
                 mention_note(),
-                HelpEntry(cmd("/随机吃群友", "/随机吃群友"), t("help.group.random_eat")),
+                HelpEntry("/随机吃群友", t("help.group.random_eat")),
             ]
         )
 
@@ -155,9 +146,9 @@ def build_help_sections(
     if state.enable_daily_report:
         report_entries.extend(
             [
-                HelpEntry(cmd("/猪圈日报", "/猪圈日报"), t("help.report.manual")),
-                HelpEntry(cmd("/猪圈日报状态", "/猪圈日报状态"), t("help.report.status")),
-                HelpEntry(cmd("/猪圈日报开启／关闭", "/猪圈日报开启／关闭"), t("help.report.toggle")),
+                HelpEntry("/猪圈日报", t("help.report.manual")),
+                HelpEntry("/猪圈日报状态", t("help.report.status")),
+                HelpEntry("/猪圈日报开启／关闭", t("help.report.toggle")),
             ]
         )
         if not state.daily_report_auto_send:
@@ -200,6 +191,7 @@ def build_help_sections(
                 t(
                     "help.mechanic.oven_energy",
                     capacity=max(1, int(state.group_roast_max_charges)),
+                    hours=f"{max(1.0, float(state.group_roast_recovery_hours)):g}",
                 ),
                 kind="feature",
             )
