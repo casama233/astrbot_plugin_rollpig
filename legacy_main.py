@@ -56,6 +56,7 @@ try:
         select_local_roast_copy,
         validate_roast_copy_catalog,
     )
+    from .services.resource_staging import promote_resource_staging, stage_resource_images
     from .services import CatalogService, CollectionService, DrawService, ResourceReadService, ResourceSyncSettings, RoastService
     from .renderers import (
         PigCardLayout,
@@ -91,6 +92,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         select_local_roast_copy,
         validate_roast_copy_catalog,
     )
+    from services.resource_staging import promote_resource_staging, stage_resource_images
     from services import CatalogService, CollectionService, DrawService, ResourceReadService, ResourceSyncSettings, RoastService
     from renderers import (
         PigCardLayout,
@@ -1569,157 +1571,28 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     if isinstance(ex_meta, dict):
                         staging_variants.mkdir(parents=True, exist_ok=True)
                         (staging / "pig_ex_variants.json").write_bytes(ex_raw)
-                    # 公共包接近两百张图；较低并发对慢速反代和家庭网络更稳定。
-                    semaphore = asyncio.Semaphore(4)
-                    budget_lock = asyncio.Lock()
-                    package_total = len(pig_raw) + len(ex_raw) + len(roast_copy_raw)
-
-                    async def fetch_base_image(meta):
-                        nonlocal package_total
-                        if not isinstance(meta, dict):
-                            raise ValueError("manifest 图片条目无效")
-                        filename = str(meta.get("filename") or "")
-                        if (
-                            Path(filename).name != filename
-                            or Path(filename).suffix.lower().lstrip(".")
-                            not in self.IMAGE_EXTENSIONS
-                            or not re.fullmatch(
-                                r"[a-z0-9][a-z0-9_-]{0,63}",
-                                Path(filename).stem,
-                            )
-                        ):
-                            raise ValueError(f"图片文件名无效：{filename}")
-                        async with semaphore:
-                            data = await self._download_manifest_item(
-                                client,
-                                self.resource_manifest_url,
-                                meta,
-                                self.resource_max_file_size,
-                            )
-                        async with budget_lock:
-                            package_total += len(data)
-                            if package_total > self.RESOURCE_PACKAGE_MAX_SIZE:
-                                raise ValueError("云资源包总大小超过 128 MiB")
-                        return filename, data
-
-                    async def fetch_variant_image(meta):
-                        nonlocal package_total
-                        if not isinstance(meta, dict):
-                            raise ValueError("manifest EX 差分图片条目无效")
-                        filename = str(meta.get("filename") or "")
-                        if (
-                            Path(filename).name != filename
-                            or Path(filename).suffix.lower().lstrip(".")
-                            not in self.IMAGE_EXTENSIONS
-                            or not re.fullmatch(
-                                r"[A-Za-z0-9][A-Za-z0-9_.-]{0,159}", filename
-                            )
-                        ):
-                            raise ValueError(f"EX 差分图片文件名无效：{filename}")
-                        async with semaphore:
-                            data = await self._download_manifest_item(
-                                client,
-                                self.resource_manifest_url,
-                                meta,
-                                self.resource_max_file_size,
-                            )
-                        async with budget_lock:
-                            package_total += len(data)
-                            if package_total > self.RESOURCE_PACKAGE_MAX_SIZE:
-                                raise ValueError("云资源包总大小超过 128 MiB")
-                        return filename, data
-
-                    async def fetch_and_store_base(meta):
-                        filename, data = await fetch_base_image(meta)
-                        self._validate_image_dimensions(data, filename)
-                        await asyncio.to_thread(
-                            (staging_images / filename).write_bytes, data
-                        )
-                        return filename
-
-                    async def fetch_and_store_variant(meta):
-                        filename, data = await fetch_variant_image(meta)
-                        self._validate_image_dimensions(data, filename)
-                        await asyncio.to_thread(
-                            (staging_variants / filename).write_bytes, data
-                        )
-                        return filename
-
-                    tasks = [
-                        asyncio.create_task(fetch_and_store_base(meta))
-                        for meta in image_metas
-                    ]
-                    filenames: list[str] = []
-                    try:
-                        for task in asyncio.as_completed(tasks):
-                            filenames.append(await task)
-                    except Exception:
-                        for task in tasks:
-                            task.cancel()
-                        await asyncio.gather(*tasks, return_exceptions=True)
-                        raise
-                    if len(filenames) != len(set(filenames)):
-                        raise ValueError("云资源 manifest 存在重复图片文件名")
-                    image_ids = {Path(name).stem for name in filenames}
-                    missing = pig_ids.difference(image_ids)
-                    if missing:
-                        raise ValueError(
-                            f"云资源缺少图片：{', '.join(sorted(missing)[:10])}"
+                    async def download_image(meta):
+                        return await self._download_manifest_item(
+                            client, self.resource_manifest_url, meta,
+                            self.resource_max_file_size,
                         )
 
-                    variant_tasks = [
-                        asyncio.create_task(fetch_and_store_variant(meta))
-                        for meta in variant_image_metas
-                    ]
-                    variant_filenames: list[str] = []
-                    try:
-                        for task in asyncio.as_completed(variant_tasks):
-                            variant_filenames.append(await task)
-                    except Exception:
-                        for task in variant_tasks:
-                            task.cancel()
-                        await asyncio.gather(*variant_tasks, return_exceptions=True)
-                        raise
-                    if len(variant_filenames) != len(set(variant_filenames)):
-                        raise ValueError("云资源 manifest 存在重复 EX 差分图片文件名")
-                    if isinstance(ex_meta, dict):
-                        declared_variant_images = {
-                            str(item.get("image") or "")
-                            for levels in normalized_ex.values()
-                            for item in levels.values()
-                            if str(item.get("image") or "")
-                        }
-                        fetched_variant_images = set(variant_filenames)
-                        missing_variant = declared_variant_images.difference(
-                            fetched_variant_images
-                        )
-                        extra_variant = fetched_variant_images.difference(
-                            declared_variant_images
-                        )
-                        if missing_variant:
-                            raise ValueError(
-                                "云资源缺少 EX 差分图片："
-                                + ", ".join(sorted(missing_variant)[:10])
-                            )
-                        if extra_variant:
-                            raise ValueError(
-                                "云资源存在未引用 EX 差分图片："
-                                + ", ".join(sorted(extra_variant)[:10])
-                            )
+                    await stage_resource_images(
+                        image_metas=image_metas,
+                        variant_image_metas=variant_image_metas,
+                        pig_ids=pig_ids,
+                        normalized_ex=normalized_ex,
+                        has_ex_catalog=isinstance(ex_meta, dict),
+                        staging_images=staging_images,
+                        staging_variants=staging_variants,
+                        image_extensions=self.IMAGE_EXTENSIONS,
+                        initial_size=len(pig_raw) + len(ex_raw) + len(roast_copy_raw),
+                        max_package_size=self.RESOURCE_PACKAGE_MAX_SIZE,
+                        download=download_image,
+                        validate_image=self._validate_image_dimensions,
+                    )
 
-
-                if previous.exists():
-                    shutil.rmtree(previous)
-                moved_old = False
-                try:
-                    if self.resource_active_dir.exists():
-                        self.resource_active_dir.rename(previous)
-                        moved_old = True
-                    staging.rename(self.resource_active_dir)
-                except Exception:
-                    if moved_old and previous.exists() and not self.resource_active_dir.exists():
-                        previous.rename(self.resource_active_dir)
-                    raise
+                promote_resource_staging(staging, self.resource_active_dir, previous)
                 self.save_json(
                     self.resource_state_path,
                     {"resource_version": version, "synced_at": int(time.time())},
