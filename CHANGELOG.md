@@ -4,20 +4,22 @@
 
 - 維護第一批：既有 SQLite 載入或驗證失敗時停止插件載入，不再由舊／空 JSON 自動接管。資料庫缺失但仍有 SQLite 權威記錄或 WAL／SHM 時亦停止；強制 JSON 不再繞過此保護。初次、未提交的 JSON → SQLite 遷移失敗仍保留原 JSON。
 - 阻止手動重試遷移以舊 JSON 替換驗證失敗的現有 SQL；新增故障與恢復回歸測試及 [恢復說明](docs/SQLITE-RECOVERY.md)。本批是停止載入保護，不宣稱提供管理頁恢復模式。
-- 更新記錄首頁保留目前維護狀態與近期版本索引。至 v3.12.1 的完整原始記錄逐位元組保留於 [歷史更新記錄](docs/archive/CHANGELOG-through-v3.12.1.md)，不刪除歷史來源、修正或授權說明。
+- 更新記錄首頁保留目前維護狀態與近期版本索引。至 v3.12.1 的完整原始記錄逐位元組保留於 [歷史更新記錄](CHANGELOG-history.md)，位置仍在倉庫根目錄，保留原相對連結；不刪除歷史來源、修正或授權說明。
 
 ## v3.12.1
 
 發布日期：2026-09-05
 
-EX 底部徽章、一次性成長提示、bundled 99/99 與 Felis 34/34 顯式 EX1–EX5 文案、22 隻離線包文案一致性、安全更新恢復與維護閘門。AstrBot 最低版本為 >=4.26.0。完整內容見 [v3.12.1 原始記錄](docs/archive/CHANGELOG-through-v3.12.1.md#v3121) 與 [Release notes](.github/release-v3.12.1.md)。
+EX 底部徽章、一次性成長提示、bundled 99/99 與 Felis 34/34 顯式 EX1–EX5 文案、22 隻離線包文案一致性、安全更新恢復與維護閘門。AstrBot 最低版本為 >=4.26.0。完整內容見 [v3.12.1 原始記錄](CHANGELOG-history.md#v3121) 與 [Release notes](.github/release-v3.12.1.md)。
 
 ## v3.12.0
 
 發布日期：2026-08-27
 
-退役 AI 工坊與重複 Plugin Pages，保留唯一主管理頁；收錄 pigsleep／roasted-pig 來源受控替換、公共鏡像 fail-closed、Felis 直讀 EX 隔離。不改玩家資料 schema 或資源協議。完整內容見 [v3.12.0 原始記錄](docs/archive/CHANGELOG-through-v3.12.1.md#v3120)。
+退役 AI 工坊與重複 Plugin Pages，保留唯一主管理頁；收錄 pigsleep／roasted-pig 來源受控替換、公共鏡像 fail-closed、Felis 直讀 EX 隔離。不改玩家資料 schema 或資源協議。完整內容見 [v3.12.0 原始記錄](CHANGELOG-history.md#v3120)。
 
-## 更早版本
+## 更早版本與持續相容規則
 
-見 [完整歷史記錄](docs/archive/CHANGELOG-through-v3.12.1.md)。歷史版本的最低支援版本、來源狀態與舊行為不代表目前承諾；目前安裝與恢復規則以 README 和運維手冊為準。
+見 [完整歷史記錄](CHANGELOG-history.md)。歷史版本的最低支援版本、來源狀態與舊行為不代表目前承諾；目前安裝與恢復規則以 README 和運維手冊為準。
+
+群聊第一條回覆的 `@指令發起者` 署名、目標 mention 及私聊不加署名的既有規則不變，詳見 [群聊回覆署名](docs/COMMANDS.md#-群聊回覆署名)。

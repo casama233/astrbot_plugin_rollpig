@@ -133,6 +133,7 @@ def test_v3_failed_domain_transaction_rolls_back_all_normalized_rows(
     with storage._connection() as connection:
         assert connection.execute("SELECT COUNT(*) FROM daily_draws").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM user_pigs").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM user_stats").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 0
 
 
