@@ -701,7 +701,7 @@ function renderResourceStatus(d){
   const attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步';
   $('syncStatus').innerHTML=`<span class="pill ${d.source==='cloud'?'ok':''}">当前资源：${esc(cached)}</span>
     <span class="pill">可用远端：${esc(allowed||'尚未读取')}</span>
-    ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':''}
+    ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':d.public_mirror_policy==='reviewed-snapshot-only'?'<span class="pill">镜像按批准清单校验</span>':''}
     ${d.running?'<span class="pill">同步中…</span>':''}
     <span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span>
     <span class="pill">版本 ${esc(d.version||'—')}</span><span class="pill">${esc(attempt)}</span>

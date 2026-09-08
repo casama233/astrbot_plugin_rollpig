@@ -192,20 +192,20 @@
         "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
     },
     "resource_vercel_mirror_url": {
-        "description": "Vercel 备用地址（当前不生效）",
-        "hint": "旧配置兼容保留；PUBLIC_MIRROR_FAIL_CLOSED 生效期间不会访问公共镜像，填写地址不能解除授权审计封锁。主源失败时保留已验证本地缓存或内置资源",
+        "description": "Vercel 审核镜像地址",
+        "hint": "主源失败时，仅允许默认官方 Vercel 地址；留空关闭。启用前独立验证当前批准清单、完整来源材料及全部文件 SHA-256；其他地址不会自动加入公共链",
         "type": "string",
         "default": "https://rollpig-public-source-mirror.vercel.app/v1/manifest.json"
     },
     "resource_github_fallback_enabled": {
-        "description": "GitHub 备用开关（当前不生效）",
-        "hint": "旧配置兼容保留；即使为 true，授权审计封锁期间也不会访问 GitHub 公共镜像。私人源仍只访问管理员指定的来源",
+        "description": "启用 GitHub 审核镜像备用",
+        "hint": "主源及 Vercel 不可用时尝试 GitHub；仍须读取当前批准清单并验证完整快照。私人源不会进入公共链",
         "type": "bool",
         "default": true
     },
     "resource_github_mirror_url": {
-        "description": "GitHub 备用地址（当前不生效）",
-        "hint": "旧配置兼容保留；授权审计封锁期间不会访问此地址，不能通过改地址恢复公共镜像",
+        "description": "GitHub 审核镜像地址",
+        "hint": "仅允许默认官方 GitHub 地址；任意历史或私人镜像地址不受自动信任。未批准、已撤回或旧于本地的快照不会启用",
         "type": "string",
         "default": "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/main/public/v1/manifest.json"
     },

@@ -53,15 +53,17 @@ class _Harness(ResourceFailoverMixin, _BaseHarness):
         _BaseHarness.__init__(self)
 
 
-def test_official_source_chain_is_primary_only_while_public_mirrors_are_fail_closed():
+def test_official_source_chain_uses_only_official_reviewed_mirrors():
     plugin = _Harness()
-    assert plugin.PUBLIC_MIRROR_FAIL_CLOSED is True
+    assert plugin.PUBLIC_MIRROR_FAIL_CLOSED is False
     assert plugin._official_resource_sources() == [
-        ("primary", plugin.OFFICIAL_RESOURCE_MANIFEST_URL)
+        ("primary", plugin.OFFICIAL_RESOURCE_MANIFEST_URL),
+        ("vercel", plugin.VERCEL_RESOURCE_MANIFEST_URL),
+        ("github", plugin.GITHUB_RESOURCE_MANIFEST_URL),
     ]
 
 
-def test_legacy_persisted_mirror_settings_cannot_bypass_fail_closed_gate():
+def test_legacy_arbitrary_mirror_urls_cannot_bypass_official_allowlist():
     plugin = _Harness()
     plugin.resource_vercel_mirror_url = "https://legacy.example/vercel.json"
     plugin.resource_github_fallback_enabled = True
@@ -87,6 +89,7 @@ def test_numeric_official_versions_refuse_downgrade():
 
 def test_primary_failure_does_not_consult_public_mirrors(monkeypatch):
     plugin = _Harness()
+    plugin.PUBLIC_MIRROR_FAIL_CLOSED = True
     probed = []
 
     async def probe(url):
@@ -122,7 +125,7 @@ def test_primary_success_still_records_primary_origin(monkeypatch):
     assert plugin._state["source_url"] == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
 
 
-def test_sync_status_exposes_fail_closed_public_source_chain():
+def test_sync_status_exposes_reviewed_public_source_chain():
     plugin = _Harness()
     plugin._state.update(
         {
@@ -133,8 +136,9 @@ def test_sync_status_exposes_fail_closed_public_source_chain():
     payload = plugin._sync_status()
     assert payload["active_remote_source"] == "primary"
     assert payload["active_remote_url"] == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
-    assert payload["public_mirror_fail_closed"] is True
-    assert [item["name"] for item in payload["source_chain"]] == ["primary"]
+    assert payload["public_mirror_fail_closed"] is False
+    assert payload["public_mirror_policy"] == "reviewed-snapshot-only"
+    assert [item["name"] for item in payload["source_chain"]] == ["primary", "vercel", "github"]
 
 
 def test_fresh_install_uses_short_jitter_before_first_sync(monkeypatch):
