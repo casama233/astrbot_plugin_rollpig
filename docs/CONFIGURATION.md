@@ -1,6 +1,8 @@
 # ⚙️ 配置參考：管理員調參，豬圈照規矩運轉
 
-本文對應目前 `_conf_schema.json` 與運行時夾取邏輯。推薦透過 AstrBot 插件配置介面修改；除非你清楚配置載入方式，否則不要直接手改運行時文件。
+本文對應此分支的 `_conf_schema.json` 與運行時夾取邏輯。推薦透過 AstrBot 插件配置介面修改；除非你清楚配置載入方式，否則不要直接手改運行時文件。
+
+> 本頁的 SQLite 停止載入／JSON 預檢保護屬於未發佈維護變更，不代表 v3.12.1 已有此行為。正式可安裝版本以 GitHub 穩定 Release 為準。
 
 > 文案可以豬言豬語，**數值、權限、概率和存儲語義不跟著開玩笑**。超出範圍的值通常會被程式夾到安全區間，但仍請使用本文列出的有效值。
 
@@ -59,7 +61,7 @@
 - 再次 `/烤群友 @同一目標` 仍保留相容；
 - 加入不消耗自己的額外 Charge；
 - 目標之後觸發預約時不再扣主廚第二格；
-- 添柴人數目前不增加 60/30/10 成功率。
+- 添柴人數不改變共用的成功 70%、逃脫 20%、反噬 10% 規則。
 
 裸 `/添柴` 還會依上下文路由：補貨進行中優先補貨；沒有補貨且只有一張預約時加入該預約；多張預約則要求 `@目標`。
 
@@ -108,9 +110,9 @@
 | `felis_direct_enabled` | bool | `true` | bool | 非商業 Bot 直接讀取 Felis 官方 34 項 overlay 並本機快取；關閉不刪既有快取 |
 | `felis_direct_manifest_url` | string | Felis 官方 raw manifest | 固定官方 HTTPS URL | 只允許 `Felis2026/rollpig-resources` 官方 manifest，不作本站 CDN／公共 Manifest 鏡像 |
 | `resource_manifest_url` | string | 官方 AstrBot v1 | HTTPS URL | 可改成有權使用的相容私人 manifest；自訂後不啟用官方備援鏈 |
-| `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 僅預設官方源失敗時使用；留空停用 Vercel 層 |
-| `resource_github_fallback_enabled` | bool | `true` | bool | Vercel 也失敗時是否再嘗試公開 GitHub 快照 |
-| `resource_github_mirror_url` | string | 官方 GitHub 鏡像 | HTTPS URL | GitHub 最終災備 manifest，通常不需修改 |
+| `resource_vercel_mirror_url` | string | 官方 Vercel 鏡像 | HTTPS URL / 空字串 | 舊配置兼容保留；目前不生效，不能以改地址解除審計封鎖 |
+| `resource_github_fallback_enabled` | bool | `true` | bool | 舊配置兼容保留；目前不生效，為 true 亦不訪問公共鏡像 |
+| `resource_github_mirror_url` | string | 官方 GitHub 鏡像 | HTTPS URL | 舊配置兼容保留；目前不生效，不是可用災備承諾 |
 | `resource_sync_interval_hours` | float | `6` | `1-168` | 新安裝自動檢查間隔；既有明確配置保持原值 |
 | `resource_sync_timeout` | float | `30` | `2-120` | 連線超時；圖片讀取另有較寬下限與重試 |
 | `resource_use_system_proxy` | bool | `false` | bool | 是否信任系統代理環境；預設直連 |
@@ -122,7 +124,9 @@
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-使用預設官方源時，故障轉移固定為 **curryudon 主源 → Vercel 驗證快照 → GitHub 公開快照 → 最近一次已驗證本地快取／內置資源**。備用源的 `schema_version`、`client`、大小與 SHA-256 仍走同一套校驗；數字版 `resource_version` 低於本地版本時拒絕降級。舊 `pig.felislab.cc` 精確地址會遷移到 AstrBot 專用源；其他自訂 URL 不擅自改寫，也不會被偷偷串到官方備援鏈。詳見 [RESOURCE-MANAGEMENT.md](RESOURCE-MANAGEMENT.md)。
+`PUBLIC_MIRROR_FAIL_CLOSED` 生效期間，官方遠端鏈僅訪問 curryudon 主源。主源失敗時繼續使用最近一次已完整驗證的本地快取，沒有快取才用內置資源；不訪問 Vercel／GitHub 公共鏡像。舊配置鍵、地址與預設值保留，不代表目前已啟用。解除封鎖須完成獨立的授權、來源、客戶端驗證及發布審查，見 [公共災備邊界](PUBLIC-MIRROR-FAIL-CLOSED.md)。
+
+舊 `pig.felislab.cc` 精確地址會遷移到 AstrBot 專用源；其他自訂 HTTPS 私人 manifest 不改寫，失敗時不偷偷切回官方公共鏈。同步成功只代表資源已驗證，不代表第三方素材取得新的再分發許可。
 
 ## 🔄 管理面板安全更新
 
@@ -137,20 +141,22 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 
 | 配置鍵 | 類型 | 預設 | 範圍 | 說明 |
 | --- | --- | --- | --- | --- |
-| `storage_backend` | string | `auto` | `auto` / `sqlite` / `json` | `auto` 推薦；新安裝直接 SQLite，舊 JSON 先備份、遷移、對帳；`json` 只建議災難回退 |
+| `storage_backend` | string | `auto` | `auto` / `sqlite` / `json` | `auto` 推薦；既有 SQL 失效時停止載入；`json` 僅接受原生或已完成對帳回滾的 JSON 安裝 |
 | `storage_busy_timeout_ms` | int | `5000` | `1000-30000` | SQLite 寫鎖等待毫秒數 |
 
 ### `auto`
 
-新安裝直接建 SQLite；舊 JSON 先備份後匯入臨時 DB，通過完整性／外鍵／事實對帳才切換。失敗保留恢復證據，不拿壞資料硬頂上去。
+新安裝直接建 SQLite；可讀的舊 JSON 先備份後匯入臨時 DB，通過完整性／外鍵／事實對帳才切換。初次遷移在正式提交前失敗時仍保留原 JSON。來源 JSON 不可讀則停止，不覆寫成空預設值。
+
+已有 SQLite 開啟或驗證失敗時停止插件載入，不自動回退 JSON。資料庫缺失但仍有 SQL 權威記錄、記錄不能核驗或只剩 WAL／SHM 時，也不能當成新安裝。停止載入時插件工作台亦不可用，從 AstrBot 載入日誌排查，見 [SQLite 恢復保護](SQLITE-RECOVERY.md)。
 
 ### `sqlite`
 
-明確偏好 SQLite，但「資料安全優先」仍高於強制打開損壞 DB。
+與 `auto` 一樣保留資料恢復保護，不強行打開無法驗證的 DB，也不以舊或空 JSON 接管。
 
 ### `json`
 
-僅作緊急災難回退，不建議當正常長期模式。
+僅適用於原生 JSON 安裝，或已經完成 SQL → JSON 匯出、對帳及停用資料庫的回滾安裝。載入前會唯讀解析既有受管 JSON；解析／讀取失敗便停止，不讓修復載入器寫入空預設值。直接把模式改成 json 不能繞過現存 SQL、SQL 權威記錄或未處理的 WAL／SHM。
 
 ## 推薦配置範例
 
@@ -185,4 +191,4 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 
 ## 改完沒生效？
 
-部分設定在插件初始化時讀入。先在 AstrBot 管理介面重新載入插件；仍沒變再重啟 AstrBot。更深排查見 [OPERATIONS.md](OPERATIONS.md)。
+部分設定在插件初始化時讀入。先在 AstrBot 管理介面重新載入插件；仍沒變再重啟 AstrBot。鏡像兼容選項在審計封鎖期間不生效，重載也不會解除封鎖。更深排查見 [OPERATIONS.md](OPERATIONS.md)。

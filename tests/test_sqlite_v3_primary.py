@@ -11,6 +11,7 @@ from storage import (
     SQLitePrimaryStorage,
     SQLiteStorage,
     StorageManager,
+    StorageMigrationError,
 )
 
 
@@ -230,9 +231,8 @@ def test_v3_refuses_promotion_when_normalized_tables_are_inconsistent(tmp_path):
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
         )
 
-    manager = StorageManager(tmp_path, mode="auto")
-    assert manager.backend.backend_name == "json"
-    assert "inconsistent normalized tables" in manager._last_error
+    with pytest.raises(StorageMigrationError, match="inconsistent normalized tables"):
+        StorageManager(tmp_path, mode="auto")
     connection = sqlite3.connect(tmp_path / "rollpig.db")
     try:
         assert connection.execute(
@@ -246,6 +246,7 @@ def test_v3_refuses_promotion_when_normalized_tables_are_inconsistent(tmp_path):
         ).fetchone()[0] == 1
     finally:
         connection.close()
+
 
 def test_v3_rebuild_restores_missing_user_stats(tmp_path):
     storage = StorageManager(tmp_path, mode="auto").backend

@@ -179,10 +179,9 @@ def test_manager_migration_is_idempotent_and_auto_selects_sqlite(tmp_path):
 def test_migration_rejects_malformed_json_without_switching(tmp_path):
     _documents(tmp_path)
     (tmp_path / "pig_history.json").write_text("{broken", encoding="utf-8")
-    manager = StorageManager(tmp_path, mode="auto")
+    # Startup must stop before JSONStorage can replace this source with defaults.
     with pytest.raises(StorageMigrationError, match="pig_history.json"):
-        manager.migrate_to_sqlite()
-    assert manager.backend.backend_name == "json"
+        StorageManager(tmp_path, mode="auto")
     assert not (tmp_path / "rollpig.db").exists()
     assert (tmp_path / "pig_history.json").read_text(encoding="utf-8") == "{broken"
 
@@ -250,8 +249,12 @@ def test_json_mode_never_activates_existing_sqlite(tmp_path):
     _documents(tmp_path)
     auto = StorageManager(tmp_path, mode="auto")
     auto.migrate_to_sqlite()
-    forced_json = StorageManager(tmp_path, mode="json")
-    assert forced_json.backend.backend_name == "json"
+    # Explicit JSON mode must not resurrect stale pre-migration files either.
+    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+        StorageManager(tmp_path, mode="json")
+    assert isinstance(auto.backend, SQLitePrimaryStorage)
+    assert auto.backend.get_user_collection(("v2|qq|user|10001",))["total_draws"] == 2
+    assert auto.verify()["ok"] is True
 
 
 def test_projection_smoke_for_one_hundred_thousand_users(tmp_path):
