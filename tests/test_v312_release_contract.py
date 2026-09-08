@@ -19,7 +19,8 @@ def test_v340_release_contract_is_readable_lazy_and_versioned():
     assert "analyticsLoadBtn" in bootstrap
     assert "sessionStorage" not in bootstrap
     assert "v3.1.2 readable typography override" in css
-    assert "同步任务已启动；已关闭自动轮询" in page
+    assert "请点击右上角刷新查看结果和图鉴" in page
+    assert "pollSyncCompletion" not in page
     assert '.github/release-v${VERSION}.md' in release_workflow
     assert '--notes-file "$notes_file"' in release_workflow
 
