@@ -4,7 +4,7 @@
 
 # 今日小豬 · 增強版
 
-本分支程式版本：**v3.12.2** · 資料恢復保護、管理狀態與幫助說明修正、維護責任收斂。**可更新的穩定版本**以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準；只有對應 tag、ZIP 與 SHA256SUMS 建立完成才算正式發布，main 合併本身不代表已可更新。
+本分支程式版本：**v3.12.3** · 已審核公共鏡像恢復、完整快照校驗及撤回保護。**可更新的穩定版本**以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準；只有對應 tag、ZIP 與 SHA256SUMS 建立完成才算正式發布，main 合併本身不代表已可更新。
 
 ### 每天抽一隻。抽著抽著，群裡就多了一座豬圈和一間後廚。
 
