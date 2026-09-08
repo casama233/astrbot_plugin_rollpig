@@ -38,7 +38,7 @@ const insights = {
   operations: {roasts: 1, eats: 0, ai: {ready: 1, failed: 0, generating: 0}},
 };
 
-function createDom({analyticsFailure = false, resourceStatus = {}, updateStatus = {}, postHandlers = {}} = {}) {
+function createDom({analyticsFailure = false, resourceStatus = {}, updateStatus = {}, postHandlers = {}, getFailures = {}} = {}) {
   const dom = new JSDOM(BODY, {
     url: 'https://astrbot.test/#/overview', runScripts: 'dangerously', pretendToBeVisual: true,
   });
@@ -56,6 +56,7 @@ function createDom({analyticsFailure = false, resourceStatus = {}, updateStatus 
     ready: async () => {},
     apiGet: async pathName => {
       calls.push(pathName);
+      if (getFailures[pathName]) throw new Error('status unavailable');
       if (pathName === 'ui/assets') return {status: 'ok', data: {version: BOOTSTRAP_VERSION, assets: ASSETS}};
       if (pathName === 'analytics/insights') {
         if (analyticsFailure) throw new Error('analytics unavailable');
@@ -311,4 +312,41 @@ test('disabled automatic sync cannot hide the last sync failure', async t => {
   await runCore(window);
   assert.match(window.document.getElementById('syncFeedback').textContent, /checksum mismatch/);
   assert.match(window.document.getElementById('syncFeedback').textContent, /现有资源已保留/);
+});
+
+for (const failStatus of [false, true]) {
+  test(`failed sync request stays visible when status read ${failStatus ? 'also fails' : 'succeeds'}`, async t => {
+    const getFailures = {};
+    const {dom, window} = createDom({getFailures,
+      resourceStatus: {manifest_url: 'https://source.test/v1/manifest.json', last_success: 1720000000},
+      postHandlers: {'resources/sync': async () => {
+        getFailures['resources/status'] = failStatus;
+        throw new Error('request rejected');
+      }},
+    });
+    t.after(() => dom.window.close());
+    await runCore(window);
+    window.document.getElementById('syncBtn').click();
+    await waitFor(() => window.document.getElementById('syncFeedback').textContent.includes('同步请求失败'));
+    assert.match(window.document.getElementById('syncFeedback').textContent, /request rejected/);
+    assert.equal(window.document.getElementById('syncBtn').disabled, false);
+  });
+}
+
+test('accepted sync with unavailable status asks for refresh without claiming startup failure', async t => {
+  const getFailures = {};
+  const resourceStatus = {manifest_url: 'https://source.test/v1/manifest.json'};
+  const {dom, window} = createDom({getFailures, resourceStatus,
+    postHandlers: {'resources/sync': async () => {
+      getFailures['resources/status'] = true;
+      return {started: true, sync: {...resourceStatus, running: true}};
+    }},
+  });
+  t.after(() => dom.window.close());
+  await runCore(window);
+  window.document.getElementById('syncBtn').click();
+  await waitFor(() => window.document.getElementById('syncFeedback').textContent.includes('已受理'));
+  assert.doesNotMatch(window.document.getElementById('syncFeedback').textContent, /启动失败/);
+  assert.match(window.document.getElementById('syncFeedback').textContent, /刷新查看结果/);
+  assert.equal(window.document.getElementById('syncBtn').disabled, true);
 });

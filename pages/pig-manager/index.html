@@ -691,7 +691,9 @@ const busy=value=>$('loading').classList.toggle('show',value);
 async function get(path,params){return unwrap(await bridge.apiGet(path,params||{}))}
 let csrfToken='';async function post(path,payload){return unwrap(await bridge.apiPost(path,{...(payload||{}),__rollpig_csrf:csrfToken}))}
 const formatTime=value=>value?new Date(value*1000).toLocaleString():'尚未成功同步';const setSyncFeedback=message=>{const host=$('syncFeedback');host.textContent=message;window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,message)};
+let resourceSnapshot=null;
 function renderResourceStatus(d){
+  resourceSnapshot=d;
   const names={primary:'AstrBot 主源',custom:'私人源',vercel:'Vercel 镜像',github:'GitHub 镜像'};
   const sourceName=name=>names[name]||name||'来源未记录';
   const cached=d.source==='cloud'?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:'云端缓存（来源未记录）'):'内置兜底';
@@ -712,6 +714,25 @@ function renderResourceStatus(d){
   else setSyncFeedback(d.diagnosis||(d.manifest_url?'尚未成功同步，可执行一次手动同步。':'尚未配置资源源，请先检查插件配置。'));
 }
 async function loadResourceStatus(){const d=await get('resources/status');renderResourceStatus(d);return d}
+async function startResourceSync(){
+  const previous=resourceSnapshot;
+  let accepted=false;
+  $('syncBtn').disabled=true;
+  setSyncFeedback('正在启动云资源同步任务…');
+  try{
+    const result=await post('resources/sync',{});
+    accepted=true;
+    if(result.sync)renderResourceStatus(result.sync);
+    toast(result.started===false?'已有云资源同步任务运行中':'云资源同步已在后台开始');
+    await loadResourceStatus();
+  }catch(e){
+    try{await loadResourceStatus()}catch{if(!accepted&&previous)renderResourceStatus(previous)}
+    setSyncFeedback(accepted
+      ?`同步请求已受理，暂时无法读取最新状态：${e.message}。请点击右上角刷新查看结果。`
+      :`同步请求失败：${e.message}。请刷新状态后重试。`);
+    toast(e.message);
+  }
+}
 let updateSnapshot=null,updateStatusSnapshot=null;
 const setUpdateFeedback=message=>$('updateFeedback').textContent=message;
 function renderUpdateStatus(d){
@@ -907,7 +928,7 @@ $('pigForm').onsubmit=async e=>{e.preventDefault();const original=$('originalId'
 $('imageFile').onchange=async function(){const file=this.files&&this.files[0];if(!file)return;if(file.size>10*1024*1024){toast('图片不能超过 10MB');this.value='';return}setImageSource('local');pighubFilename='';try{const bitmap=await createImageBitmap(file);paintBitmapPreview(bitmap);bitmap.close()}catch{clearPreview();toast('无法预览这张图片，但仍可尝试保存')}const reader=new FileReader();reader.onload=()=>{pighubUrl='';imageData=String(reader.result||'');$('sourceNote').textContent='已选择本地上传图片';updateFlow()};reader.readAsDataURL(file)};
 $('pighubBtn').onclick=async()=>{$('pighubModal').classList.add('open');busy(true);try{await loadHub(false)}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};$('pighubClose').onclick=()=>$('pighubModal').classList.remove('open');$('pighubModal').onclick=e=>{if(e.target===$('pighubModal'))$('pighubClose').click()};$('hubPrev').onclick=()=>{if(hubPage>1){hubPage--;loadHub().catch(e=>toast(e.message))}};$('hubNext').onclick=()=>{if(hubPage<hubPages){hubPage++;loadHub().catch(e=>toast(e.message))}};$('pighubRandom').onclick=()=>{hubSearch='';$('pighubSearch').value='';hubPage=Math.max(1,Math.floor(Math.random()*hubPages)+1);loadHub().catch(e=>toast(e.message))};$('pighubRefresh').onclick=async()=>{busy(true);try{hubPage=1;await loadHub(true);toast('PigHub 索引已刷新')}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};let hubSearchTimer;$('pighubSearch').oninput=e=>{clearTimeout(hubSearchTimer);hubSearchTimer=setTimeout(()=>{hubSearch=e.target.value.trim();hubPage=1;loadHub().catch(err=>toast(err.message))},260)};
 $('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast('公共猪源已刷新')}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()};
-$('syncBtn').onclick=async()=>{$('syncBtn').disabled=true;setSyncFeedback('正在启动云资源同步任务…');try{const result=await post('resources/sync',{});toast(result.started===false?'已有云资源同步任务运行中':'云资源同步已在后台开始');await loadResourceStatus()}catch(e){setSyncFeedback(`同步启动失败：${e.message}`);toast(e.message);try{await loadResourceStatus()}catch{}}};$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`检查失败：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
+$('syncBtn').onclick=startResourceSync;$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`检查失败：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
 ['pigId','pigName','pigDescription','pigAnalysis'].forEach(id=>$(id).addEventListener('input',updateFlow));$('pigAnalysis').oninput=e=>{$('copyCount').textContent=e.target.value.length;updateFlow()};$('aiDraftBtn').onclick=generateAiDraft;$('chooseImageBtn').onclick=()=>$('imageFile').click();$('downloadOriginalBtn').onclick=downloadOriginalImage;$('addBtn').onclick=openCreate;$('closeBtn').onclick=$('cancelBtn').onclick=closeModal;$('prevBtn').onclick=()=>{if(page>1){page--;loadPigs()}};$('nextBtn').onclick=()=>{if(page<pages){page++;loadPigs()}};let searchTimer;$('searchInput').oninput=e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{search=e.target.value.trim();page=1;loadPigs()},260)};$('refreshBtn').onclick=async()=>{busy(true);try{await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()]);toast('数据已刷新')}catch(e){toast(e.message)}finally{busy(false)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeReviewModal();$('pighubModal').classList.remove('open');$('publicSourceModal').classList.remove('open');$('publicSourceDetailModal').classList.remove('open')}});
 if(!bridge){document.body.innerHTML='<div class="empty">AstrBot Plugin Page Bridge 不可用</div>'}else{await bridge.ready();busy(true);try{await loadOverview();await Promise.all([loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
 </script>
