@@ -118,7 +118,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             "roast_counts": len(roast.get("daily_roast_counts", {}))
             if isinstance(roast.get("daily_roast_counts"), dict)
             else 0,
-            "penalties": len(roast.get("eaten_penalties", {}))
+            "penalties": len(roast.get("eaten_penalties"), dict)
             if isinstance(roast.get("eaten_penalties"), dict)
             else 0,
             "eaten_events": len(roast.get("eaten_events", {}))
@@ -346,6 +346,8 @@ class PrimaryStorageManager(LegacyStorageManager):
     def _select_initial_backend(self) -> None:
         if self.mode == "json":
             self._assert_json_authority()
+            # Read without JSONStorage's repair/default writes before activation.
+            self._read_existing_json()
             self.backend = self.json_storage
             return
         if self.database_path.exists():
