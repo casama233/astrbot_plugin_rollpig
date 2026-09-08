@@ -118,7 +118,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             "roast_counts": len(roast.get("daily_roast_counts", {}))
             if isinstance(roast.get("daily_roast_counts"), dict)
             else 0,
-            "penalties": len(roast.get("eaten_penalties"), dict)
+            "penalties": len(roast.get("eaten_penalties", {}))
             if isinstance(roast.get("eaten_penalties"), dict)
             else 0,
             "eaten_events": len(roast.get("eaten_events", {}))
