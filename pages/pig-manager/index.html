@@ -696,10 +696,14 @@ function renderResourceStatus(d){
   resourceSnapshot=d;
   const names={primary:'AstrBot 主源',custom:'私人源',vercel:'Vercel 镜像',github:'GitHub 镜像'};
   const sourceName=name=>names[name]||name||'来源未记录';
-  const cached=d.source==='cloud'?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:'云端缓存（来源未记录）'):'内置兜底';
+  const cloud=d.source==='cloud'||d.source==='cloud+felis-direct';
+  const bundled=d.source==='bundled'||d.source==='bundled+felis-direct';
+  const felis=d.source==='cloud+felis-direct'||d.source==='bundled+felis-direct';
+  const base=cloud?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:'云端缓存（来源未记录）'):bundled?'内置兜底':'来源状态未识别';
+  const cached=base+(felis?' + Felis 官方直读':'');
   const allowed=Array.isArray(d.source_chain)?d.source_chain.map(item=>sourceName(item.name)).join(' → '):'';
   const attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:'尚未发起同步';
-  $('syncStatus').innerHTML=`<span class="pill ${d.source==='cloud'?'ok':''}">当前资源：${esc(cached)}</span>
+  $('syncStatus').innerHTML=`<span class="pill ${cloud?'ok':''}">当前资源：${esc(cached)}</span>
     <span class="pill">可用远端：${esc(allowed||'尚未读取')}</span>
     ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':d.public_mirror_policy==='reviewed-snapshot-only'?'<span class="pill">镜像按批准清单校验</span>':''}
     ${d.running?'<span class="pill">同步中…</span>':''}
