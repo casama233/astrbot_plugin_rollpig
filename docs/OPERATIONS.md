@@ -2,13 +2,13 @@
 
 本文面向插件管理員與維護者，說明身份遷移、資料存儲、資源同步、安全更新、備份與故障處理。
 
-> 本頁的 SQLite 停止載入／JSON 唯讀預檢及管理頁狀態修正是此分支的**未發佈維護變更**，不代表 v3.12.1 已包含。可安裝版本以 GitHub 正式穩定 Release 的 tag、ZIP 與 SHA256SUMS 為準。
+> 本頁對應 v3.12.4 的資料恢復、資源同步與安全更新語義。可安裝版本仍以 GitHub 正式穩定 Release 的 tag、ZIP 與 SHA256SUMS 為準；main 上的版本字樣不等於 Release 已完成。
 
 ## 1. 版本與身份
 
-### v3.12.1 更新前確認
+### v3.12.4 更新前確認
 
-目前 metadata 版本仍是 v3.12.1，最低支援 AstrBot `>=4.26.0`。分支新增修補不會自動成為 v3.12.1 的既有 Release 資產。
+目前 metadata 版本為 v3.12.4，最低支援 AstrBot `>=4.26.0`。只有 Release workflow 對通過 CI 的精確 main 提交建立 v3.12.4 tag、ZIP 與 SHA256SUMS 後，才算可更新的正式版本。
 
 正式更新前確認 GitHub 已建立非草稿、非預發布的目標 Release，以及對應 tag、ZIP 與 SHA256SUMS；main CI 或 Release workflow 執行／失敗時，不把分支版本當成已發布版本。從插件管理工作台的安全更新取得穩定版後，重載插件或重啟 AstrBot 才會載入新程式。
 
