@@ -247,3 +247,172 @@ def test_cancel_snapshot_drains_all_downloads(tmp_path):
         assert len(stopped) == 4
         assert len(asyncio.all_tasks()) == 1
     asyncio.run(scenario())
+
+
+
+def _restore_direct_transport(monkeypatch):
+    original = Transport._download_limited
+
+    async def download(self, client, url, max_size, attempts=3):
+        primary = self.OFFICIAL_RESOURCE_MANIFEST_URL.rsplit('/', 1)[0] + '/'
+        if url.startswith(primary) or url.startswith('https://private.example/v1/'):
+            self.downloads.append(url)
+            raw = self.files[url.split('/v1/', 1)[1]]
+            if len(raw) > max_size:
+                raise ValueError('fixture exceeds download limit')
+            return raw
+        return await original(self, client, url, max_size, attempts)
+
+    monkeypatch.setattr(Transport, '_download_limited', download)
+
+
+def _change_direct_catalog(plugin):
+    records = json.loads(plugin.files['pig.json'])
+    records[0]['analysis'] = 'New primary bytes at the same resource version'
+    old_size = len(plugin.files['pig.json'])
+    plugin.files['pig.json'] = json.dumps(records).encode()
+    manifest = json.loads(plugin.files['manifest.json'])
+    manifest['pig_json']['size'] = len(plugin.files['pig.json'])
+    manifest['pig_json']['sha256'] = digest(plugin.files['pig.json'])
+    manifest['package_size'] += len(plugin.files['pig.json']) - old_size
+    plugin.files['manifest.json'] = json.dumps(manifest).encode()
+
+
+@pytest.mark.parametrize('target', ['primary', 'custom'])
+def test_same_version_origin_switch_downloads_real_direct_bytes(tmp_path, monkeypatch, target):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    old_hash = plugin.state['approved_manifest_sha256']
+    _restore_direct_transport(monkeypatch)
+    _change_direct_catalog(plugin)
+    if target == 'custom':
+        plugin.resource_manifest_url = 'https://private.example/v1/manifest.json'
+    plugin.downloads.clear()
+    result = asyncio.run(plugin.sync_cloud_resources())
+    assert result['updated'] is True
+    assert plugin.state['source_name'] == target
+    assert plugin.state['source_url'] == plugin.resource_manifest_url
+    assert 'approved_manifest_sha256' not in plugin.state
+    assert plugin.state['manifest_sha256'] == digest(plugin.files['manifest.json'])
+    assert plugin.state['manifest_sha256'] != old_hash
+    assert (plugin.resource_active_dir / 'pig.json').read_bytes() == plugin.files['pig.json']
+    assert any(url.endswith('/images/test-pig.png') for url in plugin.downloads)
+
+
+def test_real_same_version_noop_retains_mirror_origin_and_revocation(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    before = dict(plugin.state)
+    _restore_direct_transport(monkeypatch)
+    # Exercise the real lower-level no-op; it must not discard metadata even if
+    # a caller reaches it directly instead of the origin-switch forcing facade.
+    result = asyncio.run(Legacy.sync_cloud_resources(plugin, force=False))
+    assert result['updated'] is False
+    for key in ('source_name', 'source_url', 'approved_manifest_sha256', 'manifest_sha256'):
+        assert plugin.state[key] == before[key]
+    plugin.policy['approved_snapshots'] = {}
+    plugin._withdraw_revoked_mirror_cache(json.dumps(plugin.policy).encode())
+    assert not plugin.resource_active_dir.exists()
+    assert plugin.state == {}
+    assert len(list(plugin.resource_root.glob('.withdrawn-*'))) == 1
+
+
+def test_noop_result_cannot_relabel_mirror_as_primary(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    before = dict(plugin.state)
+    _restore_direct_transport(monkeypatch)
+
+    async def no_update(self, force=False):
+        assert force is True
+        return {'updated': False, 'version': self.state['resource_version']}
+
+    monkeypatch.setattr(Transport, 'sync_cloud_resources', no_update)
+    result = asyncio.run(plugin.sync_cloud_resources())
+    assert result['updated'] is False
+    assert plugin.state == before
+
+
+def test_failed_primary_switch_preserves_active_mirror_provenance(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    before = dict(plugin.state)
+    original = (plugin.resource_active_dir / 'pig.json').read_bytes()
+    _restore_direct_transport(monkeypatch)
+    plugin.files['pig.json'] += b'corrupt'
+    plugin.resource_vercel_mirror_url = ''
+    plugin.resource_github_fallback_enabled = False
+    with pytest.raises(ValueError):
+        asyncio.run(plugin.sync_cloud_resources())
+    assert plugin.state == before
+    assert (plugin.resource_active_dir / 'pig.json').read_bytes() == original
+
+
+@pytest.mark.parametrize('label', ['primary', 'custom', ''])
+def test_revocation_cannot_be_bypassed_by_changed_source_label(tmp_path, label):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    plugin.state['source_name'] = label
+    plugin.state['source_url'] = plugin.OFFICIAL_RESOURCE_MANIFEST_URL
+    plugin.policy['approved_snapshots'] = {}
+    plugin._withdraw_revoked_mirror_cache(json.dumps(plugin.policy).encode())
+    assert not plugin.resource_active_dir.exists()
+    assert plugin.state == {}
+
+
+def test_mirror_url_without_digest_is_not_treated_as_primary(tmp_path):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    plugin.state['source_name'] = 'primary'
+    plugin.state.pop('approved_manifest_sha256')
+    plugin._withdraw_revoked_mirror_cache(json.dumps(plugin.policy).encode())
+    assert not plugin.resource_active_dir.exists()
+
+
+@pytest.mark.parametrize('review', [None, [], 'approved', {'status': 'revoked'}])
+def test_malformed_or_revoked_review_does_not_keep_mirror_active(tmp_path, review):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    plugin.policy['approved_snapshots'][plugin.state['approved_manifest_sha256']] = review
+    plugin._withdraw_revoked_mirror_cache(json.dumps(plugin.policy).encode())
+    assert not plugin.resource_active_dir.exists()
+
+
+def test_legacy_mislabelled_cache_without_manifest_hash_is_reverified(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    asyncio.run(plugin.sync_cloud_resources())
+    # State left by the old same-version shortcut: primary label, no digest.
+    plugin.state = {'resource_version': plugin.state['resource_version'], 'synced_at': 1,
+                    'source_name': 'primary', 'source_url': plugin.OFFICIAL_RESOURCE_MANIFEST_URL}
+    _restore_direct_transport(monkeypatch)
+    _change_direct_catalog(plugin)
+    plugin.downloads.clear()
+    result = asyncio.run(plugin.sync_cloud_resources())
+    assert result['updated'] is True
+    assert any(url.endswith('/pig.json') for url in plugin.downloads)
+    assert plugin.state['manifest_sha256'] == digest(plugin.files['manifest.json'])
+    assert (plugin.resource_active_dir / 'pig.json').read_bytes() == plugin.files['pig.json']
+
+
+def test_same_direct_origin_keeps_fast_path_and_extra_metadata(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    _restore_direct_transport(monkeypatch)
+    asyncio.run(plugin.sync_cloud_resources())
+    plugin.state['audit_note'] = 'preserve on no-op'
+    before = dict(plugin.state)
+    plugin.downloads.clear()
+    result = asyncio.run(plugin.sync_cloud_resources())
+    assert result['updated'] is False
+    assert all(url.endswith('/manifest.json') for url in plugin.downloads)
+    for key, value in before.items():
+        if key != 'synced_at':
+            assert plugin.state[key] == value
+
+
+def test_changed_manifest_at_same_version_is_not_a_noop(tmp_path, monkeypatch):
+    plugin = Harness(tmp_path)
+    _restore_direct_transport(monkeypatch)
+    asyncio.run(plugin.sync_cloud_resources())
+    _change_direct_catalog(plugin)
+    assert asyncio.run(plugin.sync_cloud_resources())['updated'] is True
+    assert (plugin.resource_active_dir / 'pig.json').read_bytes() == plugin.files['pig.json']

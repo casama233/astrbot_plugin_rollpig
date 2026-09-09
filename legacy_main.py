@@ -1432,7 +1432,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         return data
 
     async def sync_cloud_resources(self, force: bool = False) -> dict:
-        """事务式同步：完整下载、校验后才原子替换 active。"""
+        """完整下载、校验后才原子替换 active。"""
         async with self._resource_sync_lock:
             if not self.resource_manifest_url:
                 raise ValueError("未配置云资源 manifest URL")
@@ -1466,28 +1466,24 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     version = str(manifest.get("resource_version") or "").strip()
                     if not version:
                         raise ValueError("manifest 缺少 resource_version")
+                    state = self._cloud_state()
+                    manifest_hash = hashlib.sha256(manifest_raw).hexdigest()
                     if (
                         not force
-                        and version == self._cloud_state().get("resource_version")
+                        and version == state.get("resource_version")
+                        and manifest_hash == state.get("manifest_sha256")
                         and self._load_cloud_pigs()
                         and (
                             not isinstance(manifest.get("ex_variants"), dict)
-                            or (
-                                self.resource_active_dir / "pig_ex_variants.json"
-                            ).is_file()
+                            or (self.resource_active_dir / "pig_ex_variants.json").is_file()
                         )
                         and (
                             not isinstance(manifest.get("roast_copy"), dict)
                             or (self.resource_active_dir / "roast_copy.json").is_file()
                         )
                     ):
-                        self.save_json(
-                            self.resource_state_path,
-                            {
-                                "resource_version": version,
-                                "synced_at": int(time.time()),
-                            },
-                        )
+                        state["synced_at"] = int(time.time())
+                        self.save_json(self.resource_state_path, state)
                         self._save_sync_status()
                         return {"updated": False, "version": version}
                     pig_meta = manifest.get("pig_json")
@@ -1595,7 +1591,8 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 promote_resource_staging(staging, self.resource_active_dir, previous)
                 self.save_json(
                     self.resource_state_path,
-                    {"resource_version": version, "synced_at": int(time.time())},
+                    dict(resource_version=version, synced_at=int(time.time()),
+                         manifest_sha256=manifest_hash),
                 )
                 self._save_sync_status()
                 self._reload_catalog_layers()
