@@ -149,9 +149,25 @@ class ResourceFailoverMixin:
         state = dict(self._cloud_state())
         if not state:
             return
+        if source_name not in {"vercel", "github"}:
+            state.pop("approved_manifest_sha256", None)
         state["source_name"] = source_name
         state["source_url"] = source_url
         self.save_json(self.resource_state_path, state)
+
+    async def _sync_direct_resource_source(self, source_name, source_url, force):
+        state = self._cloud_state()
+        # A version string is not evidence of where the active bytes came from.
+        # Unknown origins and mirror -> direct switches require a full transaction.
+        different_origin = bool(state) and (
+            state.get("source_name") != source_name
+            or state.get("source_url") != source_url
+            or bool(state.get("approved_manifest_sha256"))
+        )
+        result = await super().sync_cloud_resources(force=force or different_origin)
+        if result.get("updated") is True:
+            self._record_resource_origin(source_name, source_url)
+        return result
 
     async def sync_cloud_resources(self, force: bool = False) -> dict:
         # Hold this across preflight, policy validation, staging and origin save;
@@ -165,10 +181,7 @@ class ResourceFailoverMixin:
         configured_url = str(getattr(self, "resource_manifest_url", "") or "").strip()
         sources = self._official_resource_sources()
         if not sources or sources[0][0] == "custom":
-            result = await super().sync_cloud_resources(force=force)
-            if configured_url:
-                self._record_resource_origin("custom", configured_url)
-            return result
+            return await self._sync_direct_resource_source("custom", configured_url, force)
 
         self._resource_sync_sources = sources
         failures: list[str] = []
@@ -180,8 +193,7 @@ class ResourceFailoverMixin:
                         return {**result, "source": source_name, "source_url": source_url}
                     await self._probe_official_resource_manifest(source_url)
                     self.resource_manifest_url = source_url
-                    result = await super().sync_cloud_resources(force=force)
-                    self._record_resource_origin(source_name, source_url)
+                    result = await self._sync_direct_resource_source(source_name, source_url, force)
                     if failures:
                         logger.warning(
                             "公共猪源已自动切换到 %s；此前失败：%s",
@@ -229,11 +241,18 @@ class ResourceFailoverMixin:
 
     def _withdraw_revoked_mirror_cache(self, policy_raw: bytes) -> None:
         state = self._cloud_state()
-        if state.get("source_name") not in {"vercel", "github"}:
+        previous_hash = str(state.get("approved_manifest_sha256") or "")
+        mirror_origin = (
+            bool(previous_hash)
+            or state.get("source_name") in {"vercel", "github"}
+            or state.get("source_url") in {
+                self.VERCEL_RESOURCE_MANIFEST_URL, self.GITHUB_RESOURCE_MANIFEST_URL,
+            }
+        )
+        if not mirror_origin:
             return
-        previous_hash = state.get("approved_manifest_sha256")
         review = parse_json(policy_raw)["approved_snapshots"].get(previous_hash, {})
-        if previous_hash and review.get("status") == "approved":
+        if previous_hash and isinstance(review, dict) and review.get("status") == "approved":
             return
         # Keep recovery materials, but remove withdrawn files from active lookup.
         active = self.resource_active_dir

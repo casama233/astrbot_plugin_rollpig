@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import sqlite3
+from contextlib import closing
 import time
 import uuid
 import zipfile
@@ -343,6 +345,29 @@ class PrimaryStorageManager(LegacyStorageManager):
         if state.get("active_backend") != "json":
             self._recovery_required("存储记录不是已确认的 JSON 权威，数据库可能缺失")
 
+    def _preflight_existing_sqlite(self) -> None:
+        """Read the existing SQL identity before the backend initializes tables."""
+        with self.database_path.open("rb") as source:
+            if source.read(16) != b"SQLite format 3\x00":
+                raise StorageMigrationError("既有数据库为空、被截断或不是 SQLite 文件")
+        uri = self.database_path.resolve().as_uri() + "?mode=ro"
+        with closing(sqlite3.connect(
+            uri, uri=True, timeout=self.busy_timeout_ms / 1000,
+        )) as connection:
+            connection.execute("PRAGMA query_only = ON")
+            connection.execute("BEGIN")
+            tables = {
+                row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            required = {"schema_migrations", "documents", "identities", "daily_draws", "user_pigs"}
+            if not required.issubset(tables):
+                raise StorageMigrationError("既有数据库缺少 RollPig 核心表，禁止按新库初始化")
+            version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
+            if type(version) is not int or not 1 <= version <= 6:
+                raise StorageMigrationError("既有数据库的 RollPig schema 版本不能核验")
+
     def _select_initial_backend(self) -> None:
         if self.mode == "json":
             self._assert_json_authority()
@@ -353,6 +378,7 @@ class PrimaryStorageManager(LegacyStorageManager):
         if self.database_path.exists():
             sidecar_snapshots = self._snapshot_existing_sidecars()
             try:
+                self._preflight_existing_sqlite()
                 candidate = self._new_sqlite()
                 verification = candidate.verify()
                 if (
