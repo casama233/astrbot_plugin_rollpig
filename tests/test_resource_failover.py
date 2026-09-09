@@ -119,7 +119,8 @@ def test_primary_success_still_records_primary_origin(monkeypatch):
     result = asyncio.run(plugin.sync_cloud_resources())
 
     assert result["source"] == "primary"
-    assert plugin.calls == [(plugin.OFFICIAL_RESOURCE_MANIFEST_URL, False)]
+    # A legacy cache without recorded origin must be fully verified.
+    assert plugin.calls == [(plugin.OFFICIAL_RESOURCE_MANIFEST_URL, True)]
     assert plugin.resource_manifest_url == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
     assert plugin._state["source_name"] == "primary"
     assert plugin._state["source_url"] == plugin.OFFICIAL_RESOURCE_MANIFEST_URL
