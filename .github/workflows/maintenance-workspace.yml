@@ -22,13 +22,23 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.12'
-      - name: Inspect or apply exact-revision patches
-        run: python scripts/maintenance_patch_workspace.py
+      - name: Apply exact-revision patches
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/maintenance_patch_workspace.py')
+          script = path.read_text(encoding='utf-8')
+          anchor = 'if len(sources[name].encode()) > len(Path(name).read_bytes()):'
+          assert script.count(anchor) == 1
+          adjustment = "replace(name, '事务式同步：完整下载、校验后才原子替换 active。', '完整下载、校验后才原子替换 active。')\n"
+          script = script.replace(anchor, adjustment + anchor, 1)
+          exec(compile(script, str(path), 'exec'), {'__name__': '__main__', '__file__': str(path)})
+          PY
       - name: Test patched sources and commit only to the workspace branch
         shell: bash
         run: |
-          if [ ! -f /tmp/rollpig-patch-ready ]; then exit 0; fi
-          python -m pip install -r requirements.txt pytest
+          test -f /tmp/rollpig-patch-ready
+          python -m pip install -r requirements.txt pytest fonttools
           python -m compileall -q storage services resource_failover_feature.py legacy_main.py
           pytest -q
           npm ci
