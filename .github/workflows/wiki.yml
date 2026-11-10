@@ -33,7 +33,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Keep the runner compatible with the Playwright version in package-lock.json.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
