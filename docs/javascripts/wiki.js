@@ -1,5 +1,4 @@
 (() => {
-  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
   function setupPityLab() {
     document.querySelectorAll('[data-pity-lab]').forEach((lab) => {
@@ -63,12 +62,6 @@
 
       button.addEventListener('click', () => {
         const item = weightedRoastResult();
-        if (!reduceMotion) {
-          demo.classList.remove('is-fired');
-          // Force a restart so repeated clicks still feel responsive.
-          void demo.offsetWidth;
-          demo.classList.add('is-fired');
-        }
         glyph.textContent = item.glyph;
         result.textContent = item.label;
         note.textContent = item.note;
@@ -81,16 +74,34 @@
     });
   }
 
-  function initWikiV2() {
+  function setupCommandCopy() {
+    document.querySelectorAll('[data-copy-command]').forEach((button) => {
+      if (button.dataset.ready === '1') return;
+      button.dataset.ready = '1';
+      button.addEventListener('click', async () => {
+        const command = button.dataset.copyCommand;
+        const status = document.querySelector('[data-copy-status]');
+        try {
+          await navigator.clipboard.writeText(command);
+          if (status) status.textContent = `已複製 ${command}，回到聊天視窗貼上即可。`;
+        } catch {
+          if (status) status.textContent = `無法自動複製，請選取並複製這條指令：${command}`;
+        }
+      });
+    });
+  }
+
+  function initWiki() {
+    setupCommandCopy();
     setupPityLab();
     setupRoastDemo();
   }
 
   if (typeof document$ !== 'undefined' && document$?.subscribe) {
-    document$.subscribe(initWikiV2);
+    document$.subscribe(initWiki);
   } else if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWikiV2, { once: true });
+    document.addEventListener('DOMContentLoaded', initWiki, { once: true });
   } else {
-    initWikiV2();
+    initWiki();
   }
 })();

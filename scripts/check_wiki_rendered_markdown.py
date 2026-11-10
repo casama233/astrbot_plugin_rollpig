@@ -125,18 +125,17 @@ def homepage_layout_failures(site_dir: Path) -> list[str]:
 
     html = path.read_text(encoding="utf-8")
     failures: list[str] = []
-    if 'class="pig-hero pig-hero--v3"' not in html:
-        failures.append("index.html: pig-hero--v3 landing Hero is missing")
-
-    # The primary navigation must still be rendered so mobile users keep the
-    # Material drawer. Desktop-only sidebar suppression belongs in CSS.
+    if 'class="pig-dashboard"' not in html:
+        failures.append("index.html: usage dashboard is missing")
     if 'class="md-sidebar md-sidebar--primary"' not in html:
         failures.append("index.html: primary navigation must remain rendered")
-
-    responsive = site_dir / "stylesheets" / "wiki-responsive.css"
-    if not responsive.is_file():
-        failures.append("missing rendered responsive stylesheet")
-        return failures
+    for command in ("/今日小豬", "/我的豬圈", "/豬豬幫助"):
+        if f'data-copy-command="{command}"' not in html:
+            failures.append(f"index.html: missing copy action for {command}")
+    for asset in ("stylesheets/wiki.css", "javascripts/wiki.js"):
+        if not (site_dir / asset).is_file():
+            failures.append(f"missing dashboard asset: {asset}")
+    return failures
 
     css = responsive.read_text(encoding="utf-8")
     required_css = (
@@ -162,7 +161,7 @@ def main() -> int:
     if not leaks and not anchor_failures and not layout_failures:
         print(
             "wiki render check: no raw Markdown leaked inside pig-* UI containers; "
-            "required deep-link anchors are present; responsive landing contract is present"
+            "required deep-link anchors are present; dashboard commands and assets are present"
         )
         return 0
 

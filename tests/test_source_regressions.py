@@ -65,16 +65,6 @@ def test_panel_updater_keeps_csrf_and_explicit_unsigned_confirmation():
     assert "updates/apply" in page
 
 
-def test_outbound_mentions_strip_storage_namespace():
-    method = ast.get_source_segment(SOURCE, _method("_send_with_mention")) or ""
-    assert "mention_id = self._legacy_identity(canonical_id)" in method
-    assert "Comp.At(" in method
-    assert "qq=mention_id" in method
-    assert "name=telegram_name" in method
-    assert 'platform_type in {"slack", "qq_official"}' in method
-    assert "tg://user?id={mention_id}" in method
-
-
 def test_instance_namespace_and_old_keys_are_kept_compatible():
     namespace = ast.get_source_segment(SOURCE, _method("_platform_namespace")) or ""
     candidates = ast.get_source_segment(SOURCE, _method("_identity_candidates")) or ""
@@ -114,8 +104,6 @@ def test_charge_protection_and_backdoor_use_claimed_storage_ids():
     ):
         method = ast.get_source_segment(SOURCE, _method(name)) or ""
         assert "self._storage_user_key" in method
-    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
-    assert "_consume_group_roast_charge" in cooldown
 
 
 def test_image_send_timeout_does_not_retry_with_a_second_result():
@@ -210,7 +198,6 @@ def test_identity_metadata_uses_sql_merge_in_sqlite_mode():
 
 def test_main_delegates_v212_sql_hot_writes():
     charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
-    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
     counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
     protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
     backdoor = ast.get_source_segment(SOURCE, _method("_consume_daily_backdoor")) or ""
@@ -218,7 +205,6 @@ def test_main_delegates_v212_sql_hot_writes():
     save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
     delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
     assert "asyncio.to_thread" in charge and "consume_roast_charge" in charge
-    assert "_consume_group_roast_charge" in cooldown
     assert "asyncio.to_thread" in counts and "increment_roast_count" in counts
     assert "get_roast_count" in protection
     assert "consume_daily_backdoor" in backdoor

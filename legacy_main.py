@@ -6,7 +6,6 @@ import importlib
 import io
 import ipaddress
 import json
-import os
 import secrets
 import shutil
 import socket
@@ -26,8 +25,8 @@ import httpx
 
 import astrbot.api.message_components as Comp
 from astrbot.api import logger
-from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.star import Context, Star, StarTools, register
+from astrbot.api.event import AstrMessageEvent
+from astrbot.api.star import Context, Star, StarTools
 from astrbot.api.web import json_response, request
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import At
@@ -1090,10 +1089,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
     def _runtime_document(self, key: str, path: Path, default):
         value = self._runtime_snapshot.get(key)
         return value if value is not None else self.load_json(path, default)
-
-    def _refresh_runtime_snapshot(self) -> None:
-        if getattr(self.storage, "supports_runtime_snapshot", False):
-            self._runtime_snapshot = self.storage.load_runtime_snapshot()
 
     def _validate_pig_records(self, records) -> list[dict]:
         """校验并复制一份图鉴记录，避免坏云包污染运行中快照。"""
@@ -2561,60 +2556,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
             author = getattr(resolved, "author", None)
         return self._canonical_user_id(event, self._object_user_id(author))
 
-    async def _send_with_mention(
-        self, event: AstrMessageEvent, user_id: str, text: str
-    ) -> None:
-        """优先发标准 @ 消息段；适配器不支持时仍发送可识别的纯文本。
-
-        图鉴和状态存储使用平台命名空间 ID（例如
-        ``v2|aiocqhttp|user|123``），但 AstrBot 的 At 消息段需要平台原生
-        用户 ID。发送前必须剥离命名空间，避免 QQ 等适配器把内部键原样
-        渲染成 ``@v2|...`` 文本。
-        """
-        canonical_id = self._canonical_user_id(event, user_id)
-        mention_id = self._legacy_identity(canonical_id)
-        if not mention_id:
-            mention_id = self._legacy_identity(str(user_id or "").strip())
-        platform_type = self._platform_type(event)
-        telegram_name = (
-            self._telegram_mention_name(event, canonical_id, mention_id)
-            if platform_type == "telegram"
-            else ""
-        )
-
-        def plain_mention() -> str:
-            if platform_type in {"discord", "slack", "qq_official"}:
-                return f"<@{mention_id}>{text}"
-            if platform_type == "telegram":
-                if telegram_name:
-                    return f"@{telegram_name}{text}"
-                if mention_id.isdigit():
-                    return f"[群友](tg://user?id={mention_id}){text}"
-            return f"@{mention_id}{text}"
-
-        if self._event_group_id(event):
-            # Slack and QQ Official currently discard AstrBot At components without
-            # raising, so their native textual mention syntax must be used directly.
-            if platform_type in {"slack", "qq_official"}:
-                await event.send(event.plain_result(plain_mention()))
-                return
-            if platform_type == "telegram" and not telegram_name:
-                await event.send(event.plain_result(plain_mention()))
-                return
-            try:
-                await event.send(
-                    event.chain_result(
-                        [
-                            Comp.At(qq=mention_id, name=telegram_name),
-                            Comp.Plain(text),
-                        ]
-                    )
-                )
-                return
-            except Exception as exc:
-                logger.warning(f"发送 @ 消息段失败，已回退文本：{exc}")
-        await event.send(event.plain_result(plain_mention()))
-
     def _roast_block_reason(
         self, pig: dict | None, *, subject: str = "target"
     ) -> str | None:
@@ -2714,17 +2655,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 self.roast_state.setdefault("cooldowns", {})[key] = now_value
             self._save_roast_state()
         return dict(result)
-
-    async def _consume_group_roast_cooldown(
-        self, group_id: str, actor_id: str
-    ) -> int:
-        """Deprecated compatibility facade over the charge system."""
-        status = await self._consume_group_roast_charge(group_id, actor_id)
-        return (
-            0
-            if status.get("consumed")
-            else int(status.get("next_refill_seconds", 0) or 0)
-        )
 
     @staticmethod
     def _roast_charge_note(status: dict[str, object] | None) -> str:
@@ -3648,16 +3578,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
             image_resolver=self.find_image_file,
         )
 
-    def _ordered_pigsty_pigs(self, unlocked: dict) -> list[dict]:
-        """按解锁状态分区，且不改变每个分区内的管理员图鉴顺序。"""
-        return [
-            pig
-            for pig in self.catalog_service.ordered_for_collection(
-                self.pig_list, unlocked
-            )
-            if isinstance(pig, dict)
-        ]
-
     def render_catalog_grid(
         self, pigs: list[dict], title: str, subtitle: str
     ) -> Path:
@@ -4236,26 +4156,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
         await self._send_with_mention(event, target_id, " 🎲 餐桌抽签抽中了你。这不是荣誉。")
         await self._eat_group_target(event, target_id)
 
-    async def _legacy_pigsty_daily_report(self, event: AstrMessageEvent):
-        """输出当前群当天的简要猪圈日报，并随机点名一位可怜被吃。"""
-        group_id = self._event_group_id(event)
-        if not group_id:
-            await event.send(event.plain_result("📰 猪圈日报只印群聊版。私聊没有群众演员，报纸凑不满一版。"))
-            return
-        today = self._today().isoformat()
-        members = self._daily_group_members(group_id, today)
-        victims = self._daily_eaten_victims(group_id, today)
-        await event.send(
-            event.plain_result(
-                f"🐖 【猪圈日报】\n今日抽猪：{len(members) if isinstance(members, list) else 0} 人\n"
-                f"今日被吃：{len(victims)} 人"
-            )
-        )
-        if victims:
-            await self._send_with_mention(
-                event, random.choice(victims), " 🥀 获得今日「可怜被吃」称号。"
-            )
-
     async def force_roast_group_member(
         self, event: AstrMessageEvent, args: str = ""
     ):
@@ -4812,7 +4712,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
         """Build the dashboard snapshot off the event-loop thread."""
         with self._data_lock:
             today = self._today()
-            users = self.history.get("users", {})
             catalog_ids = {
                 str(pig.get("id") or "")
                 for pig in self.pig_list

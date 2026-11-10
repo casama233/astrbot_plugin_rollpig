@@ -81,7 +81,7 @@ description: 重複不是白抽。搞懂永久收藏、連續重複保底、跨�
 
 這個小工具使用**目前預設配置**計算條件式重抽率；它只是在 Wiki 前端算公式，**不讀你的真實存檔，也不模擬機器人的實際抽取結果**。
 
-<div class="pig-pity-lab" data-pity-lab>
+<div class="pig-pity-lab" data-pity-lab markdown="0">
   <div class="pig-pity-control">
     <label for="pity-legacy">先前連續重複次數 <strong data-pity-legacy-value>1</strong></label>
     <input id="pity-legacy" data-pity-legacy type="range" min="0" max="8" value="1">

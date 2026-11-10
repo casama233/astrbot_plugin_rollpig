@@ -219,10 +219,13 @@ def test_aiocqhttp_live_resolver_recovers_name_for_uncached_award_winner():
     assert persisted["1597696368"]["display_name"] == "平台群名片"
 
 
-def test_command_actor_mixin_wires_profile_hydration_before_daily_report():
+def test_main_wires_profile_hydration_before_daily_report():
+    import ast
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    source = (root / "command_actor_feature.py").read_text(encoding="utf-8")
-    assert "DailyReportProfileMixin" in source
-    assert "class CommandActorMentionMixin(DailyReportProfileMixin):" in source
+    tree = ast.parse((root / "main.py").read_text(encoding="utf-8"))
+    plugin = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "RollPigPlugin")
+    bases = [ast.unparse(base) for base in plugin.bases]
+    assert bases[0] == "MessageDeliveryMixin"
+    assert bases.index("DailyReportProfileMixin") < bases.index("DailyReportMixin")

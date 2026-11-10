@@ -104,3 +104,13 @@ def test_docs_index_covers_current_player_and_maintainer_surfaces():
     assert "Wiki / README" in style
     assert "永久豬籍／圖鑑 renderer" in style
     assert "compatibility alias" in style
+
+
+def test_requester_header_behavior_is_covered_by_changelog_and_wiki():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    commands = (ROOT / "docs" / "COMMANDS.md").read_text(encoding="utf-8")
+
+    assert "@指令發起者" in changelog
+    assert "## 👤 群聊回覆署名" in commands
+    assert "第一條機器人回覆" in commands
+    assert "私聊不增加 `@` 署名" in commands
