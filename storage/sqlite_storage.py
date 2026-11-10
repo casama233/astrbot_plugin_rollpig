@@ -1494,14 +1494,6 @@ class SQLiteStorage(StorageBackend):
             ).fetchall()
         return [str(row["user_id"]) for row in rows]
 
-    def _read_document_tx(
-        self, connection: sqlite3.Connection, key: str, default: Any
-    ) -> Any:
-        row = connection.execute(
-            "SELECT payload FROM documents WHERE key = ?", (str(key),)
-        ).fetchone()
-        return self._decode(str(row["payload"])) if row else self._clone(default)
-
     def _write_document_tx(
         self,
         connection: sqlite3.Connection,
@@ -1548,10 +1540,6 @@ class SQLiteStorage(StorageBackend):
         except (TypeError, ValueError, json.JSONDecodeError):
             return ""
         return str(parsed[0]) if isinstance(parsed, list) and len(parsed) == 3 else ""
-
-    @staticmethod
-    def _valid_dict(value: Any) -> dict[str, Any]:
-        return value if isinstance(value, dict) else {}
 
     def _history_document_from_sql(
         self, connection: sqlite3.Connection

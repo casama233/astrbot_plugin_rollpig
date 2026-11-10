@@ -6,7 +6,7 @@
 
 最初以 2026-08-31 的 `main` 為基線（286,646 bytes）；2026-09-09 抽離資源同步設定正規化後降低上限：
 
-- `legacy_main.py` 上限：**279,565 bytes**；
+- `legacy_main.py` 上限以 [`LEGACY_MAIN_MAX_BYTES`](../tests/test_legacy_shrink_budget.py) 為唯一來源；本頁不另存一份數字；
 - `tests/test_legacy_shrink_budget.py` 會在完整 pytest 中強制檢查；
 - 任何讓檔案超過上限的 PR 都應直接失敗，而不是提高上限；
 - 每次把一段 legacy 實作移到正式模組後，應把測試中的上限同步降低到新的實際大小。
@@ -19,6 +19,8 @@
 - 圖片輸出：`renderers/`；
 - SQLite／JSON 權威資料與 migration：`storage/`；
 - 跨功能但不屬於 Star 入口的純工具：獨立模組。
+
+日報與烤豬預約的布林設定共用 `rollpig_core.parse_config_bool`，在讀取設定時處理一次；未知值沿用呼叫者的原有預設值。沒有正常呼叫者的舊快照刷新、冷卻轉接、圖鑑排序轉接與舊文字日報已移除；現行能量結算、圖鑑服務及豐富日報仍由原入口負責。這不移除 storage 層用於舊玩家資料的冷卻遷移介面。
 
 若某次修改確實必須碰 `legacy_main.py`，優先採「搬出多於新增」：完成後檔案總大小仍需低於當前 budget，並保留／新增對應 boundary regression。
 

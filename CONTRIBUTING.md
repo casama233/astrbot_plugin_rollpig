@@ -113,7 +113,7 @@ pytest -q
 pre-commit run --all-files --show-diff-on-failure
 ```
 
-CI 目前會在 Python 3.10 與 3.12 執行核心檢查。
+CI 的執行環境以 [工作流設定](.github/workflows/ci.yml) 為準。
 
 管理頁測試：
 
@@ -121,15 +121,21 @@ CI 目前會在 Python 3.10 與 3.12 執行核心檢查。
 npm test
 ```
 
-瀏覽器性能腳本：
+## 文檔測試
+
+Wiki 沿用 MkDocs Material；共用樣式在 `docs/stylesheets/wiki.css`，互動在 `docs/javascripts/wiki.js`，不另加版本覆蓋層。修改後執行：
 
 ```bash
-npm run test:browser-perf
+pip install -r requirements-docs.txt
+python -m mkdocs build --strict --clean
+python scripts/check_wiki_rendered_markdown.py site
+npm ci --ignore-scripts
+npx playwright-core install chromium
+npm run test:wiki
 ```
 
-不是每個 PR 都需要重跑性能測試；但若修改管理頁載入策略、Analytics、DOM 監聽、快取或大型資源，建議執行並保存前後對比。
+瀏覽器測試檢查手機、平板及桌面寬度、指令複製、手機導覽、搜尋和玩法演示；Wiki 工作流也會執行相同檢查。純 HTML 表單區塊使用 `markdown="0"`，避免被當成縮排程式碼。
 
-## 文檔測試
 
 文檔修改至少人工確認：
 

@@ -237,6 +237,47 @@ def validate_ex_variants(
     return result
 
 
+def validate_handwritten_ex_copy(
+    raw_pigs: Mapping[str, object],
+    pig_ids: set[str],
+    *,
+    source: str,
+    image_extensions: set[str] | tuple[str, ...],
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Validate full text-only authoring after the caller checks source rights.
+
+    Unlike sparse creator variants, handwritten packs require both text fields
+    at all five levels. Compare uniqueness after display-text normalization.
+    """
+    required_levels = {str(level) for level in range(1, MAX_EX_VARIANT_LEVEL + 1)}
+    required_fields = {"description", "analysis"}
+    pigs: dict[str, dict[str, dict[str, str]]] = {}
+    for pig_id, raw_levels in raw_pigs.items():
+        if not isinstance(raw_levels, dict) or set(map(str, raw_levels)) != required_levels:
+            raise ValueError(f"{pig_id} 的 {source} 手写文案必须完整提供 EX1-EX5")
+        levels: dict[str, dict[str, str]] = {}
+        for raw_level, raw_item in raw_levels.items():
+            level = str(raw_level)
+            if not isinstance(raw_item, dict) or set(raw_item) != required_fields:
+                raise ValueError(f"{pig_id} EX{level} 的 {source} 手写文案字段不完整")
+            item = {field: str(raw_item.get(field) or "").strip() for field in required_fields}
+            if not all(item.values()):
+                raise ValueError(f"{pig_id} EX{level} 的 {source} 手写文案存在空字段")
+            levels[level] = item
+        pigs[pig_id] = levels
+
+    variants = validate_ex_variants(
+        {"schema_version": EX_VARIANT_SCHEMA_VERSION, "pigs": pigs},
+        pig_ids,
+        image_extensions=image_extensions,
+    )
+    for pig_id, levels in variants.items():
+        for field in ("description", "analysis"):
+            if len({item[field] for item in levels.values()}) != MAX_EX_VARIANT_LEVEL:
+                raise ValueError(f"{pig_id} EX1-EX5 {field} 必须逐级不同")
+    return variants
+
+
 def serialize_ex_variants(
     variants: Mapping[str, Mapping[int, Mapping[str, str]]]
 ) -> dict[str, Any]:

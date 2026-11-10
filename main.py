@@ -16,7 +16,8 @@ from astrbot.api.event import AstrMessageEvent, filter
 
 try:
     from .animated_image_feature import AnimatedImageMixin
-    from .command_actor_feature import CommandActorMentionMixin
+    from .message_delivery import MessageDeliveryMixin
+    from .daily_report_profile_feature import DailyReportProfileMixin
     from .daily_report_feature import DailyReportMixin
     from .ex_admin_feature import ExAdminMixin
     from .ex_public_source_feature import ExPublicSourceMixin
@@ -24,7 +25,6 @@ try:
     from .help_feature import HelpFeatureMixin
     from .installation_migrations import cleanup_legacy_installation_paths
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
-    from .message_layout import mention_body_on_new_line
     from .oven_refill_feature import OvenRefillMixin
     from .permanent_collection_feature import PermanentCollectionMixin
     from .random_roast_feature import RandomRoastMixin
@@ -35,7 +35,8 @@ try:
     from .state_persistence import DebouncedSnapshotWriter
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from animated_image_feature import AnimatedImageMixin
-    from command_actor_feature import CommandActorMentionMixin
+    from message_delivery import MessageDeliveryMixin
+    from daily_report_profile_feature import DailyReportProfileMixin
     from daily_report_feature import DailyReportMixin
     from ex_admin_feature import ExAdminMixin
     from ex_public_source_feature import ExPublicSourceMixin
@@ -43,7 +44,6 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from help_feature import HelpFeatureMixin
     from installation_migrations import cleanup_legacy_installation_paths
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
-    from message_layout import mention_body_on_new_line
     from oven_refill_feature import OvenRefillMixin
     from permanent_collection_feature import PermanentCollectionMixin
     from random_roast_feature import RandomRoastMixin
@@ -55,7 +55,8 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class RollPigPlugin(
-    CommandActorMentionMixin,
+    MessageDeliveryMixin,
+    DailyReportProfileMixin,
     AnimatedImageMixin,
     ReservationFirewoodMixin,
     OvenRefillMixin,
@@ -131,14 +132,6 @@ class RollPigPlugin(
     def _run_with_render_slot(self, renderer, *args, **kwargs):
         with self._image_render_slots:
             return renderer(*args, **kwargs)
-
-    async def _send_with_mention(self, event, user_id: str, text: str) -> None:
-        formatted = (
-            mention_body_on_new_line(text)
-            if self._event_group_id(event)
-            else str(text or "")
-        )
-        await super()._send_with_mention(event, user_id, formatted)
 
     def render_pig_image(self, pig_data):
         return self._run_with_render_slot(super().render_pig_image, pig_data)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import copy
 import re
@@ -18,7 +17,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 
 class ExPublicSourceMixin:
-    """Bridge local EX authoring to the public-source review envelope v2."""
+    """Shared EX payload normalization, routes and review-image helpers."""
 
     # The review service accepts a 16 MiB JSON request. Base64 expands binary
     # content by roughly 4/3, so keep the combined normalized image bytes below
@@ -89,50 +88,6 @@ class ExPublicSourceMixin:
         if len(referenced) > 5:
             raise ValueError("每次投稿最多包含 5 张 EX 差分图片")
         return record, raw, canonical, variant_images
-
-    async def _submit_local_ex_to_public_source(self, pig_id: str) -> dict:
-        record, raw, ex_variants, variant_images = await asyncio.to_thread(
-            self._ex_public_source_payload, pig_id
-        )
-        payload = {
-            "submission_version": 2,
-            "record": {
-                key: str(record.get(key) or "")
-                for key in ("id", "name", "description", "analysis")
-            },
-            "image": base64.b64encode(raw).decode("ascii"),
-            "ex_variants": ex_variants,
-            "variant_images": variant_images,
-        }
-        result = await self._request_public_source_json(
-            "POST", "/submissions", payload=payload
-        )
-        if not isinstance(result, dict):
-            raise ValueError("公共猪源返回了无效投稿结果")
-        return result
-
-    async def page_ex_submit_public_source(self):
-        try:
-            payload = await request.json(default={})
-            if not self._is_authorized_write_request(request, payload):
-                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
-            if not isinstance(payload, dict) or payload.get("confirm") is not True:
-                raise ValueError(
-                    "提交前必须明确确认会公开发送完整小猪资料、基础图片、EX 差分与 EX 图片"
-                )
-            pig_id = str(payload.get("id") or "").strip()
-            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("小猪 ID 无效")
-            result = await self._submit_local_ex_to_public_source(pig_id)
-            logger.info(f"管理页已提交小猪及 EX 差分到 AstrBot 公共猪源审核：{pig_id}")
-            return self._jsonify(
-                {"status": "ok", "message": result.get("message", "已提交"), "data": result}
-            )
-        except ValueError as exc:
-            return self._jsonify({"status": "error", "message": str(exc)})
-        except Exception as exc:
-            logger.error(f"提交 EX 差分到公共猪源失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "提交公共猪源失败，请稍后重试"})
 
     async def _public_source_review_variant_image_payload(
         self, submission_id: str, filename: str

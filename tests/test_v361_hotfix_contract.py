@@ -54,10 +54,8 @@ def _async_functions(source: str) -> dict[str, ast.AsyncFunctionDef]:
 
 
 def test_only_rich_daily_report_is_registered():
-    legacy = _source("legacy_main.py")
     rich = _source("daily_report_feature.py")
     main = _source("main.py")
-    assert "async def _legacy_pigsty_daily_report" in legacy
     assert "async def pigsty_daily_report" in rich
     commands = {node.name: node for node in _command_functions(main)}
     assert "pigsty_daily_report" in commands

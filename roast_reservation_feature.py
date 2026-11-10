@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
-import time
 from typing import Any
 
 from astrbot.api import logger
@@ -21,9 +19,9 @@ try:
         ensure_reservation_state,
         get_reservation,
         prune_reservations,
-        remove_reservation,
         resolve_reservation,
     )
+    from .rollpig_core import parse_config_bool
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from gameplay_events import (
         EVENT_ROAST_BACKLASH,
@@ -38,9 +36,9 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         ensure_reservation_state,
         get_reservation,
         prune_reservations,
-        remove_reservation,
         resolve_reservation,
     )
+    from rollpig_core import parse_config_bool
 
 
 class RoastReservationMixin:
@@ -52,22 +50,9 @@ class RoastReservationMixin:
         super().__init__(context, config)
         self._init_roast_reservations()
 
-    @staticmethod
-    def _reservation_bool(value: Any, default: bool) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return default
-        text = str(value).strip().lower()
-        if text in {"1", "true", "yes", "on"}:
-            return True
-        if text in {"0", "false", "no", "off"}:
-            return False
-        return default
-
     def _init_roast_reservations(self) -> None:
         config = self.config if hasattr(self.config, "get") else {}
-        self.enable_roast_reservation = self._reservation_bool(
+        self.enable_roast_reservation = parse_config_bool(
             config.get("enable_roast_reservation", True), True
         )
         try:

@@ -4,10 +4,10 @@ site_url: https://casama233.github.io/astrbot_plugin_rollpig/
 repo_url: https://github.com/casama233/astrbot_plugin_rollpig
 repo_name: casama233/astrbot_plugin_rollpig
 edit_uri: edit/main/docs/
-copyright: "今日小豬 · 增強版 · 豬圈裡的規則很多，但先抽一隻再說。"
+copyright: "今日小豬 · 增強版"
 
 # docs/README.md remains the repository-facing documentation index. The Wiki has
-# its own richer docs/index.md landing page, so exclude the former explicitly
+# its own docs/index.md landing page, so exclude the former explicitly
 # instead of letting MkDocs auto-drop it with a strict-mode warning.
 exclude_docs: |
   README.md
@@ -18,42 +18,40 @@ hooks:
   - docs/wiki_hooks.py
 
 nav:
-  - 🐷 Wiki 首頁: index.md
-  - ⚡ 30 秒開始養豬: getting-started/index.md
-  - 🎮 玩家玩法:
+  - 首頁: index.md
+  - 玩家指南:
+      - 30 秒開始: getting-started/index.md
+      - 常用指令: COMMANDS.md
       - 玩法總覽: gameplay/index.md
-      - 📚 永久豬籍與新豬保底: gameplay/collection-pity.md
-      - ⭐ EX 成長: gameplay/ex-growth.md
-      - 🔥 60/30/10 與次日保護: gameplay/roast-outcomes.md
-      - ⚡ Roast Charge: gameplay/roast-charge.md
-      - 📰 豬圈日報: gameplay/daily-report.md
-      - 精確 EX 差分規則: EX-VARIANTS.md
-      - 精確烤箱 Charge 規則: ROAST-CHARGES.md
-      - 預約烤豬: ROAST-RESERVATIONS.md
-      - 日報技術規則: DAILY-REPORT.md
-  - 🎨 做一隻小豬:
-      - 投稿與格式: creators/index.md
-  - 🧯 常見故障:
-      - 排障總覽: troubleshooting/index.md
-      - 管理面板定向排障: troubleshooting/admin.md
-  - 📖 指令百科: COMMANDS.md
-  - ⚙️ 管理員指南:
-      - 完整配置: CONFIGURATION.md
+      - 收藏與保底: gameplay/collection-pity.md
+      - EX 成長: gameplay/ex-growth.md
+      - 烤群友與次日保護: gameplay/roast-outcomes.md
+      - 能量、補貨與添柴: gameplay/roast-charge.md
+      - 豬圈日報: gameplay/daily-report.md
+      - 常見問題: troubleshooting/index.md
+  - 管理與資源:
+      - 配置參考: CONFIGURATION.md
       - 資源管理: RESOURCE-MANAGEMENT.md
-      - 運維、備份與遷移: OPERATIONS.md
+      - 備份與恢復: OPERATIONS.md
+      - 管理面板排錯: troubleshooting/admin.md
+      - Discord 指令選單: troubleshooting/discord.md
       - Marketplace: MARKETPLACE.md
-  - ☁️ 小豬資源:
-      - 資源相容性: RESOURCE-SOURCE-COMPATIBILITY.md
+      - 豬源相容性: RESOURCE-SOURCE-COMPATIBILITY.md
       - 豬源維護: RESOURCE-SOURCE-MAINTENANCE.md
-  - 🛠 開發者與維護者:
+  - 創作與開發:
+      - 製作與投稿: creators/index.md
+      - 文案風格: COPY-STYLE.md
       - 架構總覽: ARCHITECTURE.md
-      - PR 與發版維護門禁: RELEASE-MAINTENANCE.md
-      - 文案風格 · Piggy Voice: COPY-STYLE.md
-      - Collection Identity: COLLECTION-IDENTITY.md
+      - 發版維護: RELEASE-MAINTENANCE.md
+      - 收藏身份規則: COLLECTION-IDENTITY.md
+      - EX 差分規則: EX-VARIANTS.md
+      - 烤箱能量規則: ROAST-CHARGES.md
+      - 預約規則: ROAST-RESERVATIONS.md
+      - 日報規則: DAILY-REPORT.md
       - 參與開發: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md
-  - 📜 版本歷史: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
+      - 版本記錄: https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md
 
-# Material 會負責可搜尋、響應式的主體；品牌與特效全部放在額外 CSS / JS，
+# Material 負責搜尋與手機導覽；共用樣式與互動各只有一個入口，
 # 方便後續升級主題而不 fork 上游模板。Wiki 視覺只維護深色 slate，
 # 避免亮色 Material shell 與深色 Piggy 元件混搭成兩套互相衝突的主題。
 theme:
@@ -61,12 +59,12 @@ theme:
   language: zh
   logo: assets/plugin-logo.png
   favicon: assets/plugin-logo.png
+  font: false
   icon:
     repo: fontawesome/brands/github
   features:
     - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.instant
     - navigation.instant.progress
@@ -77,7 +75,6 @@ theme:
     - search.share
     - content.code.copy
     - content.tabs.link
-    - announce.dismiss
   palette:
     scheme: slate
 
@@ -103,16 +100,10 @@ markdown_extensions:
       anchor_linenums: true
 
 extra_css:
-  - stylesheets/extra.css
-  - stylesheets/wiki-v2.css
-  - stylesheets/brand-icons.css
-  - stylesheets/wiki-v3.css
-  - stylesheets/wiki-responsive.css
+  - stylesheets/wiki.css
 
 extra_javascript:
-  - javascripts/pigsty.js
-  - javascripts/wiki-v2.js
-  - javascripts/brand-icons.js
+  - javascripts/wiki.js
 
 extra:
   social:

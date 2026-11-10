@@ -8,6 +8,9 @@ on:
       - 'requirements-docs.txt'
       - 'scripts/check_wiki_rendered_markdown.py'
       - '.github/workflows/wiki.yml'
+      - 'tests/wiki/**'
+      - 'package.json'
+      - 'package-lock.json'
   push:
     branches: [main]
     paths:
@@ -16,6 +19,9 @@ on:
       - 'requirements-docs.txt'
       - 'scripts/check_wiki_rendered_markdown.py'
       - '.github/workflows/wiki.yml'
+      - 'tests/wiki/**'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -48,6 +54,20 @@ jobs:
 
       - name: Verify rendered Markdown in custom Wiki UI
         run: python scripts/check_wiki_rendered_markdown.py site
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install browser test dependencies
+        run: |
+          npm ci --ignore-scripts
+          npx playwright-core install --with-deps chromium
+
+      - name: Test Wiki on phone, tablet and desktop sizes
+        run: npm run test:wiki
 
       - name: Configure Pages
         if: github.event_name != 'pull_request'

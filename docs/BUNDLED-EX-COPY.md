@@ -1,6 +1,6 @@
 # Bundled lineage 手写 EX 文案层
 
-本页记录非 Felis 小猪逐步脱离 deterministic generic EX baseline 的维护边界。
+本页记录开发仓库中非 Felis 小猪逐步脱离 deterministic generic EX baseline 的维护边界。正式安装包会裁剪离线资源；完整仓库与安装后覆盖率的区别及查询方式，统一见 [EX 覆盖范围](EX-VARIANTS.md#coverage)。
 
 ## 为什么单独做这一层
 

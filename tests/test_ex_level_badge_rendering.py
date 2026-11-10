@@ -150,13 +150,13 @@ def test_animated_card_draws_uncapped_level_on_every_frame(tmp_path, monkeypatch
         lambda _path, _size: animation,
     )
     calls: list[int] = []
-    original = animated_pig_card.draw_ex_level_badge
+    original = pig_card.draw_ex_level_badge
 
     def tracked(*args, **kwargs):
         calls.append(int(kwargs["ex_level"]))
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(animated_pig_card, "draw_ex_level_badge", tracked)
+    monkeypatch.setattr(pig_card, "draw_ex_level_badge", tracked)
     avatar_path = tmp_path / "placeholder.gif"
     output = animated_pig_card.render_animated_pig_card(
         _pig(9),
