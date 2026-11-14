@@ -1166,7 +1166,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         cloud = self._load_cloud_pigs()
         base = cloud or self._bundled_pigs
         felis = (
-            self._felis_direct_cached_pigs()
+            self._felis_display_pigs()
             if self.felis_direct_enabled
             else []
         )

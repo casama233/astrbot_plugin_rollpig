@@ -35,24 +35,10 @@ def _read_explicit_specs(raw_specs: dict[str, object]) -> dict[str, object]:
     return pigs
 
 
-def load_felis_direct_ex_copy(
-    resource_dir: Path,
-    pig_ids: Iterable[str],
-    allowed_ids: Iterable[str],
-    *,
-    image_extensions: set[str] | tuple[str, ...],
-) -> dict[str, dict[int, dict[str, str]]]:
-    """Load repository-owned EX1-EX5 text for the Felis direct allowlist.
-
-    Schema v3 requires explicit per-level copy for every allowlisted ID. The
-    runtime no longer expands semantic seeds, so generic templates cannot hide a
-    missing handwritten review. Felis upstream EX text and EX images remain out
-    of scope.
-    """
-
+def _load_felis_copy_payload(resource_dir: Path, allowed_ids: Iterable[str]) -> dict | None:
     path = Path(resource_dir) / FELIS_DIRECT_EX_COPY_FILENAME
     if not path.is_file():
-        return {}
+        return None
 
     payload = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, dict):
@@ -106,6 +92,43 @@ def load_felis_direct_ex_copy(
             detail.append("多出：" + ", ".join(extras))
         raise ValueError("Felis EX 手写文案规格必须完整覆盖 allowlist；" + "；".join(detail))
 
+    return payload
+
+
+def load_felis_direct_base_copy(
+    resource_dir: Path, allowed_ids: Iterable[str]
+) -> dict[str, dict[str, str]]:
+    """Read optional project-owned base text without changing upstream cache."""
+    allowlist = set(allowed_ids)
+    payload = _load_felis_copy_payload(resource_dir, allowlist)
+    if payload is None or "base_pigs" not in payload:
+        return {}
+    base = payload["base_pigs"]
+    if not isinstance(base, dict) or set(base) != allowlist:
+        raise ValueError("Felis 基础文案必须完整覆盖 allowlist")
+    for pig_id, copy in base.items():
+        if not isinstance(copy, dict) or set(copy) != {"description", "analysis"}:
+            raise ValueError(f"{pig_id} 的 Felis 基础文案只能包含 description/analysis")
+        for field, limit in (("description", 80), ("analysis", 500)):
+            value = copy[field]
+            if not isinstance(value, str) or not value.strip() or len(value) > limit:
+                raise ValueError(f"{pig_id} 的 Felis 基础文案 {field} 无效")
+    return base
+
+
+def load_felis_direct_ex_copy(
+    resource_dir: Path,
+    pig_ids: Iterable[str],
+    allowed_ids: Iterable[str],
+    *,
+    image_extensions: set[str] | tuple[str, ...],
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Load explicit, project-owned EX1–EX5 text for the direct allowlist."""
+    allowlist = set(allowed_ids)
+    payload = _load_felis_copy_payload(resource_dir, allowlist)
+    if payload is None:
+        return {}
+    raw_specs = payload["pigs"]
     variants = validate_handwritten_ex_copy(
         _read_explicit_specs(raw_specs),
         allowlist,

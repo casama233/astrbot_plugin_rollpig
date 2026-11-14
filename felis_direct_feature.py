@@ -30,6 +30,12 @@ except ImportError:  # pragma: no cover - standalone unit tests
     logger = logging.getLogger(__name__)
 
 
+try:
+    from .felis_ex_copy import load_felis_direct_base_copy
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from felis_ex_copy import load_felis_direct_base_copy
+
+
 FELIS_DIRECT_MANIFEST_URL = (
     "https://raw.githubusercontent.com/Felis2026/rollpig-resources/main/"
     "rollpig/manifest.json"
@@ -186,6 +192,17 @@ class FelisDirectFeature:
             len(records) == len(self.FELIS_DIRECT_IDS)
             and {item["id"] for item in records} == set(self.FELIS_DIRECT_IDS)
         ) else []
+
+    def _felis_display_pigs(self) -> list[dict]:
+        records = self._felis_direct_cached_pigs()
+        if not records:
+            return records
+        try:
+            copy = load_felis_direct_base_copy(self.res_dir, self.FELIS_DIRECT_IDS)
+        except (OSError, ValueError, TypeError) as exc:
+            logger.warning(f"Felis 项目基础文案无效，保留上游文字：{exc}")
+            return records
+        return [{**item, **copy.get(item["id"], {})} for item in records]
 
     def _recover_felis_direct_cache(self) -> bool:
         """Restore the last complete cache after an interrupted directory swap."""

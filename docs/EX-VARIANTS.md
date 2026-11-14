@@ -6,6 +6,8 @@ EX 差分讓同一隻已解鎖小豬在重複抽取後，隨 `EX Lv.` 使用不�
 
 ## 1. 覆蓋範圍（開發倉庫與安裝包） {#coverage}
 
+本次基礎與 EX 文案由 Gemini Argon/Hydrogen 生成；模型與請求記錄見 [`resource/COPY-AUTHORING.json`](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/resource/COPY-AUTHORING.json)。既有 `handwritten` 欄位與檢查器名稱沿用相容格式，代表明確五級覆蓋，不代表本次由人工撰寫。
+
 以下數字描述開發倉庫的完整 authoring 資源，2026-11-09 再次以 `python scripts/check_ex_handwritten_coverage.py --root .` 核對。它們不等於正式安裝包的離線數量。
 
 正式安裝包由 [`prepare_install_bundle.py`](../scripts/prepare_install_bundle.py) 的 `BOOTSTRAP_PIG_IDS` 裁剪離線 catalog、圖片與對應 EX 分片；雲端同步再擴充有效資源。安裝後可執行相同覆蓋檢查，數量以該安裝目錄的 `resource/pig.json` 與實際載入結果為準。完整內容測試應在開發倉庫執行，不應用完整倉庫的固定數量斷言判斷已裁剪安裝包是否損壞。
