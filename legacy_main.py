@@ -973,35 +973,24 @@ class RollPigPlugin(FelisDirectFeature, Star):
         return ImageFont.load_default()
 
     def _init_regular_font(self) -> ImageFont.FreeTypeFont | None:
-        """初始化常规字体（可爱字体，用于描述/解析）"""
-        font_paths = [
-            self.font_dir / "可爱字体.ttf",
-            self.font_dir / "SourceHanSansCN-Regular.otf",
-            "C:/Windows/Fonts/msyh.ttc",
-            "C:/Windows/Fonts/simhei.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/System/Library/Fonts/PingFang.ttc",
-        ]
-        return self._load_font(font_paths, self.DESC_FONT_SIZE, "常规")
+        """Prefer an optional custom font, then the shipped Chinese font."""
+        return self._load_font(
+            [self.font_dir / "可爱字体.ttf", self.font_dir / "荆南麦圆体.otf"],
+            self.DESC_FONT_SIZE, "常规",
+        )
 
     def _init_bold_font(self) -> ImageFont.FreeTypeFont | None:
-        """初始化加粗字体（荆南麦圆体，用于名称）"""
-        font_paths = [
-            self.font_dir / "荆南麦圆体.otf",
-            self.font_dir / "SourceHanSansCN-Bold.otf",
-            "C:/Windows/Fonts/msyhbd.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/System/Library/Fonts/PingFang.ttc",
-        ]
-        return self._load_font(font_paths, self.NAME_FONT_SIZE, "加粗")
+        return self._load_font(
+            [self.font_dir / "荆南麦圆体.otf"], self.NAME_FONT_SIZE, "加粗",
+        )
 
     def _init_traditional_font(self) -> ImageFont.FreeTypeFont | None:
-        """加载投稿的繁体字兜底字体，仅在现有字体缺字时用于 AI 文案。"""
-        return self._load_font(
-            [self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf"],
-            self.DESC_FONT_SIZE,
-            "繁体兜底",
-        )
+        # The large optional font is absent from release packages. Never turn
+        # that absence into Pillow's Latin-only default instead of Chinese.
+        optional = self.font_dir / "HanyiYongZiXiaoXiongMaoFan.ttf"
+        if optional.is_file():
+            return self._load_font([optional], self.DESC_FONT_SIZE, "繁体兜底")
+        return self.font_regular
 
     def _ai_copy_font(self, _text: str, size: int) -> ImageFont.FreeTypeFont:
         """AI 文案统一使用完整繁体字库，加载失败才回退常规字体。"""

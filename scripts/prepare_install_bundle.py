@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from pathlib import Path
 from typing import Iterable
 
@@ -150,6 +151,15 @@ def prepare_install_bundle(
         raise ValueError("bootstrap catalog filtering produced an inconsistent ID set")
     _prune_bundled_ex_copy(resource, selected, set(source_by_id))
     _write_json(pig_path, filtered_pigs, indent=4)
+    ledger_path = resource / "COPY-AUTHORING.json"
+    if ledger_path.is_file():
+        ledger = _load_json(ledger_path)
+        felis_path = resource / "felis_direct_ex_copy.json"
+        felis_ids = set(_load_json(felis_path).get("pigs", {})) if felis_path.is_file() else set()
+        ledger["pigs"] = {pig_id: author for pig_id, author in ledger["pigs"].items()
+                          if pig_id in selected or pig_id in felis_ids}
+        _write_json(ledger_path, ledger, indent=2)
+
 
     if variants_path.is_file():
         variants = _load_json(variants_path)
@@ -206,11 +216,26 @@ def prepare_install_bundle(
     }
 
 
+def stage_install_bundle(source: Path, destination: Path) -> dict[str, int]:
+    """Use one portable installation inventory for releases and marketplace."""
+    excluded = shutil.ignore_patterns(
+        ".git", ".github", ".venv", ".cache", "__pycache__", ".pytest_cache",
+        "dist", "tests", "scripts", "deploy", "source_service", "node_modules",
+        "package.json", "package-lock.json", ".pre-commit-config.yaml",
+        "CONTRIBUTING.md", "requirements-docs.txt", "mkdocs.yml",
+        "HanyiYongZiXiaoXiongMaoFan.ttf", "*.pyc", "*.pyo", ".env", "data", "plugin_data",
+    )
+    shutil.copytree(source, destination, ignore=excluded)
+    return prepare_install_bundle(destination)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path, help="staged plugin root to prune in-place")
+    parser.add_argument("--source", type=Path, help="copy a clean install inventory before pruning")
     args = parser.parse_args()
-    stats = prepare_install_bundle(args.root)
+    stats = (stage_install_bundle(args.source, args.root) if args.source
+             else prepare_install_bundle(args.root))
     print(json.dumps(stats, ensure_ascii=False, sort_keys=True))
     return 0
 

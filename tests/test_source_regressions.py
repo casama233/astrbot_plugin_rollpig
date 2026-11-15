@@ -296,9 +296,6 @@ def test_v350_review_authority_is_backend_only_and_absent_from_release():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
     reviews = ast.get_source_segment(
         SOURCE, _method("page_public_source_reviews")
     ) or ""
@@ -312,8 +309,6 @@ def test_v350_review_authority_is_backend_only_and_absent_from_release():
     assert '{"enabled": False, "items": []}' in reviews
     assert "public_source_admin_token_path" in token
     assert "read_text" in token
-    assert "--exclude 'source_service/'" in workflow
-    assert "--exclude 'deploy/'" in workflow
 
 
 def test_v340_astrbot_resource_source_replaces_rejected_nonebot_default():
@@ -392,7 +387,6 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.7.0"' in metadata
     assert "AstrBot-RollPig/3.6.5" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary

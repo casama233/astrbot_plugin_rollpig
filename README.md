@@ -58,7 +58,7 @@
 | --- | --- |
 | AstrBot | `>= 4.26.0` |
 | Python | `>= 3.10` |
-| Python 依賴 | `Pillow >= 10.0.0`、`httpx >= 0.27.0, < 1.0.0` |
+| Python 依賴 | 依 [`requirements.txt`](requirements.txt) 自動安裝 Pillow、httpx、OpenCC |
 | 插件身份 | `astrbot_plugin_rollpig_plus` |
 
 推薦直接在 AstrBot 插件管理介面搜尋 **「今日小豬 · 增強版」** 或 `astrbot_plugin_rollpig_plus`。
@@ -74,6 +74,8 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 
 > [!IMPORTANT]
 > v3.2.0 起增強版使用獨立程式、配置與資料命名空間。不要把新版直接塞進舊 `astrbot_plugin_rollpig` 目錄；舊版升級先看 [運維、身份遷移與恢復](docs/OPERATIONS.md)。
+
+基本功能使用隨包中文字體和離線資源，無需設定本機絕對路徑、Gemini 登入或私人源令牌。AI 附加功能與自訂豬源按需開啟。
 
 ### 第一次進豬圈
 

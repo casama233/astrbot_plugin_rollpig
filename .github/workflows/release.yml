@@ -164,31 +164,7 @@ jobs:
           PLUGIN_NAME: ${{ steps.meta.outputs.plugin_name }}
           ARCHIVE: ${{ steps.meta.outputs.archive }}
         run: |
-          mkdir -p "dist/$PLUGIN_NAME"
-          rsync -a ./ "dist/$PLUGIN_NAME/" \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            --exclude '.venv/' \
-            --exclude '__pycache__/' \
-            --exclude '.pytest_cache/' \
-            --exclude 'dist/' \
-            --exclude 'tests/' \
-            --exclude 'scripts/' \
-            --exclude 'deploy/' \
-            --exclude 'source_service/' \
-            --exclude 'node_modules/' \
-            --exclude 'package.json' \
-            --exclude 'package-lock.json' \
-            --exclude '.pre-commit-config.yaml' \
-            --exclude 'CONTRIBUTING.md' \
-            --exclude 'resource/font/HanyiYongZiXiaoXiongMaoFan.ttf' \
-            --exclude '*.pyc' \
-            --exclude '*.pyo' \
-            --exclude '.env' \
-            --exclude 'data/' \
-            --exclude 'plugin_data/'
-
-          python scripts/prepare_install_bundle.py "dist/$PLUGIN_NAME"
+          python scripts/prepare_install_bundle.py --source . "dist/$PLUGIN_NAME"
           python - <<PY
           import json
           from pathlib import Path
