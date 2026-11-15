@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from bundled_ex_copy import load_bundled_ex_copy
-from scripts.prepare_install_bundle import BOOTSTRAP_PIG_IDS, prepare_install_bundle
+from scripts.prepare_install_bundle import BOOTSTRAP_PIG_IDS, prepare_install_bundle, stage_install_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -99,3 +99,29 @@ def test_invalid_authoring_is_rejected_before_catalog_is_pruned(tmp_path: Path, 
     with pytest.raises(ValueError):
         prepare_install_bundle(stage)
     assert (resource / "pig.json").read_bytes() == original_catalog
+
+
+def test_clean_install_inventory_has_no_host_or_development_dependencies(tmp_path):
+    stage = tmp_path / "install"
+    stats = stage_install_bundle(ROOT, stage)
+    assert stats["pig_count"] == stats["image_count"] == 22
+    for name in (".git", ".github", "tests", "scripts", "node_modules", "data", "deploy"):
+        assert not (stage / name).exists()
+    assert (stage / "resource/font/荆南麦圆体.otf").is_file()
+    assert not (stage / "resource/font/HanyiYongZiXiaoXiongMaoFan.ttf").exists()
+    ledger = json.loads((stage / "resource/COPY-AUTHORING.json").read_text())
+    felis = json.loads((stage / "resource/felis_direct_ex_copy.json").read_text())
+    assert set(ledger["pigs"]) == set(BOOTSTRAP_PIG_IDS) | set(felis["pigs"])
+    assert set(felis["base_pigs"]) == set(felis["pigs"])
+
+
+def test_install_inventory_drops_private_service_and_runtime_state(tmp_path):
+    source, _ = _staged_source(tmp_path)
+    for directory in ("source_service", "data", "plugin_data"):
+        private = source / directory
+        private.mkdir()
+        (private / "admin.token").write_text("fixture-only")
+    stage = tmp_path / "clean"
+    stage_install_bundle(source, stage)
+    assert not list(stage.rglob("*.token"))
+    assert _packaged_copy(stage)

@@ -1,6 +1,8 @@
-# Bundled lineage 手写 EX 文案层
+# Bundled lineage 明确 EX 文案层
 
-本页记录非 Felis 小猪逐步脱离 deterministic generic EX baseline 的维护边界。
+当前基础版和 EX1–EX5 文案作者为 Gemini Argon/Hydrogen，逐 ID 的模型与请求记录见 [`resource/COPY-AUTHORING.json`](https://github.com/casama233/astrbot_plugin_rollpig/blob/main/resource/COPY-AUTHORING.json)。Codex 只导入原文。下文旧批次的“手写”称呼和既有检查器名称记录历史格式，不表示本次由人工创作；旧批次的具体笑点说明也不再代表当前文案。当前字符串以 `resource/pig.json` 与 `resource/bundled_ex_copy*.json` 为准。
+
+本页记录开发仓库中非 Felis 小猪逐步脱离 deterministic generic EX baseline 的维护边界。正式安装包会裁剪离线资源；完整仓库与安装后覆盖率的区别及查询方式，统一见 [EX 覆盖范围](EX-VARIANTS.md#coverage)。
 
 ## 为什么单独做这一层
 

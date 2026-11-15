@@ -17,10 +17,9 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
     """Rights-aware public-source bridge using submission envelope v3.
 
-    The previous EX implementation is retained verbatim in
-    ``ex_public_source_legacy.py`` for compatibility helpers such as EX payload
-    normalization and review-image proxying. New submissions and review decisions
-    are overridden here so missing rights evidence fails closed.
+    Shared EX payload normalization and review-image proxying live in
+    ``ex_public_source_legacy.py``. Submissions and review decisions live here
+    so missing rights evidence fails closed.
     """
 
     PUBLIC_SOURCE_RIGHTS_VERSION = 3

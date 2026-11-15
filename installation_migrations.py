@@ -17,6 +17,8 @@ LEGACY_PATH_TOMBSTONES: tuple[tuple[str, ...], ...] = (
     ("pages", "pig-manager", "studio-integration.js"),
     ("pig_studio_admin.py",),
     ("pig_studio_feature.py",),
+    ("command_actor_feature.py",),
+    ("message_layout.py",),
 )
 
 # Never delete a retired Page unless the canonical manager actually exists in

@@ -9,11 +9,11 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
 try:
-    from .snapshot_protocol import (CLIENT, ID, MAX_MANIFEST, MAX_PROVENANCE, PROFILE,
+    from .snapshot_protocol import (CLIENT, ID, MAX_MANIFEST, MAX_PROVENANCE,
                                     COMPLETE_PROFILE, PROFILES, BINDING_FIELDS,
                                     SHA256, digest, parse_json, safe_path, validate_manifest)
 except ImportError:
-    from snapshot_protocol import (CLIENT, ID, MAX_MANIFEST, MAX_PROVENANCE, PROFILE,
+    from snapshot_protocol import (CLIENT, ID, MAX_MANIFEST, MAX_PROVENANCE,
                                    COMPLETE_PROFILE, PROFILES, BINDING_FIELDS,
                                    SHA256, digest, parse_json, safe_path, validate_manifest)
 

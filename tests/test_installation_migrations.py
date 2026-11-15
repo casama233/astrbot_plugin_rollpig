@@ -43,6 +43,9 @@ def test_overlay_upgrade_retired_surfaces_are_removed(tmp_path):
     (tmp_path / "pig_studio_admin.py").write_text("retired", encoding="utf-8")
     (tmp_path / "pig_studio_feature.py").write_text("retired", encoding="utf-8")
 
+    (tmp_path / "command_actor_feature.py").write_text("retired")
+    (tmp_path / "message_layout.py").write_text("retired")
+
     assert _discover_pages(tmp_path)[0] == "ex-manager"
 
     removed = cleanup_legacy_installation_paths(tmp_path)
@@ -55,6 +58,8 @@ def test_overlay_upgrade_retired_surfaces_are_removed(tmp_path):
         "pages/pig-manager/studio-integration.js",
         "pig_studio_admin.py",
         "pig_studio_feature.py",
+        "command_actor_feature.py",
+        "message_layout.py",
     ]
     assert _discover_pages(tmp_path) == ["pig-manager"]
     assert not (tmp_path / "pages" / "pig-manager" / "studio-integration.js").exists()

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test --test-timeout=15000 tests/browser/*.test.mjs",
-    "test:browser-perf": "node tests/browser/performance-browser.mjs"
+    "test:browser-perf": "node tests/browser/performance-browser.mjs",
+    "test:wiki": "node --test --test-timeout=30000 tests/wiki/*.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

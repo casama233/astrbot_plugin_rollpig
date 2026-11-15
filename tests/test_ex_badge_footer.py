@@ -71,7 +71,7 @@ def _render(kind, data, tmp_path, layout, palette=PALETTES[0]):
     bold, regular = _fonts()
     avatar = Image.new("RGBA", (layout.avatar_size, layout.avatar_size), (60, 110, 140, 255))
     if kind == "animated":
-        return animated_pig_card._render_frame(
+        return animated_pig_card.render_pig_card_frame(
             avatar,
             pig_name=data["name"],
             pig_desc=data["description"],
@@ -101,7 +101,7 @@ def _render(kind, data, tmp_path, layout, palette=PALETTES[0]):
 
 
 def _track_badges(monkeypatch, kind):
-    module = pig_card if kind == "static" else animated_pig_card
+    module = pig_card
     original = module.draw_ex_level_badge
     calls = []
 
@@ -113,14 +113,13 @@ def _track_badges(monkeypatch, kind):
     return calls
 
 
-@pytest.mark.parametrize("kind", ["static", "animated"])
 @pytest.mark.parametrize("level", [0, 1, 9])
 @pytest.mark.parametrize("palette", PALETTES, ids=["light", "dark"])
 def test_ex_badge_is_centered_at_bottom_after_all_copy(
-    kind, level, palette, tmp_path, monkeypatch,
+    level, palette, tmp_path, monkeypatch,
 ):
     layout = _layout()
-    calls = _track_badges(monkeypatch, kind)
+    calls = _track_badges(monkeypatch, "static")
     text_boxes = []
     original_text = ImageDraw.ImageDraw.text
 
@@ -130,7 +129,7 @@ def test_ex_badge_is_centered_at_bottom_after_all_copy(
         return original_text(draw, xy, text, *args, **kwargs)
 
     monkeypatch.setattr(ImageDraw.ImageDraw, "text", tracked_text)
-    result = _render(kind, _pig(level), tmp_path, layout, palette)
+    result = _render("static", _pig(level), tmp_path, layout, palette)
     assert len(calls) == 1
     call = calls[0]
     label, _, width, height = pig_card.ex_level_badge_metrics(level, _fonts()[1], layout)
@@ -143,32 +142,32 @@ def test_ex_badge_is_centered_at_bottom_after_all_copy(
     assert result.getpixel((left + 4, call["top"] + height // 2)) == palette["accent"]
 
 
-@pytest.mark.parametrize("kind", ["static", "animated"])
-def test_missing_collection_metadata_has_no_footer(kind, tmp_path, monkeypatch):
-    calls = _track_badges(monkeypatch, kind)
+
+def test_missing_collection_metadata_has_no_footer(tmp_path, monkeypatch):
+    calls = _track_badges(monkeypatch, "static")
     layout = _layout()
-    result = _render(kind, _pig(None), tmp_path, layout)
+    result = _render("static", _pig(None), tmp_path, layout)
     assert calls == []
     assert result.size == (layout.canvas_width, layout.canvas_height)
 
 
-@pytest.mark.parametrize("kind", ["static", "animated"])
+
 def test_short_cards_do_not_split_avatar_from_name_or_move_body(
-    kind, tmp_path, monkeypatch,
+    tmp_path, monkeypatch,
 ):
     layout = pig_card.PigCardLayout()
-    calls = _track_badges(monkeypatch, kind)
-    before = _render(kind, _pig(None), tmp_path, layout)
-    after = _render(kind, _pig(1), tmp_path, layout)
+    calls = _track_badges(monkeypatch, "static")
+    before = _render("static", _pig(None), tmp_path, layout)
+    after = _render("static", _pig(1), tmp_path, layout)
     assert before.size == after.size == (800, 800)
     body_box = (0, 0, after.width, calls[0]["top"])
     assert ImageChops.difference(before.crop(body_box), after.crop(body_box)).getbbox() is None
 
 
-@pytest.mark.parametrize("kind", ["static", "animated"])
-def test_six_line_analysis_keeps_top_and_footer_clear(kind, tmp_path, monkeypatch):
+
+def test_six_line_analysis_keeps_top_and_footer_clear(tmp_path, monkeypatch):
     layout = _layout()
-    calls = _track_badges(monkeypatch, kind)
+    calls = _track_badges(monkeypatch, "static")
     boxes = []
     original_text = ImageDraw.ImageDraw.text
 
@@ -178,12 +177,13 @@ def test_six_line_analysis_keeps_top_and_footer_clear(kind, tmp_path, monkeypatc
         return original_text(draw, xy, text, *args, **kwargs)
 
     monkeypatch.setattr(ImageDraw.ImageDraw, "text", tracked_text)
-    result = _render(kind, _pig(9, long=True), tmp_path, layout)
+    result = _render("static", _pig(9, long=True), tmp_path, layout)
     assert result.height > layout.canvas_height
     assert min(box[1] for box in boxes) >= layout.content_top_margin
     assert max(box[3] for box in boxes) <= calls[0]["top"] - layout.spacing_analysis_badge
     badge_h = pig_card.ex_level_badge_metrics(9, _fonts()[1], layout)[3]
     assert result.height - calls[0]["top"] - badge_h == layout.ex_badge_bottom_margin
+
 
 
 @pytest.mark.parametrize("level", [0, 9])

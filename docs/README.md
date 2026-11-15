@@ -6,16 +6,18 @@
 
 | 文檔 | 內容 |
 | --- | --- |
-| [`index.md`](index.md) | Wiki 首頁：先抽一隻，再決定今天要搞多大 |
+| [`index.md`](index.md) | 使用面板：常用指令、玩家與管理入口 |
 | [`getting-started/index.md`](getting-started/index.md) | 30 秒開始養豬 |
 | [`gameplay/index.md`](gameplay/index.md) | 玩家玩法總覽 |
 | [`gameplay/collection-pity.md`](gameplay/collection-pity.md) | 永久豬籍、新豬保底與跨日疲勞 |
 | [`gameplay/ex-growth.md`](gameplay/ex-growth.md) | EX Lv.1–5 成長與官方手寫內容 |
 | [`gameplay/roast-charge.md`](gameplay/roast-charge.md) | Roast Charge、群體補貨與 contextual `/添柴` |
-| [`gameplay/roast-outcomes.md`](gameplay/roast-outcomes.md) | 60/30/10、真正 victim 與次日保護 |
+| [`gameplay/roast-outcomes.md`](gameplay/roast-outcomes.md) | 70/20/10、真正 victim 與次日保護 |
 | [`gameplay/daily-report.md`](gameplay/daily-report.md) | 豬圈日報、opt-in 與可選祭品 |
 | [`creators/index.md`](creators/index.md) | 普通群友／創作者怎麼做一隻自己的豬 |
 | [`troubleshooting/index.md`](troubleshooting/index.md) | 按症狀排障，先別炸資料庫 |
+
+Discord 選單問題請看 [Discord 原生指令排錯](troubleshooting/discord.md)。
 
 ## 精確規則與管理文檔
 

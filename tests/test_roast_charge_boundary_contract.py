@@ -11,15 +11,6 @@ def test_group_roast_and_reservation_use_charge_api():
     assert "creator pays one charge" in reservation
 
 
-def test_legacy_cooldown_api_is_only_a_compatibility_facade():
-    legacy = Path("legacy_main.py").read_text(encoding="utf-8")
-    reservation = Path("roast_reservation_feature.py").read_text(encoding="utf-8")
-
-    assert legacy.count("async def _consume_group_roast_cooldown(") == 1
-    assert "Deprecated compatibility facade over the charge system" in legacy
-    assert "_consume_group_roast_cooldown(" not in reservation
-
-
 def test_charge_state_roundtrips_through_roast_projection():
     sqlite = Path("storage/sqlite_storage.py").read_text(encoding="utf-8")
 

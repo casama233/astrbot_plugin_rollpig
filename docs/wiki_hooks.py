@@ -7,6 +7,8 @@ from typing import Any
 _REPO_ROOT_LINKS = {
     "../CONTRIBUTING.md": "https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CONTRIBUTING.md",
     "../CHANGELOG.md": "https://github.com/casama233/astrbot_plugin_rollpig/blob/main/CHANGELOG.md",
+    "../scripts/prepare_install_bundle.py": "https://github.com/casama233/astrbot_plugin_rollpig/blob/main/scripts/prepare_install_bundle.py",
+    "../tests/test_legacy_shrink_budget.py": "https://github.com/casama233/astrbot_plugin_rollpig/blob/main/tests/test_legacy_shrink_budget.py",
 }
 
 # These pages intentionally mix Markdown copy with several layers of custom
@@ -44,6 +46,10 @@ def _enable_nested_markdown(markdown: str) -> str:
 
     def replace(match: re.Match[str]) -> str:
         tag = match.group(0)
+        # Native form controls must stay HTML; parsing their indentation as
+        # Markdown turns working labels and inputs into displayed code blocks.
+        if re.search(r'''\bmarkdown\s*=\s*["']0["']''', tag):
+            return tag
         if _MARKDOWN_ATTR_RE.search(tag):
             return _MARKDOWN_ATTR_RE.sub(' markdown="1"', tag, count=1)
         return f'{tag[:-1]} markdown="1">'

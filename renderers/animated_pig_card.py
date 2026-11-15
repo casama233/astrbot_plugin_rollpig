@@ -6,126 +6,20 @@ from pathlib import Path
 from typing import Mapping
 
 from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont
+from PIL import ImageFont
 
 try:
     from ..animated_images import load_fitted_gif_frames
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from animated_images import load_fitted_gif_frames
 
-from .common import draw_bold_text, get_text_size, wrap_text
 from .pig_card import (
     PigCardLayout,
-    draw_ex_level_badge,
-    ex_level_badge_metrics,
-    pig_card_vertical_layout,
+    render_pig_card_frame,
 )
 
 
 logger = logging.getLogger(__name__)
-
-
-def _render_frame(
-    avatar: PILImage.Image,
-    *,
-    pig_name: str,
-    pig_desc: str,
-    pig_analysis: str,
-    ex_level: int | None,
-    palette: Mapping[str, object],
-    font_bold: ImageFont.FreeTypeFont,
-    font_regular: ImageFont.FreeTypeFont,
-    layout: PigCardLayout,
-) -> PILImage.Image:
-    canvas_width = layout.canvas_width
-
-    avatar_w = avatar_h = layout.avatar_size
-    name_font = font_bold
-    name_w, name_h = get_text_size(pig_name, name_font)
-    badge_h = 0
-    if ex_level is not None:
-        _label, _badge_font, _badge_w, badge_h = ex_level_badge_metrics(
-            ex_level,
-            font_regular,
-            layout,
-        )
-    desc_font = font_regular.font_variant(size=layout.desc_font_size)
-    desc_w, desc_h = get_text_size(pig_desc, desc_font)
-    analysis_font = font_regular.font_variant(size=layout.analysis_font_size)
-    line_height = int(layout.analysis_font_size * layout.analysis_line_height_factor)
-    max_analysis_width = int(canvas_width * layout.analysis_width_ratio)
-    analysis_lines = wrap_text(
-        pig_analysis,
-        analysis_font,
-        max_analysis_width,
-        max_lines=6,
-    )
-    analysis_total_h = len(analysis_lines) * line_height
-    total_content_h = (
-        avatar_h
-        + layout.spacing_avatar_name
-        + name_h
-        + layout.spacing_name_desc
-        + desc_h
-        + layout.spacing_desc_analysis
-        + analysis_total_h
-    )
-    canvas_height, start_y, badge_y = pig_card_vertical_layout(
-        total_content_h, badge_h, layout
-    )
-    canvas = PILImage.new("RGB", (canvas_width, canvas_height), palette["canvas"])
-    draw = ImageDraw.Draw(canvas)
-
-    avatar_x = (canvas_width - avatar_w) // 2
-    avatar_y = start_y
-    canvas.paste(
-        avatar,
-        (avatar_x, avatar_y),
-        mask=avatar if avatar.mode == "RGBA" else None,
-    )
-
-    name_y = avatar_y + avatar_h + layout.spacing_avatar_name
-    name_x = (canvas_width - name_w) // 2
-    draw_bold_text(
-        draw,
-        (name_x, name_y),
-        pig_name,
-        name_font,
-        palette["title"],
-    )
-
-    desc_y = name_y + name_h + layout.spacing_name_desc
-    desc_x = (canvas_width - desc_w) // 2
-    draw.text(
-        (desc_x, desc_y),
-        pig_desc,
-        fill=palette["body"],
-        font=desc_font,
-    )
-
-    analysis_y = desc_y + desc_h + layout.spacing_desc_analysis
-    for line in analysis_lines:
-        line_w, _ = get_text_size(line, analysis_font)
-        line_x = (canvas_width - line_w) // 2
-        draw.text(
-            (line_x, analysis_y),
-            line,
-            fill=palette["secondary"],
-            font=analysis_font,
-        )
-        analysis_y += line_height
-
-    if badge_y is not None:
-        draw_ex_level_badge(
-            draw,
-            center_x=canvas_width // 2,
-            top=badge_y,
-            ex_level=ex_level,
-            palette=palette,
-            font_regular=font_regular,
-            layout=layout,
-        )
-    return canvas
 
 
 def render_animated_pig_card(
@@ -158,7 +52,7 @@ def render_animated_pig_card(
             getattr(PILImage, "ADAPTIVE", 1),
         )
         cards = [
-            _render_frame(
+            render_pig_card_frame(
                 avatar,
                 pig_name=pig_name,
                 pig_desc=pig_desc,

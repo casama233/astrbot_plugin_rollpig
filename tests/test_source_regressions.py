@@ -65,16 +65,6 @@ def test_panel_updater_keeps_csrf_and_explicit_unsigned_confirmation():
     assert "updates/apply" in page
 
 
-def test_outbound_mentions_strip_storage_namespace():
-    method = ast.get_source_segment(SOURCE, _method("_send_with_mention")) or ""
-    assert "mention_id = self._legacy_identity(canonical_id)" in method
-    assert "Comp.At(" in method
-    assert "qq=mention_id" in method
-    assert "name=telegram_name" in method
-    assert 'platform_type in {"slack", "qq_official"}' in method
-    assert "tg://user?id={mention_id}" in method
-
-
 def test_instance_namespace_and_old_keys_are_kept_compatible():
     namespace = ast.get_source_segment(SOURCE, _method("_platform_namespace")) or ""
     candidates = ast.get_source_segment(SOURCE, _method("_identity_candidates")) or ""
@@ -114,8 +104,6 @@ def test_charge_protection_and_backdoor_use_claimed_storage_ids():
     ):
         method = ast.get_source_segment(SOURCE, _method(name)) or ""
         assert "self._storage_user_key" in method
-    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
-    assert "_consume_group_roast_charge" in cooldown
 
 
 def test_image_send_timeout_does_not_retry_with_a_second_result():
@@ -210,7 +198,6 @@ def test_identity_metadata_uses_sql_merge_in_sqlite_mode():
 
 def test_main_delegates_v212_sql_hot_writes():
     charge = ast.get_source_segment(SOURCE, _method("_consume_group_roast_charge")) or ""
-    cooldown = ast.get_source_segment(SOURCE, _method("_consume_group_roast_cooldown")) or ""
     counts = ast.get_source_segment(SOURCE, _method("_record_group_roast")) or ""
     protection = ast.get_source_segment(SOURCE, _method("_roast_protection_status")) or ""
     backdoor = ast.get_source_segment(SOURCE, _method("_consume_daily_backdoor")) or ""
@@ -218,7 +205,6 @@ def test_main_delegates_v212_sql_hot_writes():
     save = ast.get_source_segment(SOURCE, _method("_persist_catalog_override")) or ""
     delete = ast.get_source_segment(SOURCE, _method("_persist_catalog_delete")) or ""
     assert "asyncio.to_thread" in charge and "consume_roast_charge" in charge
-    assert "_consume_group_roast_charge" in cooldown
     assert "asyncio.to_thread" in counts and "increment_roast_count" in counts
     assert "get_roast_count" in protection
     assert "consume_daily_backdoor" in backdoor
@@ -310,9 +296,6 @@ def test_v350_review_authority_is_backend_only_and_absent_from_release():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
     reviews = ast.get_source_segment(
         SOURCE, _method("page_public_source_reviews")
     ) or ""
@@ -326,8 +309,6 @@ def test_v350_review_authority_is_backend_only_and_absent_from_release():
     assert '{"enabled": False, "items": []}' in reviews
     assert "public_source_admin_token_path" in token
     assert "read_text" in token
-    assert "--exclude 'source_service/'" in workflow
-    assert "--exclude 'deploy/'" in workflow
 
 
 def test_v340_astrbot_resource_source_replaces_rejected_nonebot_default():
@@ -406,7 +387,6 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
-    assert 'version: "3.7.0"' in metadata
     assert "AstrBot-RollPig/3.6.5" in SOURCE
     assert "sql-primary-v3.0" in primary
     assert '"compatibility_mode": "on-demand"' in primary

@@ -11,6 +11,11 @@ from typing import Mapping
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 
+try:
+    from ..display_copy import strip_ex_level_labels
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from display_copy import strip_ex_level_labels
+
 from .common import (
     ImageResolver,
     draw_bold_text,
@@ -24,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 PIG_CARD_CACHE_MAX_ITEMS = 32
 PIG_CARD_CACHE_MAX_BYTES = 16 * 1024 * 1024
-_PIG_CARD_CACHE_VERSION = 3
+_PIG_CARD_CACHE_VERSION = 4
 _pig_card_cache: OrderedDict[tuple[object, ...], bytes] = OrderedDict()
 _pig_card_cache_bytes = 0
 _pig_card_cache_lock = threading.RLock()
@@ -218,61 +223,26 @@ def _write_temp_png(payload: bytes) -> Path:
         return Path(tmp.name)
 
 
-def render_pig_card(
-    pig_data: Mapping[str, object],
+def render_pig_card_frame(
+    avatar: PILImage.Image | None,
     *,
+    pig_name: str,
+    pig_desc: str,
+    pig_analysis: str,
+    ex_level: int | None,
     palette: Mapping[str, object],
     font_bold: ImageFont.FreeTypeFont,
     font_regular: ImageFont.FreeTypeFont,
-    image_resolver: ImageResolver,
-    layout: PigCardLayout | None = None,
-) -> Path | None:
-    """Render one pig card without knowing storage, AstrBot events or sync state."""
-    layout = layout or PigCardLayout()
-    pig_id = str(pig_data.get("id", "") or "")
-    pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
-    pig_desc = str(pig_data.get("description", "无描述") or "无描述")
-    pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
-    ex_level = max(0, int(pig_data.get("_ex_level", 0) or 0))
-    show_ex_badge = "_ex_level" in pig_data
-
-    avatar_path = image_resolver(pig_id, ex_level)
-    avatar_key, cacheable = _avatar_identity(avatar_path)
-    cache_key: tuple[object, ...] = (
-        _PIG_CARD_CACHE_VERSION,
-        pig_id,
-        pig_name,
-        pig_desc,
-        pig_analysis,
-        ex_level,
-        show_ex_badge,
-        layout,
-        _palette_identity(palette),
-        _font_identity(font_bold),
-        _font_identity(font_regular),
-        avatar_key,
-    )
-    cached = _get_cached_pig_card(cache_key) if cacheable else None
-    if cached is not None:
-        try:
-            output = _write_temp_png(cached)
-            logger.debug("复用已合成的小猪卡缓存：%s", output.absolute())
-            return output
-        except OSError as exc:
-            logger.warning("写入小猪卡缓存临时文件失败，将重新渲染：%s", exc)
-
+    layout: PigCardLayout,
+) -> PILImage.Image:
+    """Draw the same card body and EX footer for PNGs and every GIF frame."""
+    show_ex_badge = ex_level is not None
+    if show_ex_badge:
+        pig_desc = strip_ex_level_labels(pig_desc)
+        pig_analysis = strip_ex_level_labels(pig_analysis)
     canvas_width = layout.canvas_width
 
     avatar_w = avatar_h = layout.avatar_size
-    avatar = None
-    if avatar_path:
-        try:
-            avatar = fit_card_image(avatar_path, (avatar_w, avatar_h))
-        except Exception as exc:
-            logger.error("加载小猪图片失败：%s", exc)
-            avatar = None
-            cacheable = False
-
     name_font = font_bold
     name_w, name_h = get_text_size(pig_name, name_font)
 
@@ -376,6 +346,75 @@ def render_pig_card(
             font_regular=font_regular,
             layout=layout,
         )
+
+    return canvas
+
+
+def render_pig_card(
+    pig_data: Mapping[str, object],
+    *,
+    palette: Mapping[str, object],
+    font_bold: ImageFont.FreeTypeFont,
+    font_regular: ImageFont.FreeTypeFont,
+    image_resolver: ImageResolver,
+    layout: PigCardLayout | None = None,
+) -> Path | None:
+    """Render one pig card without knowing storage, AstrBot events or sync state."""
+    layout = layout or PigCardLayout()
+    pig_id = str(pig_data.get("id", "") or "")
+    pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
+    pig_desc = str(pig_data.get("description", "无描述") or "无描述")
+    pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
+    ex_level = max(0, int(pig_data.get("_ex_level", 0) or 0))
+    show_ex_badge = "_ex_level" in pig_data
+
+    avatar_path = image_resolver(pig_id, ex_level)
+    avatar_key, cacheable = _avatar_identity(avatar_path)
+    cache_key: tuple[object, ...] = (
+        _PIG_CARD_CACHE_VERSION,
+        pig_id,
+        pig_name,
+        pig_desc,
+        pig_analysis,
+        ex_level,
+        show_ex_badge,
+        layout,
+        _palette_identity(palette),
+        _font_identity(font_bold),
+        _font_identity(font_regular),
+        avatar_key,
+    )
+    cached = _get_cached_pig_card(cache_key) if cacheable else None
+    if cached is not None:
+        try:
+            output = _write_temp_png(cached)
+            logger.debug("复用已合成的小猪卡缓存：%s", output.absolute())
+            return output
+        except OSError as exc:
+            logger.warning("写入小猪卡缓存临时文件失败，将重新渲染：%s", exc)
+
+    avatar = None
+    if avatar_path:
+        try:
+            avatar = fit_card_image(
+                avatar_path, (layout.avatar_size, layout.avatar_size)
+            )
+        except Exception as exc:
+            logger.error("加载小猪图片失败：%s", exc)
+            avatar = None
+            cacheable = False
+
+    canvas = render_pig_card_frame(
+        avatar,
+        pig_name=pig_name,
+        pig_desc=pig_desc,
+        pig_analysis=pig_analysis,
+        ex_level=ex_level if show_ex_badge else None,
+        palette=palette,
+        font_bold=font_bold,
+        font_regular=font_regular,
+        layout=layout,
+    )
 
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:

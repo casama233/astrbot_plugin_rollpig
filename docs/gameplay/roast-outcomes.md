@@ -58,7 +58,7 @@ description: 成功、逃脫、反噬到底怎麼算；誰會被記一次被烤�
 
 這是前端展示，用 70/20/10 權重讓你直觀看結果分布；**它不調用插件、不讀 Charge，也不是 AstrBot 真實 RNG**。
 
-<div class="pig-roast-demo" data-roast-demo>
+<div class="pig-roast-demo" data-roast-demo markdown="0">
   <button type="button" class="pig-roast-button" data-roast-fire>🔥 點一下假烤架</button>
   <div class="pig-roast-screen" aria-live="polite">
     <span data-roast-glyph>🐷</span>

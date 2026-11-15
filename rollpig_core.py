@@ -1,10 +1,24 @@
-"""Small dependency-free helpers used by tests and future refactors."""
+"""Dependency-free rules and input normalizers shared by plugin features."""
 from __future__ import annotations
 
 import datetime
 import ipaddress
 import re
 from typing import Any, Mapping
+
+
+def parse_config_bool(value: object, default: bool) -> bool:
+    """Read a boolean setting while preserving its default for unknown values."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def legacy_identity(value: str) -> str:

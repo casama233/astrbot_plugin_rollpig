@@ -29,7 +29,7 @@ def test_legacy_catalog_reads_delegate_to_services():
 
     assert "self.catalog_service.merge_layers(" in _method_source("_reload_catalog_layers")
     assert "self.catalog_service.find(" in _method_source("_find_catalog_pig")
-    assert "self.catalog_service.ordered_for_collection(" in _method_source("_ordered_pigsty_pigs")
+    assert "self.catalog_service.ordered_for_collection(" in _method_source("render_pigsty_image")
     assert "self.resource_read_service.find_image(" in _method_source("find_image_file")
     assert "self.catalog_service.sample(" in _method_source("random_pigs")
     assert "self.catalog_service.search(" in _method_source("find_pigs")

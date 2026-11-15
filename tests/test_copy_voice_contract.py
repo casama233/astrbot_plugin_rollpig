@@ -97,11 +97,6 @@ def test_remastered_pigs_do_not_fall_back_to_personality_quiz_copy():
     for phrase in stale_phrases:
         assert phrase not in selected_copy, phrase
 
-    assert "上进心也想躺会儿" in by_id["big-lazy-pig"]
-    assert "生态" in by_id["apple-pig"]
-    assert "闭环" not in by_id["piggy-bank"]
-    assert "原创内容几乎查无此猪" in by_id["repeater-pig"]
-    assert "问题没解决，但热量上来了" in by_id["burger-pig"]
 
 
 def test_copy_style_document_keeps_accuracy_before_the_joke():

@@ -1,0 +1,2002 @@
+{
+  "schema_version": 1,
+  "authoring_method": "gemini-generated-explicit-copy",
+  "editorial_rewrites_by_codex": false,
+  "pigs": {
+    "abstract-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-0b60ddaba27c",
+      "format_repair": "one missing closing brace; generated strings unchanged",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "alien-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-0b60ddaba27c",
+      "format_repair": "one missing closing brace; generated strings unchanged",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "android-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-d76dfad6c7e2",
+      "generated_at": "2026-11-13T17:49:58.940102+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "antibacterial-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-0524d3e591a2",
+      "generated_at": "2026-11-13T17:49:14.225170+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "apple-of-eye-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-e86216555d2f",
+      "generated_at": "2026-11-13T17:49:21.433007+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "apple-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-c94ec082cf42",
+      "generated_at": "2026-11-13T17:48:56.852173+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "awakened-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-0524d3e591a2",
+      "generated_at": "2026-11-13T17:49:14.225434+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "bacon": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-e86216555d2f",
+      "generated_at": "2026-11-13T17:49:21.433179+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "bamboo-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-1e17ad44cf6e",
+      "generated_at": "2026-11-13T17:50:05.308729+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "bandage-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-d76dfad6c7e2",
+      "generated_at": "2026-11-13T17:49:58.940445+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "big-lazy-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-0524d3e591a2",
+      "generated_at": "2026-11-13T17:49:14.225612+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "black-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-c94ec082cf42",
+      "generated_at": "2026-11-13T17:48:56.852518+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "black-white-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-1e17ad44cf6e",
+      "generated_at": "2026-11-13T17:50:05.308854+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "buddha-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-f77c6386fefe",
+      "generated_at": "2026-11-13T17:50:31.706690+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "bull-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-a3e32325ab4f",
+      "generated_at": "2026-11-13T17:50:52.550254+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "burger-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-86b32e2769aa",
+      "generated_at": "2026-11-14T18:25:22.761832+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "cage-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-86b32e2769aa",
+      "generated_at": "2026-11-14T18:25:22.761947+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "cart-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-argon",
+      "strict_model": true,
+      "request_id": "chatcmpl-a3e32325ab4f",
+      "generated_at": "2026-11-13T17:50:52.550417+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "chained_crown_pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2a58218b7b02",
+      "generated_at": "2026-11-14T18:26:55.674154+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "char-siu": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2a58218b7b02",
+      "generated_at": "2026-11-14T18:26:55.674304+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "chef-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-43be7f62f4b0",
+      "generated_at": "2026-11-14T18:27:00.258637+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "chocolate-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2a58218b7b02",
+      "generated_at": "2026-11-14T18:26:55.674419+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "class-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-43be7f62f4b0",
+      "generated_at": "2026-11-14T18:27:00.258847+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "clean-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2a58218b7b02",
+      "generated_at": "2026-11-14T18:26:55.674625+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "coder-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.928872+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "coding-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8344253ea5cc",
+      "generated_at": "2026-11-14T18:27:59.324491+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "computer-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.929041+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "crystal-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8344253ea5cc",
+      "generated_at": "2026-11-14T18:27:59.324624+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "curator-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.929155+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "cyberpunk-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8344253ea5cc",
+      "generated_at": "2026-11-14T18:27:59.324738+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "delivery-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.929263+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "demon-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8344253ea5cc",
+      "generated_at": "2026-11-14T18:27:59.324856+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "dirty-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.929366+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "doll-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d33b51c5564d",
+      "generated_at": "2026-11-14T18:27:43.929467+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "doomsday-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8344253ea5cc",
+      "generated_at": "2026-11-14T18:27:59.325087+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "duel-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-feb613cf5e56",
+      "generated_at": "2026-11-14T18:28:26.572152+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "early-class-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-feb613cf5e56",
+      "generated_at": "2026-11-14T18:28:26.572386+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "elephant-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-aae22d3e278b",
+      "generated_at": "2026-11-14T18:28:38.382373+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "emoji-king-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-feb613cf5e56",
+      "generated_at": "2026-11-14T18:28:26.572600+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "error-404-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-aae22d3e278b",
+      "generated_at": "2026-11-14T18:28:38.382474+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "everest-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-714043d4c03a",
+      "generated_at": "2026-11-14T18:29:08.736823+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "explosive-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-19d74007c3df",
+      "generated_at": "2026-11-14T18:29:21.568225+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "fishing-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-714043d4c03a",
+      "generated_at": "2026-11-14T18:29:08.737096+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "flu-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-19d74007c3df",
+      "generated_at": "2026-11-14T18:29:21.568531+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "frozen-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-714043d4c03a",
+      "generated_at": "2026-11-14T18:29:08.737204+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "goblin-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-19d74007c3df",
+      "generated_at": "2026-11-14T18:29:21.568636+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "ground-impact-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-714043d4c03a",
+      "generated_at": "2026-11-14T18:29:08.737308+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "hanging-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-19d74007c3df",
+      "generated_at": "2026-11-14T18:29:21.568846+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "hannibal-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-64a42ada35d4",
+      "generated_at": "2026-11-14T18:29:50.626753+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "heaven-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-1676d10d8752",
+      "generated_at": "2026-11-14T18:30:02.359836+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "homebody-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-64a42ada35d4",
+      "generated_at": "2026-11-14T18:29:50.626884+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "human": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-64a42ada35d4",
+      "generated_at": "2026-11-14T18:29:50.627025+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "invisible_pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-1676d10d8752",
+      "generated_at": "2026-11-14T18:30:02.360111+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "jelly-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-64a42ada35d4",
+      "generated_at": "2026-11-14T18:29:50.627132+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "jewelry-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-1676d10d8752",
+      "generated_at": "2026-11-14T18:30:02.360219+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "juliet-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-1676d10d8752",
+      "generated_at": "2026-11-14T18:30:02.360321+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "katsu-rice-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-1676d10d8752",
+      "generated_at": "2026-11-14T18:30:02.360430+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "kiss-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cce0e6da8384",
+      "generated_at": "2026-11-14T18:30:31.731910+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "landmine-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cce0e6da8384",
+      "generated_at": "2026-11-14T18:30:31.732076+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "lao_zhu_li": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2371731fe25a",
+      "generated_at": "2026-11-14T18:30:53.323355+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "lard-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cce0e6da8384",
+      "generated_at": "2026-11-14T18:30:31.732193+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "leek-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2371731fe25a",
+      "generated_at": "2026-11-14T18:30:53.323478+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "lemon-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cce0e6da8384",
+      "generated_at": "2026-11-14T18:30:31.732315+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "little-red-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cce0e6da8384",
+      "generated_at": "2026-11-14T18:30:31.732419+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "magic-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-2371731fe25a",
+      "generated_at": "2026-11-14T18:30:53.323810+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "maid-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0daf077b0b90",
+      "generated_at": "2026-11-14T18:37:20.420879+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "mc-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8e86eb1dc451",
+      "generated_at": "2026-11-14T18:31:21.948243+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "mc_porkchop": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0daf077b0b90",
+      "generated_at": "2026-11-14T18:37:20.421054+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "mechanical-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0daf077b0b90",
+      "generated_at": "2026-11-14T18:37:20.421183+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "mini-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8e86eb1dc451",
+      "generated_at": "2026-11-14T18:31:21.948610+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "muscle-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0daf077b0b90",
+      "generated_at": "2026-11-14T18:37:20.421405+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "niuma-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0daf077b0b90",
+      "generated_at": "2026-11-14T18:37:20.421555+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "noob-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-42870e695f85",
+      "generated_at": "2026-11-14T18:32:00.707770+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "oreo-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-6a062a05920d",
+      "generated_at": "2026-11-14T18:38:06.499243+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "parking-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-6a062a05920d",
+      "generated_at": "2026-11-14T18:38:06.499505+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "party-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-42870e695f85",
+      "generated_at": "2026-11-14T18:32:00.708295+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pearl-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-6a062a05920d",
+      "generated_at": "2026-11-14T18:38:06.499616+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-42870e695f85",
+      "generated_at": "2026-11-14T18:32:00.708393+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-ball": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-6a062a05920d",
+      "generated_at": "2026-11-14T18:38:06.499731+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-bun": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cc4ed49d032c",
+      "generated_at": "2026-11-14T18:32:43.862117+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-cat": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-506940e7d00e",
+      "generated_at": "2026-11-14T18:38:51.939449+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-die": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-506940e7d00e",
+      "generated_at": "2026-11-14T18:38:51.939595+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-human": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cc4ed49d032c",
+      "generated_at": "2026-11-14T18:32:43.862463+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-rice": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-506940e7d00e",
+      "generated_at": "2026-11-14T18:38:51.939822+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-skin-milk": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cc4ed49d032c",
+      "generated_at": "2026-11-14T18:32:43.862687+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-souffle": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-506940e7d00e",
+      "generated_at": "2026-11-14T18:38:51.939989+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-stamp": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-cc4ed49d032c",
+      "generated_at": "2026-11-14T18:32:43.862785+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig-turtle": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-506940e7d00e",
+      "generated_at": "2026-11-14T18:38:51.940103+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pig_god": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-3889148c621a",
+      "generated_at": "2026-11-14T18:33:31.099463+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "piggy-bank": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-3889148c621a",
+      "generated_at": "2026-11-14T18:33:31.104497+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pigskin-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-5c9d185a14fd",
+      "generated_at": "2026-11-14T18:40:15.261852+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pigsleep": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-4c479f76bb6d",
+      "generated_at": "2026-11-14T18:34:18.230732+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "police-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-4c479f76bb6d",
+      "generated_at": "2026-11-14T18:34:18.230841+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pork-floss": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-5c9d185a14fd",
+      "generated_at": "2026-11-14T18:40:15.262086+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "pork-skewer": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874270+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "prison-break-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d78beef593f6",
+      "generated_at": "2026-11-14T18:40:58.548380+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "protagonist-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874442+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "rainbow-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874562+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "repeater-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d78beef593f6",
+      "generated_at": "2026-11-14T18:40:58.549808+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "roasted-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874673+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "room-check-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874801+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "salmon-sushi-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d78beef593f6",
+      "generated_at": "2026-11-14T18:40:58.550060+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "samurai-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-673b9b733244",
+      "generated_at": "2026-11-14T18:34:53.874907+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "screenshot-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d78beef593f6",
+      "generated_at": "2026-11-14T18:40:58.550172+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "shit-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0b1096809548",
+      "generated_at": "2026-11-14T18:35:36.162778+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "shopping-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-615fb34adc98",
+      "generated_at": "2026-11-14T18:41:42.306393+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "skeleton-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-615fb34adc98",
+      "generated_at": "2026-11-14T18:41:42.306516+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "smug-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-0b1096809548",
+      "generated_at": "2026-11-14T18:35:36.163314+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "snow-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-615fb34adc98",
+      "generated_at": "2026-11-14T18:41:42.306769+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "soul-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-615fb34adc98",
+      "generated_at": "2026-11-14T18:41:42.307324+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "soup-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8b3ac465cf61",
+      "generated_at": "2026-11-14T18:36:15.169420+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "spider-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-772bc4b3ad11",
+      "generated_at": "2026-11-14T18:42:30.921123+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "squint-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-772bc4b3ad11",
+      "generated_at": "2026-11-14T18:42:30.921289+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "streamer-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-772bc4b3ad11",
+      "generated_at": "2026-11-14T18:42:30.921549+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "stuck-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-772bc4b3ad11",
+      "generated_at": "2026-11-14T18:42:30.921673+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "study-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-8b3ac465cf61",
+      "generated_at": "2026-11-14T18:36:15.170077+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "suckling-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-772bc4b3ad11",
+      "generated_at": "2026-11-14T18:42:30.921877+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "taffy-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d6a10a82f8ba",
+      "generated_at": "2026-11-14T18:43:11.890351+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "tangyuan_pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d6a10a82f8ba",
+      "generated_at": "2026-11-14T18:43:11.890497+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "tank_pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-b9e1a9709e96",
+      "generated_at": "2026-11-14T18:36:51.737270+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "taxi-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d6a10a82f8ba",
+      "generated_at": "2026-11-14T18:43:11.890611+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "teammate-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-b9e1a9709e96",
+      "generated_at": "2026-11-14T18:36:51.737414+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "thief-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d6a10a82f8ba",
+      "generated_at": "2026-11-14T18:43:11.890721+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "tiramisu-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-b9e1a9709e96",
+      "generated_at": "2026-11-14T18:36:51.740424+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "trap-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-d6a10a82f8ba",
+      "generated_at": "2026-11-14T18:43:11.890826+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "tv-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-b9e1a9709e96",
+      "generated_at": "2026-11-14T18:36:51.740576+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "upper-class-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-a4a2eb8f44fd",
+      "generated_at": "2026-11-14T18:37:29.702637+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "vangogh_pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-69838bab5485",
+      "generated_at": "2026-11-14T18:43:56.572931+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "watermelon-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-a4a2eb8f44fd",
+      "generated_at": "2026-11-14T18:37:29.702883+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "wild-boar": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-a4a2eb8f44fd",
+      "generated_at": "2026-11-14T18:37:29.703013+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "world-ruler-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-69838bab5485",
+      "generated_at": "2026-11-14T18:43:56.573190+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "zhuge-liang": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-69838bab5485",
+      "generated_at": "2026-11-14T18:43:56.573312+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "zombie-pig": {
+      "provider": "gemini-web2api",
+      "model": "gemini-4-hydrogen",
+      "strict_model": true,
+      "request_id": "chatcmpl-a4a2eb8f44fd",
+      "generated_at": "2026-11-14T18:37:29.703234+00:00",
+      "levels": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    }
+  }
+}

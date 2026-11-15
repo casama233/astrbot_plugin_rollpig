@@ -58,7 +58,7 @@
 | --- | --- |
 | AstrBot | `>= 4.26.0` |
 | Python | `>= 3.10` |
-| Python 依賴 | `Pillow >= 10.0.0`、`httpx >= 0.27.0, < 1.0.0` |
+| Python 依賴 | 依 [`requirements.txt`](requirements.txt) 自動安裝 Pillow、httpx、OpenCC |
 | 插件身份 | `astrbot_plugin_rollpig_plus` |
 
 推薦直接在 AstrBot 插件管理介面搜尋 **「今日小豬 · 增強版」** 或 `astrbot_plugin_rollpig_plus`。
@@ -74,6 +74,8 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 
 > [!IMPORTANT]
 > v3.2.0 起增強版使用獨立程式、配置與資料命名空間。不要把新版直接塞進舊 `astrbot_plugin_rollpig` 目錄；舊版升級先看 [運維、身份遷移與恢復](docs/OPERATIONS.md)。
+
+基本功能使用隨包中文字體和離線資源，無需設定本機絕對路徑、Gemini 登入或私人源令牌。AI 附加功能與自訂豬源按需開啟。
 
 ### 第一次進豬圈
 
@@ -114,7 +116,7 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 ## 🔥 後廚規則，先記三句
 
 1. **Charge 決定你能不能點火。** 預設每人每群 2 格，`group_roast_cooldown_hours` 現在表示「每缺一格 Charge 的恢復時間」，不是整個人的單一冷卻。
-2. **70/20/10 決定點火後誰出事。** 60% 成功、30% 逃脫、10% 反噬；添柴不提高成功率。
+2. **70/20/10 決定點火後誰出事。** 70% 成功、20% 逃脫、10% 反噬；添柴不提高成功率。
 3. **`/添柴` 是上下文入口。** 補貨輪次進行中時裸 `/添柴` 支持補貨；`/添柴 @目標` 明確支持預約。沒有補貨且只有一張預約時，裸 `/添柴` 也會加入那張；多張就要求指定目標。
 
 舊 `/添煤` / `/加煤` / `/烤箱添煤` / `/烤箱添柴` 僅保留為補貨相容入口，不再作為玩家文檔主推命令。

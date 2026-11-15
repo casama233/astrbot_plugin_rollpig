@@ -9,13 +9,12 @@ import random
 import re
 import tempfile
 import time
-import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from astrbot.api import logger
-from astrbot.api.event import AstrMessageEvent, MessageChain, filter
+from astrbot.api.event import AstrMessageEvent, MessageChain
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageOps
 
@@ -49,8 +48,10 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
 
 try:
     from .daily_report_delivery import DailyReportDeliveryClaims
+    from .rollpig_core import parse_config_bool
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from daily_report_delivery import DailyReportDeliveryClaims
+    from rollpig_core import parse_config_bool
 
 
 class DailyReportMixin:
@@ -78,19 +79,6 @@ class DailyReportMixin:
     def __init__(self, context, config):
         super().__init__(context, config)
         self._init_daily_report_feature()
-
-    @staticmethod
-    def _report_bool(value: Any, default: bool) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return default
-        text = str(value).strip().lower()
-        if text in {"1", "true", "yes", "on"}:
-            return True
-        if text in {"0", "false", "no", "off"}:
-            return False
-        return default
 
     def _daily_report_group_manager(self, event: AstrMessageEvent, actor_id: str) -> bool:
         """Only AstrBot administrators may manage per-group automatic reports."""
@@ -122,10 +110,10 @@ class DailyReportMixin:
 
     def _init_daily_report_feature(self) -> None:
         config = self.config if isinstance(self.config, dict) or hasattr(self.config, "get") else {}
-        self.enable_daily_report = self._report_bool(
+        self.enable_daily_report = parse_config_bool(
             config.get("enable_daily_report", True), True
         )
-        self.daily_report_auto_send = self._report_bool(
+        self.daily_report_auto_send = parse_config_bool(
             config.get("daily_report_auto_send", True), True
         )
         hour, minute = parse_report_time(config.get("daily_report_send_time", "23:50"))
@@ -137,13 +125,13 @@ class DailyReportMixin:
         except (TypeError, ValueError):
             delay_minutes = 10
         self.daily_report_random_delay_minutes = min(60, max(0, delay_minutes))
-        self.daily_report_skip_empty_groups = self._report_bool(
+        self.daily_report_skip_empty_groups = parse_config_bool(
             config.get("daily_report_skip_empty_groups", True), True
         )
-        self.daily_report_random_eat_enabled = self._report_bool(
+        self.daily_report_random_eat_enabled = parse_config_bool(
             config.get("daily_report_random_eat_enabled", False), False
         )
-        self.daily_report_avatar_enabled = self._report_bool(
+        self.daily_report_avatar_enabled = parse_config_bool(
             config.get("daily_report_avatar_enabled", True), True
         )
         try:

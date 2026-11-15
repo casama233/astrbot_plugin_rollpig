@@ -48,8 +48,8 @@ at_view_pig = true
 
 普通群烤可能出現反噬。預設結果是：
 
-- 60% 成功
-- 30% 逃脫
+- 70% 成功
+- 20% 逃脫
 - 10% 反噬
 
 反噬時，如果主廚自己的今日小豬可料理，真正被烤的是主廚。
@@ -157,3 +157,7 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 先判斷是**玩法限制、配置關閉、資源問題，還是真正的 storage / runtime error**。再決定下一步，不要先刪資料。
 
 </div>
+
+## Discord 輸入 `/` 沒有選單
+
+先看 [Discord 原生指令排錯](discord.md)。文字指令和原生選單是兩條不同路徑；管理員要確認同步成功，而不是反覆重裝插件。

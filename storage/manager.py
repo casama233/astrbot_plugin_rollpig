@@ -391,7 +391,7 @@ class StorageManager:
             if not self.database_path.exists():
                 raise StorageMigrationError("尚未建立 SQLite 数据库")
             target = self._new_sqlite()
-            result = target.rebuild_projections(reason="manual")
+            target.rebuild_projections(reason="manual")
             verification = target.verify()
             if not verification.get("ok"):
                 raise StorageMigrationError("投影重建后仍未通过一致性验证")

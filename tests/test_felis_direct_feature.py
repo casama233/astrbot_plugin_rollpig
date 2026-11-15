@@ -196,3 +196,54 @@ class _FakeClient:
 
     async def __aexit__(self, *_args):
         return False
+
+
+def test_project_base_copy_survives_upstream_refresh_without_editing_cache(tmp_path):
+    feature = _feature(tmp_path)
+    feature.res_dir = tmp_path / "resource"
+    feature.res_dir.mkdir()
+    source = Path(__file__).parents[1] / "resource" / "felis_direct_ex_copy.json"
+    pack = json.loads(source.read_text())
+    pack["base_pigs"] = {
+        pig_id: {"description": "project description", "analysis": "project analysis"}
+        for pig_id in FELIS_DIRECT_IDS
+    }
+    (feature.res_dir / "felis_direct_ex_copy.json").write_text(json.dumps(pack))
+    records, _ = _write_complete_cache(feature)
+    cached_file = feature.felis_direct_active_dir / "pig.json"
+    before = cached_file.read_bytes()
+    displayed = feature._felis_display_pigs()
+    assert all(item["description"] == "project description" for item in displayed)
+    assert all(item["analysis"] == "project analysis" for item in displayed)
+    assert [(item["id"], item["name"]) for item in displayed] == [
+        (item["id"], item["name"]) for item in records
+    ]
+    assert cached_file.read_bytes() == before
+    records[0]["description"] = "new upstream description"
+    cached_file.write_text(json.dumps(records))
+    assert feature._felis_display_pigs()[0]["description"] == "project description"
+    assert feature._felis_direct_cached_pigs()[0]["description"] == "new upstream description"
+    (feature.felis_direct_active_dir / "images" / "awakened-pig.png").write_bytes(b"broken")
+    assert feature._felis_display_pigs() == []
+
+
+@pytest.mark.parametrize("invalid", ["incomplete", "image", "empty"])
+def test_invalid_project_base_copy_keeps_valid_upstream_cache(tmp_path, invalid):
+    feature = _feature(tmp_path)
+    feature.res_dir = tmp_path / "resource"
+    feature.res_dir.mkdir()
+    source = Path(__file__).parents[1] / "resource" / "felis_direct_ex_copy.json"
+    pack = json.loads(source.read_text())
+    pack["base_pigs"] = {
+        pig_id: {"description": "project description", "analysis": "project analysis"}
+        for pig_id in FELIS_DIRECT_IDS
+    }
+    if invalid == "incomplete":
+        pack["base_pigs"].pop("awakened-pig")
+    elif invalid == "image":
+        pack["base_pigs"]["awakened-pig"]["image"] = "other.png"
+    else:
+        pack["base_pigs"]["awakened-pig"]["analysis"] = " "
+    (feature.res_dir / "felis_direct_ex_copy.json").write_text(json.dumps(pack))
+    records, _ = _write_complete_cache(feature)
+    assert feature._felis_display_pigs() == records

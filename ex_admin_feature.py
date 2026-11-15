@@ -86,9 +86,6 @@ class ExAdminMixin:
             self._reload_local_ex_variants()
         return result
 
-    def _local_ex_payload(self) -> dict:
-        return serialize_ex_variants(self._local_ex_variants)
-
     def _reload_local_ex_variants(self) -> None:
         path = getattr(self, "local_ex_variants_path", None)
         image_root = getattr(self, "local_ex_variant_image_dir", None)

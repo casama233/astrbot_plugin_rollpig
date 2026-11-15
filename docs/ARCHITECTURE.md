@@ -11,6 +11,12 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 這是漸進式拆分的第一個硬邊界：**命令註冊屬於入口，玩法實作屬於 service/feature。** 後續可以安全地逐步搬走 `legacy_main.py` 內容，而不再改變 AstrBot 的 handler ownership。
 
+## 共用訊息發送
+
+`message_delivery.py` 合併發起者署名、一般目標點名、跨平台表示與文字分行。`MessageDeliveryMixin` 不繼承日報或玩法功能，透過 AstrBot event 的標準 result builder 建立訊息；`main.py` 另行接上 `DailyReportProfileMixin`，保留資料補齊的先後順序。
+
+所有點名出口使用同一規則，首條回覆依原生 ID 去重；只合併相鄰文字段，不跨越 At 或圖片移動正文。網路發送只嘗試一次，避免回執不確定時重複投遞。平台 SDK 與網路連線仍由 AstrBot 適配器負責。
+
 ## Catalog / resource read boundary
 
 第二階段把「有效圖鑑怎樣被讀取」從 `legacy_main.py` 的大型流程抽成兩個無 AstrBot 依賴的小服務：
@@ -83,6 +89,6 @@ v3.6.2 後不再依賴運行時修改 handler metadata。所有 `@filter.command
 
 第四階段把烤豬料理卡移入 `renderers/roast.py`，renderer 只接收小豬 view data、日期、字體、palette 與 image resolver；不讀 storage、不知道 AstrBot event，也不決定烤豬結果。
 
-普通 `/烤群友` 與預約烤豬的 **60/30/10** 結果選擇統一由 `RoastService.choose_group_roast_outcome()` 提供，後門仍固定成功。`DailyReportMixin` 不再複製整條 `_roast_group_target()`；它只透過 `_record_roast_outcome_event()` hook 觀察既有結算並寫入日報事件，因此資格、保護、冷卻、反噬與料理卡投遞只有一份正常流程。
+普通 `/烤群友` 與預約烤豬的 **70/20/10** 結果選擇統一由 `RoastService.choose_group_roast_outcome()` 提供，後門仍固定成功。`DailyReportMixin` 不再複製整條 `_roast_group_target()`；它只透過 `_record_roast_outcome_event()` hook 觀察既有結算並寫入日報事件，因此資格、保護、冷卻、反噬與料理卡投遞只有一份正常流程。
 
 這個 service 仍是純規則層：SQLite／JSON 寫入、冷卻消耗、實際被烤次數、消息投遞、預約一次性 resolved 與 Gameplay Event persistence 都留在 orchestration。這一階段**不新增烤箱次數／補貨玩法**；下一階段若導入 charge/refill，應替換 orchestration 的冷卻消耗策略，而不是再次複製 roast outcome 或 settlement。

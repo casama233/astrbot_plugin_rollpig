@@ -71,7 +71,7 @@ EX Lv. = max(0, 這隻豬的累計抽取次數 - 1)
 
 ## 這件事怎麼防止以後又退回模板？
 
-現在 CI 不只檢查「最後有沒有 EX」，而是先檢查**人工 authoring 集合**：
+現在 CI 不只檢查「最後有沒有 EX」，而是先檢查**明確 authoring 集合**：
 
 ```text
 handcrafted EX IDs == official pig IDs == 201

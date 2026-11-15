@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import re
 from typing import Any, Mapping
 
 try:
@@ -10,6 +11,22 @@ except ModuleNotFoundError:  # AstrBot smoke/bootstrap may import before plugin 
 
 
 _T2S = _OpenCC("t2s") if _OpenCC is not None else None
+
+_EX_LEVEL_LABEL = r"EX[ \t]*(?:Lv\.?[ \t]*)?\d+(?![A-Za-z0-9_])"
+_EX_LEVEL_PREFIX = re.compile(rf"^\s*{_EX_LEVEL_LABEL}[ \t]*(?:的[ \t]*)?", re.I)
+_EX_LEVEL_REFERENCE = re.compile(
+    rf"(?<![A-Za-z0-9_])[ \t]*{_EX_LEVEL_LABEL}[ \t]*", re.I
+)
+
+
+def strip_ex_level_labels(text: str) -> str:
+    """Keep EX levels in the card footer without changing stored author copy.
+
+    Cloud copy often starts with 'EX1 的…'; a few stories mention the stage
+    inside a sentence. Keep those sentences readable with a neutral reference.
+    Call only for a card that has its own EX badge, never for a prediction.
+    """
+    return _EX_LEVEL_REFERENCE.sub("这个阶段", _EX_LEVEL_PREFIX.sub("", text))
 
 
 @lru_cache(maxsize=8192)

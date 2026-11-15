@@ -36,13 +36,13 @@ https://github.com/casama233/astrbot_plugin_rollpig
 
 ## 本專案的體積策略
 
-v3.2.0 的 Release ZIP 曾超過 16 MB。現行 workflow 採用以下市場分發策略：
+v3.2.0 的 Release ZIP 曾超過 16 MB。現行市場與 Release workflow 共用 `scripts/prepare_install_bundle.py --source`，採用以下市場分發策略：
 
 - 不打包測試、開發配置、Node 測試依賴與 runtime `plugin_data`；README 導航所需的 `docs/` 隨包保留。
 - `scripts/prepare_install_bundle.py` 把完整 authoring catalog 裁成固定 **22 項**、資料與圖片一一對應的離線 bootstrap；首次啟動後再由受驗證公共源擴充。
 - 市場與 Release 包保留目前 renderer 優先使用的 `resource/font/荆南麦圆体.otf` 及其 OFL notice，只排除不再使用的 `HanyiYongZiXiaoXiongMaoFan.ttf`。
 - Release workflow 在上傳前檢查 ZIP 大小，超過 **16,000,000 bytes** 直接失敗；PR workflow 使用同一上限。
-- v3.12.0 本機依正式流程產生的驗證包約 **6.0 MB**，保留 `metadata.yaml`、`main.py`、`requirements.txt`、唯一 `pig-manager` Plugin Page、22 項離線資源與中文 renderer 字體。
+- 既有正式流程的安裝包約 **6 MB**，保留 `metadata.yaml`、`main.py`、`requirements.txt`、唯一 `pig-manager` Plugin Page、22 項離線資源與中文 renderer 字體。
 
 AI 烤豬文案功能預設為關閉；主要抽豬、圖鑑、群友互動、資源同步與管理面板在離線 bootstrap 狀態即可載入，公共源不可用時不會阻止插件啟動。
 

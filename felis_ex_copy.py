@@ -5,9 +5,9 @@ from collections.abc import Iterable
 from pathlib import Path
 
 try:
-    from .ex_variants import validate_ex_variants
+    from .ex_variants import validate_handwritten_ex_copy
 except ImportError:  # pragma: no cover - direct module loading compatibility
-    from ex_variants import validate_ex_variants
+    from ex_variants import validate_handwritten_ex_copy
 
 
 FELIS_DIRECT_EX_COPY_FILENAME = "felis_direct_ex_copy.json"
@@ -15,68 +15,30 @@ FELIS_DIRECT_EX_COPY_SCOPE = "felis-direct-text-only"
 FELIS_DIRECT_EX_COPY_SCHEMA_VERSION = 3
 FELIS_DIRECT_EX_COPY_AUTHORING_MODE = "explicit-ex1-ex5"
 _EXPLICIT_SPEC_FIELDS = {"levels"}
-_REQUIRED_LEVELS = {"1", "2", "3", "4", "5"}
-_REQUIRED_COPY_FIELDS = {"description", "analysis"}
 
 
-def _normalize_explicit_levels(
-    pig_id: str,
-    raw_levels: object,
-) -> dict[str, dict[str, str]]:
-    if not isinstance(raw_levels, dict) or set(map(str, raw_levels)) != _REQUIRED_LEVELS:
-        raise ValueError(f"{pig_id} 的 Felis EX 手写文案必须完整提供 EX1-EX5")
-
-    levels: dict[str, dict[str, str]] = {}
-    for raw_level, raw_item in raw_levels.items():
-        level = str(raw_level)
-        if not isinstance(raw_item, dict) or set(raw_item) != _REQUIRED_COPY_FIELDS:
-            raise ValueError(f"{pig_id} EX{level} 的手写文案字段不完整")
-        values = {
-            key: str(raw_item.get(key) or "").strip()
-            for key in _REQUIRED_COPY_FIELDS
-        }
-        if not all(values.values()):
-            raise ValueError(f"{pig_id} EX{level} 的手写文案存在空字段")
-        levels[level] = values
-    return levels
-
-
-def _expand_spec_copy(raw_specs: dict[str, object]) -> dict[str, object]:
-    """Normalize the all-explicit Felis EX authoring document.
+def _read_explicit_specs(raw_specs: dict[str, object]) -> dict[str, object]:
+    """Read explicit Felis level specs for the shared handwriting validator.
 
     Legacy ``name/theme/progress/lesson`` semantic seeds are intentionally no
     longer accepted. Every allowlisted pig must carry five reviewable, explicit
     description/analysis pairs in the repository.
     """
 
-    pigs: dict[str, dict[str, dict[str, str]]] = {}
+    pigs: dict[str, object] = {}
     for raw_pig_id, raw_spec in raw_specs.items():
         pig_id = str(raw_pig_id or "").strip()
         if not isinstance(raw_spec, dict) or set(raw_spec) != _EXPLICIT_SPEC_FIELDS:
             raise ValueError(f"{pig_id} 的 Felis EX 手写规格字段不完整")
-        pigs[pig_id] = _normalize_explicit_levels(pig_id, raw_spec.get("levels"))
+        pigs[pig_id] = raw_spec.get("levels")
 
-    return {"schema_version": 1, "pigs": pigs}
+    return pigs
 
 
-def load_felis_direct_ex_copy(
-    resource_dir: Path,
-    pig_ids: Iterable[str],
-    allowed_ids: Iterable[str],
-    *,
-    image_extensions: set[str] | tuple[str, ...],
-) -> dict[str, dict[int, dict[str, str]]]:
-    """Load repository-owned EX1-EX5 text for the Felis direct allowlist.
-
-    Schema v3 requires explicit per-level copy for every allowlisted ID. The
-    runtime no longer expands semantic seeds, so generic templates cannot hide a
-    missing handwritten review. Felis upstream EX text and EX images remain out
-    of scope.
-    """
-
+def _load_felis_copy_payload(resource_dir: Path, allowed_ids: Iterable[str]) -> dict | None:
     path = Path(resource_dir) / FELIS_DIRECT_EX_COPY_FILENAME
     if not path.is_file():
-        return {}
+        return None
 
     payload = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, dict):
@@ -130,20 +92,49 @@ def load_felis_direct_ex_copy(
             detail.append("多出：" + ", ".join(extras))
         raise ValueError("Felis EX 手写文案规格必须完整覆盖 allowlist；" + "；".join(detail))
 
-    variants = validate_ex_variants(
-        _expand_spec_copy(raw_specs),
+    return payload
+
+
+def load_felis_direct_base_copy(
+    resource_dir: Path, allowed_ids: Iterable[str]
+) -> dict[str, dict[str, str]]:
+    """Read optional project-owned base text without changing upstream cache."""
+    allowlist = set(allowed_ids)
+    payload = _load_felis_copy_payload(resource_dir, allowlist)
+    if payload is None or "base_pigs" not in payload:
+        return {}
+    base = payload["base_pigs"]
+    if not isinstance(base, dict) or set(base) != allowlist:
+        raise ValueError("Felis 基础文案必须完整覆盖 allowlist")
+    for pig_id, copy in base.items():
+        if not isinstance(copy, dict) or set(copy) != {"description", "analysis"}:
+            raise ValueError(f"{pig_id} 的 Felis 基础文案只能包含 description/analysis")
+        for field, limit in (("description", 80), ("analysis", 500)):
+            value = copy[field]
+            if not isinstance(value, str) or not value.strip() or len(value) > limit:
+                raise ValueError(f"{pig_id} 的 Felis 基础文案 {field} 无效")
+    return base
+
+
+def load_felis_direct_ex_copy(
+    resource_dir: Path,
+    pig_ids: Iterable[str],
+    allowed_ids: Iterable[str],
+    *,
+    image_extensions: set[str] | tuple[str, ...],
+) -> dict[str, dict[int, dict[str, str]]]:
+    """Load explicit, project-owned EX1–EX5 text for the direct allowlist."""
+    allowlist = set(allowed_ids)
+    payload = _load_felis_copy_payload(resource_dir, allowlist)
+    if payload is None:
+        return {}
+    raw_specs = payload["pigs"]
+    variants = validate_handwritten_ex_copy(
+        _read_explicit_specs(raw_specs),
         allowlist,
+        source="Felis EX",
         image_extensions=image_extensions,
     )
-    for pig_id, levels in variants.items():
-        if set(levels) != {1, 2, 3, 4, 5}:
-            raise ValueError(f"{pig_id} 必须完整提供 EX1-EX5 文案")
-        if any("image" in item for item in levels.values()):
-            raise ValueError(f"{pig_id} 的 Felis EX 手写层不得包含 image")
-        if len({item["description"] for item in levels.values()}) != 5:
-            raise ValueError(f"{pig_id} EX1-EX5 description 必须逐级不同")
-        if len({item["analysis"] for item in levels.values()}) != 5:
-            raise ValueError(f"{pig_id} EX1-EX5 analysis 必须逐级不同")
 
     active_ids = {str(item) for item in pig_ids if str(item)}
     return {pig_id: levels for pig_id, levels in variants.items() if pig_id in active_ids}
