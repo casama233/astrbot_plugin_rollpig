@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import ast
 import datetime
+from pathlib import Path
+from types import SimpleNamespace
 import random
 
 import pytest
@@ -190,3 +193,79 @@ def test_choose_duplicate_falls_back_when_player_has_no_active_unlocks():
         [{"id": "new", "name": "New"}],
         {"pigs": {}},
     ) is None
+
+
+def test_sqlite_calendar_bonus_uses_draws_written_after_startup(tmp_path):
+    from storage import StorageManager
+
+    storage = StorageManager(tmp_path, mode='auto').backend
+    owned = {'id': 'owned', 'name': 'Owned'}
+    unseen = {'id': 'unseen', 'name': 'Unseen'}
+    storage.create_daily_draw(draw_date='2026-11-14', user_id='u', pig=owned)
+    startup_history = storage.load_runtime_snapshot()['history']
+    storage.create_daily_draw(draw_date='2026-11-15', user_id='u', pig=owned)
+    source = (Path(__file__).resolve().parents[1] / 'legacy_main.py').read_text()
+    tree = ast.parse(source)
+    owner = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'RollPigPlugin')
+    method = next(n for n in owner.body if isinstance(n, ast.FunctionDef) and n.name == '_choose_daily_pig')
+    namespace = {'consecutive_duplicate_day_streak': consecutive_duplicate_day_streak}
+    exec(compile(ast.Module(body=[method], type_ignores=[]), '<actual daily chooser>', 'exec'), namespace)
+    service = DrawService()
+    rng = StubRng(owned, 0.17)
+    chooser = SimpleNamespace(
+        storage=storage, history=startup_history, pig_list=[owned, unseen],
+        draw_service=SimpleNamespace(choose=lambda pigs, context: service.choose(pigs, context, rng=rng)),
+        _get_user_collection=lambda user: storage.get_user_collection((user,)),
+        _storage_user_key=lambda user: user,
+        _user_read_candidates=lambda user: (user,),
+        _today=lambda: datetime.date(2026, 11, 16),
+    )
+    assert namespace['_choose_daily_pig'](chooser, 'u')['id'] == 'unseen'
+    assert storage.health()['documents'] == 0
+    assert set(startup_history['daily']) == {'2026-11-14'}
+
+
+@pytest.mark.parametrize(('today', 'eaten', 'last_pig', 'expected'), [
+    ('2026-11-16', False, 'owned', 1),
+    ('2026-11-17', False, 'owned', 0),
+    ('2026-11-16', False, 'unseen', 0),
+    ('2026-11-16', True, 'owned', 1),
+])
+def test_sqlite_calendar_streak_preserves_gaps_unlocks_and_eaten(tmp_path, today, eaten, last_pig, expected):
+    from storage import StorageManager
+
+    storage = StorageManager(tmp_path, mode='auto').backend
+    storage.create_daily_draw(draw_date='2026-11-14', user_id='u', pig={'id': 'owned'})
+    storage.create_daily_draw(draw_date='2026-11-15', user_id='u', pig={'id': last_pig})
+    if eaten:
+        storage.replace_daily_pig_with_eaten(
+            draw_date='2026-11-15', due_date='2026-11-16', cutoff_date='2026-11-01',
+            user_id='u', group_id='g', actor_id='chef', outcome='eat_success',
+            eaten_pig={'id': 'eaten', 'name': 'Eaten'},
+        )
+    history = storage.load_runtime_snapshot()['history']
+    collection = storage.get_user_collection(('u',))
+    assert consecutive_duplicate_day_streak(history, collection, 'u', datetime.date.fromisoformat(today)) == expected
+    assert storage.get_daily_duplicate_streak(today, ('u',)) == expected
+    assert storage.health()['documents'] == 0
+
+
+def test_sqlite_calendar_streak_merges_only_supplied_ownership_fragments(tmp_path):
+    from storage import StorageManager
+
+    storage = StorageManager(tmp_path, mode='auto').backend
+    storage.create_daily_draw(draw_date='2026-11-14', user_id='legacy', pig={'id': 'owned'})
+    storage.create_daily_draw(draw_date='2026-11-15', user_id='current', pig={'id': 'owned'})
+    assert storage.get_daily_duplicate_streak('2026-11-16', ('current',)) == 0
+    assert storage.get_daily_duplicate_streak('2026-11-16', ('current', 'legacy')) == 1
+
+
+def test_sqlite_calendar_streak_counts_a_day_once_in_identity_priority_order(tmp_path):
+    from storage import StorageManager
+
+    storage = StorageManager(tmp_path, mode='auto').backend
+    storage.create_daily_draw(draw_date='2026-11-14', user_id='legacy', pig={'id': 'owned'})
+    storage.create_daily_draw(draw_date='2026-11-15', user_id='legacy', pig={'id': 'owned'})
+    storage.create_daily_draw(draw_date='2026-11-15', user_id='current', pig={'id': 'unseen'})
+    assert storage.get_daily_duplicate_streak('2026-11-16', ('current', 'legacy')) == 0
+    assert storage.get_daily_duplicate_streak('2026-11-16', ('legacy', 'current')) == 1

@@ -44,6 +44,8 @@
 
 ## 結算
 
+預約烤豬在結算時遵循與普通烤豬相同的目標合法性規則。當預約觸發並抽到人類、已烤或已被吃掉等禁烤目標時，該次預約仍會被視為已執行並直接結清一次，但不會計入玩家的成功烤豬次數，也不會發放任何卡片；預約時已扣除的 Charge 維持原狀，系統不會觸發額外的退款規則。
+
 建立預約時已經支付普通群烤所需的 Charge，因此觸發時**不會再扣第二次**。結果沿用普通烤群友：
 
 - 70%：成功，目標今日小豬上桌；
@@ -67,7 +69,7 @@
 - `roast_reservation_created`
 - `roast_reservation_joined`
 - `roast_reservation_triggered`
-- 最終仍寫既有 `roast_success` / `roast_escape` / `roast_backlash`
+- 僅有符合資格的目標會進入既有的 70/20/10 結算流程並寫入 `roast_success` / `roast_escape` / `roast_backlash` 事件；若抽到禁烤目標，則僅記錄 `roast_reservation_triggered` 且標記 `outcome=blocked`，不會發送成功、逃脫或反噬事件。
 
 因此現有豬圈日報的燒烤、逃脫、反噬和稱號統計能自然納入預約結算，不需要另外維護一套日報統計。
 

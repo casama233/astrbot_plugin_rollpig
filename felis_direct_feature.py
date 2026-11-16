@@ -32,8 +32,10 @@ except ImportError:  # pragma: no cover - standalone unit tests
 
 try:
     from .felis_ex_copy import load_felis_direct_base_copy
+    from .services.resource_staging import promote_resource_staging
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from felis_ex_copy import load_felis_direct_base_copy
+    from services.resource_staging import promote_resource_staging
 
 
 FELIS_DIRECT_MANIFEST_URL = (
@@ -361,18 +363,9 @@ class FelisDirectFeature:
                         selected["images"].append({"id": pig_id, "path": str(meta.get("path") or ""), "filename": canonical, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()})
                     (staging / "manifest.json").write_text(json.dumps(selected, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                     (staging / "NOTICE.md").write_text(f"来源：{self.FELIS_DIRECT_REPOSITORY_URL}\n资源协议：{self.FELIS_DIRECT_LICENSE_URL}\n\n{self.FELIS_DIRECT_NOTICE}\n版本：{version}\n", encoding="utf-8")
-                    previous = self.felis_direct_root / "previous"
-                    if previous.exists():
-                        shutil.rmtree(previous)
-                    moved_old = self.felis_direct_active_dir.exists()
-                    if moved_old:
-                        self.felis_direct_active_dir.rename(previous)
-                    try:
-                        staging.rename(self.felis_direct_active_dir)
-                    except Exception:
-                        if moved_old and previous.exists() and not self.felis_direct_active_dir.exists():
-                            previous.rename(self.felis_direct_active_dir)
-                        raise
+                    promote_resource_staging(
+                        staging, self.felis_direct_active_dir, self.felis_direct_root / "previous"
+                    )
                     now = int(time.time())
                     self._felis_direct_atomic_json(self.felis_direct_state_path, {"resource_version": version, "synced_at": now, "source": self.felis_direct_manifest_url, "allowlisted_ids": sorted(self.FELIS_DIRECT_IDS)})
                     self._felis_direct_atomic_json(self.felis_direct_status_path, {"last_success_at": now, "last_error": "", "source": self.FELIS_DIRECT_SOURCE})

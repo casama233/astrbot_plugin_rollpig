@@ -109,6 +109,11 @@ class StorageBackend(ABC):
     ) -> dict[str, Any] | None:
         return None
 
+    def get_daily_duplicate_streak(
+        self, before_date: str, user_candidates: tuple[str, ...]
+    ) -> int:
+        raise NotImplementedError
+
     def get_group_members(self, draw_date: str, group_id: str) -> list[str] | None:
         return None
 

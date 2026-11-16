@@ -64,7 +64,7 @@ async def stage_resource_images(
             package_total += len(data)
             if package_total > max_package_size:
                 raise ValueError("云资源包总大小超过 128 MiB")
-        return filename, data
+        return f"{Path(filename).stem}{Path(filename).suffix.lower()}", data
 
     async def fetch_variant_image(meta):
         nonlocal package_total

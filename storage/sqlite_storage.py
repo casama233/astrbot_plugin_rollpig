@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import datetime
 import hashlib
 import json
 import sqlite3
@@ -1475,6 +1476,49 @@ class SQLiteStorage(StorageBackend):
                         "original_pig_id": str(row["original_pig_id"]),
                     }
         return None
+
+    def get_daily_duplicate_streak(
+        self, before_date: str, user_candidates: tuple[str, ...]
+    ) -> int:
+        candidates = self._candidate_tuple(user_candidates)
+        if not candidates:
+            return 0
+        cursor = datetime.date.fromisoformat(before_date) - datetime.timedelta(days=1)
+        streak = 0
+        with self._lock, self._connection() as connection:
+            placeholders = ",".join("?" for _ in candidates)
+            first_unlocks = {
+                str(row["pig_id"]): str(row["first_unlocked"] or "")
+                for row in connection.execute(
+                    "SELECT pig_id, MIN(NULLIF(first_unlocked, '')) AS first_unlocked "
+                    f"FROM user_pigs WHERE user_id IN ({placeholders}) GROUP BY pig_id",
+                    candidates,
+                )
+            }
+            while True:
+                row = None
+                for user_id in candidates:
+                    row = connection.execute(
+                        "SELECT pig_id, original_pig_id FROM daily_draws "
+                        "WHERE draw_date = ? AND user_id = ?",
+                        (cursor.isoformat(), user_id),
+                    ).fetchone()
+                    if row is not None:
+                        break
+                if row is None:
+                    break
+                pig_id = str(row["pig_id"])
+                if pig_id == "eaten":
+                    pig_id = str(row["original_pig_id"] or "")
+                try:
+                    first_unlocked = datetime.date.fromisoformat(first_unlocks.get(pig_id, ""))
+                except ValueError:
+                    break
+                if first_unlocked >= cursor:
+                    break
+                streak += 1
+                cursor -= datetime.timedelta(days=1)
+        return streak
 
     def get_group_members(self, draw_date: str, group_id: str) -> list[str] | None:
         with self._lock, self._connection() as connection:
