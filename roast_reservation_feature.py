@@ -289,7 +289,7 @@ class RoastReservationMixin:
         self,
         event,
         reservation: dict[str, Any],
-        target_pig: dict,
+        target_pig: dict | None,
         *,
         group_id: str,
         target_id: str,
@@ -318,6 +318,12 @@ class RoastReservationMixin:
                 draw_date=draw_date,
                 event_id=f"roast-reservation-trigger:{draw_date}:{group_id}:{target_id}",
             )
+
+        if outcome == "blocked":
+            await event.send(event.plain_result(
+                self._roast_block_reason(target_pig, subject="target")
+            ))
+            return
 
         await self._send_with_mention(
             event,
@@ -399,7 +405,8 @@ class RoastReservationMixin:
         target_id = str(user_id)
         if not group_id or sender_id != target_id:
             return
-        draw_date = self._today().isoformat()
+        today = self._today()
+        draw_date = today.isoformat()
 
         # The pending check must happen while holding the same lock used by
         # reservation creation. Otherwise a draw can observe "no reservation"
@@ -410,7 +417,9 @@ class RoastReservationMixin:
             )
             if not pending:
                 return
-            outcome = self.roast_service.choose_group_roast_outcome()
+            target_pig = self._get_daily_pig(target_id, today)
+            blocked = self._roast_block_reason(target_pig, subject="target")
+            outcome = "blocked" if blocked else self.roast_service.choose_group_roast_outcome()
             with self._data_lock:
                 resolved = resolve_reservation(
                     self.roast_reservation_state,
@@ -427,7 +436,7 @@ class RoastReservationMixin:
             await self._settle_roast_reservation(
                 event,
                 resolved,
-                pig_data,
+                target_pig,
                 group_id=group_id,
                 target_id=target_id,
                 draw_date=draw_date,
