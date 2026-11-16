@@ -33,7 +33,7 @@
 > 詳細項目沿革、MIT 署名、代碼／功能設計／圖片與文案的不同授權邊界，以及目前審計範圍見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。在來源審計完成前，無法確認再分發權的第三方圖片、文案或資源不應被視為本項目原創或可自由再分發。
 
 > [!NOTE]
-> **它還是那個 `/今日小豬`。只是現在抽完不一定就完了。** 你的豬會留下豬籍、重複返場、長 EX；群友可以預約烤你、往鍋裡添柴、把 Roast Charge 燒光，再全群一起把烤箱救回來。晚上還有人負責把事故寫進《豬圈日報》。
+> **它还是那个 `/今日小豬`，只是现在抽完还没完。** 你的猪会留下猪籍、反复返场、长 EX；群友能预约烤你、往锅里添柴、把 Roast Charge 烧光，再全群合力把烤箱救回来。夜里还有人负责把事故记进《猪圈日报》。
 
 ## 🐷 現在這隻豬會什麼？
 
@@ -100,40 +100,40 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 
 ## 📚 永久豬籍不是臨時相簿
 
-`/我的豬圈` 看的是玩家歷史上真正擁有過什麼，而不是「目前豬源有哪些」。圖鑑會把現役已解鎖與仍有歷史所有權的退役小豬放在同一套 read model 裡；管理員明確 tombstone 的內容仍會尊重屏蔽。
+`/我的豬圈` 认的是玩家历史上真正养过哪些猪，而不是「当前猪圈里还有啥」。图鉴会把现役已解锁和仍有历史记录的退役小猪放在同一套 read model 里；管理员明确 tombstone 的内容仍会老实屏蔽。
 
-圖鑑卡面也會直接告訴你：
+图鉴卡面还会直接告诉你：
 
-- 現役入圈進度；
-- 老豬留檔數量；
-- 最常返場的小豬；
+- 现役入圈进度；
+- 老猪留档数量；
+- 最常返场的小猪；
 - 最高 EX；
-- 每隻豬的返場次數；
-- 哪些還沒拱進你家。
+- 每只猪的返场次数；
+- 哪些还没拱进你家。
 
-保底怎麼算看 [永久圖鑑與新豬保底](docs/gameplay/collection-pity.md)，EX 怎麼長看 [EX 成長](docs/gameplay/ex-growth.md)。
+保底怎么算看 [永久圖鑑與新豬保底](docs/gameplay/collection-pity.md)，EX 怎么长看 [EX 成長](docs/gameplay/ex-growth.md)。
 
 ## 🔥 後廚規則，先記三句
 
-1. **Charge 決定你能不能點火。** 預設每人每群 2 格，`group_roast_cooldown_hours` 現在表示「每缺一格 Charge 的恢復時間」，不是整個人的單一冷卻。
-2. **70/20/10 決定點火後誰出事。** 70% 成功、20% 逃脫、10% 反噬；添柴不提高成功率。
-3. **`/添柴` 是上下文入口。** 補貨輪次進行中時裸 `/添柴` 支持補貨；`/添柴 @目標` 明確支持預約。沒有補貨且只有一張預約時，裸 `/添柴` 也會加入那張；多張就要求指定目標。
+1. **Charge 决定你能不能点火。** 默认每人每群 2 格，`group_roast_cooldown_hours` 现在表示「每缺一格 Charge 的恢复时间」，不是整个人的单一冷却。
+2. **70/20/10 决定点火后谁倒霉。** 70% 成功、20% 逃脱、10% 反噬；添柴不会提高成功率。
+3. **`/添柴` 是上下文入口。** 补货轮次进行中时裸 `/添柴` 支持补货；`/添柴 @目標` 明确支持预约。没有补货且只有一张预约时，裸 `/添柴` 也会跟进那张；多张就得指定目标。
 
-舊 `/添煤` / `/加煤` / `/烤箱添煤` / `/烤箱添柴` 僅保留為補貨相容入口，不再作為玩家文檔主推命令。
+旧 `/添煤` / `/加煤` / `/烤箱添煤` / `/烤箱添柴` 仅保留为补货兼容入口，不再作为玩家文档主推命令。
 
-精確規則見 [Roast Charge](docs/gameplay/roast-charge.md)、[70/20/10](docs/gameplay/roast-outcomes.md) 與 [預約烤豬技術規則](docs/ROAST-RESERVATIONS.md)。
+精确规则见 [Roast Charge](docs/gameplay/roast-charge.md)、[70/20/10](docs/gameplay/roast-outcomes.md) 与 [預約烤豬技術規則](docs/ROAST-RESERVATIONS.md)。
 
 ## 📰 豬圈日報
 
-手動 `/豬圈日報` 只讀。自動日報有全局 master switch，但每個群仍要自己 opt-in；沒有顯式開啟的群不會因為「曾經有人養過豬」就突然收到晚報。
+手动 `/豬圈日報` 只读。自动日报有全局 master switch，但每个群仍要自己 opt-in；没显式开启的群不会因为「曾经有人养过猪」就半夜突然收到晚报。
 
-可選「今日祭品」預設關閉，而且只可能在自動日報流程觸發；手動翻報紙不會吃人。
+可选「今日祭品」默认关闭，而且只可能在自动日报流程触发；手动翻报纸不会吃人。
 
-詳見 [豬圈日報玩家頁](docs/gameplay/daily-report.md) 與 [日報技術規則](docs/DAILY-REPORT.md)。
+详见 [豬圈日報玩家頁](docs/gameplay/daily-report.md) 与 [日報技術規則](docs/DAILY-REPORT.md)。
 
 ## ⚙️ 管理面板
 
-AstrBot 插件頁內的 RollPig 工作台包含：
+AstrBot 插件页内的 RollPig 工作台包含：
 
 | 工作區 | 主要能力 |
 | --- | --- |
@@ -146,11 +146,11 @@ AstrBot 插件頁內的 RollPig 工作台包含：
 | 數據存儲 | SQLite 驗證、JSON 匯出、派生狀態修復與安全回退 |
 | 插件更新 | 只接受本倉庫穩定 Release，下載校驗、備份後替換 |
 
-管理寫操作仍走 AstrBot Plugin Page 認證橋接、同源與 CSRF 邊界；文案可以豬言豬語，權限不能跟著胡鬧。
+管理写操作仍走 AstrBot Plugin Page 认证桥接、同源与 CSRF 边界；文案可以猪言猪语，权限不能跟着胡闹。
 
 ## ☁️ 資源與同步
 
-小豬圖鑑採明確分層：
+小猪图鉴采用明确分层：
 
 ```text
 內置／AstrBot v1／私人 manifest 基礎層
@@ -162,44 +162,44 @@ AstrBot 插件頁內的 RollPig 工作台包含：
            最終可抽取圖鑑
 ```
 
-同步只替換基礎層，不應吞掉管理員的本地創作。預設 AstrBot 專用 manifest 為：
+同步只替换基础层，不会吞掉管理员的本地创作。默认 AstrBot 专用 manifest 为：
 
 ```text
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-普通瀏覽器或不相容客戶端可能收到 403；這是協議相容性閘門，不等於不可偽造的秘密認證。真正封閉的私人源應使用你自己的 Token / mTLS 等邊界。
+普通浏览器或不兼容客户端可能收到 403；这是协议兼容性闸门，不等同于不可伪造的秘密认证。真正封闭的私人源请用你自己的 Token / mTLS 等边界。
 
-公共投稿只會在管理員明確確認後提交小豬 ID、名稱、描述、完整文案、圖片及對應 EX 差分；不提交群聊原文、群號、SQLite、備份或插件配置。人工審核批准後才會發佈。
+公共投稿只会在管理员明确确认后提交小猪 ID、名称、描述、完整文案、图片及对应 EX 差分；不提交群聊原文、群号、SQLite、备份或插件配置。人工审核批准后才会发布。
 
 > [!WARNING]
 > 公開資源同步與第三方素材仍受來源與再分發權約束。來源或授權無法確認的圖片、文案、資源包與鏡像條目應在審計完成前停止公開分發；MIT 軟件授權不會自動授予第三方圖片或文案的再分發權。詳見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
 
-完整規則見 [資源管理](docs/RESOURCE-MANAGEMENT.md)。
+完整规则见 [資源管理](docs/RESOURCE-MANAGEMENT.md)。
 
 ## 🛡️ 資料與安全
 
-- 正常運行以 SQLite 規範化資料承擔核心權威；JSON 留作匯出與災難回退。
-- 資源下載在 manifest、大小、SHA-256、圖片限制全部通過後才原子切換。
-- 更新與同步失敗保留最後可用資料，不先把能跑的豬圈拆掉。
-- 增強版使用獨立 namespace，身份遷移採 Copy → Verify → Atomic Commit。
-- 群聊收藏採 claim-aware logical-user 邊界，避免把不能證明相同身份的資料硬合併。
+- 正常运行时以 SQLite 规范化数据承担核心权威；JSON 留作导出与灾难回退。
+- 资源下载在 manifest、大小、SHA-256、图片限制全部通过后才原子切换。
+- 更新与同步失败会保留最后可用数据，不先把能跑的猪圈拆掉。
+- 增强版使用独立 namespace，身份迁移采用 Copy → Verify → Atomic Commit。
+- 群聊收藏采用 claim-aware logical-user 边界，避免把不能证明相同身份的数据硬凑一块。
 
 詳見 [OPERATIONS.md](docs/OPERATIONS.md) 與 [COLLECTION-IDENTITY.md](docs/COLLECTION-IDENTITY.md)。
 
 ## 🔧 常用配置
 
-- `enable_new_pig_pity` / `pity_step_percent`：連續重複保底。
-- `enable_daily_duplicate_pity`：跨日疲勞保底。
-- `group_roast_max_charges`：每人每群最大 Roast Charge，預設 2。
-- `group_roast_cooldown_hours`：**每格缺失 Charge 的恢復時間**，預設 8 小時。
-- `enable_roast_reservation` / `roast_reservation_max_participants`：預約烤豬。
-- `enable_oven_refill` / `oven_refill_*`：群體補貨。
-- `enable_daily_report` / `daily_report_*`：豬圈日報。
-- `resource_sync_enabled` / `resource_manifest_url`：官方／私人豬源同步。
+- `enable_new_pig_pity` / `pity_step_percent`：连续重复保底。
+- `enable_daily_duplicate_pity`：跨日疲劳保底。
+- `group_roast_max_charges`：每人每群最大 Roast Charge，默认 2。
+- `group_roast_cooldown_hours`：**每格缺失 Charge 的恢复时间**，默认 8 小时。
+- `enable_roast_reservation` / `roast_reservation_max_participants`：预约烤猪。
+- `enable_oven_refill` / `oven_refill_*`：群体补货。
+- `enable_daily_report` / `daily_report_*`：猪圈日报。
+- `resource_sync_enabled` / `resource_manifest_url`：官方与私人猪源同步。
 - `storage_backend`：SQLite / JSON 回退策略。
 
-完整預設值與有效範圍看 [配置參考](docs/CONFIGURATION.md)。
+完整默认值与有效范围见 [配置參考](docs/CONFIGURATION.md)。
 
 ## 📖 文檔中心
 
@@ -223,14 +223,14 @@ pytest -q
 pre-commit run --all-files --show-diff-on-failure
 ```
 
-Release 流程還會跑 AstrBot 真實載入 smoke、Marketplace package、Wiki strict build 與 Resource Source gate。
+Release 流程还会运行 AstrBot 真实加载 smoke、Marketplace package、Wiki strict build 与 Resource Source gate。
 
 ## 致謝與來源
 
 - 原始核心：[Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
 - AstrBot 直接上游／本倉庫 GitHub parent：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)
 - 後續部分功能設計、指令表面及／或實現參考與移植來源：[Felis2026/nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)
-- 公共圖片平台：[PigHub](https://pighub.top/) 與 [PigHub-DB](https://github.com/BadFish-HSrui/PigHub-DB)
+- 公共图片平台：[PigHub](https://pighub.top/) 与 [PigHub-DB](https://github.com/BadFish-HSrui/PigHub-DB)
 
 本增強分支持續保留上游作者署名與 MIT 授權資訊。更完整的來源、授權邊界與 2026-08 provenance audit 見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
 

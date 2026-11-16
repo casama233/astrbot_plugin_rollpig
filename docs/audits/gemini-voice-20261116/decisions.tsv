@@ -1,0 +1,10 @@
+ts	phase	decision	why	evidence	result
+2026-11-16T04:34:44Z	frame	Owner selected Gemini sample B	The owner wants short scenes instead of picture descriptions	selected-voice.json	VERIFIED
+2026-11-16T04:34:44Z	pilot	Generated six pigs with Gemini Hydrogen under strict model checks	Check the chosen voice before rewriting the remaining pigs	pilot.log	VERIFIED
+2026-11-16T04:34:44Z	inventory	Located 1659 copy candidates with protected program tokens	Change wording without changing commands or expressions	copy-inventory.json	open
+2026-11-16T04:37:56Z	privacy	Removed source context from the Gemini UI request	Automatic review rejected exporting code context; masked display text is sufficient	ui_author.py	VERIFIED
+2026-11-16T04:40:05Z	pilot	Rejected interface rewrites that softened precise gameplay terms	Consuming charge is different from occupying it, and daily draws are not luck	ui-pilot-semantic-rejections.json	Gemini revision requested
+2026-11-16T05:01:26Z	capacity	Identified the 429 as the local 80 requests/hour limit	The proxy slots were full; account login was healthy and no model downgrade was observed	rate-limit-before.json	Temporarily raised local capacity to 160; restore after authoring
+2026-11-16T05:14:43Z	import	Preserve nested expression edits and fixed program values	Independent reviewer identified lost nested edits and equality-sensitive strings	copy_inventory.py apply_ui.py ui-revalidation.json	2139 stable slots; recursive importer verified; AST structure preserved
+2026-11-16T05:31:23Z	verify	Accept final Gemini text after semantic and layout corrections	Preserve gameplay meaning while replacing picture-caption prose	authorship-and-fit.json pytest-final.log browser-final.log wiki-browser.log	218 pigs and 643 UI rewrites verified; 806 Python, 27 admin, 9 Wiki checks passed
+2026-11-16T05:31:23Z	review	Independent native reviewer verified final import	Catch non-display identifiers and semantic drift before publication	copy_import_review final report; 15 targeted checks; rate-limit-restored.json	VERIFIED scoped review; no new comments; different-family and Cursor control tools unavailable; hourly cap restored to 80

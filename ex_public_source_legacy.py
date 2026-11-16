@@ -30,7 +30,7 @@ class ExPublicSourceMixin:
             f"/{self.PLUGIN_NAME}/ex/submit-public-source",
             self.page_ex_submit_public_source,
             ["POST"],
-            "将本地小猪与 EX 差分一起提交到公共源审核",
+            '把本地小猪连同 EX 差分一起提交去公共源审核',
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/ex/source/reviews/variant-image",
@@ -46,7 +46,7 @@ class ExPublicSourceMixin:
                 getattr(self, "_local_ex_variants", {}).get(str(pig_id), {})
             )
         if not levels:
-            raise ValueError("这只小猪还没有本地 EX 差分；请先在 EX 成长管理中建立差分")
+            raise ValueError('这只小猪还没本地 EX 差分，先去 EX 成长管理里建一个吧')
 
         canonical = serialize_ex_variants({str(pig_id): levels})
         image_root = getattr(self, "local_ex_variant_image_dir", None)
@@ -66,17 +66,17 @@ class ExPublicSourceMixin:
                     f"EX Lv.{level} 图片文件名不是标准投稿格式：应为 PNG 或 GIF canonical 文件名"
                 )
             if not isinstance(image_root, Path):
-                raise ValueError("本地 EX 图片目录尚未初始化")
+                raise ValueError('本地 EX 图片文件夹还没初始化好')
             path = image_root / image
             if not path.is_file():
-                raise ValueError(f"EX Lv.{level} 引用的本地图片不存在")
+                raise ValueError(f'本地找不到 EX Lv.{level} 对应的图片')
             data = path.read_bytes()
             if not data or len(data) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-                raise ValueError(f"EX Lv.{level} 图片为空或超过 10MB")
+                raise ValueError(f'EX Lv.{level} 图片是空的，或者超过 10MB 了')
             total_raw_size += len(data)
             if total_raw_size > self.PUBLIC_SOURCE_EX_RAW_TOTAL_MAX_SIZE:
                 raise ValueError(
-                    "基础图片与 EX 图片合计过大；请压缩图片后再投稿（总上限约 11 MiB）"
+                    '基础图和 EX 图加起来太胖啦，压小点再投吧（总上限约 11 MiB）'
                 )
             referenced.append(image)
             variant_images.append(
@@ -86,16 +86,16 @@ class ExPublicSourceMixin:
                 }
             )
         if len(referenced) > 5:
-            raise ValueError("每次投稿最多包含 5 张 EX 差分图片")
+            raise ValueError('每次投稿最多只能塞 5 张 EX 差分图')
         return record, raw, canonical, variant_images
 
     async def _public_source_review_variant_image_payload(
         self, submission_id: str, filename: str
     ) -> dict:
         if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
-            raise ValueError("投稿 ID 无效")
+            raise ValueError('这份投稿的 ID 没对上号')
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}-ex[1-5]\.(?:png|gif)", filename):
-            raise ValueError("EX 图片文件名无效")
+            raise ValueError('EX 图片的名字格式不对')
         url = (
             self.PUBLIC_SOURCE_API_URL
             + f"/admin/submissions/{submission_id}/variant-image/{filename}"
@@ -110,7 +110,7 @@ class ExPublicSourceMixin:
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError("公共猪源 EX 投稿图片读取失败")
+                    raise ValueError('读取公共猪源的 EX 投稿图片失败了')
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),
@@ -132,4 +132,4 @@ class ExPublicSourceMixin:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"读取公共猪源 EX 投稿图片失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "读取 EX 投稿图片失败"})
+            return self._jsonify({"status": "error", "message": '读取 EX 投稿图片失败了'})

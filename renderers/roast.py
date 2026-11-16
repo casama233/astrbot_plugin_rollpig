@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 _EMERGENCY_LOCAL_COPY = {
     "dish": "猪圈炭火特餐",
-    "copy": "猪鼻一拱上烤架，今天不是翻身，是后厨很专业地帮你翻面。",
+    "copy": '猪鼻一拱滚上烤架，今天不流行咸鱼翻身，只管等它滋滋冒油、两面金黄。',
 }
 _ROAST_IMAGE_BOX = (185, 150, 615, 580)
 

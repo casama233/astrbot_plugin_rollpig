@@ -143,7 +143,7 @@
     popover.append(
       makeDocLink('📖', '玩家 Wiki', '玩法、EX、烤箱、日报与保底', WIKI_LINKS.player),
       makeDocLink('⚙️', '管理员手册', '完整配置、资源、存储与运维', WIKI_LINKS.admin),
-      makeDocLink('🎨', '投稿指南', '做一只自己的小猪，再交给管理员', WIKI_LINKS.creator),
+      makeDocLink('🎨', '投稿指南', "捏一只自己的小猪，再交到管理员手里", WIKI_LINKS.creator),
     );
     details.append(summary, popover);
     const refreshButton = pageRoot.querySelector('#refreshBtn');

@@ -149,7 +149,7 @@
     body.replaceChildren();
 
     if (!pig) {
-      body.append(make('div', 'empty', '这只小猪不在当前实例的有效图鉴中，无法建立本地 EX 差分。'));
+      body.append(make('div', 'empty', "这只小猪还没落户当前图鉴，建不了本地 EX 差分。"));
       return;
     }
 
@@ -158,7 +158,7 @@
 
     const head = make('div', 'ex-manager-head');
     const identity = make('div');
-    identity.append(make('h2', '', pig.name || '未命名小猪'));
+    identity.append(make('h2', '', pig.name || "还没起名的小猪"));
     identity.append(make('div', 'ex-manager-id', pig.id || ''));
     const base = make('div', 'ex-manager-base');
     base.append(make('b', '', '基础描述：'));
@@ -228,7 +228,7 @@
     analysis.maxLength = 800;
     analysis.placeholder = '留空＝继承';
     analysis.value = local.analysis || '';
-    analysisField.append(analysis, make('small', '', 'EX 只改变展示内容，不改变小猪 ID、抽取概率、保底或玩法身份。'));
+    analysisField.append(analysis, make('small', '', "EX 只给小猪换身行头，不改小猪 ID、抽取概率、保底或玩法身份。"));
     editor.append(descriptionField, imageField, analysisField);
     card.append(editor);
 
@@ -333,11 +333,11 @@
   async function fileData(input) {
     const file = input?.files?.[0];
     if (!file) return '';
-    if (file.size > 10 * 1024 * 1024) throw new Error('图片不能超过 10MB');
+    if (file.size > 10 * 1024 * 1024) throw new Error("图片体积太大啦，别超过 10MB");
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('读取图片失败'));
+      reader.onerror = () => reject(new Error("图片没读出来，读取失败"));
       reader.readAsDataURL(file);
     });
   }
@@ -368,7 +368,7 @@
 
   async function resetCurrentLevel() {
     const pig = currentPig();
-    if (!pig || !window.confirm(`重置「${pig.name}」EX Lv.${state.level} 的全部本地差分吗？`)) return;
+    if (!pig || !window.confirm(`要把「${pig.name}」EX Lv.${state.level} 的全部本地差分清空还原吗？`)) return;
     busy(true);
     try {
       state.snapshot = await post('ex/variants/delete', {id: pig.id, level: state.level});
@@ -430,7 +430,7 @@
 
   function markPreviewPending(card, detail = '') {
     const meta = card.querySelector('[data-effective-card-meta]');
-    if (meta) meta.textContent = `有未保存修改${detail ? ` · ${detail}` : ''}；保存后按真实发送样式重新生成`;
+    if (meta) meta.textContent = `还有改完没保存的内容${detail ? ` · ${detail}` : ''}；保存后就会按真实发送样式重新生成`;
     card.classList.add('preview-pending');
   }
 
@@ -507,7 +507,7 @@
       actions.insertBefore(button, actions.firstChild);
       button.onclick = () => {
         const id = String($('originalId')?.value || '').trim();
-        if (!id) return toast('请先保存基础小猪，再管理 EX 阶段');
+        if (!id) return toast("得先保存基础小猪，才能接着打理 EX 阶段");
         openExManager(id);
       };
     }
@@ -524,7 +524,7 @@
       const snapshot = await loadSnapshot(true);
       const pig = (snapshot.items || []).find(item => item.id === pigId);
       if (!pig) {
-        root.innerHTML = '<strong>当前实例 EX 1–5</strong><small>这个公共源 ID 尚未出现在当前实例的有效图鉴中；同步资源后即可管理。</small>';
+        root.innerHTML = "<strong>当前实例 EX 1–5</strong><small>这个公共源 ID 还没进当前实例的有效图鉴呢，先同步资源就能管理啦。</small>";
         return;
       }
       root.innerHTML = `<strong>当前实例 EX 1–5</strong><small>以下为当前实例实际生效内容；若存在本地差分，会优先显示本地结果。</small><div class="public-source-ex-levels">${[1,2,3,4,5].map(level => {

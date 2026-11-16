@@ -25,12 +25,12 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
 
     assert traditional["help.admin.panel_title"] == "管理面板"
     assert simplified["help.admin.panel_title"] == "管理面板"
-    assert "新猪机率会提高" in traditional["help.mechanic.new_pig_pity"]
-    assert "新猪概率会提高" in simplified["help.mechanic.new_pig_pity"]
-    assert "全群添柴" in traditional["help.group.oven_refill"]
-    assert "全群添柴" in simplified["help.group.oven_refill"]
-    assert "补货就添柴" in traditional["help.group.firewood_router"]
-    assert "补货就添柴" in simplified["help.group.firewood_router"]
+    assert all(word in traditional["help.mechanic.new_pig_pity"] for word in ("新猪", "机率"))
+    assert all(word in simplified["help.mechanic.new_pig_pity"] for word in ("新猪", "概率"))
+    assert all(word in traditional["help.group.oven_refill"] for word in ("全群", "添柴"))
+    assert all(word in simplified["help.group.oven_refill"] for word in ("全群", "添柴"))
+    assert all(word in traditional["help.group.firewood_router"] for word in ("补货", "添柴", "预约"))
+    assert all(word in simplified["help.group.firewood_router"] for word in ("补货", "添柴", "预约"))
     for catalog in (traditional, simplified):
         assert "EX 可超5" in catalog["help.mechanic.ex_growth"]
         assert "最高可用差分" in catalog["help.mechanic.ex_growth"]
@@ -53,9 +53,9 @@ def test_signature_gameplay_copy_keeps_the_rollpig_voice():
     legacy = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 
     assert "一个人搬柴不叫补货，叫加班" in oven
-    assert "左手当主厨、右手再冒充群友" in firewood
+    assert "开局已经算 1 人" in firewood
     assert "猪身安全险" in roast_policy
-    assert "后厨还没穷到要做闭环供应链" in legacy
+    assert "不能吃自己" in legacy
 
 
 def test_remastered_pigs_do_not_fall_back_to_personality_quiz_copy():

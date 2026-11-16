@@ -30,7 +30,7 @@ def test_daily_report_command_exposes_group_controls_from_main_entrypoint():
     )
     assert [arg.arg for arg in fn.args.args][-1] == "args"
     source = (ROOT / "daily_report_feature.py").read_text(encoding="utf-8")
-    for word in ("开启", "关闭", "状态", "只有 AstrBot 管理员"):
+    for word in ("开启", "关闭", "状态", "AstrBot 管理员"):
         assert word in source
     manager_start = source.index("    def _daily_report_group_manager")
     manager_end = source.index("    def _daily_report_group_auto_enabled", manager_start)

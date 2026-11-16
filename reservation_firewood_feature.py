@@ -46,7 +46,7 @@ class ReservationFirewoodMixin:
         if not group_id:
             await event.send(
                 event.plain_result(
-                    "🪵 柴火只认群聊里的锅。私聊先把木头放下。"
+                    '🪵 柴火只认群聊里的灶台，私聊先把木头抱回去。'
                 )
             )
             return
@@ -55,8 +55,7 @@ class ReservationFirewoodMixin:
         if not actor_id:
             await event.send(
                 event.plain_result(
-                    "🧯 后厨看见一根柴自己飘进来了，但认不出是谁扔的。"
-                    "无法确认添柴者，请稍后再试。"
+                    '🧯 炉子边突然自己冒出一根柴，可没看清是谁扔的。无法确认添柴人，请稍后再试。'
                 )
             )
             return
@@ -76,7 +75,7 @@ class ReservationFirewoodMixin:
                 return
             await event.send(
                 event.plain_result(
-                    "🔒 预约烤猪今天没开锅。这个 @目标 没有地方塞柴。"
+                    '🔒 预约烤猪今天没开炉，这位 @目标 没地方塞柴。'
                 )
             )
             return
@@ -89,7 +88,7 @@ class ReservationFirewoodMixin:
                 return
             await event.send(
                 event.plain_result(
-                    "🔒 今天后厨没开群友这桌。预约烤猪也跟着熄火了。"
+                    '🔒 今天没开群友这桌，预约烤猪也跟着熄火了。'
                 )
             )
             return
@@ -120,18 +119,15 @@ class ReservationFirewoodMixin:
                 )
                 if chosen is None:
                     denial = (
-                        "🪵 这位群友名下没有待结算的锅，柴火拿错地方了。"
-                        "先 /烤群友 @目标 埋伏一口。"
+                        '🪵 这位群友名下没有待结算的锅，柴火抱错地儿了。先 /烤群友 @目标 支一口。'
                     )
             elif not pending:
                 denial = (
-                    "🪵 现在既没有补货轮次，也没有待守的预约烤箱。"
-                    "先 /烤箱补货 发车，或 /烤群友 @目标 埋伏一口。"
+                    '🪵 眼下既没有补货轮次，也没有待守的预约烤箱。先 /烤箱补货 发车，或 /烤群友 @目标 支一口。'
                 )
             elif len(pending) > 1:
                 denial = (
-                    f"🪵 后厨同时蹲着 {len(pending)} 口预约锅，你这根柴不知道塞哪。"
-                    "用 /添柴 @目标 指定；补货轮次进行中时，裸 /添柴 仍优先补货。"
+                    f'🪵 场子里同时蹲着 {len(pending)} 口预约锅，这根柴不知道塞哪。用 /添柴 @目标 指定；补货进行中时，裸 /添柴 仍优先补货。'
                 )
             else:
                 chosen = pending[0]
@@ -150,37 +146,30 @@ class ReservationFirewoodMixin:
                 # the trap; never create a second participant mutation now.
                 if self._get_daily_pig(target_id, self._today()):
                     denial = (
-                        "🔥 目标刚刚现身，原预约正在结算。"
-                        "这根柴先别往已经掀开的锅里塞。"
+                        '🔥 目标刚刚冒头，原预约正在开锅结算，这根柴先别往里塞了。'
                     )
                 elif actor_id == target_id:
                     denial = (
-                        "🪵 你就是锅里等着的食材，不能自己往锅底塞柴。"
-                        "这叫利益冲突。"
+                        '🪵 你就是锅里等着的食材，哪有自己往锅底添柴的，这叫利益冲突。'
                     )
                 elif actor_id == chef_id:
                     denial = (
-                        "🪵 你就是这口锅的主厨，开局已经算 1 人。"
-                        "不能左手当主厨、右手再冒充群友——叫别人来 /添柴。"
+                        '🪵 你就是这口锅的发起人，开局已经算 1 人。别左手点火右手假装路人，叫别人来 /添柴。'
                     )
                 elif actor_id in participants:
                     denial = (
-                        "🪵 你的名字已经在柴火簿上了。"
-                        "再塞不加人头，只会让烤箱怀疑你有私情。"
+                        '🪵 你的名字已经记在添柴单上了。再塞不加人头，只会让人怀疑你跟锅里有私情。'
                     )
                 elif len(participants) >= self.roast_reservation_max_participants:
                     denial = (
-                        "🪵 这口锅旁边已经挤满了，最多 "
-                        f"{self.roast_reservation_max_participants} 人。"
-                        "再来一个只能站窗外闻味。"
+                        f'🪵 这口锅旁边已经围满了，最多 {self.roast_reservation_max_participants} 人。再来一个只能站窗外闻香。'
                     )
                 else:
                     actor_pig = self._get_daily_pig(actor_id, self._today())
                     actor_reason = self._roast_block_reason(actor_pig, subject="actor")
                     if not actor_pig:
                         denial = (
-                            "🪵 后厨只收今天有猪证的柴工。"
-                            "先 /今日小猪，再回来扇火。"
+                            '🪵 今天还没领猪证，不收你的柴。先 /今日小猪，再回来扇火。'
                         )
                     elif actor_reason:
                         denial = f"🪵 这根柴暂时塞不进去：{actor_reason}"
@@ -202,14 +191,11 @@ class ReservationFirewoodMixin:
                                 joined_target = target_id
                             elif status == "existing":
                                 denial = (
-                                    "🪵 你的名字已经在柴火簿上了。"
-                                    "每人每口锅只算一次，再塞也不加人头。"
+                                    '🪵 你的名字已经记在添柴单上了。每人每口锅只算一次，再塞也不加人头。'
                                 )
                             elif status == "full":
                                 denial = (
-                                    "🪵 这口锅旁边已经挤满了，最多 "
-                                    f"{self.roast_reservation_max_participants} 人。"
-                                    "后来者请去窗外排队闻味。"
+                                    f'🪵 这口锅旁边已经围满了，最多 {self.roast_reservation_max_participants} 人。后来者请去窗外排队闻香。'
                                 )
                             elif status == "resolved":
                                 denial = (
@@ -218,8 +204,7 @@ class ReservationFirewoodMixin:
                                 )
                             else:
                                 denial = (
-                                    "🧯 你伸手塞柴时这口锅刚好变了状态。"
-                                    "预约已经发生变化，请重新查看后再试。"
+                                    '🧯 你刚伸手添柴，锅里的状态就变了。预约已更新，请重新查看后再试。'
                                 )
 
         if denial:
@@ -229,8 +214,7 @@ class ReservationFirewoodMixin:
         if not joined_target:
             await event.send(
                 event.plain_result(
-                    "🧯 柴还在手里，但后厨找不到能接它的预约烤箱。"
-                    "命令已经由插件处理，请重新查看预约后再试。"
+                    '🧯 柴攥在手里，但没找到对应的预约锅。指令已处理，请重新查看预约后再试。'
                 )
             )
             return

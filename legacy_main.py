@@ -161,8 +161,8 @@ class RollPigPlugin(FelisDirectFeature, Star):
     EATEN_PIG_FALLBACK = {
         "id": "eaten",
         "name": "吃掉了",
-        "description": "你来晚了",
-        "analysis": "盘子空空如也；今天的小猪已经被不知名的力量吃掉了。",
+        "description": '哎呀，你来晚一步啦',
+        "analysis": '盘子被舔得干干净净，今天的小猪早就被神秘力量连夜端走啦。',
     }
     GROUP_ROAST_COOLDOWN_SECONDS = 8 * 60 * 60
     USER_AGENT = (
@@ -1218,13 +1218,12 @@ class RollPigPlugin(FelisDirectFeature, Star):
         diagnosis = ""
         if source_rejected:
             diagnosis = (
-                "该地址是 nonebot-plugin-rollpig-plus 的受限官方源，"
-                "服务端会拒绝本 AstrBot 插件；请换成你有权使用的私人 manifest。"
+                '这里是 nonebot-plugin-rollpig-plus 的官方禁区，服务器会把本 AstrBot 插件直接请出去，请换成你有权进的私人 manifest。'
             )
         elif official_source and not self.resource_sync_enabled:
-            diagnosis = "AstrBot 专用资源源已就绪；开启自动同步后会按设定间隔检查更新。"
+            diagnosis = 'AstrBot 专属仓库已就位，打开自动同步就会按设定周期巡逻更新。'
         elif not self.resource_sync_enabled:
-            diagnosis = "自动同步目前已关闭；仍可在确认来源可用后手动同步。"
+            diagnosis = '自动同步正歇着呢，确认源还能用之后随时可以手动同步。'
         return {
             "enabled": bool(self.resource_sync_enabled),
             "source": self._catalog_source,
@@ -1264,8 +1263,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
     def _describe_sync_error(self, exc: Exception) -> str:
         if isinstance(exc, httpx.TimeoutException):
             return (
-                "下载逾时：云端在读取时限内没有完成响应。"
-                "插件已重试并保留原有资源，请稍后再试。"
+                '云端搬运超时没能按时交货。插件已经重试并护住了旧资源，稍后再试试吧。'
             )
         if isinstance(exc, httpx.HTTPStatusError):
             return f"云端返回 HTTP {exc.response.status_code}"
@@ -1338,13 +1336,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 response.raise_for_status()
                 length = response.headers.get("Content-Length")
                 if length and length.isdigit() and int(length) > max_size:
-                    raise ValueError(f"远程文件超过大小上限：{current}")
+                    raise ValueError(f'远程文件太胖，挤爆了上限：{current}')
                 total = 0
                 chunks: list[bytes] = []
                 async for chunk in response.aiter_bytes():
                     total += len(chunk)
                     if total > max_size:
-                        raise ValueError(f"远程文件超过大小上限：{current}")
+                        raise ValueError(f'远程文件太胖，挤爆了上限：{current}')
                     chunks.append(chunk)
                 return b"".join(chunks)
         raise ValueError("远程地址跳转次数过多")
@@ -1402,7 +1400,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         self._validate_manifest_path(path)
         expected_size = meta.get("size")
         if expected_size is not None and int(expected_size) > max_size:
-            raise ValueError(f"文件超过大小上限：{path}")
+            raise ValueError(f'文件太胖，挤爆了上限：{path}')
         expected_hash = str(meta.get("sha256") or "").strip().lower()
         if not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
             raise ValueError(f"manifest 缺少有效 SHA-256：{path}")
@@ -1419,7 +1417,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         """完整下载、校验后才原子替换 active。"""
         async with self._resource_sync_lock:
             if not self.resource_manifest_url:
-                raise ValueError("未配置云资源 manifest URL")
+                raise ValueError('还没填云资源 manifest URL 呢')
             self._validate_remote_url(self.resource_manifest_url, "manifest URL")
             staging = self.resource_root / f".incoming-{uuid.uuid4().hex}"
             previous = self.resource_root / "previous"
@@ -1441,7 +1439,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     if schema_version not in (None, 1, "1"):
                         raise ValueError("manifest 协议版本不受支持")
                     if source_client and source_client != self.RESOURCE_CLIENT_ID:
-                        raise ValueError("manifest 不是为本 AstrBot 插件发布的资源")
+                        raise ValueError('manifest 并不是专门为本 AstrBot 插件发布的资源')
                     if self.resource_manifest_url == self.OFFICIAL_RESOURCE_MANIFEST_URL:
                         if schema_version not in (1, "1"):
                             raise ValueError("AstrBot 官方资源源缺少协议版本")
@@ -1480,7 +1478,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     if not isinstance(image_metas, list):
                         raise ValueError("manifest 缺少 images")
                     if len(image_metas) > self.RESOURCE_MAX_IMAGES:
-                        raise ValueError("云资源图片数量超过 500")
+                        raise ValueError('云资源图片塞太多，超过 500 啦')
                     if ex_meta is not None and not isinstance(ex_meta, dict):
                         raise ValueError("manifest ex_variants 必须是对象")
                     if roast_copy_meta is not None and not isinstance(roast_copy_meta, dict):
@@ -1490,7 +1488,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     if ex_meta is None and variant_image_metas:
                         raise ValueError("manifest 缺少 ex_variants，却声明了差分图片")
                     if len(variant_image_metas) > self.RESOURCE_MAX_VARIANT_IMAGES:
-                        raise ValueError("EX 差分图片数量超过 1000")
+                        raise ValueError('EX 差分图片塞太多，超过 1000 啦')
                     declared_total = int(pig_meta.get("size") or 0) + sum(
                         int(meta.get("size") or 0)
                         for meta in image_metas
@@ -1643,7 +1641,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return None
         filename = str(raw.get("filename") or parsed.path.split("/")[-1])
         return {
-            "title": str(raw.get("title") or filename or "未命名小猪"),
+            "title": str(raw.get("title") or filename or '还没起名的小猪'),
             "filename": filename,
             "image_url": image_url,
         }
@@ -3334,13 +3332,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("🔥 烤群友只能在群聊开火。私聊里没有围观群友，气氛不够。"))
+            await event.send(event.plain_result('🔥 烤群友只能在群里起火。私聊没观众，架起炉子也冷清。'))
             return
         if not target_id:
-            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
+            await event.send(event.plain_result('🎯 先 @ 一位群友或回复他的消息，架子不能空烧。'))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("🔥 想烤自己请走 /今日烤猪；/烤群友 不接受自助餐。"))
+            await event.send(event.plain_result('🔥 想烤自己请走 /今日烤猪；/烤群友 可不兴当自助餐。'))
             return
         target_pig = self._get_daily_pig(target_id, self._today())
         reason = self._roast_block_reason(target_pig)
@@ -3379,7 +3377,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 target_id=target_id,
             )
             await event.send(
-                event.plain_result("💨 对方一溜烟跑了，烤架上只剩一阵风。后厨连盐都白撒了。" + charge_note)
+                event.plain_result('💨 刚要刷酱对方就溜了，炉子上只剩一阵风，孜然全撒空了。' + charge_note)
             )
             return
         if result == "backlash":
@@ -3402,7 +3400,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 )
                 return
             await event.send(
-                event.plain_result("🔥 烤架反噬！火舌顺着锅沿爬回来，这次轮到你的今日小猪上桌。" + charge_note)
+                event.plain_result('🔥 烤架反噬！火苗顺着夹子窜了回来，这次轮到你的今日小猪上桌。' + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
@@ -3417,7 +3415,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         )
         prefix = "🔥 后门生效，" if bypass else "🔥 烧烤成功，"
         await event.send(
-            event.plain_result(f"{prefix}对方今天的小猪已经被后厨端走，围裙都没来得及系。" + charge_note)
+            event.plain_result(f'{prefix}对方今天的小猪刚被端走，连刷酱都没赶上。' + charge_note)
         )
         await self._record_group_roast(group_id, target_id)
         await self._send_roast_card(event, target_pig, target_id)
@@ -3429,13 +3427,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("🍴 吃群友只能在群聊开席。私聊不供应自助餐。"))
+            await event.send(event.plain_result('🍴 吃群友只能在群聊开席，私聊摆不开这桌。'))
             return
         if not target_id:
-            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
+            await event.send(event.plain_result('🎯 先 @ 一位群友或回复他的消息，筷子不能对着空气夹。'))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("🍴 不能吃自己。后厨还没穷到要做闭环供应链。"))
+            await event.send(event.plain_result('🍴 不能吃自己，饿急了也不兴自产自销。'))
             return
         actor_pig = self._get_daily_pig(actor_id, self._today())
         actor_reason = self._eat_actor_block_reason(actor_pig)
@@ -3457,7 +3455,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 target_id, group_id, actor_id, "eat_success"
             )
             if not eaten:
-                await event.send(event.plain_result("🧯 嘴已经张开，但猪圈账本没记住这一口。吃群友状态写入失败，请稍后再试。"))
+                await event.send(event.plain_result('🧯 嘴都张开了，小本本却没记上这一口。吃群友状态写入失败，请稍后再试。'))
                 return
             await self._send_with_mention(
                 event,
@@ -3470,12 +3468,12 @@ class RollPigPlugin(FelisDirectFeature, Star):
             actor_id, group_id, actor_id, "eat_failure"
         )
         if not eaten:
-            await event.send(event.plain_result("🧯 嘴已经张开，但猪圈账本没记住这一口。吃群友状态写入失败，请稍后再试。"))
+            await event.send(event.plain_result('🧯 嘴都张开了，小本本却没记上这一口。吃群友状态写入失败，请稍后再试。'))
             return
         await self._send_with_mention(
             event,
             actor_id,
-            " 🍴 没吃到别人，反而把自己吃没了。这顿饭主打自产自销；明天抽猪可能会抽到重复猪。",
+            '🍴 没咬到别人，反手把自己吃没了。纯属自产自销；明天抽猪可能会重样。',
         )
 
     def find_image_file(
@@ -3648,18 +3646,18 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 "图鉴与探索",
                 [
                     ("/我的猪圈 [页码]", "永久图鉴，例如 /我的猪圈 2"),
-                    ("/随机小猪 [1-9]", "随机展示，不影响今日结果"),
+                    ("/随机小猪 [1-9]", '纯属随机路过，完全不影响今日抽取结果'),
                     ("/找猪／搜猪 关键词", "按名称、ID、描述或文案搜索"),
                 ],
             ),
             (
                 "烤猪玩法",
                 [
-                    ("/今日烤猪", "把今天的小猪做成趣味料理卡"),
+                    ("/今日烤猪", '把今天的小猪送进烤盘，做成趣味料理卡'),
                     ("/烤群友 @某人", "60/30/10·8h冷却；未抽目标可预约，群友可添柴"),
-                    ("/随机烤群友", "从今天在本群抽过猪的群友中随机挑选"),
-                    ("/吃群友 @某人", f"{self.eat_success_percent}%成功；失败会把自己吃掉，保护同样生效"),
-                    ("/随机吃群友", "随机点名可吃群友；成功或失败都会出现吃掉状态"),
+                    ("/随机烤群友", '从今天在本群领过猪的群友里随机挑一位'),
+                    ("/吃群友 @某人", f'{self.eat_success_percent}%成功开吃；失败会把自己吃掉，保护照常生效'),
+                    ("/随机吃群友", '随机点名可吃群友；无论成功或失败都会挂上吃掉状态'),
                     ("/猪圈日报", "显示完整统计海报与今日群聊称号"),
                     ("后门口令 @某人", "打点后厨等每日一次；超管可用 /强行点火"),
                 ],
@@ -3709,7 +3707,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 row_y += 62
             y += card_height + 20
 
-        footer = "需要时输入 /猪猪帮助，即可再次查看此卡片"
+        footer = '想翻看说明书时输入 /猪猪帮助，随时再领一张'
         footer_w, _ = self._get_text_size(footer, footer_font)
         draw.text(
             ((width - footer_w) // 2, height - 55),
@@ -3761,7 +3759,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
             logger.error(f"生成猪猪帮助图片失败：{exc}", exc_info=True)
-            await event.send(event.plain_result("猪猪帮助图片生成失败，请查看后台日志。"))
+            await event.send(event.plain_result('帮助海报绘制失败，请查看后台日志排查。'))
         finally:
             if output:
                 output.unlink(missing_ok=True)
@@ -3776,7 +3774,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
-                await event.send(event.plain_result("一次只能查看一个小猪哦！"))
+                await event.send(event.plain_result('贪心啦，一次只能查看一只小猪哦！'))
                 return
             if at_ids:
                 target_id = at_ids[0]
@@ -3795,7 +3793,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 if pig_to_send:
                     send_user_id = target_id
                 else:
-                    response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
+                    response_text = '对方今天还没领猪；偷看一眼不会替对方代抽。'
             else:
                 storage_id = self._storage_user_key(actor_id)
                 candidates = tuple(self._user_read_candidates(actor_id))
@@ -3814,7 +3812,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 status = str(probe.get("status") or "")
                 if status in {"needs-pig", "penalty-duplicate"}:
                     if not self.pig_list:
-                        response_text = "小猪信息加载失败，请检查后台报错！"
+                        response_text = '小猪档案加载失败，快去检查后台报错！'
                     else:
                         proposed = self._choose_daily_pig(
                             storage_id, force_duplicate=(status == "penalty-duplicate")
@@ -3832,13 +3830,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
                         if result.get("status") in {"created", "existing"}:
                             pig_to_send = result.get("pig") or proposed
                         elif result.get("status") == "penalty-duplicate":
-                            response_text = "今日小猪写入冲突，请稍后再试。"
+                            response_text = '小猪数据正撞车写入，请稍后再试。'
                         else:
-                            response_text = "今日小猪写入失败，请稍后再试。"
+                            response_text = '小猪数据写入失败，请稍后再试。'
                 elif status == "existing":
                     pig_to_send = probe.get("pig")
                 else:
-                    response_text = "今日小猪写入失败，请稍后再试。"
+                    response_text = '小猪数据写入失败，请稍后再试。'
         else:
             async with self._daily_draw_lock:
                 today_cache = self.load_json(
@@ -3865,7 +3863,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                         pig_to_send = existing
                         send_user_id = target_id
                     else:
-                        response_text = "对方今天还没有抽取小猪；查看不会替对方抽取。"
+                        response_text = '对方今天还没领猪，你偷看也不会替他把猪领走。'
                 elif existing:
                     changed = self._record_unlock(
                         existing_key,
@@ -3878,7 +3876,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                         self.save_json(self.history_path, self.history)
                     pig_to_send = existing
                 elif not self.pig_list:
-                    response_text = "小猪信息加载失败，请检查后台报错！"
+                    response_text = '小猪档案加载失败，快去后台看看报错日志！'
                 else:
                     storage_id = self._storage_user_key(actor_id)
                     pig_to_send = self._choose_daily_pig(storage_id)
@@ -4105,7 +4103,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
         self._claim_command_event(event)
         if not self.enable_group_eat:
-            await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
+            await event.send(event.plain_result('🔒 今天不吃群友，管理员把这口餐桌关了。'))
             return
         target_id = self._extract_roast_target_id(event, args)
         await self._eat_group_target(event, target_id)
@@ -4114,7 +4112,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         """从当天当前群可被吃的成员中随机选择一位。"""
         self._claim_command_event(event)
         if not self.enable_group_eat:
-            await event.send(event.plain_result("吃群友功能已在配置中关闭。"))
+            await event.send(event.plain_result('🔒 今天不吃群友，管理员把这口餐桌关了。'))
             return
         group_id = self._event_group_id(event)
         if not group_id:
@@ -4158,26 +4156,26 @@ class RollPigPlugin(FelisDirectFeature, Star):
         actor_id = self._event_sender_id(event)
         if is_super_phrase:
             if not self._is_admin_id(event, actor_id):
-                await event.send(event.plain_result("🔐 「强行点火」是超管后门。普通主厨拿这把钥匙，只会插错锁。"))
+                await event.send(event.plain_result('🔐 「强行点火」是超管专属通道，普通人拿这把钥匙可拧不开锁。'))
                 return
         target_id = self._extract_roast_target_id(event, args)
         group_id = self._event_group_id(event)
         target_pig = self._get_daily_pig(target_id, self._today()) if target_id else None
         if not group_id:
-            await event.send(event.plain_result("🔥 烤群友只能在群聊开火。私聊里没有围观群友，气氛不够。"))
+            await event.send(event.plain_result('🔥 烤群友得在群里才热闹，私聊里连个起哄的都没有，这火点不起来。'))
             return
         if not target_id:
-            await event.send(event.plain_result("🎯 先 @ 一位群友，或回复他的消息。后厨不能对着空气下锅。"))
+            await event.send(event.plain_result('🎯 先 @ 一位群友或回复他的消息，总不能对着空气架火吧。'))
             return
         if target_id == actor_id:
-            await event.send(event.plain_result("🔥 想烤自己请走 /今日烤猪；/烤群友 不接受自助餐。"))
+            await event.send(event.plain_result('🔥 想烤自己请走 /今日烤猪，/烤群友 可不接自助单。'))
             return
         reason = self._roast_block_reason(target_pig)
         if reason:
             await event.send(event.plain_result(reason))
             return
         if not is_super_phrase and not await self._consume_daily_backdoor(actor_id):
-            await event.send(event.plain_result("🚪 今天的后门已经踹过一次了。明天再来，门也要喘口气。"))
+            await event.send(event.plain_result('🚪 今天的后门已经用过一次了，明天再来，门锁也得歇歇。'))
             return
         await self._roast_group_target(event, target_id, bypass=True)
 
@@ -4224,7 +4222,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         event: AstrMessageEvent,
         pig_data: dict,
         user_id: str,
-        intro: str = ". 这是你的今日小猪：",
+        intro: str = '. 你的今日小猪领到啦：',
         fallback_title: str = "今日小猪",
     ):
         """合成并发送小猪图片"""
@@ -4304,7 +4302,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 msg_chain.append(Comp.Image.fromFileSystem(str(avatar_path.absolute())))
             except Exception as e:
                 logger.error(f"发送原始图片失败：{str(e)}")
-                text_msg += "\n\n（图片发送失败，仅展示文字信息）"
+                text_msg += '\n\n（小猪照片没发出来，失败了，先看文字版吧）'
 
         msg_chain.append(Comp.Plain(text_msg))
         try:
@@ -5273,14 +5271,14 @@ class RollPigPlugin(FelisDirectFeature, Star):
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
             if not self._find_catalog_pig(pig_id):
-                raise ValueError("小猪不存在")
+                raise ValueError('没找到这只小猪，可能溜走了')
             data = await asyncio.to_thread(self._original_image_payload, pig_id)
             return self._jsonify({"status": "ok", "data": data})
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"管理页下载小猪原图失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "下载小猪原图失败"})
+            return self._jsonify({"status": "error", "message": '小猪原图没抓下来，下载失败'})
 
     async def page_pig_suggest(self):
         """管理面板：为 PigHub 小猪生成可编辑的描述与文案草稿。"""
@@ -5295,7 +5293,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             pighub_url = str(payload.get("pighub_url") or "").strip()
             guidance = str(payload.get("guidance") or "").strip()[:240]
             if not name:
-                raise ValueError("请先从 PigHub 选择图片并填写名称")
+                raise ValueError('先从 PigHub 挑张图，再给小猪起个名吧')
             if pighub_url:
                 self._validate_pighub_image_url(pighub_url)
             draft = await self._generate_pig_draft(name, filename, guidance)
@@ -5303,10 +5301,10 @@ class RollPigPlugin(FelisDirectFeature, Star):
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except asyncio.TimeoutError:
-            return self._jsonify({"status": "error", "message": "AI 生成超时，请稍后重试"})
+            return self._jsonify({"status": "error", "message": 'AI 走神超时了，稍后再试一次吧'})
         except Exception as exc:
             logger.warning(f"管理页 AI 生成小猪草稿失败：{exc}")
-            return self._jsonify({"status": "error", "message": "AI 暂时不可用，请检查模型配置"})
+            return self._jsonify({"status": "error", "message": 'AI 暂时罢工了，请检查模型配置'})
 
     async def page_pig_save(self):
         """管理面板：校验、标准化图片，并新增或修改完整小猪资料。"""
@@ -5324,25 +5322,25 @@ class RollPigPlugin(FelisDirectFeature, Star):
             image_content = str(payload.get("image") or "")
             pighub_url = str(payload.get("pighub_url") or "").strip()
             if image_content and pighub_url:
-                raise ValueError("图片来源只能选择一种；PigHub 资源不能同时使用本地上传")
+                raise ValueError('图片来源只能选一种，PigHub 资源不能和本地上传混用')
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("ID 仅支持 1-64 位小写字母、数字、- 和 _")
             if original_id and original_id != pig_id:
-                raise ValueError("编辑时不能修改 ID；如需新 ID，请新增小猪")
+                raise ValueError('编辑时改不了 ID，想要新 ID 请直接新增小猪')
             if not name or len(name) > 30:
-                raise ValueError("名称必填且不能超过 30 个字符")
+                raise ValueError('名称不能空着，最多 30 个字符')
             if not description or len(description) > 80:
-                raise ValueError("描述必填且不能超过 80 个字符")
+                raise ValueError('描述不能空着，最多 80 个字符')
             if not analysis or len(analysis) > 500:
-                raise ValueError("文案必填且不能超过 500 个字符")
+                raise ValueError('文案不能空着，最多 500 个字符')
 
             existing = self._find_catalog_pig(original_id or pig_id)
             if not original_id and existing:
-                raise ValueError("该 ID 已存在")
+                raise ValueError('这个 ID 已经被占用了')
             if original_id and not existing:
-                raise ValueError("要编辑的小猪不存在")
+                raise ValueError('找不到要编辑的小猪，可能已经不在了')
             if not existing and not image_content and not pighub_url:
-                raise ValueError("新增小猪必须上传图片或从 PigHub 选择图片")
+                raise ValueError('新增小猪得先传张图，或从 PigHub 挑一张')
             if image_content:
                 normalized_image = await asyncio.to_thread(
                     self._normalise_uploaded_image, image_content
@@ -5371,14 +5369,14 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify(
                 {
                     "status": "ok",
-                    "message": "小猪资料已保存，图片已统一为 512×512 PNG",
+                    "message": '小猪档案已保存，图片也整理成 512×512 PNG 啦',
                 }
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"今日小猪管理页保存失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "保存小猪失败"})
+            return self._jsonify({"status": "error", "message": '小猪档案没存上，保存失败'})
 
     async def page_pig_delete(self):
         """管理面板：删除目录记录；历史解锁统计保留。"""
@@ -5390,17 +5388,17 @@ class RollPigPlugin(FelisDirectFeature, Star):
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
                 raise ValueError("小猪 ID 无效")
             if not self._find_catalog_pig(pig_id):
-                raise ValueError("小猪不存在")
+                raise ValueError('没找到这只小猪，可能溜走了')
             await asyncio.to_thread(self._persist_catalog_delete, pig_id)
             logger.info(f"管理页删除小猪：{pig_id}")
             return self._jsonify(
-                {"status": "ok", "message": "小猪已删除，历史解锁统计已保留"}
+                {"status": "ok", "message": '小猪已删除，不过历史解锁统计还留着'}
             )
         except ValueError as exc:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"今日小猪管理页删除失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "删除小猪失败"})
+            return self._jsonify({"status": "error", "message": '这只小猪没送走，删除失败'})
 
     async def page_catalog_layers(self):
         """管理面板：查看本地覆盖记录和删除屏蔽清单。"""
@@ -5410,7 +5408,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         except Exception as exc:
             logger.error(f"读取小猪本地资源层失败：{exc}", exc_info=True)
             return self._jsonify(
-                {"status": "error", "message": "读取本地资源管理清单失败"}
+                {"status": "error", "message": '本地资源管理清单没打开，读取失败'}
             )
 
     async def page_pig_unblock(self):
@@ -5429,9 +5427,9 @@ class RollPigPlugin(FelisDirectFeature, Star):
             await asyncio.to_thread(self._persist_catalog_restore, pig_id)
             visible = bool(self._find_catalog_pig(pig_id))
             message = (
-                "屏蔽已取消，小猪已恢复显示"
+                '屏蔽解除啦，小猪重新出来露脸了'
                 if visible
-                else "屏蔽已取消；当前基础源没有同 ID 资源，可重新新增这只小猪"
+                else '屏蔽已取消，但基础源里没有同 ID 资源，可以重新新增这只小猪'
             )
             logger.info(f"管理页取消屏蔽小猪：{pig_id}")
             return self._jsonify(
@@ -5441,7 +5439,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"今日小猪管理页取消屏蔽失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "取消屏蔽失败"})
+            return self._jsonify({"status": "error", "message": '取消屏蔽失败，小猪还躲在黑名单里'})
 
     async def page_pig_submit_public_source(self):
         """管理面板：明确确认后提交完整本地小猪到自建公共源审核。"""
@@ -5452,10 +5450,10 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     {"status": "error", "message": "请求来源或令牌无效"}
                 )
             if not isinstance(payload, dict) or payload.get("confirm") is not True:
-                raise ValueError("提交前必须明确确认会公开发送完整小猪资料与图片")
+                raise ValueError('提交前请先确认：这只猪的完整资料和照片都要公开亮出来啦')
             pig_id = str(payload.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("小猪 ID 无效")
+                raise ValueError('小猪 ID 没法认领，格式不对')
             result = await self._submit_local_pig_to_public_source(pig_id)
             logger.info(f"管理页已提交小猪到 AstrBot 公共猪源审核：{pig_id}")
             return self._jsonify(
@@ -5466,11 +5464,11 @@ class RollPigPlugin(FelisDirectFeature, Star):
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             logger.warning(f"AstrBot 公共猪源投稿网络失败：{exc}")
             return self._jsonify(
-                {"status": "error", "message": "公共猪源网络连接失败，请稍后再试"}
+                {"status": "error", "message": '通往公共猪圈的网络断线了，连接失败，稍后再试吧'}
             )
         except Exception as exc:
             logger.error(f"提交小猪到公共猪源失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "公共猪源投稿失败"})
+            return self._jsonify({"status": "error", "message": '往公共猪圈投稿失败了'})
 
     async def _official_public_source_snapshot(self, *, force: bool = False) -> dict:
         """Load a short-lived, validated snapshot of the official public source."""
@@ -5609,7 +5607,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共猪源暂时无法连接"}
+                {"status": "error", "message": '公共猪圈暂时大门紧闭，连不上'}
             )
 
     async def page_public_source_catalog_image(self):
@@ -5619,11 +5617,11 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
             pig_id = str(request.query.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("公共猪源小猪 ID 无效")
+                raise ValueError('公共猪圈里的这只小猪 ID 不太对劲，无法识别')
             snapshot = await self._official_public_source_snapshot()
             meta = (snapshot.get("image_by_id") or {}).get(pig_id)
             if not isinstance(meta, dict):
-                raise ValueError("公共猪源没有这只小猪的图片")
+                raise ValueError('公共猪圈里没存这只小猪的靓照')
             async with self._new_http_client(
                 follow_redirects=True,
                 extra_headers=self._resource_request_headers(),
@@ -5650,7 +5648,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共猪源图片暂时无法连接"}
+                {"status": "error", "message": '公共猪圈的相册暂时连不上'}
             )
 
     async def page_public_source_reviews(self):
@@ -5675,7 +5673,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共猪源审核服务暂时无法连接"}
+                {"status": "error", "message": '公共猪圈的审核窗口暂时打不开，连不上'}
             )
 
     async def page_public_source_review_image(self):
@@ -5690,7 +5688,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共猪源投稿图片暂时无法读取"}
+                {"status": "error", "message": '投稿来的小猪照片暂时打不开'}
             )
 
     async def page_public_source_review_decision(self):
@@ -5702,7 +5700,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                     {"status": "error", "message": "请求来源或令牌无效"}
                 )
             if not isinstance(payload, dict) or payload.get("confirm") is not True:
-                raise ValueError("审核前必须明确确认")
+                raise ValueError('拍板审核前得先勾上确认哦')
             submission_id = str(payload.get("id") or "").strip()
             decision = str(payload.get("decision") or "").strip()
             note = str(payload.get("note") or "").strip()[:300]
@@ -5724,7 +5722,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return self._jsonify({"status": "error", "message": str(exc)})
         except (httpx.TimeoutException, httpx.TransportError):
             return self._jsonify(
-                {"status": "error", "message": "公共猪源审核服务暂时无法连接"}
+                {"status": "error", "message": '公共猪圈的审核窗口暂时打不开，连不上'}
             )
 
     async def page_update_status(self):

@@ -77,18 +77,18 @@ class AnimatedImageMixin:
                 (dict(item) for item in overrides if item["id"] == pig_id), None
             )
             if not record:
-                raise ValueError("只能提交本地新增或本地覆盖的小猪")
+                raise ValueError('只能提交本地新添或覆盖过的小猪哦')
             path = self.find_image_file(pig_id)
             if not path or not path.is_file():
-                raise ValueError("这只本地小猪没有可提交的图片")
+                raise ValueError('这只本地小猪还没带照片，没法提交')
             raw = path.read_bytes()
         if not raw:
-            raise ValueError("小猪图片为空")
+            raise ValueError('小猪图片是空的，啥也没见着')
         if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("公共猪源投稿图片不能超过 10MB")
+            raise ValueError('投喂公共猪源的图片不能超过 10MB')
         normalized = normalize_image_bytes(raw, (512, 512))
         if len(normalized) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError("转换后的公共猪源投稿图片超过 10MB")
+            raise ValueError('转换后的公共猪源投稿图片还是超了 10MB')
         return record, normalized
 
     async def _public_source_review_image_payload(self, submission_id: str) -> dict:
@@ -108,7 +108,7 @@ class AnimatedImageMixin:
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError("公共猪源投稿图片读取失败")
+                    raise ValueError('公共猪源投稿图片没读出来，读取失败了')
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),

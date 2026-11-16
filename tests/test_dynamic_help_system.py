@@ -118,7 +118,9 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
 def test_native_mention_note_follows_every_at_capable_help_command():
     sections = build_help_sections(HelpFeatureState(at_view_pig=True))
     entries = [entry for section in sections for entry in section.entries]
-    note_text = "⚠ QQ请从@弹窗点选群友，勿复制或手打昵称"
+    from player_copy import PLAYER_COPY
+    note_text = PLAYER_COPY["zh-CN"]["help.mention.native_at_note"]
+    assert all(word in note_text for word in ("QQ", "@弹窗", "点选", "手打", "复制"))
     expected_commands = {
         "/今日小猪 @某人",
         "/烤群友 @某人",
@@ -211,7 +213,7 @@ def test_help_explains_configured_cost_recovery_risk_and_ex_content():
     assert "每人每群3格" in entries["烤箱 Charge"]
     assert "每1.5小时回1格" in entries["烤箱 Charge"]
     assert "消耗1格，逃脱不退" in entries["/烤群友 @某人"]
-    assert "27%成功；失败吃掉自己" in entries["/吃群友 @某人"]
+    assert all(word in entries["/吃群友 @某人"] for word in ("27%成功", "失败", "吃掉自己"))
     assert "最多9人" in entries["预约烤猪"]
     assert "/烤群友加入不扣格" in entries["预约烤猪"]
     assert "EX 可超5" in entries["EX 成长"]

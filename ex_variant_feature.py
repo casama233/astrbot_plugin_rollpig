@@ -383,7 +383,7 @@ class ExVariantMixin:
         event,
         pig_data: dict,
         user_id: str,
-        intro: str = ". 这是你的今日小猪：",
+        intro: str = '. 今天的本命小猪已就位：',
         fallback_title: str = "今日小猪",
     ):
         # Tomorrow is a preview rather than an owned draw; do not leak collection

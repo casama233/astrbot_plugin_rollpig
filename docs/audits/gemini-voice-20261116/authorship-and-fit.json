@@ -1,0 +1,12 @@
+{
+  "pigs": 218,
+  "pig_pairs": 1308,
+  "interface_slots": 2139,
+  "gemini_reviewed_interface": 2082,
+  "interface_rewrites": 643,
+  "preserved_program_or_generated_values": 57,
+  "verbatim_authorship": true,
+  "unique_normalized_pairs": true,
+  "maximum_body_lines": 4,
+  "card_fit_issues": []
+}

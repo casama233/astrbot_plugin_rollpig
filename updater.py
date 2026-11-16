@@ -572,7 +572,7 @@ class PluginUpdateManager:
             self._log("warning", warning)
         self._log(
             "info",
-            f"今日小猪已安全更新到 {release['latest_version']}，等待 AstrBot 重启加载",
+            f"今日小猪已更新至 {release['latest_version']}，等待 AstrBot 重启生效",
         )
         public_state = dict(state)
         public_state.pop("backup_dir", None)
@@ -876,7 +876,7 @@ class PluginUpdateManager:
             raise UpdateError(f"未完成更新自动恢复失败：{exc}") from exc
         self._log(
             "warning",
-            "检测到上次更新在文件替换期间中断，已从备份自动恢复旧版本",
+            '上次更新换文件到一半断了，已用备份自动恢复旧版本',
         )
 
     def _atomic_write_json(self, path: Path, payload: Any) -> None:

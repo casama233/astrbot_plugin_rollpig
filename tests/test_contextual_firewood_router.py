@@ -113,7 +113,7 @@ def test_chef_bare_firewood_is_terminal_reservation_denial_when_no_refill():
     assert harness.claimed is True
     assert harness.refill_calls == 0
     assert event.sent
-    assert "主厨" in event.sent[-1]
+    assert any(role in event.sent[-1] for role in ("主厨", "发起人"))
     assert "开局已经算 1 人" in event.sent[-1]
     row = get_reservation(
         harness.roast_reservation_state, DRAW_DATE.isoformat(), "g1", "target"

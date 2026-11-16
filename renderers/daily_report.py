@@ -28,11 +28,11 @@ _EVENT_ROW_STEP = 34
 
 
 _METRIC_META = (
-    ("active_users", "活跃猪友", "今天在猪圈露过脸"),
-    ("draws", "今日抽猪", "今天真正开过奖"),
+    ("active_users", "活跃猪友", '今天来猪圈冒过泡'),
+    ("draws", "今日抽猪", '今天正经开过盲盒'),
     ("roasts", "成功上架", "后厨今天端走的猪"),
-    ("eats", "今日被吃", "真的从名单里少掉了"),
-    ("escapes", "成功逃脱", "从烤架边上跑掉"),
+    ("eats", "今日被吃", '真从花名册里除名了'),
+    ("escapes", "成功逃脱", '临上烤架前溜了'),
     ("backlashes", "触发反噬", "烤人不成反上桌"),
 )
 
@@ -45,10 +45,10 @@ _EVENT_META = (
 )
 
 _AWARD_META = (
-    ("roast_maniac", "烧烤狂人", "今天没人把烤箱玩疯，主厨准点下班。"),
-    ("miserable_ingredient", "最惨食材", "今天没人长期躺烤架，食材区难得和平。"),
-    ("escape_master", "逃脱大师", "今天没人成功跑路，大家都挺认命。"),
-    ("backlash_king", "反噬之王", "后厨今天没炸，反噬之王请假一天。"),
+    ("roast_maniac", "烧烤狂人", '今天没人折腾烤箱，主厨到点准时下班。'),
+    ("miserable_ingredient", "最惨食材", '今天没人包场烤架，食材区难得风平浪静。'),
+    ("escape_master", "逃脱大师", '今天没人成功越狱，大伙都乖乖排好队了。'),
+    ("backlash_king", "反噬之王", '今天灶台没炸，反噬之王带薪休假一天。'),
 )
 
 
@@ -73,7 +73,7 @@ def _activity_story(report: dict[str, Any]) -> tuple[str, str]:
 
     chaos = roasts + eats + escapes + backlashes
     if backlashes >= 2:
-        return "翻车现场", f"今天反噬 {backlashes} 次，后厨锅盖已经开始申请工伤。"
+        return "翻车现场", f'今天反噬 {backlashes} 次，锅盖都快被掀去申请工伤了。'
     if roasts + eats >= max(3, draws // 3):
         return "后厨高温", f"今天上架 {roasts}、被吃 {eats}；大家显然不只来抽猪。"
     if escapes >= 2:
