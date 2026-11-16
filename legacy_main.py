@@ -2082,25 +2082,23 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 fragments.append(user)
         return self.collection_service.merge_ownership(fragments)
 
-    def _reload_catalog(self):
-        self.pig_list = self.load_json(self.catalog_path, [])
-        self._thumbnail_cache.clear()
-
     def _find_catalog_pig(self, pig_id: str) -> dict | None:
         pig = self.catalog_service.find(self.pig_list, pig_id)
         return pig if isinstance(pig, dict) else None
 
     def _choose_daily_pig(self, user_id: str, *, force_duplicate: bool = False) -> dict:
         """Delegate pure pity/selection policy to DrawService."""
-        collection = self._get_user_collection(user_id)
-        draw_context = dict(collection) if isinstance(collection, dict) else {}
-        draw_context["daily_duplicate_streak"] = consecutive_duplicate_day_streak(
-            self.history,
-            draw_context,
-            self._storage_user_key(str(user_id)),
-            self._today(),
-        )
+        draw_context = dict(self._get_user_collection(user_id))
         storage_id = self._storage_user_key(str(user_id))
+        draw_context["daily_duplicate_streak"] = (
+            self.storage.get_daily_duplicate_streak(
+                self._today().isoformat(), tuple(self._user_read_candidates(str(user_id)))
+            )
+            if getattr(self.storage, "supports_domain_reads", False)
+            else consecutive_duplicate_day_streak(
+                self.history, draw_context, storage_id, self._today()
+            )
+        )
         pending = getattr(self, "_pending_eaten_duplicate_users", None)
         if isinstance(pending, dict):
             pending_date = pending.pop(storage_id, None)
