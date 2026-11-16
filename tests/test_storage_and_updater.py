@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+import threading
 import zipfile
 from pathlib import Path
 
@@ -361,3 +362,74 @@ def test_state_write_failure_is_reported_as_warning_after_valid_install(tmp_path
     assert result["warnings"]
     assert "backup_dir" not in result
     assert (manager.plugin_dir / "main.py").read_text(encoding="utf-8") == "VALUE = 2\n"
+
+
+@pytest.mark.parametrize(('cancel_again', 'fail'), [(False, False), (True, False), (False, True)])
+def test_cancelled_update_keeps_install_owned_until_files_finish(tmp_path, monkeypatch, cancel_again, fail):
+    manager = _manager(tmp_path)
+    raw = _release_zip()
+    started = threading.Event()
+    finish = threading.Event()
+    done = threading.Event()
+    overlay = manager._overlay_install
+    stage = manager._stage_validate_and_apply
+
+    async def check():
+        manager._pending = {'download_url': 'https://github.com/example.zip'}
+        return {
+            'current_version': '2.7.0', 'latest_version': '2.8.0',
+            'update_available': True, 'checksum_available': True,
+            'expected_sha256': hashlib.sha256(raw).hexdigest(),
+        }
+
+    async def download(*args, **kwargs):
+        return raw
+
+    def blocked_overlay(*args, **kwargs):
+        started.set()
+        assert finish.wait(5)
+        if fail:
+            raise OSError('simulated install failure')
+        return overlay(*args, **kwargs)
+
+    def observed_stage(*args, **kwargs):
+        try:
+            return stage(*args, **kwargs)
+        finally:
+            done.set()
+
+    monkeypatch.setattr(manager, '_check_unlocked', check)
+    monkeypatch.setattr(manager, '_request_bytes', download)
+    monkeypatch.setattr(manager, '_overlay_install', blocked_overlay)
+    monkeypatch.setattr(manager, '_stage_validate_and_apply', observed_stage)
+
+    async def scenario():
+        task = asyncio.create_task(manager.apply_update())
+        try:
+            assert await asyncio.to_thread(started.wait, 2)
+            task.cancel()
+            await asyncio.sleep(0.01)
+            if cancel_again:
+                task.cancel()
+                await asyncio.sleep(0.01)
+            assert manager.status()['busy'] is True
+            assert not task.done()
+            with pytest.raises(UpdateError):
+                await manager.apply_update()
+        finally:
+            finish.set()
+            assert await asyncio.to_thread(done.wait, 2)
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert manager.status()['busy'] is False
+        assert not manager.journal_path.exists()
+        if fail:
+            assert manager.current_version() == '2.7.0'
+            assert manager.status()['last_error']
+            assert (manager.plugin_dir / 'main.py').read_text() == 'VALUE = 1\n'
+        else:
+            assert manager.current_version() == '2.8.0'
+            assert manager.status()['last_result']['restart_required'] is True
+            assert (manager.plugin_dir / 'main.py').read_text() == 'VALUE = 2\n'
+
+    asyncio.run(scenario())

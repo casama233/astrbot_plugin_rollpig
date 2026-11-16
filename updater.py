@@ -275,14 +275,26 @@ class PluginUpdateManager:
                 ):
                     raise UpdateError("下载包 SHA-256 与 Release 校验文件不一致")
 
-                result = await asyncio.to_thread(
-                    self._stage_validate_and_apply,
-                    raw,
-                    release,
-                    actual_sha256,
-                )
+                worker = asyncio.create_task(asyncio.to_thread(
+                    self._stage_validate_and_apply, raw, release, actual_sha256,
+                ))
+                cancelled = None
+                try:
+                    while not worker.done():
+                        try:
+                            await asyncio.shield(worker)
+                        except asyncio.CancelledError as exc:
+                            cancelled = exc
+                    result = worker.result()
+                except Exception as exc:
+                    self._last_error = str(exc)
+                    if cancelled is not None:
+                        raise cancelled from exc
+                    raise
                 self._last_result = result
                 self._last_error = ""
+                if cancelled is not None:
+                    raise cancelled
                 return result
             except Exception as exc:
                 self._last_error = str(exc)
