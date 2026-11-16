@@ -168,7 +168,7 @@
     document.getElementById('analyticsActivity').innerHTML = `
       ${cardHead('28 Day Activity', '活跃热力与玩法脉冲', `${format(current.avg_daily_users)} 日均活跃`)}
       <div class="activity-legend"><span>低</span><i></i><i></i><i></i><i></i><span>高</span></div>
-      <div class="activity-heatmap">${cells || '<div class="analytics-empty">暂时没有可展示的每日活动</div>'}</div>
+      <div class="activity-heatmap">${cells || "<div class=\"analytics-empty\">还没记下每日活动呢</div>"}</div>
       <div class="activity-summary">
         <span><b>${format(current.draws)}</b> 抽取</span>
         <span><b>${format(current.new_unlocks)}</b> 新解锁</span>
@@ -225,16 +225,16 @@
     const max = Math.max(1, ...rows.map(item => Number(item.users || 0)));
     document.getElementById('analyticsPlatforms').innerHTML = `
       ${cardHead('Audience Mix', '平台身份构成', `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 个身份`)}
-      <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : '<div class="analytics-empty">暂无平台分布数据</div>'}</div>`;
+      <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : "<div class=\"analytics-empty\">暂时没有平台分布数据</div>"}</div>`;
   }
 
   function renderRising(data) {
     const rows = Array.isArray(data.rising_pigs) ? data.rising_pigs : [];
     document.getElementById('analyticsRising').innerHTML = `
-      ${cardHead('Momentum', '上升最快的猪猪', '当前 7 日与上一周期抽中次数差值')}
+      ${cardHead('Momentum', "人气蹿升最快的猪猪", '当前 7 日与上一周期抽中次数差值')}
       <div class="rising-table" role="table">
         <div class="rising-table__head" role="row"><span>猪猪</span><span>本期</span><span>上期</span><span>变化</span></div>
-        ${rows.length ? rows.map((item, index) => `<div class="rising-table__row" role="row"><span><i>${index + 1}</i><b>${esc(item.name || item.id)}</b><small>${esc(item.id)}</small></span><span>${format(item.current)}</span><span>${format(item.previous)}</span><span class="analytics-delta ${Number(item.delta || 0) >= 0 ? 'is-up' : 'is-down'}">${Number(item.delta || 0) > 0 ? '+' : ''}${format(item.delta)}</span></div>`).join('') : '<div class="analytics-empty">还没有足够的双周期数据</div>'}
+        ${rows.length ? rows.map((item, index) => `<div class="rising-table__row" role="row"><span><i>${index + 1}</i><b>${esc(item.name || item.id)}</b><small>${esc(item.id)}</small></span><span>${format(item.current)}</span><span>${format(item.previous)}</span><span class="analytics-delta ${Number(item.delta || 0) >= 0 ? 'is-up' : 'is-down'}">${Number(item.delta || 0) > 0 ? '+' : ''}${format(item.delta)}</span></div>`).join('') : "<div class=\"analytics-empty\">双周期数据还不够，暂时算不出来</div>"}
       </div>`;
   }
 
@@ -257,19 +257,19 @@
     if (ai.kind === 'disabled') {
       return `<div class="ai-state ai-state--disabled">
         <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>AI roast copy feature</p></div><span class="state-pill state-pill--disabled">未启用</span></div>
-        <div class="ai-state__message"><strong>目前未开启 AI 文案功能</strong>此区块不会显示 0% 成功率或 0 / 0 样本，避免把“未启用”误读成“运行失败”。如需使用，请在插件配置中开启 AI 文案选项。</div>
+        <div class="ai-state__message"><strong>目前未开启 AI 文案功能</strong>这里暂时不展示 0% 成功率或 0 / 0 样本，省得你把“没开灯”当成“翻车失败”。要用时到插件配置里把 AI 文案打开就行。</div>
       </div>`;
     }
     if (ai.kind === 'running') {
       return `<div class="ai-state">
         <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>最近 7 日运行状态</p></div><span class="state-pill state-pill--running">生成中</span></div>
-        <div class="ai-state__message"><strong>目前有 ${format(ai.generating)} 次任务正在生成</strong>尚无完成样本，因此暂不计算成功率；生成中的任务不会计入成功率分母。</div>
+        <div class="ai-state__message"><strong>目前有 ${format(ai.generating)} 次任务还在路上</strong>手头还没有跑完的样本，暂时不算成功率；还在生成的任务不会算进成功率分母。</div>
       </div>`;
     }
     if (ai.kind === 'idle') {
       return `<div class="ai-state">
         <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>最近 7 日运行状态</p></div><span class="state-pill state-pill--idle">已启用</span></div>
-        <div class="ai-state__message"><strong>最近 7 日尚无完成样本</strong>功能已开启，但目前没有成功或失败的 AI 文案记录；成功率将在出现首个完成样本后开始统计。</div>
+        <div class="ai-state__message"><strong>最近 7 日还没攒到完成样本</strong>功能已经打开了，不过眼下还没有成功或失败的 AI 文案记录；等第一条完整跑完就给你算成功率。</div>
       </div>`;
     }
     return `<div class="ai-state">

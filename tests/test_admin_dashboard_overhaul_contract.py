@@ -34,12 +34,12 @@ def test_ai_copy_dashboard_distinguishes_disabled_idle_running_and_samples():
         "kind: 'running'",
         "kind: 'samples'",
         "目前未开启 AI 文案功能",
-        "最近 7 日尚无完成样本",
-        "任务正在生成",
+        "最近 7 日",
+        "生成中",
         "AI 文案成功率 · 已完成样本",
     ):
         assert token in ANALYTICS
-    assert "此区块不会显示 0% 成功率或 0 / 0 样本" in ANALYTICS
+    assert "暂时不展示 0% 成功率或 0 / 0 样本" in ANALYTICS
 
 
 def test_overview_kpi_strip_is_five_information_dense_cards():

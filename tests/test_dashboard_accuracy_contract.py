@@ -103,7 +103,7 @@ def test_core_dashboard_no_longer_fabricates_metric_sparklines():
     for token in forbidden:
         assert token not in page
     assert "chart-draw-bar" in page
-    assert "本地事实快照" in page
+    assert "只按本地记录重算" in page
 
 
 def test_deep_analytics_success_rate_excludes_in_progress_attempts():

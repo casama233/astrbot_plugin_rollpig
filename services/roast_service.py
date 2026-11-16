@@ -37,39 +37,33 @@ class RoastService:
         actor = subject == "actor"
         if state == "missing":
             return (
-                "🐷 你今天还没抽猪。没有食材证，后厨不让你碰火。"
+                '🐷 你今天还没抽猪，两手空空连点火的资格都没有。'
                 if actor
-                else "🐷 对方今天还没抽猪。现在烤架上只有空气。"
+                else '🐷 对方今天还没抽猪，烤架上现在只有一团空气。'
             )
         name = self._name(pig)
         if state == "human":
             if actor:
                 return (
-                    "🧍 你今天抽到的是「人类」。"
-                    "猪圈菜单写得很清楚：人只能围观，不能掌勺。"
+                    '🧍 你今天抽到的是「人类」。猪圈规矩写得很死：人类只准围观，不准上手操作。'
                 )
             return (
-                "🧍 对方今天是「人类」。"
-                "猪圈劳动合同再离谱，也没写可以把员工送上烤架。"
+                '🧍 对方今天是「人类」。猪圈条约再离谱，也没写可以把人直接架上火。'
             )
         if state == "eaten":
             if actor:
                 return (
-                    "🍽️ 你今天已经是「吃掉了」。盘子都舔干净了，"
-                    "别再假装还有一只猪能行动。"
+                    '🍽️ 你今天已经是「吃掉了」。盘子都舔反光了，别再假装还有猪能折腾。'
                 )
             return (
-                "🍽️ 对方今天已经是「吃掉了」。"
-                "盘子里只剩反光，后厨没法二次加工。"
+                '🍽️ 对方今天已经是「吃掉了」。碗底都朝天了，没法再回炉折腾一遍。'
             )
         if actor:
             return (
-                f"🍖 你今天是「{name}」：已经上桌了。"
-                "后厨不接受熟食重新报名当主厨。"
+                f'🍖 你今天是「{name}」：已经上桌了。熟猪就安详躺平，别想着爬起来掌勺。'
             )
         return (
-            f"🍖 对方今天是「{name}」：已经是熟食。"
-            "同一盘菜不能再过一次烤架。"
+            f'🍖 对方今天是「{name}」：已经是熟食了。同一盘菜可不兴再架火烤第二遍。'
         )
 
     def eat_actor_block_reason(self, pig: Mapping[str, Any] | None) -> str | None:
@@ -78,23 +72,19 @@ class RoastService:
             return None
         if state == "missing":
             return (
-                "🐷 你今天还没抽猪。自己连猪证都没有，"
-                "先别急着张嘴吃群友。"
+                '🐷 你今天还没抽猪。自己连猪圈户口都没领，先别急着张嘴啃群友。'
             )
         name = self._name(pig)
         if state == "human":
             return (
-                "🧍 你今天是「人类」。猪圈菜单拒绝人类发动吃群友。"
-                "今天你负责拿筷子，不负责吃人。"
+                '🧍 你今天是「人类」。猪圈禁止人类发动吃群友，今天你只负责围观，不负责下嘴。'
             )
         if state == "eaten":
             return (
-                "🍽️ 你今天已经是「吃掉了」。盘子都空了，"
-                "就别从餐后回忆里爬回来找饭。"
+                '🍽️ 你今天已经是「吃掉了」。盘子早空了，别指望从回忆里爬出来继续干饭。'
             )
         return (
-            f"🍖 你今天是「{name}」：已经上桌了。"
-            "熟食先躺好，暂时别去追着别人吃。"
+            f'🍖 你今天是「{name}」：已经上桌了。熟猪请体面躺平，别再爬起来追着别人啃。'
         )
 
     def eat_target_block_reason(self, pig: Mapping[str, Any] | None) -> str | None:
@@ -102,15 +92,13 @@ class RoastService:
         if state in {"normal", "cooked"}:
             return None
         if state == "missing":
-            return "🐷 对方今天还没抽猪。菜单上目前只有一个空盘子。"
+            return '🐷 对方今天还没抽猪，面前只摆着一只空盘子。'
         if state == "human":
             return (
-                "🧍 对方今天是「人类」。吃人不在猪圈菜单里——"
-                "后厨再野，也还没野到刑法那一页。"
+                '🧍 对方今天是「人类」。吃人不在猪圈业务范围内——再野也不敢翻开刑法那一页。'
             )
         return (
-            "🍽️ 对方今天已经是「吃掉了」。"
-            "盘子里连渣都没剩，不能再吃一次。"
+            '🍽️ 对方今天已经是「吃掉了」，盘子舔得比脸还干净，实在没法再吃第二顿了。'
         )
 
     def eat_success_message(self, pig: Mapping[str, Any]) -> str:
@@ -121,8 +109,7 @@ class RoastService:
             else "吃群友成功"
         )
         return (
-            f" 🍴 {action}，「{name}」当场从猪圈名册变成餐后回忆；"
-            "明天抽猪可能会翻车。"
+            f' 🍴 {action}，「{name}」当场从猪圈名册掉进餐后回忆录，明天抽猪保不齐要翻车。'
         )
 
     def choose_group_roast_target(
@@ -158,6 +145,5 @@ class RoastService:
     @staticmethod
     def roast_protection_message(count: int) -> str:
         return (
-            f"🛡️ 对方昨天被成功烤了 {count} 次，今天领到『猪身安全险』。"
-            "普通烤／吃会被猪圈保安拦下；后门强制模式仍然不讲武德。"
+            f'🛡️ 对方昨天被成功烤了 {count} 次，今天喜提『猪身安全险』。普通烤／吃会被猪圈保安直接架走，但后门强制模式依旧不讲武德。'
         )

@@ -205,9 +205,7 @@ class RoastReservationMixin:
                 remaining = int(charge_status.get("next_refill_seconds", 0) or 0)
                 await event.send(
                     event.plain_result(
-                        "🔥 烤箱一格火都不剩（"
-                        f"0/{self.group_roast_max_charges}）；下一格将在 "
-                        f"{self._format_cooldown(remaining)} 后自己长回来。现在埋伏，只会得到一口冷锅。"
+                        f'🔥 炉火一格都不剩了（0/{self.group_roast_max_charges}），下一格 {self._format_cooldown(remaining)} 后才自己长回来。现在埋伏只能守一口冷锅。'
                     )
                 )
                 return True
@@ -241,8 +239,7 @@ class RoastReservationMixin:
             await self._send_with_mention(
                 event,
                 target_id,
-                " 🔥 你今天还没抽猪，但后厨已经替你把锅热上了。等你在本群 /今日小猪，这口埋伏会立刻结算。\n"
-                f"主厨先蹲好，最多 {self.roast_reservation_max_participants} 人能围锅；可 /添柴 @你 加入，继续 /烤群友 @你 也兼容。"
+                f'🔥 你今天还没抽猪，但埋伏锅已经替你架好了。等你在本群 /今日小猪，立刻开盖结算。\n主厨先蹲位，最多 {self.roast_reservation_max_participants} 人能围锅；可 /添柴 @你 加入，继续 /烤群友 @你 也行。'
                 + self._roast_charge_note(charge_status),
             )
             logger.info(
@@ -325,7 +322,7 @@ class RoastReservationMixin:
         await self._send_with_mention(
             event,
             target_id,
-            f" 🔥 你刚抽完猪，后厨埋伏立刻掀锅！\n主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。",
+            f'🔥 你前脚刚抽完猪，埋伏锅后脚就掀盖了！\n主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。',
         )
 
         if outcome == "escape":
@@ -340,7 +337,7 @@ class RoastReservationMixin:
                     event_id=f"roast-reservation-outcome:{draw_date}:{group_id}:{target_id}",
                 )
             await event.send(
-                event.plain_result("💨 埋伏锅扑了个空，对方刚落地就一溜烟跑了。后厨连盐都白撒。")
+                event.plain_result('💨 埋伏扑了个空，对方刚落地就一溜烟溜了，连撒好的盐都白费了。')
             )
             return
 
@@ -387,7 +384,7 @@ class RoastReservationMixin:
                 event_id=f"roast-reservation-outcome:{draw_date}:{group_id}:{target_id}",
             )
         await event.send(
-            event.plain_result("🔥 埋伏命中！对方今天的小猪刚露头就被后厨端走，连围裙都没来得及系。")
+            event.plain_result('🔥 埋伏命中！对方的小猪刚露头就被端走，连围裙都没来得及系。')
         )
         await self._record_group_roast(group_id, target_id, draw_date)
         await self._send_roast_card(event, target_pig, target_id)

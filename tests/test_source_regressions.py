@@ -414,8 +414,8 @@ def test_eaten_next_day_player_copy_and_wiki_describe_forced_duplicate():
     troubleshooting = (ROOT / "docs" / "troubleshooting" / "index.md").read_text(
         encoding="utf-8"
     )
-    assert "明天抽猪可能会抽到重复猪" in SOURCE
+    assert "明天抽猪可能会重样" in SOURCE
     assert "明天抽猪可能失败" not in SOURCE
     assert "次日仍可正常抽豬" in commands
     assert "不會失敗或鎖天" in commands
-    assert "抽取仍會正常完成，不會鎖到自然日結束" in troubleshooting
+    assert "抽取仍正常完成，不会锁到自然日结束" in troubleshooting

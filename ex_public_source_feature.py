@@ -153,7 +153,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
             "POST", "/submissions", payload=payload
         )
         if not isinstance(result, dict):
-            raise ValueError("公共猪源返回了无效投稿结果")
+            raise ValueError('公共猪源回传了无效的投稿结果')
         return result
 
     async def page_pig_submit_public_source(self):
@@ -168,7 +168,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
                 raise ValueError("投稿前必须明确确认提交完整资料与权利证明")
             pig_id = str(payload.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("小猪 ID 无效")
+                raise ValueError('这只小猪的 ID 没对上号')
             rights = self._normalize_public_source_rights(payload.get("rights"))
             result = await self._submit_local_pig_to_public_source(pig_id, rights)
             logger.info(
@@ -188,7 +188,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
         except Exception as exc:
             logger.error(f"提交公共猪源失败：{exc}", exc_info=True)
             return self._jsonify(
-                {"status": "error", "message": "提交公共猪源失败，请稍后重试"}
+                {"status": "error", "message": '向公共猪源提交失败了，稍后再试一次吧'}
             )
 
     async def _submit_local_ex_to_public_source(
@@ -212,7 +212,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
             "POST", "/submissions", payload=payload
         )
         if not isinstance(result, dict):
-            raise ValueError("公共猪源返回了无效投稿结果")
+            raise ValueError('公共猪源那边回了个看不懂的投稿结果')
         return result
 
     async def page_ex_submit_public_source(self):
@@ -225,11 +225,11 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
                 )
             if not isinstance(payload, dict) or payload.get("confirm") is not True:
                 raise ValueError(
-                    "投稿前必须明确确认提交基础资料、EX 差分、图片与权利证明"
+                    '投稿前得先确认，把基础资料、EX 差分、图片和权利证明一起提交'
                 )
             pig_id = str(payload.get("id") or "").strip()
             if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-                raise ValueError("小猪 ID 无效")
+                raise ValueError('这只小猪的 ID 没对上号')
             rights = self._normalize_public_source_rights(payload.get("rights"))
             result = await self._submit_local_ex_to_public_source(pig_id, rights)
             logger.info(
@@ -249,7 +249,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
         except Exception as exc:
             logger.error(f"提交 EX 差分到公共猪源失败：{exc}", exc_info=True)
             return self._jsonify(
-                {"status": "error", "message": "提交公共猪源失败，请稍后重试"}
+                {"status": "error", "message": '向公共猪源提交失败了，稍后再试一次吧'}
             )
 
     async def page_public_source_review_decision(self):
@@ -261,7 +261,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
                     {"status": "error", "message": "请求来源或令牌无效"}
                 )
             if not isinstance(payload, dict) or payload.get("confirm") is not True:
-                raise ValueError("审核前必须明确确认")
+                raise ValueError('审核前得先点头确认一下')
 
             submission_id = str(
                 payload.get("id") or payload.get("submission_id") or ""
@@ -271,16 +271,16 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
             rights_verified = payload.get("rights_verified") is True
 
             if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
-                raise ValueError("投稿 ID 无效")
+                raise ValueError('这份投稿的 ID 没对上号')
             if decision not in {"approve", "reject"}:
-                raise ValueError("审核决定无效")
+                raise ValueError('这个审核决定无效，没法执行')
             if len(note) > self.PUBLIC_SOURCE_REVIEW_NOTE_MAX:
-                raise ValueError("审核备注不能超过 600 字")
+                raise ValueError('审核备注写太长啦，不能超过 600 字')
             if decision == "approve":
                 if not rights_verified:
                     raise ValueError("批准前必须明确确认 rights_verified=true")
                 if len(note) < 8:
-                    raise ValueError("批准时必须留下至少 8 字的权利审核备注")
+                    raise ValueError('点批准前，得先写满至少 8 字的权利审核备注')
 
             result = await self._public_source_request_json(
                 "POST",
@@ -293,7 +293,7 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
                 admin=True,
             )
             if not isinstance(result, dict):
-                raise ValueError("公共猪源返回了无效审核结果")
+                raise ValueError('公共猪源那边回了个看不懂的审核结果')
             return self._jsonify(
                 {
                     "status": "ok",
@@ -306,5 +306,5 @@ class ExPublicSourceMixin(_LegacyExPublicSourceMixin):
         except Exception as exc:
             logger.error(f"公共猪源权利审核失败：{exc}", exc_info=True)
             return self._jsonify(
-                {"status": "error", "message": "公共猪源审核失败，请稍后重试"}
+                {"status": "error", "message": '公共猪源审核失败了，稍后再试一次吧'}
             )

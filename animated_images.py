@@ -39,7 +39,7 @@ def _validate_source_geometry(source: PILImage.Image) -> None:
         or height > ANIMATED_GIF_MAX_SOURCE_EDGE
         or width * height > ANIMATED_GIF_MAX_SOURCE_PIXELS
     ):
-        raise ValueError("图片尺寸过大，最高支持 8192×8192")
+        raise ValueError('图片太大塞不下啦，最高支持 8192×8192')
 
 
 def image_mime_type_from_bytes(raw: bytes) -> str:
@@ -108,7 +108,7 @@ def load_fitted_gif_frames(
             raise ValueError("GIF 不是动画")
         if frame_count > ANIMATED_GIF_MAX_FRAMES:
             raise ValueError(
-                f"GIF 帧数过多，最多支持 {ANIMATED_GIF_MAX_FRAMES} 帧"
+                f'GIF 帧数太密啦，最多支持 {ANIMATED_GIF_MAX_FRAMES} 帧'
             )
         _validate_source_geometry(source)
         method = getattr(PILImage, "Resampling", PILImage).LANCZOS
@@ -123,7 +123,7 @@ def load_fitted_gif_frames(
             total_duration += duration
             if total_duration > ANIMATED_GIF_MAX_DURATION_MS:
                 raise ValueError(
-                    f"GIF 动画时长过长，最多支持 {ANIMATED_GIF_MAX_DURATION_MS // 1000} 秒"
+                    f'GIF 演得太久啦，动画最多支持 {ANIMATED_GIF_MAX_DURATION_MS // 1000} 秒'
                 )
             frame = source.convert("RGBA")
             frame = ImageOps.fit(frame, (width, height), method=method)
@@ -187,7 +187,7 @@ def normalize_image_bytes(raw: bytes, size: tuple[int, int] = (512, 512)) -> byt
     except ValueError:
         raise
     except Exception as exc:
-        raise ValueError("无法读取图片，请上传 PNG/JPG/WEBP/GIF") from exc
+        raise ValueError('图片读不出来，麻烦重新上传 PNG/JPG/WEBP/GIF') from exc
 
     animation = load_fitted_gif_frames(raw, size)
     return save_animated_gif_bytes(

@@ -452,7 +452,7 @@ class DailyReportMixin:
                 {
                     "user_id": user_id,
                     "pig_id": str(pig.get("id") or ""),
-                    "pig_name": str(pig.get("name") or pig.get("id") or "未知小猪"),
+                    "pig_name": str(pig.get("name") or pig.get("id") or '神秘小猪'),
                     "was_eaten": bool(was_eaten),
                 }
             )
@@ -722,7 +722,7 @@ class DailyReportMixin:
             )
             draw.text(
                 (left + 24, top + 181),
-                "猪圈今天意外地很和平。",
+                '猪圈今天居然风平浪静。',
                 font=small_font,
                 fill=palette["secondary"],
             )
@@ -784,7 +784,7 @@ class DailyReportMixin:
         )
         draw.text(
             (79, 190),
-            "今天猪圈里也很不太平。",
+            '今天猪圈里照样鸡飞狗跳。',
             font=body_font,
             fill=palette["secondary"],
         )
@@ -886,7 +886,7 @@ class DailyReportMixin:
             summary = (
                 f"今天 {variety} 种小猪各出现 1 次，尚未形成热门形态。"
                 if variety > 1 and peak == 1
-                else "今天还没有形成流行趋势。"
+                else '今天大家各长各的，还没卷出爆款。'
             )
             draw.text(
                 (76, pop_y + 105),
@@ -954,13 +954,13 @@ class DailyReportMixin:
             )
             draw.text(
                 (272, sac_y + 151),
-                "日报发布前的最后一刻，他还是完整的小猪。",
+                '日报发布前最后一秒，他还是只完整猪。',
                 font=body_font,
                 fill=palette["secondary"],
             )
             draw.text(
                 (272, sac_y + 196),
-                "今日状态：吃掉了 · 明日抽猪可能受到影响",
+                '今日状态：已进肚 · 明日抽猪或受影响',
                 font=label_font,
                 fill=palette["danger"],
             )
@@ -1502,11 +1502,11 @@ class DailyReportMixin:
         """manual views never sacrifice; manage per-group automatic push."""
         self._claim_command_event(event)
         if not self.enable_daily_report:
-            await event.send(event.plain_result("猪圈日报功能已在配置中关闭。"))
+            await event.send(event.plain_result('猪圈日报这会儿还在休假呢，配置里已经把它关掉啦。'))
             return
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result("猪圈日报只能在群聊中使用。"))
+            await event.send(event.plain_result('猪圈日报只爱凑热闹，得去群聊里才能看哦。'))
             return
         actor_id = self._event_sender_id(event)
         action = str(args or "").strip().lower()
@@ -1529,7 +1529,7 @@ class DailyReportMixin:
                 return
             if not self._daily_report_group_manager(event, actor_id):
                 await event.send(
-                    event.plain_result("只有 AstrBot 管理员可以修改日报自动推送。")
+                    event.plain_result('这事得请 AstrBot 管理员出马，只有他们能改日报自动推送。')
                 )
                 return
             target = action in enable_actions
@@ -1538,12 +1538,11 @@ class DailyReportMixin:
                 suffix = "" if self.daily_report_auto_send else "；但全局自动推送总开关目前关闭"
                 await event.send(
                     event.plain_result(
-                        f"已开启本群猪圈日报自动推送。将在自然日结束前按 "
-                        f"{self.daily_report_send_time} + 随机延迟发送{suffix}。"
+                        f'本群猪圈日报自动推送已就位！每天结束前按 {self.daily_report_send_time} + 随机延迟送达{suffix}。'
                     )
                 )
             else:
-                await event.send(event.plain_result("已关闭本群猪圈日报自动推送。手动 /猪圈日报 仍可使用。"))
+                await event.send(event.plain_result('已关闭本群猪圈日报自动推送。想看的话，手动 /猪圈日报 依然随时待命。'))
             return
         if action:
             await event.send(
@@ -1554,7 +1553,7 @@ class DailyReportMixin:
         draw_date = self._today().isoformat()
         members = self._daily_group_members(group_id, draw_date)
         if not members:
-            await event.send(event.plain_result("今天本群还没有 RollPig 数据，晚点再来看看吧。"))
+            await event.send(event.plain_result('今天本群的小猪们还没攒够 RollPig 数据呢，晚点再来看看吧。'))
             return
         output = None
         try:
@@ -1563,7 +1562,7 @@ class DailyReportMixin:
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
             logger.error(f"生成猪圈日报失败：{exc}", exc_info=True)
-            await event.send(event.plain_result("猪圈日报生成失败，请稍后再试。"))
+            await event.send(event.plain_result('猪圈日报生成失败，请稍后重试。'))
         finally:
             if output:
                 output.unlink(missing_ok=True)

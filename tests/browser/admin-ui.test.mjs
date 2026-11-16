@@ -109,7 +109,7 @@ test('overview KPI strip renders five useful cards and a smooth truthful activit
   assert.match(window.document.getElementById('cUsers').textContent, /占累计/);
   assert.match(window.document.getElementById('cDraws').textContent, /近 14 日/);
   assert.match(window.document.getElementById('cToday').textContent, /较昨日/);
-  assert.match(window.document.getElementById('cAverage').textContent, /尚未探索/);
+  assert.match(window.document.getElementById('cAverage').textContent, /还有 212\.9 只没摸着/);
   assert.equal(window.document.querySelectorAll('#view-overview .metric-viz').length, 5);
   assert.ok(window.document.querySelector('#vUsers .metric-meter-fill'));
   const drawSpark = window.document.querySelector('#vDraws .spark-path');
@@ -205,8 +205,8 @@ const checkedRelease = {
   checksum_available: true, notes: 'Release notes',
 };
 for (const [name, snapshot, expected, canApply] of [
-  ['never checked', {last_check_at: 0, pending: null}, '尚未检查更新', false],
-  ['incomplete response', {last_check_at: 1720000000}, '尚未检查更新', false],
+  ['never checked', {last_check_at: 0, pending: null}, '还没检查过更新', false],
+  ['incomplete response', {last_check_at: 1720000000}, '还没检查过更新', false],
   ['failed without prior result', {last_error: 'network unavailable'}, '更新操作失败', false],
   ['failed after an older success', {last_check_at: 1720000000, pending: {...checkedRelease, update_available: false}, last_error: 'network unavailable'}, '更新操作失败', false],
   ['failed with cached upgrade', {last_check_at: 1720000000, pending: checkedRelease, last_error: 'network unavailable'}, '更新操作失败', false],
@@ -214,7 +214,7 @@ for (const [name, snapshot, expected, canApply] of [
   ['success with upgrade', {last_check_at: 1720000000, pending: checkedRelease}, '可更新 3.1.3', true],
   ['busy with cached upgrade', {last_check_at: 1720000000, pending: checkedRelease, busy: true}, '正在检查或更新', false],
   ['panel disabled', {last_check_at: 1720000000, pending: checkedRelease, enabled: false}, '可更新 3.1.3', false],
-  ['installed pending reload', {current_version: '3.1.3', last_check_at: 1720000000, pending: checkedRelease, last_result: {to_version: '3.1.3', restart_required: true}}, '已安装，等待重载', false],
+  ['installed pending reload', {current_version: '3.1.3', last_check_at: 1720000000, pending: checkedRelease, last_result: {to_version: '3.1.3', restart_required: true}}, '装好了，等重载生效', false],
 ]) {
   test(`update status: ${name}`, async t => {
     const {dom, window} = createDom({updateStatus: snapshot});
@@ -278,7 +278,7 @@ test('resource status distinguishes cached origin from permitted remote sources'
   assert.match(status, /当前资源：Vercel 镜像缓存/);
   assert.match(status, /可用远端：AstrBot 主源/);
   assert.match(status, /公共镜像已停用/);
-  assert.match(window.document.getElementById('syncFeedback').textContent, /点击右上角刷新/);
+  assert.match(window.document.getElementById('syncFeedback').textContent, /点右上角刷新/);
   assert.doesNotMatch(window.document.getElementById('syncFeedback').textContent, /自动刷新/);
   assert.equal(intervals, 0);
 });
@@ -311,7 +311,7 @@ test('disabled automatic sync cannot hide the last sync failure', async t => {
   t.after(() => dom.window.close());
   await runCore(window);
   assert.match(window.document.getElementById('syncFeedback').textContent, /checksum mismatch/);
-  assert.match(window.document.getElementById('syncFeedback').textContent, /现有资源已保留/);
+  assert.match(window.document.getElementById('syncFeedback').textContent, /资源都留着/);
 });
 
 for (const failStatus of [false, true]) {
@@ -345,8 +345,8 @@ test('accepted sync with unavailable status asks for refresh without claiming st
   t.after(() => dom.window.close());
   await runCore(window);
   window.document.getElementById('syncBtn').click();
-  await waitFor(() => window.document.getElementById('syncFeedback').textContent.includes('已受理'));
+  await waitFor(() => window.document.getElementById('syncFeedback').textContent.includes('已接下'));
   assert.doesNotMatch(window.document.getElementById('syncFeedback').textContent, /启动失败/);
-  assert.match(window.document.getElementById('syncFeedback').textContent, /刷新查看结果/);
+  assert.match(window.document.getElementById('syncFeedback').textContent, /刷新看看结果/);
   assert.equal(window.document.getElementById('syncBtn').disabled, true);
 });

@@ -77,5 +77,5 @@ def test_metric_cards_keep_five_requested_kpis_with_real_context():
     assert "renderMetricRuler('vAverage',averageUnlocked,catalog" in page
     assert "renderMetricRate('vRate',rate" in page
     assert "totalDraws-totalDraws14" in page
-    for useful_copy in ("今日活跃", "占累计", "近 14 日", "较昨日", "人均尚未探索", "按当前图鉴计算"):
+    for useful_copy in ("今日活跃", "占累计", "近 14 日", "较昨日", "人均", "按当前图鉴计算"):
         assert useful_copy in page

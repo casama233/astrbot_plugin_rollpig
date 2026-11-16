@@ -186,8 +186,7 @@ class HelpFeatureMixin:
             try:
                 await event.send(
                     event.plain_result(
-                        "📖 想看完整玩法、管理、投稿与排障？今日小猪 Wiki：\n"
-                        f"{WIKI_HOME_URL}"
+                        f'📖 玩法、投稿、排障全套小剧场已备好，今日小猪 Wiki：\n{WIKI_HOME_URL}'
                     )
                 )
             except Exception as link_exc:
