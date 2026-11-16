@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from services.resource_staging import promote_resource_staging, stage_resource_images
+from services.resource_read_service import ResourceReadService
 
 
 def options(tmp_path):
@@ -36,6 +37,29 @@ def test_stage_valid_base_and_ex_at_exact_budget(tmp_path):
     args = options(tmp_path)
     asyncio.run(stage_resource_images(**args))
     assert (tmp_path / 'images/pig.png').read_bytes() == b'image'
+    assert (tmp_path / 'ex_variants/pig.EX1.png').read_bytes() == b'image'
+
+
+@pytest.mark.parametrize('filename', ['pig.PNG', 'pig.PnG'])
+def test_accepted_base_image_is_readable_after_staging(tmp_path, filename):
+    args = options(tmp_path)
+    args['image_metas'] = [{'filename': filename}]
+    downloaded = []
+
+    async def download(meta):
+        downloaded.append(meta['filename'])
+        return b'image'
+
+    args['download'] = download
+    asyncio.run(stage_resource_images(**args))
+    image = ResourceReadService(image_extensions=('png',)).find_image(
+        'pig', custom_image_dir=tmp_path / 'custom',
+        cloud_image_dir=args['staging_images'], bundled_image_dir=tmp_path / 'bundled',
+    )
+    assert image is not None
+    assert image.name == 'pig.png'
+    assert image.read_bytes() == b'image'
+    assert filename in downloaded
     assert (tmp_path / 'ex_variants/pig.EX1.png').read_bytes() == b'image'
 
 
