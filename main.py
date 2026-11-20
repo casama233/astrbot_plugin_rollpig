@@ -223,7 +223,7 @@ class RollPigPlugin(
     async def oven_refill(self, event: AstrMessageEvent):
         return await super().oven_refill(event)
 
-    @filter.command('添柴', alias={'加柴'}, priority=1000)
+    @filter.command('添柴', alias={'加柴', '添把柴'}, priority=1000)
     async def firewood_support(self, event: AstrMessageEvent, args: str=''):
         return await super().firewood_support(event, args)
 
