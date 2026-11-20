@@ -70,3 +70,34 @@ def test_ai_selector_avoids_recent_candidate_when_possible_after_normalization()
         candidates, recent_keys=blocked, rng=random.Random(1)
     )
     assert picked == "猪圈丁"
+
+
+
+def test_scene_specific_copy_catalog_and_selector():
+    path = Path(__file__).resolve().parents[1] / "resource" / "roast_copy.json"
+    catalog = load_roast_copy_catalog(path)
+    assert len(catalog["self_lines"]) == 25
+    assert len(catalog["group_lines"]) == 25
+    assert len(catalog["backlash_lines"]) == 25
+
+    for scene in ("self", "group", "backlash"):
+        selected = select_local_roast_copy(
+            catalog, pig_name="测试猪", scene=scene, rng=random.Random(3)
+        )
+        assert selected["scene"] == scene
+        assert selected["copy"]
+        assert "{pig}" not in selected["copy"]
+
+
+def test_legacy_catalog_without_scene_lines_remains_supported():
+    catalog = {
+        "schema_version": 1,
+        "dish_names": [f"菜名{i}" for i in range(24)],
+        "lines": [f"旧版语录{i} {{pig}}" for i in range(64)],
+    }
+    selected = select_local_roast_copy(
+        catalog, pig_name="旧版小猪", scene="group", rng=random.Random(1)
+    )
+    assert "{pig}" not in selected["copy"]
+    assert "旧版小猪" in selected["copy"]
+    assert selected["scene"] == "group"
