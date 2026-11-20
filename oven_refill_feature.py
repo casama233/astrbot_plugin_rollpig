@@ -620,7 +620,7 @@ class OvenRefillMixin:
             await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你这把柴已经算过了。再塞不加进度，只会让后厨怀疑你想把烤箱埋了。"))
+            await event.send(event.plain_result("🪵 你塞过了，别把灶台当垃圾桶。"))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
