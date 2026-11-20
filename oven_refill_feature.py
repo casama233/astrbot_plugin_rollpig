@@ -620,7 +620,7 @@ class OvenRefillMixin:
             await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你这把柴已经算过了。再塞不加进度，只会让后厨怀疑你想把烤箱埋了。"))
+            await event.send(event.plain_result("🪵 你塞过了，别把灶台当垃圾桶。"))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
@@ -742,7 +742,7 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "⛽ 柴车到站，后厨重新通电！"
-                f"本群今天有 {restored} 位活跃群友各捡回 1 格 Charge。烤箱又可以干坏事了。"
+                "⛽ 柴够了，火重新点着了，"
+                f"{restored} 个人白嫖到 1 格能量，赶紧去霍霍群友吧。"
             )
         )
