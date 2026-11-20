@@ -742,7 +742,7 @@ class OvenRefillMixin:
         )
         await event.send(
             event.plain_result(
-                "⛽ 柴车到站，后厨重新通电！"
-                f"本群今天有 {restored} 位活跃群友各捡回 1 格 Charge。烤箱又可以干坏事了。"
+                "⛽ 柴够了，火重新点着了，"
+                f"{restored} 个人白嫖到 1 格能量，赶紧去霍霍群友吧。"
             )
         )
