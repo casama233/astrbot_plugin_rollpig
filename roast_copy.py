@@ -31,6 +31,15 @@ def validate_roast_copy_catalog(raw: object) -> dict[str, object]:
         raise ValueError(f"roast_copy requires at least {MIN_LINES} copy lines")
     normalized_dishes = [str(item).strip() for item in dishes]
     normalized_lines = [str(item).strip() for item in lines]
+    scenes = {}
+    for scene in ("self", "group", "backlash"):
+        value = raw.get(f"{scene}_lines", [])
+        if not isinstance(value, list):
+            raise ValueError(f"roast_copy {scene}_lines must be a list")
+        normalized = [str(item).strip() for item in value]
+        if value and (len(normalized) < 20 or len(normalized) > 30):
+            raise ValueError(f"roast_copy {scene}_lines must contain 20-30 lines")
+        scenes[scene] = normalized
     if any(not item or len(item) > 24 for item in normalized_dishes):
         raise ValueError("roast_copy dish name length is invalid")
     if any(not item or len(item) > 120 for item in normalized_lines):
@@ -39,7 +48,7 @@ def validate_roast_copy_catalog(raw: object) -> dict[str, object]:
         raise ValueError("roast_copy dish names must be unique")
     if len(set(normalized_lines)) != len(normalized_lines):
         raise ValueError("roast_copy lines must be unique")
-    for line in normalized_lines:
+    for line in normalized_lines + [line for values in scenes.values() for line in values]:
         unknown = set(_PLACEHOLDER.findall(line)).difference({"pig"})
         if unknown:
             raise ValueError(
@@ -50,6 +59,7 @@ def validate_roast_copy_catalog(raw: object) -> dict[str, object]:
         "schema_version": SCHEMA_VERSION,
         "dish_names": normalized_dishes,
         "lines": normalized_lines,
+        **{f"{scene}_lines": values for scene, values in scenes.items() if values},
     }
 
 
@@ -70,10 +80,12 @@ def select_local_roast_copy(
     pig_name: str,
     recent_keys: Iterable[str] = (),
     rng: random.Random | random.SystemRandom | None = None,
+    scene: str = "self",
 ) -> dict[str, str]:
     validated = validate_roast_copy_catalog(catalog)
     dishes: list[str] = list(validated["dish_names"])  # type: ignore[arg-type]
-    lines: list[str] = list(validated["lines"])  # type: ignore[arg-type]
+    scene = scene if scene in {"self", "group", "backlash"} else "self"
+    lines: list[str] = list(validated.get(f"{scene}_lines") or validated["lines"])  # type: ignore[arg-type]
     blocked = set(list(recent_keys)[-RECENT_HISTORY_LIMIT:])
     picker = rng or random
 
@@ -81,14 +93,14 @@ def select_local_roast_copy(
     for _ in range(64):
         dish_index = picker.randrange(len(dishes))
         line_index = picker.randrange(len(lines))
-        key = f"local:{dish_index}:{line_index}"
+        key = f"local:{scene}:{dish_index}:{line_index}"
         if key not in blocked:
             selected = (dish_index, line_index)
             break
     if selected is None:
         for dish_index in range(len(dishes)):
             for line_index in range(len(lines)):
-                if f"local:{dish_index}:{line_index}" not in blocked:
+                if f"local:{scene}:{dish_index}:{line_index}" not in blocked and f"local:{dish_index}:{line_index}" not in blocked:
                     selected = (dish_index, line_index)
                     break
             if selected is not None:
@@ -101,7 +113,7 @@ def select_local_roast_copy(
     copy = lines[line_index].format(
         pig=simplify_display_text(pig_name or "小猪")[:30]
     )
-    return {"dish": dishes[dish_index], "copy": copy, "key": key}
+    return {"dish": dishes[dish_index], "copy": copy, "key": key, "scene": scene}
 
 
 def decode_ai_candidates(payload: object) -> list[str]:
