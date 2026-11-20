@@ -145,5 +145,5 @@ class RoastService:
     @staticmethod
     def roast_protection_message(count: int) -> str:
         return (
-            f'🛡️ 对方昨天被成功烤了 {count} 次，今天喜提『猪身安全险』。普通烤／吃会被猪圈保安直接架走，但后门强制模式依旧不讲武德。'
+            f'🛡️ 别点他了，昨天被烤了 {count} 次，今天正挂着免烤金牌喘气呢。'
         )
