@@ -44,6 +44,10 @@ def validate_roast_copy_catalog(raw: object) -> dict[str, object]:
         raise ValueError("roast_copy dish name length is invalid")
     if any(not item or len(item) > 120 for item in normalized_lines):
         raise ValueError("roast_copy line length is invalid")
+    if any(not item or len(item) > 120 for values in scenes.values() for item in values):
+        raise ValueError("roast_copy scene line length is invalid")
+    if any(len(values) != len(set(values)) for values in scenes.values()):
+        raise ValueError("roast_copy scene lines must be unique")
     if len(set(normalized_dishes)) != len(normalized_dishes):
         raise ValueError("roast_copy dish names must be unique")
     if len(set(normalized_lines)) != len(normalized_lines):
@@ -94,7 +98,8 @@ def select_local_roast_copy(
         dish_index = picker.randrange(len(dishes))
         line_index = picker.randrange(len(lines))
         key = f"local:{scene}:{dish_index}:{line_index}"
-        if key not in blocked:
+        legacy_key = f"local:{dish_index}:{line_index}"
+        if key not in blocked and legacy_key not in blocked:
             selected = (dish_index, line_index)
             break
     if selected is None:
@@ -109,7 +114,7 @@ def select_local_roast_copy(
         selected = (picker.randrange(len(dishes)), picker.randrange(len(lines)))
 
     dish_index, line_index = selected
-    key = f"local:{dish_index}:{line_index}"
+    key = f"local:{scene}:{dish_index}:{line_index}"
     copy = lines[line_index].format(
         pig=simplify_display_text(pig_name or "小猪")[:30]
     )
