@@ -166,17 +166,26 @@ class RollPigPlugin(
     async def my_pigsty(self, event: AstrMessageEvent, args: str=''):
         return await super().my_pigsty(event, args)
 
-    @filter.command('昨日小猪', alias={'昨日小豬', '昨天小猪', '昨天小豬'}, priority=1000)
-    async def yesterday_pig(self, event: AstrMessageEvent):
-        return await super().yesterday_pig(event)
-
-    @filter.command('明日小猪', alias={'明日小豬', '明天小猪', '明天小豬'}, priority=1000)
-    async def tomorrow_pig(self, event: AstrMessageEvent):
-        return await super().tomorrow_pig(event)
-
-    @filter.command('本周小猪', alias={'本周小豬', '本週小猪', '本週小豬', '本周猪报', '本週豬報'}, priority=1000)
-    async def weekly_pigs(self, event: AstrMessageEvent):
-        return await super().weekly_pigs(event)
+    @filter.command(
+        '查猪',
+        alias={
+            '昨日小猪', '昨日小豬', '昨天小猪', '昨天小豬',
+            '明日小猪', '明日小豬', '明天小猪', '明天小豬',
+            '本周小猪', '本周小豬', '本週小猪', '本週小豬',
+            '本周猪报', '本週豬報',
+        },
+        priority=1000,
+    )
+    async def query_pig(self, event: AstrMessageEvent, args: str = ''):
+        """统一查询昨天、明天或本周的小猪；保留旧命令作为兼容别名。"""
+        raw = f"{args or ''} {getattr(event, 'message_str', '') or ''}".strip()
+        if any(token in raw for token in ('本周', '本週')):
+            return await super().weekly_pigs(event)
+        if any(token in raw for token in ('明天', '明日')):
+            return await super().tomorrow_pig(event)
+        if any(token in raw for token in ('昨天', '昨日')):
+            return await super().yesterday_pig(event)
+        return await super().roll_pig(event)
 
     @filter.command('随机小猪', alias={'随机小豬', '隨機小猪', '隨機小豬', '随机猪', '隨機豬'}, priority=1000)
     async def random_pigs(self, event: AstrMessageEvent, args: str=''):
@@ -214,7 +223,7 @@ class RollPigPlugin(
     async def oven_refill(self, event: AstrMessageEvent):
         return await super().oven_refill(event)
 
-    @filter.command('添柴', alias={'加柴'}, priority=1000)
+    @filter.command('添柴', alias={'加柴', '添把柴'}, priority=1000)
     async def firewood_support(self, event: AstrMessageEvent, args: str=''):
         return await super().firewood_support(event, args)
 

@@ -372,7 +372,7 @@ class RoastReservationMixin:
             await self._send_with_mention(
                 event,
                 chef_id,
-                " 🔥 埋伏翻车，烤架顺着火舌反咬主厨。\n这次轮到主厨的小猪上桌。",
+                " 🔥 翻车了，火苗顺着夹子烧回你自己头上——请慢用。",
             )
             await self._record_group_roast(group_id, chef_id, draw_date)
             await self._send_roast_card(event, chef_pig, chef_id)

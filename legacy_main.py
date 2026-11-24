@@ -3027,12 +3027,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
         return load_roast_copy_catalog(self.roast_copy_builtin_path)
 
     def _select_local_roast_copy_for_event(
-        self, event: AstrMessageEvent, pig: dict
+        self, event: AstrMessageEvent, pig: dict, *, scene: str = "self"
     ) -> dict[str, str]:
         return select_local_roast_copy(
             self._effective_roast_copy_catalog(),
             pig_name=str(pig.get("name") or "小猪"),
             recent_keys=self._recent_roast_copy_keys(event),
+            scene=scene,
         )
 
     def _select_ai_bundle(self, event: AstrMessageEvent, payload: object) -> str | None:
@@ -3280,13 +3281,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
         return {"description": description, "analysis": analysis}
 
     async def _send_roast_card(
-        self, event: AstrMessageEvent, pig: dict, user_id: str
+        self, event: AstrMessageEvent, pig: dict, user_id: str, *, scene: str = "self"
     ) -> bool:
         output = None
         try:
             ai_copy = await self._get_ai_roast_copy(event, pig)
             local_copy = (
-                None if ai_copy else self._select_local_roast_copy_for_event(event, pig)
+                None if ai_copy else self._select_local_roast_copy_for_event(event, pig, scene=scene)
             )
             output = await asyncio.to_thread(
                 self.render_roast_image, pig, user_id, ai_copy, local_copy
@@ -3301,7 +3302,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return True
         except Exception as exc:
             logger.error(f"生成烤猪料理卡失败：{exc}", exc_info=True)
-            await event.send(event.plain_result("🧯 菜做好了，但料理卡画师把锅掀了。图片生成失败，请稍后再试。"))
+            await event.send(event.plain_result("🧯 猪烤好了，但打印机卡纸了，等会儿再试吧。"))
             return False
         finally:
             if output:
@@ -3398,10 +3399,10 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 )
                 return
             await event.send(
-                event.plain_result('🔥 烤架反噬！火苗顺着夹子窜了回来，这次轮到你的今日小猪上桌。' + charge_note)
+                event.plain_result('🔥 翻车了，火苗顺着夹子烧回你自己头上——请慢用。' + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
-            await self._send_roast_card(event, actor_pig, actor_id)
+            await self._send_roast_card(event, actor_pig, actor_id, scene="backlash")
             return
 
         self._record_roast_outcome_event(
@@ -3416,7 +3417,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             event.plain_result(f'{prefix}对方今天的小猪刚被端走，连刷酱都没赶上。' + charge_note)
         )
         await self._record_group_roast(group_id, target_id)
-        await self._send_roast_card(event, target_pig, target_id)
+        await self._send_roast_card(event, target_pig, target_id, scene="group")
 
     async def _eat_group_target(
         self, event: AstrMessageEvent, target_id: str
@@ -4098,7 +4099,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         await self._roast_group_target(event, target_id)
 
     async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
-        """低概率吃掉 @ 目标；失败者会把自己吃掉。"""
+        """尝试蹭吃 @ 目标；失败结果由共享餐桌策略决定。"""
         self._claim_command_event(event)
         if not self.enable_group_eat:
             await event.send(event.plain_result('🔒 今天不吃群友，管理员把这口餐桌关了。'))
