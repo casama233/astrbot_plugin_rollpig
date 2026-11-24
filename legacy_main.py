@@ -3333,7 +3333,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             await event.send(event.plain_result('🔥 烤群友只能在群里起火。私聊没观众，架起炉子也冷清。'))
             return
         if not target_id:
-            await event.send(event.plain_result('🎯 先 @ 一位群友或回复他的消息，架子不能空烧。'))
+            await event.send(event.plain_result('🎯 夹子空着呢，先 @ 一个人或者回复他的消息再点单。'))
             return
         if target_id == actor_id:
             await event.send(event.plain_result('🔥 想烤自己请走 /今日烤猪；/烤群友 可不兴当自助餐。'))
@@ -3375,7 +3375,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 target_id=target_id,
             )
             await event.send(
-                event.plain_result('💨 刚要刷酱对方就溜了，炉子上只剩一阵风，孜然全撒空了。' + charge_note)
+                event.plain_result('💨 对方的猪脚底抹油溜了，烤架上只剩两道焦黑的蹄印。' + charge_note)
             )
             return
         if result == "backlash":
@@ -3392,13 +3392,13 @@ class RollPigPlugin(FelisDirectFeature, Star):
             if actor_reason:
                 await event.send(
                     event.plain_result(
-                        "🔥 烤架反噬了！翻面一看你今天没有可料理的小猪——这次不是技术好，是锅里没货。"
+                        '🔥 烤架反噬，你名下压根没可烤的猪，火苗舔了个空。'
                         + charge_note
                     )
                 )
                 return
             await event.send(
-                event.plain_result('🔥 烤架反噬！火苗顺着夹子窜了回来，这次轮到你的今日小猪上桌。' + charge_note)
+                event.plain_result('🔥 反噬来得比后厨学徒颠勺还快，直接把你自己的今日小猪送上了桌。' + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
@@ -3772,7 +3772,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
-                await event.send(event.plain_result('贪心啦，一次只能查看一只小猪哦！'))
+                await event.send(event.plain_result('一次只能看一位群友的猪，点名太挤，猪圈门框卡住了。'))
                 return
             if at_ids:
                 target_id = at_ids[0]
@@ -3791,7 +3791,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 if pig_to_send:
                     send_user_id = target_id
                 else:
-                    response_text = '对方今天还没领猪；偷看一眼不会替对方代抽。'
+                    response_text = '对方今天还没抽猪，探头往他空猪圈里望了一眼。'
             else:
                 storage_id = self._storage_user_key(actor_id)
                 candidates = tuple(self._user_read_candidates(actor_id))
@@ -3861,7 +3861,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                         pig_to_send = existing
                         send_user_id = target_id
                     else:
-                        response_text = '对方今天还没领猪，你偷看也不会替他把猪领走。'
+                        response_text = '对方今天还没抽猪，探头往他空猪圈里望了一眼。'
                 elif existing:
                     changed = self._record_unlock(
                         existing_key,
@@ -3942,7 +3942,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             self._event_sender_id(event), self._today() - datetime.timedelta(days=1)
         )
         if not pig:
-            await event.send(event.plain_result("📅 昨天的猪圈旧账里没有你。要么没抽，要么昨天很会隐身。"))
+            await event.send(event.plain_result('📅 昨天没你的抽猪记录，翻遍旧账本只抖落一撮灰。'))
             return
         await self.send_rendered_pig(
             event,
@@ -4001,7 +4001,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         except ValueError:
             amount = 0
         if not 1 <= amount <= 9:
-            await event.send(event.plain_result("🎲 一次最多薅 1-9 只猪，例如：/随机小猪 5。再多图鉴管理员要报警。"))
+            await event.send(event.plain_result('🎲 这趟班车一次随机预览 1–9 只，发个 /随机小猪 5 就能直接开车。'))
             return
         pigs = self.catalog_service.sample(self.pig_list, amount)
         output = None
@@ -4026,7 +4026,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return
         matches = self.catalog_service.search(self.pig_list, query)
         if not matches:
-            await event.send(event.plain_result(f"🔎 翻遍猪圈也没找到「{keyword}」。可能还没出生，也可能名字比你搜的更抽象。"))
+            await event.send(event.plain_result(f'🔎 夜市理货清单里翻不到 {keyword} 这号猪，换个词再搜搜看吧。'))
             return
         output = None
         try:

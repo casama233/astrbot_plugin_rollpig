@@ -2801,5 +2801,79 @@
         "pages/pig-manager/index.html:122433"
       ]
     }
+  ],
+  "refreshes": [
+    {
+      "plugin_version": "3.13.4",
+      "editorial_rewrites_by_codex": false,
+      "rewritten_templates": 34,
+      "updated_sites": 35,
+      "requests": {
+        "chatcmpl-d4c799d43482": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "help.daily.tomorrow",
+            "help.daily.yesterday",
+            "help.discovery.pigsty",
+            "help.discovery.random",
+            "help.discovery.search",
+            "help.group.oven_support",
+            "help.group.random_eat",
+            "help.group.random_roast",
+            "help.group.roast_today",
+            "help.report.auto_off",
+            "help.report.manual"
+          ]
+        },
+        "chatcmpl-f55e41b138d4": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "random.range",
+            "roast.backlash_cooked",
+            "search.missing"
+          ]
+        },
+        "chatcmpl-f48d524019a8": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "eat.eaten.target",
+            "oven.expired",
+            "reservation.escape",
+            "reservation.success"
+          ]
+        },
+        "chatcmpl-f24204b487b8": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "draw.multi",
+            "draw.other_empty",
+            "draw.yesterday",
+            "eat.missing.target",
+            "help.daily.today",
+            "help.daily.weekly",
+            "oven.inactive",
+            "oven.minimum",
+            "roast.backlash_empty",
+            "roast.escape",
+            "roast.human.target",
+            "roast.missing.actor"
+          ]
+        },
+        "chatcmpl-9fb1f97230dc": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "help.daily.today_other",
+            "oven.duplicate",
+            "roast.missing.target",
+            "roast.target"
+          ]
+        }
+      }
+    }
   ]
 }

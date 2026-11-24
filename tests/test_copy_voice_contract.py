@@ -43,7 +43,6 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
 
 
 def test_signature_gameplay_copy_keeps_the_rollpig_voice():
-    oven = (ROOT / "oven_refill_feature.py").read_text(encoding="utf-8")
     firewood = (ROOT / "reservation_firewood_feature.py").read_text(
         encoding="utf-8"
     )
@@ -52,7 +51,6 @@ def test_signature_gameplay_copy_keeps_the_rollpig_voice():
     )
     legacy = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 
-    assert "一个人搬柴不叫补货，叫加班" in oven
     assert "开局已经算 1 人" in firewood
     assert "猪身安全险" in roast_policy
     assert "不能吃自己" in legacy

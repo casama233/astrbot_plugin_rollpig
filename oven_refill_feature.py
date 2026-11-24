@@ -524,7 +524,7 @@ class OvenRefillMixin:
             await event.send(event.plain_result("🐷 先在本群抽一只 /今日小猪 再来搬柴；后厨不收路过的临时工。"))
             return
         if len(members) < 2:
-            await event.send(event.plain_result("🐷 一个人搬柴不叫补货，叫加班。今天本群至少要有 2 位养过猪的群友。"))
+            await event.send(event.plain_result('🐷 本群今日至少得有 2 位养过猪的群友才能开炉补货。'))
             return
 
         storage_actor = self._storage_user_key(actor_id)
@@ -609,18 +609,18 @@ class OvenRefillMixin:
         if state == "expired":
             await event.send(
                 event.plain_result(
-                    "⌛ 上一轮柴火等到凉了，已经超时收摊。重新 /烤箱补货 发一车。"
+                    '⌛ 本轮补货已超时，使用 /烤箱补货 重开，末班车可不等人。'
                 )
             )
             return
         if state == "inactive":
-            await event.send(event.plain_result("🪵 现在没有柴车在等人。先 /烤箱补货 发车，再回来添柴。"))
+            await event.send(event.plain_result('🪵 炉膛还冷着，先发 /烤箱补货 把火点起来再添柴。'))
             return
         if state == "busy":
             await event.send(event.plain_result("⛽ 本轮补货正在结算，请稍后再试。"))
             return
         if state == "duplicate":
-            await event.send(event.plain_result("🪵 你这把柴已经算过了。再塞不加进度，只会让后厨怀疑你想把烤箱埋了。"))
+            await event.send(event.plain_result('🪵 火塘里已经记上你这捆柴了，再往里扔也不会涨进度。'))
             return
 
         supporters = [str(item) for item in result.get("supporters", []) if str(item)]
