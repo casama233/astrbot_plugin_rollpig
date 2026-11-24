@@ -176,9 +176,12 @@ def test_receipt_lists_draw_count_once_and_keeps_tied_awards(monkeypatch):
         return painter
 
     monkeypatch.setattr(ImageDraw, "Draw", record_text)
-    output = render_daily_report_dashboard(_FakeReportPlugin(), _report())
+    report = _report()
+    output = render_daily_report_dashboard(_FakeReportPlugin(), report)
     try:
         assert observed.count("抽猪人数（人）") == 1
+        draw_label = observed.index("抽猪人数（人）")
+        assert observed[draw_label + 1] == str(report["draws"])
         assert "活跃猪友" not in observed
         assert "抽中猪种（种）" in observed
         assert any("1 种并列" in line for line in observed)
