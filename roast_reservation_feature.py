@@ -343,7 +343,7 @@ class RoastReservationMixin:
                     event_id=f"roast-reservation-outcome:{draw_date}:{group_id}:{target_id}",
                 )
             await event.send(
-                event.plain_result('💨 埋伏扑了个空，对方刚落地就一溜烟溜了，连撒好的盐都白费了。')
+                event.plain_result('💨 预约结算时目标成功逃脱，剪票口一眨眼就溜没影了。')
             )
             return
 
@@ -390,7 +390,7 @@ class RoastReservationMixin:
                 event_id=f"roast-reservation-outcome:{draw_date}:{group_id}:{target_id}",
             )
         await event.send(
-            event.plain_result('🔥 埋伏命中！对方的小猪刚露头就被端走，连围裙都没来得及系。')
+            event.plain_result('🔥 预约结算成功，目标的小猪已经上桌，后厨这就把收据递给你。')
         )
         await self._record_group_roast(group_id, target_id, draw_date)
         await self._send_roast_card(event, target_pig, target_id)

@@ -37,9 +37,9 @@ class RoastService:
         actor = subject == "actor"
         if state == "missing":
             return (
-                '🐷 你今天还没抽猪，两手空空连点火的资格都没有。'
+                '🐷 你自己今天还没抽猪，拎着空夹子对着炉火干瞪眼。'
                 if actor
-                else '🐷 对方今天还没抽猪，烤架上现在只有一团空气。'
+                else '🐷 翻遍菜单他那栏还是空的，人今天还没抽猪，点不着火。'
             )
         name = self._name(pig)
         if state == "human":
@@ -48,7 +48,7 @@ class RoastService:
                     '🧍 你今天抽到的是「人类」。猪圈规矩写得很死：人类只准围观，不准上手操作。'
                 )
             return (
-                '🧍 对方今天是「人类」。猪圈条约再离谱，也没写可以把人直接架上火。'
+                '🧍 对方今天是人类，烤夹刚凑过去就被一把拍开。'
             )
         if state == "eaten":
             if actor:
@@ -92,13 +92,13 @@ class RoastService:
         if state in {"normal", "cooked"}:
             return None
         if state == "missing":
-            return '🐷 对方今天还没抽猪，面前只摆着一只空盘子。'
+            return '🐷 对方今天还没抽猪，你举着筷子在空气里夹了个响。'
         if state == "human":
             return (
                 '🧍 对方今天是「人类」。吃人不在猪圈业务范围内——再野也不敢翻开刑法那一页。'
             )
         return (
-            '🍽️ 对方今天已经是「吃掉了」，盘子舔得比脸还干净，实在没法再吃第二顿了。'
+            '🍽️ 对方今日状态已被吃掉，无法再吃，收据早就打完啦。'
         )
 
     def eat_success_message(self, pig: Mapping[str, Any]) -> str:

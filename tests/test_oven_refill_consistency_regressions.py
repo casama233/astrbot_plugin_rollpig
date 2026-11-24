@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
 import importlib.util
 import sys
@@ -74,6 +75,26 @@ def _oven_harness():
     target._today = lambda: datetime.date(2026, 8, 15)
     target._save_oven_refill_state_locked = lambda: None
     return target
+
+
+def test_single_player_refill_reply_explains_the_group_minimum():
+    target = _oven_harness()
+    target.enable_oven_refill = True
+    target._oven_refill_available = lambda: True
+    target._claim_command_event = lambda event: None
+    target._event_group_id = lambda event: "g1"
+    target._event_sender_id = lambda event: "a"
+    target._oven_active_group_members = lambda group, day: ["a"]
+    target._oven_actor_is_active = lambda actor, members: actor in members
+    messages = []
+
+    async def send(message):
+        messages.append(message)
+
+    asyncio.run(target.oven_refill(types.SimpleNamespace(plain_result=str, send=send)))
+    assert len(messages) == 1
+    assert all(word in messages[0] for word in ("本群", "今日", "至少", "2 位", "补货"))
+    assert target.oven_refill_state["dates"] == {}
 
 
 def test_refill_round_timeout_closes_zombie_campaign():

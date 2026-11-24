@@ -109,7 +109,7 @@ class RandomRoastMixin:
             )
             await event.send(
                 event.plain_result(
-                    "💨 对方一溜烟跑了，烤架上只剩一阵风。后厨连盐都白撒了。"
+                    '💨 转盘指针刚停稳，目标小猪就拱翻烤架钻进草丛，这轮没人上桌。'
                     + charge_note
                 )
             )
@@ -129,15 +129,14 @@ class RandomRoastMixin:
             if actor_reason:
                 await event.send(
                     event.plain_result(
-                        "🔥 烤架反噬了！翻面一看你今天没有可料理的小猪——"
-                        "这次不是技术好，是锅里没货。"
+                        '🔥 转盘突然倒转反噬，可惜你手头并没有可烤的小猪，这轮没人上桌。'
                         + charge_note
                     )
                 )
                 return
             await event.send(
                 event.plain_result(
-                    "🔥 烤架反噬！火舌顺着锅沿爬回来，这次轮到你的今日小猪上桌。"
+                    '🔥 转盘指针弹回，鬼点子顺势一推，烤架直接把你的今日小猪端上桌。'
                     + charge_note
                 )
             )
