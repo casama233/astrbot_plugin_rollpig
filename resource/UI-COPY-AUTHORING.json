@@ -2895,6 +2895,45 @@
           ]
         }
       }
+    },
+    {
+      "plugin_version": "3.13.5",
+      "source_baseline": "d9bf2f4ce69b06cae3de4c7f09153980e8877320",
+      "editorial_rewrites_by_codex": false,
+      "rewritten_templates": 18,
+      "updated_sites": 19,
+      "requests": {
+        "chatcmpl-4bd4016a33e6": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "draw.multi",
+            "draw.other_empty",
+            "draw.yesterday",
+            "oven.expired",
+            "pigsty.bad_page",
+            "pigsty.page_range",
+            "random.range",
+            "random_roast.backlash_cooked",
+            "random_roast.escape",
+            "report.empty",
+            "report.group_only",
+            "roast.backlash_cooked",
+            "roast.escape",
+            "roast.target",
+            "search.missing"
+          ]
+        },
+        "chatcmpl-5a5404ad47e5": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "random_roast.backlash_empty",
+            "reservation.escape",
+            "reservation.success"
+          ]
+        }
+      }
     }
   ]
 }

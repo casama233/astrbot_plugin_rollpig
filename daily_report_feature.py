@@ -1506,7 +1506,7 @@ class DailyReportMixin:
             return
         group_id = self._event_group_id(event)
         if not group_id:
-            await event.send(event.plain_result('猪圈日报只爱凑热闹，得去群聊里才能看哦。'))
+            await event.send(event.plain_result('独乐乐不如众乐乐，/猪圈日报 只能在群聊里查看哦。'))
             return
         actor_id = self._event_sender_id(event)
         action = str(args or "").strip().lower()
@@ -1553,7 +1553,7 @@ class DailyReportMixin:
         draw_date = self._today().isoformat()
         members = self._daily_group_members(group_id, draw_date)
         if not members:
-            await event.send(event.plain_result('今天本群的小猪们还没攒够 RollPig 数据呢，晚点再来看看吧。'))
+            await event.send(event.plain_result('今天群里静悄悄的，还没有人来参与活动，暂时生成不了日报。'))
             return
         output = None
         try:

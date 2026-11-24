@@ -101,14 +101,14 @@ class PermanentCollectionMixin:
             try:
                 page = int(raw.split()[0])
             except ValueError:
-                await event.send(event.plain_result("📚 猪圈管理员看不懂这页码。请用数字，例如：/我的猪圈 2。"))
+                await event.send(event.plain_result('📚 页码得填数字才行，比如输入 /我的猪圈 2。'))
                 return
 
         user_id = self._event_sender_id(event)
         user, unlocked, display_catalog = self._pigsty_display_state(user_id)
         total_pages = self.catalog_service.page_count(display_catalog)
         if page < 1 or page > total_pages:
-            await event.send(event.plain_result(f"📚 这本猪圈图鉴只有 1-{total_pages} 页；你翻得太用力，已经翻出封底了。"))
+            await event.send(event.plain_result(f'📚 翻过头啦，猪圈图鉴总共只有 {total_pages} 页，请查看第 1 到 {total_pages} 页。'))
             return
 
         output = None
