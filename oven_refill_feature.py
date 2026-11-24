@@ -609,7 +609,7 @@ class OvenRefillMixin:
         if state == "expired":
             await event.send(
                 event.plain_result(
-                    '⌛ 本轮补货已超时，使用 /烤箱补货 重开，末班车可不等人。'
+                    '⌛ 添柴太慢，炉火已经熄灭啦。发送 /烤箱补货 重新点火吧。'
                 )
             )
             return

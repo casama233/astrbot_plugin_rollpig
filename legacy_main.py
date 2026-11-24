@@ -3333,7 +3333,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             await event.send(event.plain_result('🔥 烤群友只能在群里起火。私聊没观众，架起炉子也冷清。'))
             return
         if not target_id:
-            await event.send(event.plain_result('🎯 夹子空着呢，先 @ 一个人或者回复他的消息再点单。'))
+            await event.send(event.plain_result('🎯 想烤谁得指明道姓，请 @ 对方或直接回复 Ta 的消息。'))
             return
         if target_id == actor_id:
             await event.send(event.plain_result('🔥 想烤自己请走 /今日烤猪；/烤群友 可不兴当自助餐。'))
@@ -3375,7 +3375,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 target_id=target_id,
             )
             await event.send(
-                event.plain_result('💨 对方的猪脚底抹油溜了，烤架上只剩两道焦黑的蹄印。' + charge_note)
+                event.plain_result('💨 哎呀，对方脚底抹油溜走了，这顿烤猪没吃成。' + charge_note)
             )
             return
         if result == "backlash":
@@ -3398,7 +3398,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 )
                 return
             await event.send(
-                event.plain_result('🔥 反噬来得比后厨学徒颠勺还快，直接把你自己的今日小猪送上了桌。' + charge_note)
+                event.plain_result('🔥 架炉子时风向突变！火苗反噬，把你自己的今日小猪烤熟了。' + charge_note)
             )
             await self._record_group_roast(group_id, actor_id)
             await self._send_roast_card(event, actor_pig, actor_id)
@@ -3772,7 +3772,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         if self.at_view_pig:
             at_ids = self.get_at_ids(event)
             if len(at_ids) > 1:
-                await event.send(event.plain_result('一次只能看一位群友的猪，点名太挤，猪圈门框卡住了。'))
+                await event.send(event.plain_result('贪心啦，一次只能偷看一位群友今天的猪运哦。'))
                 return
             if at_ids:
                 target_id = at_ids[0]
@@ -3791,7 +3791,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 if pig_to_send:
                     send_user_id = target_id
                 else:
-                    response_text = '对方今天还没抽猪，探头往他空猪圈里望了一眼。'
+                    response_text = 'Ta 今天还没抽猪呢，你可不能替人家领养。'
             else:
                 storage_id = self._storage_user_key(actor_id)
                 candidates = tuple(self._user_read_candidates(actor_id))
@@ -3861,7 +3861,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                         pig_to_send = existing
                         send_user_id = target_id
                     else:
-                        response_text = '对方今天还没抽猪，探头往他空猪圈里望了一眼。'
+                        response_text = 'Ta 今天还没抽猪呢，你可不能替人家领养。'
                 elif existing:
                     changed = self._record_unlock(
                         existing_key,
@@ -3942,7 +3942,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             self._event_sender_id(event), self._today() - datetime.timedelta(days=1)
         )
         if not pig:
-            await event.send(event.plain_result('📅 昨天没你的抽猪记录，翻遍旧账本只抖落一撮灰。'))
+            await event.send(event.plain_result('📅 翻遍了昨天的记录，你昨天好像偷懒没抽猪呀。'))
             return
         await self.send_rendered_pig(
             event,
@@ -4001,7 +4001,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         except ValueError:
             amount = 0
         if not 1 <= amount <= 9:
-            await event.send(event.plain_result('🎲 这趟班车一次随机预览 1–9 只，发个 /随机小猪 5 就能直接开车。'))
+            await event.send(event.plain_result('🎲 一次只能预览 1 到 9 只小猪，试试输入 /随机小猪 5。'))
             return
         pigs = self.catalog_service.sample(self.pig_list, amount)
         output = None
@@ -4026,7 +4026,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             return
         matches = self.catalog_service.search(self.pig_list, query)
         if not matches:
-            await event.send(event.plain_result(f'🔎 夜市理货清单里翻不到 {keyword} 这号猪，换个词再搜搜看吧。'))
+            await event.send(event.plain_result(f'🔎 图鉴里找不到“{keyword}”，换个关键词再搜搜看吧。'))
             return
         output = None
         try:
