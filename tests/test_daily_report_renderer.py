@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageDraw, ImageFont
 
 from renderers.daily_report import (
@@ -9,15 +10,6 @@ from renderers.daily_report import (
     REPORT_HEIGHT_WITH_SACRIFICE,
     REPORT_MAX_HEIGHT,
     REPORT_WIDTH,
-    _EVENT_META,
-    _EVENT_ROW_STEP,
-    _EVENT_ROW_TOP_OFFSET,
-    _METRIC_CARD_HEIGHT,
-    _METRIC_HINT_TOP_OFFSET,
-    _METRIC_ROW_STEP,
-    _METRIC_TRACK_BOTTOM_PADDING,
-    _SUMMARY_PANEL_BOTTOM,
-    _SUMMARY_PANEL_TOP,
     _activity_story,
     render_daily_report_dashboard,
 )
@@ -137,8 +129,8 @@ def test_empty_daily_report_renders_without_inventing_activity():
         "avatars": {},
     }
     mood, story = _activity_story(empty)
-    assert mood == "猪圈休市"
-    assert "还没什么动静" in story
+    assert mood == "今天还没开张"
+    assert "暂时没动静" in story
 
     output = render_daily_report_dashboard(plugin, empty)
     try:
@@ -153,17 +145,43 @@ def test_main_keeps_daily_report_under_shared_render_backpressure():
     assert "from .renderers.daily_report import render_daily_report_dashboard" in source
     assert "self._run_with_render_slot(render_daily_report_dashboard, self, report)" in source
 
-def test_compact_layout_keeps_text_and_fifth_event_row_inside_their_cards():
-    assert _METRIC_CARD_HEIGHT == 124
-    assert _METRIC_ROW_STEP > _METRIC_CARD_HEIGHT
-    track_y = _METRIC_CARD_HEIGHT - _METRIC_TRACK_BOTTOM_PADDING
-    assert track_y - _METRIC_HINT_TOP_OFFSET >= 24
+@pytest.mark.parametrize(
+    ("report", "headline_detail"),
+    [
+        ({"backlashes": 1, "roasts": 7, "draws": 8}, "反噬了 1 次"),
+        ({"escapes": 1, "draws": 8}, "逃脱了 1 次"),
+        ({"oven_refill_supports": 2}, "2 人次"),
+        ({"draws": 4, "popular_peak": 1}, "4 人进圈抽猪"),
+        ({"draws": 4, "popular_peak": 2}, "抽中 2 次"),
+    ],
+)
+def test_headline_uses_a_real_count_and_respects_event_priority(report, headline_detail):
+    _, story = _activity_story(report)
+    assert headline_detail in story
 
-    panel_height = _SUMMARY_PANEL_BOTTOM - _SUMMARY_PANEL_TOP
-    last_row_bar_bottom = (
-        _EVENT_ROW_TOP_OFFSET
-        + (len(_EVENT_META) - 1) * _EVENT_ROW_STEP
-        + 20
-    )
-    # Reserve enough room after the fifth row for the in-panel refill summary.
-    assert last_row_bar_bottom <= panel_height - 38
+
+def test_receipt_lists_draw_count_once_and_keeps_tied_awards(monkeypatch):
+    observed = []
+    original_draw = ImageDraw.Draw
+
+    def record_text(*args, **kwargs):
+        painter = original_draw(*args, **kwargs)
+        original_text = painter.text
+
+        def text(xy, value, *args, **kwargs):
+            observed.append(value)
+            return original_text(xy, value, *args, **kwargs)
+
+        painter.text = text
+        return painter
+
+    monkeypatch.setattr(ImageDraw, "Draw", record_text)
+    output = render_daily_report_dashboard(_FakeReportPlugin(), _report())
+    try:
+        assert observed.count("抽猪人数（人）") == 1
+        assert "活跃猪友" not in observed
+        assert "抽中猪种（种）" in observed
+        assert any("1 种并列" in line for line in observed)
+        assert "2 次 · 并列 2 人" in observed
+    finally:
+        output.unlink(missing_ok=True)

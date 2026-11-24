@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image as PILImage
-from PIL import ImageDraw
+from PIL import ImageChops, ImageDraw
+
+from .common import wrap_text
 
 
 REPORT_WIDTH = 1200
@@ -14,34 +16,65 @@ REPORT_HEIGHT_WITH_SACRIFICE = 1390
 REPORT_MAX_HEIGHT = 1400
 PNG_COMPRESS_LEVEL = 1
 
-# Compact report layout constants. Keep these explicit so vertical rhythm can be
-# regression-tested instead of relying on magic coordinates scattered around the
-# renderer.
-_METRIC_CARD_HEIGHT = 124
-_METRIC_ROW_STEP = 138
-_METRIC_HINT_TOP_OFFSET = 84
-_METRIC_TRACK_BOTTOM_PADDING = 15
-_SUMMARY_PANEL_TOP = 496
-_SUMMARY_PANEL_BOTTOM = 790
-_EVENT_ROW_TOP_OFFSET = 96
-_EVENT_ROW_STEP = 34
-
-
-_METRIC_META = (
-    ("active_users", "活跃猪友", '今天来猪圈冒过泡'),
-    ("draws", "今日抽猪", '今天正经开过盲盒'),
-    ("roasts", "成功上架", "后厨今天端走的猪"),
-    ("eats", "今日被吃", '真从花名册里除名了'),
-    ("escapes", "成功逃脱", '临上烤架前溜了'),
-    ("backlashes", "触发反噬", "烤人不成反上桌"),
+_RECEIPT_LABEL = "猪圈日报 · 今日小票"
+_LEDGER_TITLE = "今日记录明细"
+_LEDGER_ROWS = (
+    ("draws", "抽猪人数（人）"),
+    ("pig_variety", "抽中猪种（种）"),
+    ("roasts", "成功上桌（次）"),
+    ("eats", "被吃人数（人）"),
+    ("escapes", "逃脱次数（次）"),
+    ("backlashes", "反噬次数（次）"),
+    ("oven_refills", "实际补货（次）"),
+    ("oven_refill_supports", "添柴人次（人次）"),
 )
 
-_EVENT_META = (
-    ("draws", "抽猪"),
-    ("roasts", "上烤架"),
-    ("eats", "被吃"),
-    ("escapes", "逃脱"),
-    ("backlashes", "反噬"),
+_HEADLINES = (
+    (
+        "backlashes",
+        "炉膛反吞火把",
+        "今天炉火反噬了 {backlashes} 次，铁钳把柄都烤出了焦油味。",
+    ),
+    (
+        "escapes",
+        "后栅栏又松了",
+        "今天成功逃脱了 {escapes} 次，门闩被拱弯得连铁丝都缠不住。",
+    ),
+    (
+        "eats",
+        "食槽底被舔亮",
+        "今天一共有 {eats} 人被吃，连刷槽的猪鬃扫把都啃秃了。",
+    ),
+    (
+        "roasts",
+        "热盘上桌",
+        "烤架今天稳稳送出 {roasts} 次好货，铁托盘刚滑出炉口，出餐铃自己先响了两声。",
+    ),
+    (
+        "oven_refills",
+        "后厨推来新木箱",
+        "炉膛里刚添进新货，今天累计 {oven_refills} 次实际补货，木箱盖子正搭在旁边。",
+    ),
+    (
+        "oven_refill_supports",
+        "炉膛添柴",
+        "今天有 {oven_refill_supports} 人次往柴堆抱了木头，签收单在炉边夹得哗哗响，烤箱还在等着下一趟补货。",
+    ),
+    (
+        "popular_peak",
+        "签筒卡死同款",
+        "同款猪最高被抽中 {popular_peak} 次，竹签上的漆全蹭在了同一面。",
+    ),
+    (
+        "draws",
+        "猪圈门口排长队",
+        "今天共 {draws} 人进圈抽猪，木门槛被鞋底磨出一道凹槽。",
+    ),
+)
+
+_EMPTY_HEADLINE = (
+    "今天还没开张",
+    "猪圈里暂时没动静，干草垛上的露水都没被拱散。",
 )
 
 _AWARD_META = (
@@ -63,149 +96,60 @@ def _fit_text(draw: ImageDraw.ImageDraw, text: object, font, max_width: int) -> 
 
 
 def _activity_story(report: dict[str, Any]) -> tuple[str, str]:
-    draws = int(report.get("draws", 0) or 0)
-    roasts = int(report.get("roasts", 0) or 0)
-    eats = int(report.get("eats", 0) or 0)
-    escapes = int(report.get("escapes", 0) or 0)
-    backlashes = int(report.get("backlashes", 0) or 0)
-    refill = int(report.get("oven_refills", 0) or 0)
-    supports = int(report.get("oven_refill_supports", 0) or 0)
-
-    chaos = roasts + eats + escapes + backlashes
-    if backlashes >= 2:
-        return "翻车现场", f'今天反噬 {backlashes} 次，锅盖都快被掀去申请工伤了。'
-    if roasts + eats >= max(3, draws // 3):
-        return "后厨高温", f"今天上架 {roasts}、被吃 {eats}；大家显然不只来抽猪。"
-    if escapes >= 2:
-        return "集体跑路", f"今天有 {escapes} 次成功逃脱，烤架的尊严掉了一地。"
-    if refill or supports:
-        return "后厨补能", f"今天补货 {refill} 次、添柴 {supports} 人次，火还没打算下班。"
-    if chaos == 0 and draws:
-        return "纯抽猪局", f"{draws} 位群友安静抽猪，后厨今天罕见地没开火。"
-    if draws:
-        return "小火慢炖", f"{draws} 次抽猪，{chaos} 次搞事；今天总体还算克制。"
-    return "猪圈休市", "今天还没什么动静，小猪们正在认真地假装营业。"
+    for field, title, template in _HEADLINES:
+        count = int(report.get(field, 0) or 0)
+        if count > (1 if field == "popular_peak" else 0):
+            return title, template.format(**{field: count})
+    return _EMPTY_HEADLINE
 
 
-def _metric_color(palette: dict[str, tuple[int, int, int]], key: str):
-    if key in {"roasts", "eats"}:
-        return palette["danger"]
-    if key == "escapes":
-        return palette["good"]
-    if key == "backlashes":
-        return palette["warn"]
-    return palette["accent"]
+def _draw_receipt(plugin, canvas, draw, report, palette) -> None:
+    draw.rounded_rectangle((36, 30, 1164, 786), 30, fill=palette["surface"])
+    for x in range(66, 1134, 24):
+        draw.polygon(((x, 787), (x + 6, 778), (x + 12, 787)), fill=palette["canvas"])
 
-
-def _draw_metric(plugin, draw, palette, box, key, label, hint, value, scale) -> None:
-    left, top, right, bottom = box
-    draw.rounded_rectangle(box, 24, fill=palette["surface"])
-    value_font = plugin.font_bold.font_variant(size=38)
-    label_font = plugin.font_bold.font_variant(size=20)
-    hint_font = plugin.font_regular.font_variant(size=16)
-    draw.text((left + 22, top + 12), str(value), font=value_font, fill=palette["title"])
-    draw.text((left + 22, top + 57), label, font=label_font, fill=palette["secondary"])
-    hint_text = _fit_text(draw, hint, hint_font, right - left - 44)
-    hint_y = top + _METRIC_HINT_TOP_OFFSET
-    track_left, track_right = left + 22, right - 22
-    track_y = bottom - _METRIC_TRACK_BOTTOM_PADDING
-    # The old 116 px card put the hint baseline almost on top of the progress
-    # track. The taller card plus explicit offsets leave a stable text-safe gap
-    # even with CJK font ascent/descent differences.
+    masthead_font = plugin.font_bold.font_variant(size=30)
+    date_font = plugin.font_regular.font_variant(size=25)
+    headline_font = plugin.font_bold.font_variant(size=54)
+    story_font = plugin.font_regular.font_variant(size=32)
+    draw.text((72, 60), _RECEIPT_LABEL, font=masthead_font, fill=palette["secondary"])
     draw.text(
-        (left + 22, hint_y),
-        hint_text,
-        font=hint_font,
-        fill=palette["muted"],
-    )
-    draw.rounded_rectangle(
-        (track_left, track_y, track_right, track_y + 7),
-        4,
-        fill=palette["surface_alt"],
-    )
-    if value > 0:
-        ratio = min(1.0, value / max(1, scale))
-        fill_right = max(
-            track_left + 10,
-            int(track_left + (track_right - track_left) * ratio),
-        )
-        draw.rounded_rectangle(
-            (track_left, track_y, fill_right, track_y + 7),
-            4,
-            fill=_metric_color(palette, key),
-        )
-
-
-def _draw_event_chart(plugin, draw, report, palette, box) -> None:
-    left, top, right, bottom = box
-    draw.rounded_rectangle(box, 28, fill=palette["surface"])
-    title_font = plugin.font_bold.font_variant(size=29)
-    label_font = plugin.font_bold.font_variant(size=19)
-    value_font = plugin.font_bold.font_variant(size=18)
-    small_font = plugin.font_regular.font_variant(size=16)
-    draw.text((left + 28, top + 22), "今日搞事分布", font=title_font, fill=palette["title"])
-    draw.text(
-        (left + 28, top + 61),
-        "条越长，今天越像是谁的主场。",
-        font=small_font,
-        fill=palette["muted"],
-    )
-    values = [int(report.get(key, 0) or 0) for key, _ in _EVENT_META]
-    maximum = max(1, max(values, default=0))
-    bar_left = left + 132
-    bar_right = right - 60
-    y = top + _EVENT_ROW_TOP_OFFSET
-    for (key, label), value in zip(_EVENT_META, values):
-        dot = _metric_color(palette, key)
-        draw.ellipse((left + 28, y + 4, left + 40, y + 16), fill=dot)
-        draw.text((left + 50, y - 2), label, font=label_font, fill=palette["secondary"])
-        draw.rounded_rectangle(
-            (bar_left, y + 4, bar_right, y + 20),
-            8,
-            fill=palette["surface_alt"],
-        )
-        if value > 0:
-            end = max(
-                bar_left + 16,
-                int(bar_left + (bar_right - bar_left) * value / maximum),
-            )
-            draw.rounded_rectangle(
-                (bar_left, y + 4, end, y + 20),
-                8,
-                fill=dot,
-            )
-        value_text = str(value)
-        text_w = draw.textlength(value_text, font=value_font)
-        draw.text(
-            (right - 26 - text_w, y - 2),
-            value_text,
-            font=value_font,
-            fill=palette["title"],
-        )
-        y += _EVENT_ROW_STEP
-
-    # Keep refill activity inside the same event panel. It used to sit outside
-    # the rounded card and collide with the fifth event row when font metrics
-    # were slightly taller than expected.
-    refill_text = (
-        f"今日补货 {int(report.get('oven_refills', 0) or 0)} 次 · "
-        f"添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次"
-    )
-    draw.text(
-        (left + 28, bottom - 30),
-        refill_text,
-        font=small_font,
+        (1126, 67),
+        str(report.get("date") or ""),
+        font=date_font,
         fill=palette["secondary"],
+        anchor="ra",
     )
+    for x in range(72, 1124, 28):
+        draw.line((x, 119, x + 15, 119), fill=palette["line"], width=2)
+    title, story = _activity_story(report)
+    draw.text((72, 150), title, font=headline_font, fill=palette["title"])
+    for row, line in enumerate(wrap_text(story, story_font, 1056, max_lines=2)):
+        draw.text((72, 234 + row * 43), line, font=story_font, fill=palette["body"])
+    draw.line((72, 330, 1126, 330), fill=palette["line"], width=2)
+
+    draw.text((72, 353), _LEDGER_TITLE, font=masthead_font, fill=palette["title"])
+    label_font = plugin.font_regular.font_variant(size=25)
+    value_font = plugin.font_bold.font_variant(size=28)
+    for index, (field, label) in enumerate(_LEDGER_ROWS):
+        y = 409 + index * 43
+        value = str(int(report.get(field, 0) or 0))
+        draw.text((72, y), label, font=label_font, fill=palette["body"])
+        draw.text((632, y), value, font=value_font, fill=palette["title"], anchor="ra")
+        draw.line((72, y + 34, 632, y + 34), fill=palette["line"])
+
+    _draw_popular(plugin, canvas, draw, report, palette, (672, 352, 1128, 748))
 
 
 def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
     left, top, right, bottom = box
-    draw.rounded_rectangle(box, 28, fill=palette["surface"])
+    draw.rounded_rectangle(box, 28, fill=palette["surface_alt"])
     title_font = plugin.font_bold.font_variant(size=29)
     name_font = plugin.font_bold.font_variant(size=27)
-    body_font = plugin.font_regular.font_variant(size=17)
-    accent_font = plugin.font_bold.font_variant(size=18)
+    body_font = plugin.font_regular.font_variant(size=20)
+    accent_font = plugin.font_bold.font_variant(size=23)
+    max_width = right - left - 56
+    center = (left + right) // 2
     draw.text((left + 28, top + 22), "今日热猪榜", font=title_font, fill=palette["title"])
     popular = list(report.get("popular_pigs", []) or [])
     if not popular:
@@ -219,40 +163,58 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
             copy = "大家还没把同一只猪抽到能成立粉丝后援会。"
         headline_y = top + max(96, (bottom - top) // 2 - 28)
         draw.text((left + 28, headline_y), headline, font=name_font, fill=palette["muted"])
-        draw.text((left + 28, headline_y + 43), copy, font=body_font, fill=palette["secondary"])
+        for row, line in enumerate(wrap_text(copy, body_font, max_width, max_lines=2)):
+            draw.text(
+                (left + 28, headline_y + 45 + row * 30),
+                line,
+                font=body_font,
+                fill=palette["body"],
+            )
         return
 
     pig = popular[0]
     pig_id = str(pig.get("id") or "")
     path = plugin.find_image_file(pig_id)
+    name_y = top + 128
     if path:
         try:
-            thumb = plugin._fit_card_image(path, (116, 116))
-            mask = PILImage.new("L", (116, 116), 0)
-            ImageDraw.Draw(mask).rounded_rectangle((0, 0, 115, 115), 24, fill=255)
-            canvas.paste(thumb.convert("RGB"), (left + 28, top + 92), mask)
+            thumb = plugin._fit_card_image(path, (152, 152)).convert("RGBA")
+            mask = PILImage.new("L", thumb.size, 0)
+            ImageDraw.Draw(mask).rounded_rectangle((0, 0, 151, 151), 24, fill=255)
+            canvas.paste(
+                thumb, (center - 76, top + 82), ImageChops.multiply(thumb.getchannel("A"), mask)
+            )
+            name_y = top + 249
         except Exception:
             pass
     name = str(pig.get("name") or pig_id or "未知小猪")
     count = int(pig.get("count", 0) or 0)
     draw.text(
-        (left + 166, top + 98),
-        _fit_text(draw, name, name_font, right - left - 194),
+        (center, name_y),
+        _fit_text(draw, name, name_font, max_width),
         font=name_font,
         fill=palette["title"],
+        anchor="ma",
     )
     draw.text(
-        (left + 168, top + 140),
+        (center, name_y + 46),
         f"今天出现 {count} 次",
         font=accent_font,
-        fill=palette["accent"],
+        fill=palette["title"],
+        anchor="ma",
     )
     copy = (
         "撞衫属于集体行为。"
         if len(popular) <= 1
         else f"另有 {len(popular) - 1} 种并列，今天撞衫是团建。"
     )
-    draw.text((left + 168, top + 172), copy, font=body_font, fill=palette["secondary"])
+    draw.text(
+        (center, name_y + 86),
+        _fit_text(draw, copy, body_font, max_width),
+        font=body_font,
+        fill=palette["body"],
+        anchor="ma",
+    )
 
 
 def _draw_award(plugin, canvas, draw, report, palette, box, key, title, empty_copy) -> None:
@@ -349,7 +311,7 @@ def _draw_sacrifice(plugin, canvas, draw, report, palette, box) -> None:
 
 
 def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
-    """Render a compact, chart-forward report using only existing truthful fields."""
+    """Render the group's daily activity and awards as a receipt."""
     palette = plugin._report_palette()
     sacrifice_id = str(report.get("sacrifice_id") or "")
     height = REPORT_HEIGHT_WITH_SACRIFICE if sacrifice_id else REPORT_HEIGHT
@@ -358,55 +320,10 @@ def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
 
     canvas = PILImage.new("RGB", (REPORT_WIDTH, height), palette["canvas"])
     draw = ImageDraw.Draw(canvas)
-    title_font = plugin.font_bold.font_variant(size=54)
-    date_font = plugin.font_bold.font_variant(size=22)
     hero_font = plugin.font_bold.font_variant(size=28)
-    body_font = plugin.font_regular.font_variant(size=18)
     small_font = plugin.font_regular.font_variant(size=15)
 
-    mood, story = _activity_story(report)
-    draw.rounded_rectangle((36, 30, 1164, 190), 34, fill=palette["surface"])
-    draw.text((70, 53), "猪圈日报", font=title_font, fill=palette["title"])
-    draw.text((72, 123), str(report.get("date") or ""), font=date_font, fill=palette["accent"])
-    draw.text(
-        (270, 127),
-        _fit_text(draw, story, body_font, 610),
-        font=body_font,
-        fill=palette["secondary"],
-    )
-    draw.rounded_rectangle((920, 58, 1128, 158), 24, fill=palette["accent_soft"])
-    draw.text((946, 76), "今日主旋律", font=small_font, fill=palette["secondary"])
-    draw.text((946, 105), mood, font=hero_font, fill=palette["accent"])
-
-    metric_values = [int(report.get(key, 0) or 0) for key, _, _ in _METRIC_META]
-    metric_scale = max(1, max(metric_values, default=0))
-    for index, ((key, label, hint), value) in enumerate(zip(_METRIC_META, metric_values)):
-        row, col = divmod(index, 3)
-        x = 44 + col * 378
-        y = 214 + row * _METRIC_ROW_STEP
-        _draw_metric(
-            plugin,
-            draw,
-            palette,
-            (x, y, x + 350, y + _METRIC_CARD_HEIGHT),
-            key,
-            label,
-            hint,
-            value,
-            metric_scale,
-        )
-
-    _draw_event_chart(
-        plugin, draw, report, palette, (44, _SUMMARY_PANEL_TOP, 674, _SUMMARY_PANEL_BOTTOM)
-    )
-    _draw_popular(
-        plugin,
-        canvas,
-        draw,
-        report,
-        palette,
-        (696, _SUMMARY_PANEL_TOP, 1156, _SUMMARY_PANEL_BOTTOM),
-    )
+    _draw_receipt(plugin, canvas, draw, report, palette)
     draw.text((54, 818), "今日猪圈名人堂", font=hero_font, fill=palette["title"])
     for index, (key, title, empty_copy) in enumerate(_AWARD_META):
         row, col = divmod(index, 2)
