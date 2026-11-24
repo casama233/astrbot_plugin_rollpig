@@ -2806,8 +2806,8 @@
     {
       "plugin_version": "3.13.4",
       "editorial_rewrites_by_codex": false,
-      "rewritten_templates": 34,
-      "updated_sites": 35,
+      "rewritten_templates": 37,
+      "updated_sites": 38,
       "requests": {
         "chatcmpl-d4c799d43482": {
           "model": "gemini-4-hydrogen",
@@ -2877,6 +2877,21 @@
           "strict_model": true,
           "keys": [
             "help.group.firewood_router"
+          ]
+        },
+        "chatcmpl-061f37e54e2b": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "random_roast.backlash_cooked"
+          ]
+        },
+        "chatcmpl-77ff2d9055cc": {
+          "model": "gemini-4-hydrogen",
+          "strict_model": true,
+          "keys": [
+            "random_roast.backlash_empty",
+            "random_roast.escape"
           ]
         }
       }
