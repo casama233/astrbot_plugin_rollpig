@@ -395,7 +395,9 @@ class RoastReservationMixin:
             event.plain_result('🔥 蹲守成功！主厨早早备好了烤箱，你刚抽出的今日小猪瞬间被烤得滋滋冒油。')
         )
         await self._record_group_roast(group_id, target_id, draw_date)
-        await serve_roast(self, event, target_pig, target_id, draw_date=draw_date)
+        await serve_roast(
+            self, event, target_pig, target_id, draw_date=draw_date, mode="reservation"
+        )
 
     async def _trigger_roast_reservation_after_draw(
         self, event, pig_data: dict, user_id: str, fallback_title: str
@@ -421,7 +423,9 @@ class RoastReservationMixin:
                 return
             target_pig = self._get_daily_pig(target_id, today)
             blocked = self._roast_block_reason(target_pig, subject="target")
-            outcome = "blocked" if blocked else roast_odds(self, group_id, target_id)
+            outcome = (
+                "blocked" if blocked else roast_odds(self, group_id, target_id, mode="reservation")
+            )
             with self._data_lock:
                 resolved = resolve_reservation(
                     self.roast_reservation_state,

@@ -91,7 +91,7 @@ class RandomRoastMixin:
         await event.send(self._random_roast_target_announcement(event, target_id))
 
         charge_note = self._roast_charge_note(charge_status)
-        result = roast_odds(self, group_id, target_id)
+        result = roast_odds(self, group_id, target_id, mode="random")
         logger.info(
             "随机烤群友判定：group=%s actor=%s target=%s outcome=%s "
             "charge=%s/%s rng=isolated",
@@ -161,4 +161,4 @@ class RandomRoastMixin:
             )
         )
         await self._record_group_roast(group_id, target_id)
-        await serve_roast(self, event, target_pig, target_id)
+        await serve_roast(self, event, target_pig, target_id, mode="random")

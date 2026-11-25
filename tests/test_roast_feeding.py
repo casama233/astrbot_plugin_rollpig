@@ -10,6 +10,7 @@ import types
 from dataclasses import dataclass, field
 
 import pytest
+from roast_mutations import MUTATIONS
 
 from storage import StorageManager
 
@@ -117,7 +118,7 @@ def test_feed_is_spent_once_and_mutation_survives_reload(tmp_path, mode, kitchen
         assert sum(isinstance(message, tuple) for message in outcomes) == 1
         assert kitchen._feeding_copy("feed_used") in outcomes
         effect = kitchen._feeding_effect(GROUP, DINER, DAY)
-        assert effect in {"spicy", "rich"}
+        assert effect in MUTATIONS
         assert kitchen._feeding_effect("qq:group:123", DINER, DAY) == ""
         assert kitchen._feeding_effect(GROUP, OTHER_DINER, NEXT_DAY) == ""
         return effect
@@ -146,7 +147,7 @@ def test_tomorrow_queue_keeps_existing_recipient_slot(tmp_path, kitchen_type):
         assert first.messages[-1][0] == OTHER_DINER
         assert kitchen._feeding_effect(GROUP, OTHER_DINER, DAY) == ""
         effect = kitchen._feeding_effect(GROUP, OTHER_DINER, NEXT_DAY)
-        assert effect in {"spicy", "rich"}
+        assert effect in MUTATIONS
         await kitchen._feed_command(second, "明天投喂")
         assert second.messages[-1] == kitchen._feeding_copy("feed_slot_taken")
         assert kitchen._feeding_effect(GROUP, OTHER_DINER, NEXT_DAY) == effect
@@ -180,3 +181,30 @@ def test_save_failure_leaves_the_dish_available(tmp_path, kitchen_type):
         assert event.messages[-1][0] == DINER
 
     asyncio.run(scenario())
+
+
+def test_queued_dream_keeps_its_hidden_roll_and_old_dishes_still_work(tmp_path, kitchen_type):
+    date = DAY.isoformat()
+    path = tmp_path / "roast_feeding.json"
+    kitchen = kitchen_type(tmp_path, "json")
+    kitchen.save_json(path, {
+        "version": 1,
+        "days": {date: {GROUP: {
+            "cards": {CHEF: "dream", OTHER_CHEF: "rich"},
+            "effects": {CHEF: "spicy"},
+        }}},
+    })
+    kitchen = kitchen_type(tmp_path, "json")
+    assert kitchen._feeding_effect(GROUP, CHEF, DAY) == "spicy"
+    diner = Event(target=OTHER_DINER)
+    asyncio.run(kitchen._feed_command(diner, "明天投喂"))
+    effect = kitchen._feeding_effect(GROUP, OTHER_DINER, NEXT_DAY)
+    assert effect in {"dream_glow", "dream_thin"}
+    body = diner.messages[-1][1]
+    assert kitchen._feeding_copy(f"feed_{effect}_notice") not in body
+    assert kitchen._feeding_effect(GROUP, OTHER_DINER, DAY) == ""
+
+    reopened = kitchen_type(tmp_path, "json")
+    assert reopened._feeding_effect(GROUP, OTHER_DINER, NEXT_DAY) == effect
+    asyncio.run(reopened._feed_command(Event(sender=OTHER_CHEF, target=DINER), "投喂"))
+    assert reopened._feeding_effect(GROUP, DINER, DAY) == "rich"

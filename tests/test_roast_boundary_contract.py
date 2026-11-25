@@ -55,8 +55,13 @@ def test_normal_roast_flow_uses_service_policy_and_event_hook():
 def test_reservation_uses_same_outcome_policy():
     source = (ROOT / "roast_reservation_feature.py").read_text(encoding="utf-8")
     assert "random.choices" not in source
-    assert "roast_odds(self, group_id, target_id)" in source
-    assert "await serve_roast(self, event, target_pig, target_id" in source
+    routes = {
+        _call_chain(call): next((item.value for item in call.keywords if item.arg == "mode"), None)
+        for call in ast.walk(ast.parse(source))
+        if isinstance(call, ast.Call) and _call_chain(call) in {"roast_odds", "serve_roast"}
+    }
+    assert routes.keys() == {"roast_odds", "serve_roast"}
+    assert all(isinstance(mode, ast.Constant) and mode.value == "reservation" for mode in routes.values())
 
 
 def test_roast_renderer_has_no_plugin_runtime_or_storage_dependency():

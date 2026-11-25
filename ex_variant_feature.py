@@ -287,11 +287,21 @@ class ExVariantMixin:
         pig_id = str(pig.get("id") or "")
         if not pig_id or pig_id == "eaten":
             return dict(pig)
-        ex_level = self._ex_level_for_user(user_id, pig_id) + int(pig.get("_extra_ex", 0))
+        extra_ex = int(pig.get("_extra_ex", 0))
+        ex_level = max(0, self._ex_level_for_user(user_id, pig_id) + extra_ex)
         if self._has_local_pig_override(pig_id):
             result = dict(pig)
             result["_ex_level"] = ex_level
             return result
+        if extra_ex < 0 and pig.get("_ex_variant_level", 0) > ex_level:
+            # A previously displayed variant may carry prose from a higher level.
+            snapshots = getattr(self, "history", {}).get("pig_snapshots", {})
+            base = self._find_catalog_pig(pig_id) or snapshots.get(pig_id)
+            if base:
+                pig = dict(pig)
+                for key in ("description", "analysis", "_ex_variant_level", "_ex_image"):
+                    pig.pop(key, None)
+                pig.update({key: base[key] for key in ("description", "analysis") if key in base})
         return resolve_ex_variant(pig, self._ex_variants, ex_level)
 
     def _ex_variant_image_path(self, pig_id: str, ex_level: int) -> Path | None:

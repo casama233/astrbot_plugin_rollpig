@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from gameplay_perks import roast_odds
+from roast_mutations import FEEDING_MENU, MUTATIONS
 from services import RoastService
 
 
@@ -80,6 +81,37 @@ def test_group_perks_transfer_risk_through_the_same_roast_service():
     ]
 
 
+def test_mutation_odds_match_the_menu_and_weekly_aura():
+    rng = FakeChoices("success")
+    plugin = SimpleNamespace(roast_service=RoastService(rng=rng), _today=lambda: "day")
+    cases = [
+        ("calm", "direct", False, (100, 0, 0)),
+        ("calm", "random", True, (100, 0, 0)),
+        ("dream_thin", "reservation", True, (65, 25, 10)),
+        ("chewy", "direct", False, (70, 20, 10)),
+        ("chewy", "random", False, (70, 20, 10)),
+        ("chewy", "reservation", False, (40, 50, 10)),
+        ("chewy", "reservation", True, (50, 40, 10)),
+        ("butter", "random", False, (50, 50, 0)),
+        ("butter", "direct", True, (60, 40, 0)),
+        ("redhot", "direct", True, (65, 0, 35)),
+    ]
+    for effect, mode, aura, expected in cases:
+        plugin._active_pig_perks = lambda group, target, day: (effect, aura)
+        assert roast_odds(plugin, "group", "target", mode=mode) == "success"
+        assert rng.calls[-1][1] == expected
+
+    assert len(FEEDING_MENU) == 7
+    assert set(MUTATIONS) == {effect for outcomes in FEEDING_MENU.values() for effect in outcomes}
+    for effect in MUTATIONS:
+        for mode in ("direct", "random", "reservation"):
+            for aura in (False, True):
+                plugin._active_pig_perks = lambda group, target, day: (effect, aura)
+                roast_odds(plugin, "group", "target", mode=mode)
+                weights = rng.calls[-1][1]
+                assert sum(weights) == 100 and min(weights) >= 0, (effect, mode, aura)
+
+
 def test_default_roast_rng_is_process_global_seed_isolated():
     service = RoastService()
     assert isinstance(service._rng, random.SystemRandom)
@@ -135,8 +167,9 @@ def test_random_roast_keeps_shared_outcome_and_event_pipeline():
     method = ast.get_source_segment(
         FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
-    assert "roast_odds(self, group_id, target_id)" in method
-    assert "await serve_roast(self, event, target_pig, target_id)" in method
+    assert "roast_odds(self, group_id, target_id" in method
+    assert "await serve_roast(self, event, target_pig, target_id" in method
+    assert method.count('mode="random"') == 2
     assert '"roast_escape"' in method
     assert '"roast_backlash"' in method
     assert '"roast_success"' in method

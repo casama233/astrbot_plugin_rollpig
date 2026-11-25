@@ -2,22 +2,24 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import secrets
 from copy import deepcopy
 
 from astrbot.api import logger
 
 try:
     from .gameplay_copy import GAMEPLAY_COPY
+    from .roast_mutations import FEEDING_MENU, MUTATIONS
     from .rollpig_core import parse_config_bool
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from gameplay_copy import GAMEPLAY_COPY
+    from roast_mutations import FEEDING_MENU, MUTATIONS
     from rollpig_core import parse_config_bool
 
 
 class RoastFeedingMixin:
     """Trade the group's daily self-roast card for a one-day pig mutation."""
 
-    _FEEDING_KINDS = ("spicy", "rich")
     _FEEDING_COMMANDS = {
         "投喂": False,
         "投餵": False,
@@ -82,7 +84,7 @@ class RoastFeedingMixin:
             if not effects:
                 return ""
             effect = effects.get(self._storage_user_key(user_id), "")
-        return effect if effect in self._FEEDING_KINDS else ""
+        return effect if isinstance(effect, str) and effect in MUTATIONS else ""
 
     async def _offer_self_roast_feed(
         self, event, pig: dict, *, day: datetime.date | None = None
@@ -105,7 +107,8 @@ class RoastFeedingMixin:
             kind = bucket.get("cards", {}).get(owner)
             if kind is None:
                 digest = hashlib.sha256(f"{today}\0{pig['id']}".encode()).digest()
-                kind = self._FEEDING_KINDS[digest[0] % len(self._FEEDING_KINDS)]
+                menu = tuple(FEEDING_MENU)
+                kind = menu[int.from_bytes(digest, "big") % len(menu)]
                 state = deepcopy(self._roast_feeding_state)
                 self._feeding_group(state, today, group)["cards"][owner] = kind
                 try:
@@ -115,7 +118,7 @@ class RoastFeedingMixin:
                     kind = ""
         if kind == "":
             await event.send(event.plain_result(self._feeding_copy("feed_save_failed")))
-        elif kind in self._FEEDING_KINDS:
+        elif isinstance(kind, str) and kind in FEEDING_MENU:
             dish = self._feeding_copy(f"feed_{kind}_food")
             await event.send(
                 event.plain_result(self._feeding_copy("feed_offer", dish=dish))
@@ -144,19 +147,21 @@ class RoastFeedingMixin:
             kind = cards.get(owner)
             if kind == "used":
                 return "feed_used", ""
-            if kind not in self._FEEDING_KINDS:
+            if not isinstance(kind, str) or kind not in FEEDING_MENU:
                 return "feed_no_dish", ""
             effects = self._feeding_group(state, due, group)["effects"]
             if target in effects:
                 return "feed_slot_taken", ""
-            effects[target] = kind
+            choices = FEEDING_MENU[kind]
+            effect_id = secrets.choice(choices) if len(choices) > 1 else choices[0]
+            effects[target] = effect_id
             cards[owner] = "used"
             try:
                 self._save_feeding_change(state, today)
             except OSError as exc:
                 logger.warning(f"料理卡投喂保存失败：{exc}")
                 return "feed_save_failed", ""
-        return ("feed_tomorrow" if tomorrow else "feed_today"), kind
+        return ("feed_tomorrow" if tomorrow else "feed_today"), effect_id
 
     async def _feed_command(self, event, args: str) -> bool:
         parts = str(args or "").split(maxsplit=1)
@@ -165,20 +170,21 @@ class RoastFeedingMixin:
         self._claim_command_event(event)
         tomorrow = self._FEEDING_COMMANDS[parts[0]]
         if not self._feeding_enabled():
-            key, kind, target_id = "feed_disabled", "", ""
+            key, effect_id, target_id = "feed_disabled", "", ""
         else:
             target_arg = parts[1] if len(parts) > 1 else ""
-            key, kind, target_id = self._try_feed_command(event, target_arg, tomorrow)
-        if kind:
-            await self._send_with_mention(
-                event,
-                target_id,
-                self._feeding_copy(
-                    key,
-                    dish=self._feeding_copy(f"feed_{kind}_food"),
-                    mutation=self._feeding_copy(f"feed_{kind}_badge"),
-                ),
+            key, effect_id, target_id = self._try_feed_command(event, target_arg, tomorrow)
+        if effect_id:
+            food = MUTATIONS[effect_id].food
+            receipt = self._feeding_copy(
+                key,
+                dish=self._feeding_copy(f"feed_{food}_food"),
+                mutation=self._feeding_copy(f"feed_{food}_badge"),
             )
+            if not tomorrow:
+                notice = self._feeding_copy(f"feed_{effect_id}_notice")
+                receipt = f"{receipt}\n{notice}"
+            await self._send_with_mention(event, target_id, receipt)
         else:
             await event.send(event.plain_result(self._feeding_copy(key)))
         return True
@@ -199,5 +205,5 @@ class RoastFeedingMixin:
         day = self._today()
         if not self._feed_target_in_group(group, target, day, tomorrow):
             return ("feed_tomorrow_eligible" if tomorrow else "feed_eligible"), "", ""
-        key, kind = self._use_feeding_card(group, owner, target, day, tomorrow)
-        return key, kind, target_id
+        key, effect_id = self._use_feeding_card(group, owner, target, day, tomorrow)
+        return key, effect_id, target_id

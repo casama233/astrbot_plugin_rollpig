@@ -123,18 +123,20 @@ class RoastService:
         return str(chooser.choice(pool))
 
     def choose_group_roast_outcome(
-        self, *, bypass: bool = False, spicy: bool = False, aura: bool = False, rng=None
+        self, *, bypass: bool = False, odds_delta: tuple[int, int, int] = (0, 0, 0),
+        aura: bool = False, rng=None,
     ) -> str:
         """Roll once after transferring the risk points from the active effects."""
         if bypass:
             return "success"
-        success, escape, backlash = self.GROUP_ROAST_WEIGHTS
-        if spicy:
-            success -= backlash
-            backlash *= 2
+        success, escape, backlash = (
+            weight + delta
+            for weight, delta in zip(self.GROUP_ROAST_WEIGHTS, odds_delta, strict=True)
+        )
         if aura:
-            success += 10
-            escape -= 10
+            transfer = min(10, escape)
+            success += transfer
+            escape -= transfer
         chooser = rng or self._rng
         return str(
             chooser.choices(

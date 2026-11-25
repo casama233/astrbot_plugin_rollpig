@@ -1,4 +1,4 @@
-"""Original Gemini 4 Hydrogen High copy for feeding and the weekly tabloid."""
+"""Gemini's original copy for feeding and the weekly tabloid."""
 
 GAMEPLAY_COPY = {
     "feed_spicy_food": "爆辣魔鬼烤猪排",
@@ -60,5 +60,25 @@ GAMEPLAY_COPY = {
     "help_weekly_preview": "打开本群本周的猪圈八卦小报，随时偷看截至目前的统计数据。",
     "help_weekly_vote": "周日晚在发报群里投出唯一一票，共同钦定周一的猪圈祭品。",
     "weekly_vote_save_failed": "投票数据暂时没写进去，请稍后重试，你这一票还没记录上哦。",
-    "weekly_poll_effect": "猪圈中选会公告：明日（周一）当选者在本群抽猪，当天小猪卡 +1 临时 EX；但当天被普通烤时逃脱率直降 10 个百分点，排面与风险并存！"
+    "weekly_poll_effect": "猪圈中选会公告：明日（周一）当选者在本群抽猪，当天小猪卡 +1 临时 EX；但当天被普通烤时逃脱率直降 10 个百分点，排面与风险并存！",
+    "feed_dream_food": "致幻菇菇烤猪排",
+    "feed_dream_badge": "致幻",
+    "feed_dream_glow_notice": "咬了一口后眼前开始飘起七彩小星星，你看这头猪简直自带圣光！今日猪卡临时 EX +2，欧皇附体，快趁着滤镜还在赶紧下手！",
+    "feed_dream_thin_notice": "吃完总觉得这头猪瘦得像张纸片，风一吹就要没了……今日猪卡临时 EX -2，且它滑溜得让人抓不住，逃脱率提升 15%！",
+    "feed_calm_food": "佛系静心水煮肉",
+    "feed_calm_badge": "情绪稳定",
+    "feed_calm_notice": "这头猪已经看破红尘、四大皆空了。无论怎么烤它都心如止水，烤制成功率 100% 绝不反抗；但也因为太佛系毫无灵魂，出锅料理卡临时 EX -1。",
+    "feed_calm_roast_bonus": "心如止水，甚至有点想出家（临时 EX {level}）",
+    "feed_chewy_food": "千锤百炼老筋头",
+    "feed_chewy_badge": "嚼不动",
+    "feed_chewy_notice": "这肉质硬得能当防弹衣！精准预订烤制根本咬不动（成功率 40%、逃脱率 50%、反噬率 10%）；但若用随机盲烤全凭缘分，一旦成功反而能激发潜能，出锅料理卡临时 EX +1！普通烤制无变化。",
+    "feed_chewy_roast_bonus": "咬肌撕裂者，越嚼越香（临时 EX {level}）",
+    "feed_butter_food": "黄油滑蛋溜溜猪",
+    "feed_butter_badge": "黄油滑蛋",
+    "feed_butter_notice": "全身裹满了特级黄油与滑蛋液，油光水滑根本抓不住！所有烤法逃脱率暴增 30%，反噬率降低 10%，成功率降低 20%；不过一旦侥幸烤熟，滑嫩爆汁的口感直接让出锅料理卡临时 EX +2！",
+    "feed_butter_roast_bonus": "滑不溜秋，但真香（临时 EX {level}）",
+    "feed_redhot_food": "暴躁朝天椒爆炒肉",
+    "feed_redhot_badge": "红温警告",
+    "feed_redhot_notice": "整头猪吃辣吃到了极致红温，脾气一点就炸！所有烤法反噬率暴增 25%（逃脱率降低 20%、成功率降低 5%），随时准备跟厨师同归于尽；但重赏之下必有勇夫，今日猪卡临时 EX +1，出锅料理卡临时 EX +1！",
+    "feed_redhot_roast_bonus": "火气极大，厨师已进 ICU（临时 EX {level}）"
 }
