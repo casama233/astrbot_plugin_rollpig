@@ -51,7 +51,7 @@ def test_rejected_database_never_activates_old_or_empty_json(tmp_path, legacy_js
         _write_minimal_json_history(tmp_path)
     before = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
 
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="auto")
 
     assert (tmp_path / "rollpig.db").read_bytes() == broken
@@ -70,7 +70,7 @@ def test_sql_authority_marker_blocks_missing_database_bootstrap(tmp_path, mode):
     marker.write_text('{"active_backend": "sqlite"}', encoding="utf-8")
     before = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
 
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode=mode)
 
     assert not (tmp_path / "rollpig.db").exists()
@@ -81,7 +81,7 @@ def test_sql_authority_marker_blocks_missing_database_bootstrap(tmp_path, mode):
 def test_orphan_sidecar_is_not_a_fresh_installation(tmp_path, suffix):
     sidecar = tmp_path / f"rollpig.db{suffix}"
     sidecar.write_bytes(b"unreconciled")
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="auto")
     assert not (tmp_path / "rollpig.db").exists()
     assert sidecar.read_bytes() == b"unreconciled"
@@ -92,7 +92,7 @@ def test_orphan_sidecar_is_not_a_fresh_installation(tmp_path, suffix):
 def test_unverifiable_authority_marker_is_preserved(tmp_path, content):
     marker = tmp_path / "storage_state.json"
     marker.write_text(content, encoding="utf-8")
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="auto")
     assert marker.read_text(encoding="utf-8") == content
     assert not (tmp_path / "rollpig.db").exists()
@@ -103,7 +103,7 @@ def test_json_configuration_cannot_bypass_existing_sql_authority(tmp_path):
     manager.backend.create_daily_draw(
         draw_date="2026-08-04", user_id="user-1", pig={"id": "pig-a", "name": "A"}
     )
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="json")
     assert not (tmp_path / "pig_history.json").exists()
     assert StorageManager(tmp_path, mode="auto").backend.get_user_collection(("user-1",))["total_draws"] == 1
@@ -134,7 +134,7 @@ def test_uncommitted_first_migration_failure_retains_original_json(tmp_path, mon
 def test_broken_legacy_json_is_not_overwritten_with_empty_defaults(tmp_path):
     history = tmp_path / "pig_history.json"
     history.write_bytes(b"broken-json")
-    with pytest.raises(StorageMigrationError, match="迁移前无法读取"):
+    with pytest.raises(StorageMigrationError, match=r"pig_history\.json"):
         StorageManager(tmp_path, mode="auto")
     assert history.read_bytes() == b"broken-json"
     assert not (tmp_path / "rollpig.db").exists()
@@ -145,7 +145,7 @@ def test_retry_migration_cannot_replace_a_failed_live_sqlite(tmp_path, monkeypat
     _write_minimal_json_history(tmp_path)
     original_backend = manager.backend
     monkeypatch.setattr(original_backend, "verify", lambda: {"ok": False})
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         manager.migrate_to_sqlite()
     assert manager.backend is original_backend
     assert not list(tmp_path.glob("rollpig.db.rejected-*"))
@@ -160,7 +160,7 @@ def test_repaired_database_can_load_again(tmp_path):
     database = tmp_path / "rollpig.db"
     healthy = database.read_bytes()
     database.write_bytes(b"broken")
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="auto")
     database.write_bytes(healthy)
     recovered = StorageManager(tmp_path, mode="auto")

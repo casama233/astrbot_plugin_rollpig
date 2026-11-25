@@ -30,4 +30,4 @@ def test_public_source_browser_is_pighub_like_searchable_preview_ui():
     assert "source/catalog',{search:publicSourceSearch" in page
     assert "source/catalog/image',{id:pigId,__rollpig_csrf:csrfToken}" in page
     assert "data-public-source-match" in page
-    assert "查看现有猪" in page
+    assert "查看在库小猪" in page

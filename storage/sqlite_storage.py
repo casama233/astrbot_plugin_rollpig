@@ -512,7 +512,7 @@ class SQLiteStorage(StorageBackend):
         }
         if managed and unmanaged:
             raise ValueError(
-                "同一批次不能混合 SQLite 关键文档与普通 JSON 缓存"
+                '同一個寫入批次中，禁止將 SQLite 核心關鍵文檔與普通 JSON 快取混合處理'
             )
         with self._lock:
             try:
@@ -2354,7 +2354,7 @@ class SQLiteStorage(StorageBackend):
         generated_date = str(generated_date)
         owner_token = str(owner_token).strip()
         if not pig_id or not generated_date or not owner_token:
-            raise ValueError("AI 文案生成权参数无效")
+            raise ValueError('申請 AI 銳評文案生成權的參數無效')
         with self.transaction() as connection:
             self._prune_ai_rows(connection, cutoff_date, through_date)
             cached = connection.execute(
@@ -2419,7 +2419,7 @@ class SQLiteStorage(StorageBackend):
                 (pig_id, generated_date),
             ).fetchone()
             if not attempt or str(attempt["owner_token"]) != owner_token:
-                raise ValueError("AI 文案生成权已失效")
+                raise ValueError('該筆 AI 銳評文案的生成權限已過期失效')
             if text:
                 connection.execute(
                     "INSERT OR IGNORE INTO ai_roast_copies("
@@ -2468,7 +2468,7 @@ class SQLiteStorage(StorageBackend):
         generated_date = str(generated_date)
         content = str(content).strip()
         if not pig_id or not generated_date or not content:
-            raise ValueError("AI 文案缓存参数无效")
+            raise ValueError('寫入 AI 銳評文案快取的參數無效')
         with self.transaction() as connection:
             self._prune_ai_rows(connection, cutoff_date, through_date)
             cursor = connection.execute(
@@ -2506,7 +2506,7 @@ class SQLiteStorage(StorageBackend):
         payload = self._clone(record)
         pig_id = str(payload.get("id") or "").strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "INSERT INTO catalog_overrides(pig_id, payload_json) VALUES (?, ?) "
@@ -2526,7 +2526,7 @@ class SQLiteStorage(StorageBackend):
         """Remove a local override and add one tombstone atomically."""
         pig_id = str(pig_id).strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "DELETE FROM catalog_overrides WHERE pig_id = ?", (pig_id,)
@@ -2545,7 +2545,7 @@ class SQLiteStorage(StorageBackend):
         """Remove one tombstone and keep JSON compatibility exports in sync."""
         pig_id = str(pig_id).strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)

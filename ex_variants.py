@@ -20,39 +20,39 @@ _ALLOWED_FIELDS = {"image", "description", "analysis"}
 # EX resources remain sparse overrides layered on top, so creator-authored image
 # and copy inheritance keeps the existing protocol semantics.
 _DESCRIPTION_PHASES = (
-    ("开始养熟", "熟客上线", "资深返场", "招牌常驻", "完全体"),
-    ("熟悉度 +1", "默契升温", "老熟人模式", "猪圈常驻", "终极熟客"),
-    ("初次进阶", "状态渐熟", "资历已深", "招牌阶段", "最终形态"),
-    ("返场一回", "返场成习惯", "资深席位", "固定节目", "传奇常驻"),
+    ('混个脸熟', '熟客驾到', '老友返场', '猪圈台柱', '究极形态'),
+    ('默契值 +1', '羁绊加深', '熟门熟路', '常驻嘉宾', '满级老铁'),
+    ('初露锋芒', '渐入佳境', '火候十足', '招牌亮相', '终极觉醒'),
+    ('二度碰面', '熟面孔了', '元老席位', '每日必看', '传说常客'),
 )
 _ANALYSIS_TAILS = (
     (
-        '头一回重逢，这副面孔总算从路人甲混成了你的熟人。',
-        '又一次返场，这股劲儿已经焊死成了你在猪圈里的独家印象。',
-        '第三阶段一到，大伙闭着眼都能认出这股气质，正式迈入老江湖行列。',
-        '第四次蜕变把招牌彻底立住，现在你一露面，全猪圈都知道好戏又要开场了。',
-        '解锁 EX5 后，这套人设算是彻底焊死了：不是偶尔像，大伙早默认你本尊就长这样。',
+        '头一回在群里重逢，这只小猪总算从擦肩而过的路人变成你的熟面孔啦。',
+        '又来报到了，这股子味儿算是彻底焊死在猪圈，成了你的专属名片。',
+        '迈入三阶段，大伙闭着眼都能闻出这股派头，正式晋升猪圈老江湖。',
+        '四度蜕变把招牌立得稳稳当当，如今你一探头，全猪圈都知道好戏要开锣了。',
+        '解锁 EX5 后，这人设算是彻底铁板钉钉：不是偶尔神似，大伙早认定你打娘胎里就长这样。',
     ),
     (
-        '头一回返场看着还有点面生，但你的专属小动作已经悄悄挂上号了。',
-        '二刷这气质，默契直接拉满，不用开口就已经是老熟人排面了。',
-        '三阶段免去自我介绍，你的路数往那一站，就是猪圈活体识别码。',
-        '四阶段正式转正成常驻，当年那点小脾气，硬是盘成了金字招牌。',
-        'EX5 是熟悉度终点站：多轮返场下来，你已经把自己活成了猪圈标准答案。',
+        '头一回返场看着还有些生分，不过你的招牌小动作已经悄悄挂上号了。',
+        '二刷这股劲儿，默契瞬间拉满，不用吭声就已经是老熟人的排场了。',
+        '三阶段省去自我介绍，你往那一戳，本身就是猪圈的活体二维码。',
+        '四阶段正式转正成常驻嘉宾，当年那点小性子，硬生生盘成了金字招牌。',
+        'EX5 是熟络度的终点站：几轮返场摸爬滚打下来，你活成了猪圈的标准答案。',
     ),
     (
-        '头一回进阶没换人设，只是把原本的特点擦得更亮，让人一眼就认出来。',
-        '二阶段明显长开了，熟悉可不是复制粘贴，是把原本的个性越养越醇。',
-        '三阶段迈入资深老炮区，核心设定稳如泰山，连气质都透着老练。',
-        '四阶段基本成了个人招牌，猪圈里一提这茬，大伙第一个就扭头看你。',
-        '最终阶段直接修成完全体：底色没变，但每次返场攒下的资历全写在脸上。',
+        '初次进阶没改人设，只是把原本的亮点擦得锃亮，叫人一眼就能认出。',
+        '二阶段明显舒展开了，熟稔绝非复制粘贴，而是把骨子里的个性越养越醇厚。',
+        '三阶段踏入资深老炮儿地界，核心设定稳如磐石，连背影都透着老练。',
+        '四阶段基本成了个人图腾，猪圈里但凡提起这茬，大伙准第一个扭头望向你。',
+        '终极阶段直接修成完全体：底色丝毫未变，可每回返场攒下的资历全写在了脸上。',
     ),
     (
-        '头回返场先打个样：你还是那个你，只是大伙开始记住你的固定节目了。',
-        '返场成了日常后，老设定自带熟客滤镜，再也不是当初的一锤子偶遇。',
-        '三阶段稳坐资深席位，你的专属梗和派头，已经能稳稳接住每次出场。',
-        '四阶段彻底成了保留节目，刷屏不腻味，反倒把个人特色越盘越包浆。',
-        '到了 EX5，你直接从常驻封神成传说——猪圈流水的猪，铁打的你。',
+        '首轮返场先打个样儿：你还是原来的你，只是大伙开始记住你的固定戏码了。',
+        '返场成了家常便饭后，老设定自带熟客滤镜，再也不是当初的一锤子买卖。',
+        '三阶段稳坐资深席位，你的独门梗和架势，已经能稳稳兜住每一次亮相。',
+        '四阶段彻底成了保留曲目，刷屏毫不腻歪，反倒把个人特色越盘越润、越盘越亮。',
+        '到了 EX5，你直接从常驻封神为传说——猪圈流水的猪，铁打的你。',
     ),
 )
 
@@ -167,16 +167,16 @@ def validate_ex_variants(
     ID/name/gameplay fields can never be changed by EX growth.
     """
     if not isinstance(payload, Mapping):
-        raise ValueError("pig_ex_variants.json 必须是 JSON 对象")
+        raise ValueError('pig_ex_variants.json 的根节点必须为 JSON 对象')
     if "pigs" in payload or "schema_version" in payload:
         schema = payload.get("schema_version", EX_VARIANT_SCHEMA_VERSION)
         if schema not in (EX_VARIANT_SCHEMA_VERSION, str(EX_VARIANT_SCHEMA_VERSION)):
-            raise ValueError("EX 差分协议版本不受支持")
+            raise ValueError('当前 EX 差分协议版本不受支持')
         raw_pigs = payload.get("pigs", {})
     else:
         raw_pigs = payload
     if not isinstance(raw_pigs, Mapping):
-        raise ValueError("EX 差分 pigs 必须是对象")
+        raise ValueError('EX 差分配置中的 pigs 字段必须是对象')
 
     allowed_ext = {str(item).lower().lstrip(".") for item in image_extensions}
     known = {str(item) for item in pig_ids} if pig_ids is not None else None
@@ -184,11 +184,11 @@ def validate_ex_variants(
     for raw_pig_id, raw_levels in raw_pigs.items():
         pig_id = str(raw_pig_id or "").strip()
         if not _PIG_ID.fullmatch(pig_id):
-            raise ValueError(f"EX 差分小猪 ID 无效：{pig_id}")
+            raise ValueError(f'EX 差分中存在无效的小猪 ID：{pig_id}')
         if known is not None and pig_id not in known:
-            raise ValueError(f"EX 差分引用不存在的小猪：{pig_id}")
+            raise ValueError(f'EX 差分引用了不存在的小猪：{pig_id}')
         if not isinstance(raw_levels, Mapping) or not raw_levels:
-            raise ValueError(f"{pig_id} 的 EX 差分必须是非空对象")
+            raise ValueError(f'{pig_id} 的 EX 差分配置必须为非空对象')
         levels: dict[int, dict[str, str]] = {}
         for raw_level, raw_variant in raw_levels.items():
             try:
@@ -197,16 +197,16 @@ def validate_ex_variants(
                 raise ValueError(f"{pig_id} 的 EX 等级无效：{raw_level}") from exc
             if not 1 <= level <= MAX_EX_VARIANT_LEVEL:
                 raise ValueError(
-                    f"{pig_id} 的 EX 等级必须在 1-{MAX_EX_VARIANT_LEVEL}"
+                    f'{pig_id} 的 EX 等级须落在 1 至 {MAX_EX_VARIANT_LEVEL} 范围内'
                 )
             if level in levels:
-                raise ValueError(f"{pig_id} 的 EX Lv.{level} 重复")
+                raise ValueError(f'{pig_id} 的 EX Lv.{level} 配置出现重复')
             if not isinstance(raw_variant, Mapping):
-                raise ValueError(f"{pig_id} EX Lv.{level} 必须是对象")
+                raise ValueError(f'{pig_id} 的 EX Lv.{level} 必须是对象')
             extras = set(map(str, raw_variant)).difference(_ALLOWED_FIELDS)
             if extras:
                 raise ValueError(
-                    f"{pig_id} EX Lv.{level} 含不允许字段：{', '.join(sorted(extras))}"
+                    f"{pig_id} EX Lv.{level} 包含未允许的字段：{', '.join(sorted(extras))}"
                 )
             item: dict[str, str] = {}
             image = str(raw_variant.get("image") or "").strip()
@@ -218,20 +218,20 @@ def validate_ex_variants(
                     or "." not in image
                     or image.rsplit(".", 1)[-1].lower() not in allowed_ext
                 ):
-                    raise ValueError(f"{pig_id} EX Lv.{level} 图片文件名无效：{image}")
+                    raise ValueError(f'{pig_id} EX Lv.{level} 的图片文件名无效：{image}')
                 item["image"] = image
             description = simplify_display_text(raw_variant.get("description")).strip()
             if description:
                 if len(description) > 120:
-                    raise ValueError(f"{pig_id} EX Lv.{level} 描述超过 120 字")
+                    raise ValueError(f'{pig_id} EX Lv.{level} 的描述超出 120 字上限')
                 item["description"] = description
             analysis = simplify_display_text(raw_variant.get("analysis")).strip()
             if analysis:
                 if len(analysis) > 800:
-                    raise ValueError(f"{pig_id} EX Lv.{level} 文案超过 800 字")
+                    raise ValueError(f'{pig_id} EX Lv.{level} 的文案超出 800 字上限')
                 item["analysis"] = analysis
             if not item:
-                raise ValueError(f"{pig_id} EX Lv.{level} 至少要覆盖一项内容")
+                raise ValueError(f'{pig_id} EX Lv.{level} 至少需要覆写一项内容')
             levels[level] = item
         result[pig_id] = dict(sorted(levels.items()))
     return result
@@ -254,7 +254,7 @@ def validate_handwritten_ex_copy(
     pigs: dict[str, dict[str, dict[str, str]]] = {}
     for pig_id, raw_levels in raw_pigs.items():
         if not isinstance(raw_levels, dict) or set(map(str, raw_levels)) != required_levels:
-            raise ValueError(f"{pig_id} 的 {source} 手写文案必须完整提供 EX1-EX5")
+            raise ValueError(f'{pig_id} 的 {source} 手写文案必须完整提供 EX1 到 EX5')
         levels: dict[str, dict[str, str]] = {}
         for raw_level, raw_item in raw_levels.items():
             level = str(raw_level)
@@ -262,7 +262,7 @@ def validate_handwritten_ex_copy(
                 raise ValueError(f"{pig_id} EX{level} 的 {source} 手写文案字段不完整")
             item = {field: str(raw_item.get(field) or "").strip() for field in required_fields}
             if not all(item.values()):
-                raise ValueError(f"{pig_id} EX{level} 的 {source} 手写文案存在空字段")
+                raise ValueError(f'{pig_id} EX{level} 的 {source} 手写文案包含空字段')
             levels[level] = item
         pigs[pig_id] = levels
 
@@ -274,7 +274,7 @@ def validate_handwritten_ex_copy(
     for pig_id, levels in variants.items():
         for field in ("description", "analysis"):
             if len({item[field] for item in levels.values()}) != MAX_EX_VARIANT_LEVEL:
-                raise ValueError(f"{pig_id} EX1-EX5 {field} 必须逐级不同")
+                raise ValueError(f'{pig_id} EX1 到 EX5 的 {field} 必须逐级区分，不可雷同')
     return variants
 
 

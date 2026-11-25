@@ -98,14 +98,12 @@ def test_important_rules_are_not_clipped_by_the_bundled_font():
         eat_success_percent=80,
         roast_reservation_max_participants=50,
     ))
-    important = {"/烤群友 @某人", "/吃群友 @某人", "/添柴", "烤箱 Charge", "预约烤猪", "EX 成长"}
     prepared = prepare_help_sections(
         sections, detail_font=font, column_width=(CARD_WIDTH - 26 * 2 - 16) // 2,
     )
     for section in prepared:
         for row in section.entries:
-            if row.entry.command in important:
-                assert row.detail_lines == (row.entry.detail,), row.entry.command
+            assert row.detail_lines == (row.entry.detail,), row.entry.command
 
 
 def test_help_renderer_matches_precomputed_dynamic_size():
@@ -175,11 +173,11 @@ def test_help_renderer_uses_standard_bold_font_for_every_text_role(monkeypatch):
 
 def test_help_renderer_fixed_copy_is_simplified_chinese():
     source = Path(help_renderer.__file__).read_text(encoding="utf-8")
-    assert "今日小猪 · 快速指令" in source
-    assert "原生 @ 操作已在相关指令下方标注" in source
+    assert "每日摇猪 · 常用指令集" in source
+    assert "原生 @ 交互已标注于对应指令下方" in source
     assert 'entry.kind == "mention-note"' in source
     assert 'palette.get(\n            "notice"' in source
-    assert "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）" in source
+    assert "今日小猪 Wiki（见下方链接）" in source
     assert "今日小豬 · 快速指令" not in source
 
 

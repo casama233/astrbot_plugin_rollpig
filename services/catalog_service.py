@@ -133,15 +133,15 @@ class CatalogService:
                 pig = {
                     "id": pig_id,
                     "name": pig_id,
-                    "description": "历史收藏",
-                    "analysis": '这只小猪还好好躺在你的永久收藏里，不过现在的资源源已经不提供它了。',
+                    "description": '往期珍藏',
+                    "analysis": '这只小猪依然安稳地躺在你的永久珍藏柜里，只是当前的资源库中已不再提供它了。',
                 }
             pig["id"] = pig_id
             pig["name"] = str(pig.get("name") or pig_id)
-            pig["description"] = str(pig.get("description") or "历史收藏")
+            pig["description"] = str(pig.get("description") or '往期珍藏')
             pig["analysis"] = str(
                 pig.get("analysis")
-                or '这只小猪还在你的永久收藏里，不过原资源站已经找不到它了。'
+                or '这只小猪依然安稳地留在你的永久珍藏柜里，不过原资源站点已经找不到它的踪迹了。'
             )
             pig = simplify_pig_display_copy(pig)
             pig["_collection_retired"] = True

@@ -45,26 +45,24 @@ def _load_felis_copy_payload(resource_dir: Path, allowed_ids: Iterable[str]) -> 
         raise ValueError("Felis EX 手写文案规格必须是 JSON 对象")
     if payload.get("schema_version") != FELIS_DIRECT_EX_COPY_SCHEMA_VERSION:
         raise ValueError(
-            "Felis EX 手写文案规格 schema_version 必须为 "
-            f"{FELIS_DIRECT_EX_COPY_SCHEMA_VERSION}"
+            f'Felis EX 手写文案规格的 schema_version 必须为 {FELIS_DIRECT_EX_COPY_SCHEMA_VERSION}'
         )
 
     provenance = payload.get("provenance")
     if not isinstance(provenance, dict):
-        raise ValueError("Felis EX 手写文案规格缺少 provenance")
+        raise ValueError('Felis EX 手写文案规格缺少 provenance 字段')
     if str(provenance.get("scope") or "") != FELIS_DIRECT_EX_COPY_SCOPE:
-        raise ValueError("Felis EX 手写文案规格 provenance scope 不匹配")
+        raise ValueError('Felis EX 手写文案规格的 provenance scope 不匹配')
     if provenance.get("upstream_ex_used") is not False:
         raise ValueError("Felis EX 手写文案规格必须声明 upstream_ex_used=false")
     if not str(provenance.get("source_basis") or "").strip():
-        raise ValueError("Felis EX 手写文案规格必须声明非空 source_basis")
+        raise ValueError('Felis EX 手写文案规格必须声明非空的 source_basis')
     if (
         str(provenance.get("authoring_mode") or "")
         != FELIS_DIRECT_EX_COPY_AUTHORING_MODE
     ):
         raise ValueError(
-            "Felis EX 手写文案规格 authoring_mode 必须为 "
-            f"{FELIS_DIRECT_EX_COPY_AUTHORING_MODE}"
+            f'Felis EX 手写文案规格的 authoring_mode 必须为 {FELIS_DIRECT_EX_COPY_AUTHORING_MODE}'
         )
 
     allowlist = {str(item) for item in allowed_ids if str(item)}
@@ -76,21 +74,21 @@ def _load_felis_copy_payload(resource_dir: Path, allowed_ids: Iterable[str]) -> 
         declared_count = -1
     if declared_count != len(allowlist):
         raise ValueError(
-            "Felis EX 手写文案规格 handwritten_id_count 与 allowlist 不一致"
+            'Felis EX 手写文案规格中的 handwritten_id_count 与 allowlist 数量对不上'
         )
 
     raw_specs = payload.get("pigs")
     if not isinstance(raw_specs, dict):
-        raise ValueError("Felis EX 手写文案规格 pigs 必须是对象")
+        raise ValueError('Felis EX 手写文案规格的 pigs 字段必须是字典对象')
     if set(map(str, raw_specs)) != allowlist:
         missing = sorted(allowlist.difference(map(str, raw_specs)))
         extras = sorted(set(map(str, raw_specs)).difference(allowlist))
         detail = []
         if missing:
-            detail.append("缺少：" + ", ".join(missing))
+            detail.append('漏掉了以下项目：' + ", ".join(missing))
         if extras:
-            detail.append("多出：" + ", ".join(extras))
-        raise ValueError("Felis EX 手写文案规格必须完整覆盖 allowlist；" + "；".join(detail))
+            detail.append('多出了以下项目：' + ", ".join(extras))
+        raise ValueError('Felis EX 手写文案规格必须把 allowlist 里的条目全部涵盖：' + "；".join(detail))
 
     return payload
 
@@ -105,14 +103,14 @@ def load_felis_direct_base_copy(
         return {}
     base = payload["base_pigs"]
     if not isinstance(base, dict) or set(base) != allowlist:
-        raise ValueError("Felis 基础文案必须完整覆盖 allowlist")
+        raise ValueError('Felis 基础文案必须把 allowlist 里的条目全部涵盖')
     for pig_id, copy in base.items():
         if not isinstance(copy, dict) or set(copy) != {"description", "analysis"}:
-            raise ValueError(f"{pig_id} 的 Felis 基础文案只能包含 description/analysis")
+            raise ValueError(f'{pig_id} 的 Felis 基础文案只允许包含 description/analysis')
         for field, limit in (("description", 80), ("analysis", 500)):
             value = copy[field]
             if not isinstance(value, str) or not value.strip() or len(value) > limit:
-                raise ValueError(f"{pig_id} 的 Felis 基础文案 {field} 无效")
+                raise ValueError(f'{pig_id} 的 Felis 基础文案中 {field} 格式有误或无效')
     return base
 
 

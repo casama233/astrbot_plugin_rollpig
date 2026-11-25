@@ -64,18 +64,17 @@ def render_pigsty(
     draw.rounded_rectangle((28, 24, 872, 195), 30, fill=palette["surface"])
     draw.text(
         (58, 45),
-        "我的猪圈 · 猪籍档案",
+        '私人猪舍 · 猪籍名录',
         font=title_font,
         fill=palette["title"],
     )
     rate = (unlocked_count / active_total * 100) if active_total else 0
     stat = (
-        f"现役入圈 {unlocked_count}/{active_total}  ·  "
-        f"老猪留档 {retired_count}  ·  猪圈填满 {rate:.1f}%"
+        f'在栏小猪 {unlocked_count}/{active_total}  ·  退役留档 {retired_count}  ·  猪舍容量 {rate:.1f}%'
     )
     draw.text((60, 122), stat, font=stat_font, fill=palette["secondary"])
 
-    favorite_name = str(favorite_name or "还没选出")
+    favorite_name = str(favorite_name or '空缺待定')
     favorite_name = (
         favorite_name if len(favorite_name) <= 10 else favorite_name[:9] + "…"
     )
@@ -88,8 +87,7 @@ def render_pigsty(
         default=0,
     )
     growth = (
-        f"最常返场 {favorite_name}  ·  养到 EX Lv.{highest_ex}  ·  "
-        f"抽猪 {int(user.get('total_draws', 0) or 0)} 次"
+        f"头号常客 {favorite_name}  ·  培养至 EX Lv.{highest_ex}  ·  累计摇猪 {int(user.get('total_draws', 0) or 0)} 次"
     )
     draw.text((60, 158), growth, font=small_font, fill=palette["muted"])
 
@@ -139,7 +137,7 @@ def render_pigsty(
             except Exception as exc:
                 logger.warning("渲染图鉴小猪 %s 失败：%s", pig_id, exc)
         elif is_retired:
-            placeholder = "退圈但有猪籍"
+            placeholder = '已离栏（保留猪籍）'
             placeholder_w, _ = get_text_size(placeholder, small_font)
             draw.text(
                 (x + (card_w - placeholder_w) // 2, y + 70),
@@ -148,7 +146,7 @@ def render_pigsty(
                 fill=palette["muted"],
             )
 
-        name = str(pig.get("name") or "无名小猪")
+        name = str(pig.get("name") or '佚名小猪')
         if len(name) > 9:
             name = name[:8] + "…"
         name_w, _ = get_text_size(name, name_font)
@@ -159,11 +157,11 @@ def render_pigsty(
             fill=palette["title"] if is_unlocked else palette["locked_text"],
         )
         if is_retired:
-            label = f"老猪籍 · EX Lv.{max(0, count - 1)} · ×{count}"
+            label = f'旧籍留档 · EX Lv.{max(0, count - 1)} · ×{count}'
         elif is_unlocked:
-            label = f"EX Lv.{max(0, count - 1)} · 见过×{count}"
+            label = f'EX Lv.{max(0, count - 1)} · 相遇×{count}'
         else:
-            label = "还没拱进你家"
+            label = '尚未光临猪舍'
         label_w, _ = get_text_size(label, small_font)
         draw.text(
             (x + (card_w - label_w) // 2, y + 190),
@@ -173,8 +171,7 @@ def render_pigsty(
         )
 
     footer = (
-        f"熟猪优先 · 老猪不丢 · {page}/{total_pages} 页 · "
-        "/我的猪圈 页码 继续翻"
+        f'熟脸靠前 · 旧籍永存 · 第 {page}/{total_pages} 页 · 发送 /我的猪圈 页码 翻阅'
     )
     footer_w, _ = get_text_size(footer, stat_font)
     draw.text(
@@ -241,7 +238,7 @@ def render_catalog_grid(
                 canvas.paste(thumb, (x + 60, y + 12), thumb)
             except Exception as exc:
                 logger.warning("渲染小猪列表图片失败：%s", exc)
-        name = str(pig.get("name") or "无名小猪")
+        name = str(pig.get("name") or '佚名小猪')
         name = name if len(name) <= 9 else name[:8] + "…"
         name_w, _ = get_text_size(name, name_font)
         draw.text(

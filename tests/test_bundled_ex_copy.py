@@ -238,7 +238,7 @@ def test_loader_rejects_duplicate_ids_across_shards(tmp_path: Path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="分片重复定义小猪"):
+    with pytest.raises(ValueError, match=r"重复定义.*pig"):
         load_bundled_ex_copy(
             tmp_path,
             _bundled_ids(),
@@ -255,7 +255,7 @@ def test_loader_rejects_unknown_non_lineage_id(tmp_path: Path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="只能引用 resource/pig.json"):
+    with pytest.raises(ValueError, match=r"resource/pig\.json.*cloud-only-pig"):
         load_bundled_ex_copy(
             tmp_path,
             {"pig", "cloud-only-pig"},
@@ -289,7 +289,7 @@ def test_loader_rejects_incomplete_levels(tmp_path: Path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="完整提供 EX1-EX5"):
+    with pytest.raises(ValueError, match=r"EX1.*EX5"):
         load_bundled_ex_copy(
             tmp_path,
             {"human"},

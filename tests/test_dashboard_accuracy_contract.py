@@ -103,14 +103,14 @@ def test_core_dashboard_no_longer_fabricates_metric_sparklines():
     for token in forbidden:
         assert token not in page
     assert "chart-draw-bar" in page
-    assert "只按本地记录重算" in page
+    assert "只在本地重新盘算" in page
 
 
 def test_deep_analytics_success_rate_excludes_in_progress_attempts():
     source = Path("pages/pig-manager/ui-analytics.js").read_text(encoding="utf-8")
     assert "const completed = ready + failed" in source
     assert "success: ready / completed * 100" in source
-    assert "生成中" in source
+    assert "赶稿中" in source
     assert "不计入成功率分母" in source
-    assert "上期→本期回访率" in source
-    assert "本期独有活跃" in source
+    assert "上期→本期回头率" in source
+    assert "本期专属活跃" in source

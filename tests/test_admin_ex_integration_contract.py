@@ -36,7 +36,7 @@ def test_main_manager_ex_editor_supports_level_write_reset_and_image_preview():
     assert "ex/variants/delete" in text
     assert "ex/variants/card" in text
     assert "EX Lv.${state.level}" in text
-    assert "留空＝继承" in text
+    assert "留空即沿用" in text
 
 
 def test_public_source_preview_has_actions_instead_of_close_only():
@@ -45,8 +45,8 @@ def test_public_source_preview_has_actions_instead_of_close_only():
     assert "publicSourceExSummary" in page
     assert "publicSourceManageEx" in page
     assert "publicSourceLocateLocal" in page
-    assert "管理本地 EX" in page
-    assert "在本地图鉴定位" in page
+    assert "调教本地 EX" in page
+    assert "去本地图鉴定位" in page
     assert "renderPublicSourceSummary" in script
 
 
@@ -74,7 +74,7 @@ def test_main_manager_ex_modal_has_stage2_effective_preview_parity():
         "data-effective-zoom",
         "data-base-zoom",
         "Base ↔ EX",
-        "真实发送 renderer",
+        "实发渲染器",
         "function openPreviewLightbox",
         "function loadEffectiveCard",
         "function loadBaseCard",
@@ -100,7 +100,7 @@ def test_ex_preview_has_one_canonical_management_surface():
         "data-base-card",
         "data-effective-zoom",
         "data-base-zoom",
-        "真实发送 renderer",
+        "实发渲染器",
     ):
         assert marker in main_modal
     assert "effective: true" in main_modal

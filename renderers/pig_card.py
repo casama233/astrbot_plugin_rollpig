@@ -295,7 +295,7 @@ def render_pig_card_frame(
         )
     else:
         error_font = font_regular.font_variant(size=24)
-        error_text = "图片加载失败"
+        error_text = '猪照走丢了'
         error_w, _ = get_text_size(error_text, error_font)
         error_x = (canvas_width - error_w) // 2
         draw.text(
@@ -362,9 +362,9 @@ def render_pig_card(
     """Render one pig card without knowing storage, AstrBot events or sync state."""
     layout = layout or PigCardLayout()
     pig_id = str(pig_data.get("id", "") or "")
-    pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
-    pig_desc = str(pig_data.get("description", "无描述") or "无描述")
-    pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
+    pig_name = str(pig_data.get("name", "未知小猪") or '神秘小猪')
+    pig_desc = str(pig_data.get("description", "无描述") or '暂无猪设简介')
+    pig_analysis = str(pig_data.get("analysis", "无解析") or '暂无背景考据')
     ex_level = max(0, int(pig_data.get("_ex_level", 0) or 0))
     show_ex_badge = "_ex_level" in pig_data
 

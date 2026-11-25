@@ -309,13 +309,13 @@ def render_help_card(
     )
     draw.text(
         (OUTER_MARGIN + 26, 34),
-        "今日小猪 · 快速指令",
+        '每日摇猪 · 常用指令集',
         font=title_font,
         fill=palette["title"],
     )
     draw.text(
         (OUTER_MARGIN + 28, 91),
-        "按当前功能开关动态显示 · 原生 @ 操作已在相关指令下方标注",
+        '随群组功能开关实时变化 · 原生 @ 交互已标注于对应指令下方',
         font=subtitle_font,
         fill=palette["secondary"],
     )
@@ -334,7 +334,7 @@ def render_help_card(
             palette=palette,
         )
 
-    footer = "完整规则 · 管理 · 投稿 · 排障 → 今日小猪 Wiki（下方有链接）"
+    footer = '详尽规则 · 群管设置 · 创意投稿 · 常见排障 → 查阅今日小猪 Wiki（见下方链接）'
     footer_width = _text_width(footer, footer_font)
     draw.text(
         ((CARD_WIDTH - footer_width) // 2, height - 39),

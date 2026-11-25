@@ -41,12 +41,12 @@ async def stage_resource_images(
     budget_lock = asyncio.Lock()
     package_total = initial_size
     if package_total > max_package_size:
-        raise ValueError("云资源包总大小超过 128 MiB")
+        raise ValueError('云端猪粮包太沉啦，总大小超过了 128 MiB')
 
     async def fetch_base_image(meta):
         nonlocal package_total
         if not isinstance(meta, dict):
-            raise ValueError("manifest 图片条目无效")
+            raise ValueError('manifest 里的猪猪立绘条目好像坏掉了')
         filename = str(meta.get("filename") or "")
         if (
             Path(filename).name != filename
@@ -57,19 +57,19 @@ async def stage_resource_images(
                 Path(filename).stem,
             )
         ):
-            raise ValueError(f"图片文件名无效：{filename}")
+            raise ValueError(f'这张猪猪立绘的文件名不太对劲：{filename}')
         async with semaphore:
             data = await download(meta)
         async with budget_lock:
             package_total += len(data)
             if package_total > max_package_size:
-                raise ValueError("云资源包总大小超过 128 MiB")
+                raise ValueError('云端猪粮包太沉啦，总大小超过了 128 MiB')
         return f"{Path(filename).stem}{Path(filename).suffix.lower()}", data
 
     async def fetch_variant_image(meta):
         nonlocal package_total
         if not isinstance(meta, dict):
-            raise ValueError("manifest EX 差分图片条目无效")
+            raise ValueError('manifest 里的 EX 差分立绘条目格式不对')
         filename = str(meta.get("filename") or "")
         if (
             Path(filename).name != filename
@@ -79,13 +79,13 @@ async def stage_resource_images(
                 r"[A-Za-z0-9][A-Za-z0-9_.-]{0,159}", filename
             )
         ):
-            raise ValueError(f"EX 差分图片文件名无效：{filename}")
+            raise ValueError(f'这张 EX 差分立绘的文件名不对劲：{filename}')
         async with semaphore:
             data = await download(meta)
         async with budget_lock:
             package_total += len(data)
             if package_total > max_package_size:
-                raise ValueError("云资源包总大小超过 128 MiB")
+                raise ValueError('云端猪粮包太沉啦，总大小超过了 128 MiB')
         return filename, data
 
     async def fetch_and_store_base(meta):
@@ -114,12 +114,12 @@ async def stage_resource_images(
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
     if len(filenames) != len(set(filenames)):
-        raise ValueError("云资源 manifest 存在重复图片文件名")
+        raise ValueError('云端 manifest 里出现了重名的猪猪立绘文件')
     image_ids = {Path(name).stem for name in filenames}
     missing = pig_ids.difference(image_ids)
     if missing:
         raise ValueError(
-            f"云资源缺少图片：{', '.join(sorted(missing)[:10])}"
+            f"云端仓库里没找着这张猪猪立绘：{', '.join(sorted(missing)[:10])}"
         )
 
     variant_tasks = [
@@ -136,7 +136,7 @@ async def stage_resource_images(
         await asyncio.gather(*variant_tasks, return_exceptions=True)
         raise
     if len(variant_filenames) != len(set(variant_filenames)):
-        raise ValueError("云资源 manifest 存在重复 EX 差分图片文件名")
+        raise ValueError('云端 manifest 里出现了重名的 EX 差分立绘文件')
     if has_ex_catalog:
         declared_variant_images = {
             str(item.get("image") or "")
@@ -153,12 +153,12 @@ async def stage_resource_images(
         )
         if missing_variant:
             raise ValueError(
-                "云资源缺少 EX 差分图片："
+                '云端仓库里缺了这张 EX 差分立绘：'
                 + ", ".join(sorted(missing_variant)[:10])
             )
         if extra_variant:
             raise ValueError(
-                "云资源存在未引用 EX 差分图片："
+                '云端仓库里混进了没被引用的 EX 差分立绘：'
                 + ", ".join(sorted(extra_variant)[:10])
             )
 

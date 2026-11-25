@@ -64,5 +64,5 @@ def test_non_owner_never_calls_the_model_again_that_day():
 
 def test_ai_generation_still_happens_once_per_pig_day_but_returns_a_bundle():
     method = _method_source("_generate_ai_roast_copy")
-    assert "一次生成4条彼此明显不同" in method
+    assert "prompt = build_roast_copy_prompt(pig)" in method
     assert "encode_ai_candidates(candidates[:4])" in method

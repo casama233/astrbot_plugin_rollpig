@@ -105,7 +105,7 @@ def cleanup_legacy_installation_paths(
                 _log(
                     logger,
                     "warning",
-                    f"检测到旧 Plugin Page {legacy}，但新版替代页面不存在；为避免误删已跳过迁移。",
+                    f'发现了旧版 Plugin Page {legacy}，但新版替代页面还没就位；怕误删文件，这次先不动它。',
                 )
                 continue
 
@@ -121,19 +121,19 @@ def cleanup_legacy_installation_paths(
                 _log(
                     logger,
                     "warning",
-                    f"旧 Plugin Page 目录无法完整删除（{exc}），已停用其 index.html：{legacy}",
+                    f'旧 Plugin Page 目录没能彻底清干净（{exc}），不过已经把它的 index.html 停用了：{legacy}',
                 )
                 continue
             _log(
                 logger,
                 "error",
-                f"无法清理旧 RollPig 安装路径 {legacy}：{exc}。请检查插件目录权限。",
+                f'清理旧版 RollPig 残留路径 {legacy} 时受阻：{exc}。麻烦检查一下插件目录的读写权限。',
             )
 
     if removed:
         _log(
             logger,
             "info",
-            "已清理 RollPig 旧版残留路径：" + ", ".join(removed),
+            '已顺利扫除 RollPig 旧版残留路径：' + ", ".join(removed),
         )
     return removed

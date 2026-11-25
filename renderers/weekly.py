@@ -38,7 +38,7 @@ def render_weekly_summary(
     draw.rounded_rectangle((28, 22, 872, 135), 28, fill=palette["surface"])
     draw.text(
         (56, 40),
-        "本周小猪周报",
+        '本周摇猪战绩周报',
         font=title_font,
         fill=palette["title"],
     )
@@ -49,13 +49,13 @@ def render_weekly_summary(
         fill=palette["secondary"],
     )
     weekday_names = [
-        "星期一",
-        "星期二",
-        "星期三",
-        "星期四",
-        "星期五",
-        "星期六",
-        "星期日",
+        '周一',
+        '周二',
+        '周三',
+        '周四',
+        '周五',
+        '周六',
+        '周日',
     ]
     collected = 0
     normalized = list(entries[:7])
@@ -92,7 +92,7 @@ def render_weekly_summary(
                     canvas.paste(thumb.convert("RGB"), (270, y + 11))
                 except Exception:
                     pass
-            pig_name = str(pig.get("name") or "未知小猪")
+            pig_name = str(pig.get("name") or '神秘小猪')
             pig_desc = str(pig.get("description") or "")
             pig_name = pig_name if len(pig_name) <= 14 else pig_name[:13] + "…"
             pig_desc = pig_desc if len(pig_desc) <= 28 else pig_desc[:27] + "…"
@@ -109,7 +109,7 @@ def render_weekly_summary(
                 fill=palette["secondary"],
             )
             if was_eaten:
-                badge = "被吃掉了"
+                badge = '已端上餐桌'
                 badge_w, _ = get_text_size(badge, small_font)
                 badge_x = 842 - badge_w - 22
                 draw.rounded_rectangle(
@@ -124,14 +124,14 @@ def render_weekly_summary(
                     fill=(255, 244, 247),
                 )
         else:
-            status = "等待未来" if not active else "本日未抽取"
+            status = '静候揭晓' if not active else '当日未摇猪'
             draw.text(
                 (300, y + 37),
                 status,
                 font=body_font,
                 fill=palette["muted"],
             )
-    summary = f"本周已签到 {collected}/7 天"
+    summary = f'本周已打卡 {collected}/7 天'
     summary_w, _ = get_text_size(summary, body_font)
     draw.text(
         ((900 - summary_w) // 2, 1040),

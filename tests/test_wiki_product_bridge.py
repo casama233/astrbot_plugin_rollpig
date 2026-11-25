@@ -38,7 +38,7 @@ def test_mkdocs_and_admin_ui_use_the_same_wiki_origin():
 
     assert f"site_url: {WIKI_BASE_URL}" in mkdocs
     assert f"const WIKI_BASE_URL = '{WIKI_BASE_URL}';" in bootstrap
-    for label in ("玩家 Wiki", "管理员手册", "投稿指南"):
+    for label in ("群友玩猪指南", "场长运维手册", "画师投稿指路"):
         assert label in bootstrap
     for anchor in ("#resource-sync", "#admin-ui"):
         assert anchor in bootstrap
@@ -72,9 +72,9 @@ def test_contextual_admin_docs_are_event_driven_without_continuous_watchers():
     assert "MutationObserver" not in bootstrap
     assert "setInterval" not in bootstrap
     assert "state.setResourceSyncFeedback" in bootstrap
-    assert "setResourceSyncFeedback?.(host,message)" in page
-    assert "查看猪源同步排障" in bootstrap
-    assert "查看管理页定向排障" in bootstrap
+    assert "setResourceSyncFeedback?.(host,failed)" in page
+    assert "排查猪源同步故障" in bootstrap
+    assert "查看后台定向排障指南" in bootstrap
 
 
 def test_admin_troubleshooting_page_exposes_stable_deep_link_anchors():
@@ -92,5 +92,5 @@ def test_dynamic_help_links_to_wiki_and_invalidates_old_cached_card():
     assert "HELP_RENDER_CACHE_VERSION = 7" in feature
     assert "WIKI_HOME_URL" in feature
     assert "WIKI_TROUBLESHOOTING_URL" in feature
-    assert "完整规则 · 管理 · 投稿 · 排障" in renderer
-    assert "下方有链接" in renderer
+    assert "详尽规则 · 群管设置 · 创意投稿 · 常见排障" in renderer
+    assert "见下方链接" in renderer

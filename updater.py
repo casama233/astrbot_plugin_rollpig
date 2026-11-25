@@ -107,7 +107,7 @@ class PluginUpdateManager:
         if text.lower().startswith("v"):
             text = text[1:]
         if not re.fullmatch(r"\d+\.\d+\.\d+", text):
-            raise UpdateError(f"版本号不是稳定语义版本：{value}")
+            raise UpdateError(f'这个版本号不是正经的稳定语义版本：{value}')
         return text
 
     @classmethod
@@ -119,10 +119,10 @@ class PluginUpdateManager:
         try:
             content = metadata.read_text(encoding="utf-8")
         except OSError as exc:
-            raise UpdateError("无法读取当前插件 metadata.yaml") from exc
+            raise UpdateError('没能读到当前插件的 metadata.yaml 配置') from exc
         match = re.search(r'^version:\s*["\']?([^"\'\s]+)', content, re.MULTILINE)
         if not match:
-            raise UpdateError("当前插件 metadata.yaml 缺少 version")
+            raise UpdateError('当前插件的 metadata.yaml 里漏写了 version')
         return self._normalise_version(match.group(1))
 
     def status(self) -> dict[str, Any]:
@@ -145,7 +145,7 @@ class PluginUpdateManager:
 
     async def check_for_update(self) -> dict[str, Any]:
         if self._lock.locked():
-            raise UpdateError("已有版本检查或更新任务正在运行")
+            raise UpdateError('猪圈正在检查更新或升级呢，先别急着重复点呀')
         async with self._lock:
             try:
                 result = await self._check_unlocked()
@@ -155,7 +155,7 @@ class PluginUpdateManager:
                 self._last_error = str(exc)
                 if isinstance(exc, UpdateError):
                     raise
-                raise UpdateError(f"检查更新失败：{exc}") from exc
+                raise UpdateError(f'翻找新版本失败了：{exc}') from exc
 
     async def _fetch_stable_release_payload(self) -> dict[str, Any]:
         # Prefer GitHub's dedicated latest-release endpoint so a stale or empty
@@ -181,7 +181,7 @@ class PluginUpdateManager:
         except UpdateError as exc:
             detail = f"latest={latest_error or 'unknown'}; list={exc}"
             raise UpdateError(
-                f"未找到可验证的 RollPig Plus 稳定 Release（{detail}）"
+                f'没找到经过验证的 RollPig Plus 稳定版 Release（{detail}）'
             ) from exc
 
     async def _check_unlocked(self) -> dict[str, Any]:
@@ -195,22 +195,22 @@ class PluginUpdateManager:
             f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/tag/"
         )
         if not html_url.startswith(expected_release_prefix):
-            raise UpdateError("Release 仓库身份校验失败")
+            raise UpdateError('Release 仓库的身份核验没通过，不敢乱收')
 
         assets = payload.get("assets") if isinstance(payload.get("assets"), list) else []
         archive_asset = self._select_archive_asset(assets)
         if not archive_asset:
-            raise UpdateError("RollPig Plus Release 缺少正式插件 ZIP 资源")
+            raise UpdateError('这个 RollPig Plus Release 里没附带正式的插件 ZIP 包')
         archive_name = str(archive_asset.get("name") or "")
         expected_archive_name = f"{self.PACKAGE_NAME}-v{latest}.zip"
         if archive_name != expected_archive_name:
-            raise UpdateError("RollPig Plus Release 插件 ZIP 名称与版本不匹配")
+            raise UpdateError('RollPig Plus Release 里的插件 ZIP 名字和版本号对不上')
         download_url = str(archive_asset.get("browser_download_url") or "")
         expected_prefix = (
             f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/download/"
         )
         if not download_url.startswith(expected_prefix):
-            raise UpdateError("Release 资源地址不属于官方仓库")
+            raise UpdateError('Release 资源的下载地址不是官方猪圈仓库')
 
         checksum_url = self._select_checksum_url(assets, archive_name)
         expected_sha256 = ""
@@ -219,7 +219,7 @@ class PluginUpdateManager:
                 f"https://github.com/{self.OFFICIAL_REPOSITORY}/releases/download/"
             )
             if not checksum_url.startswith(expected_checksum_prefix):
-                raise UpdateError("Release 校验文件地址不属于官方仓库")
+                raise UpdateError('Release 校验文件的下载地址不是官方猪圈仓库')
             checksum_text = (
                 await self._request_bytes(
                     checksum_url,
@@ -229,7 +229,7 @@ class PluginUpdateManager:
             ).decode("utf-8", errors="replace")
             expected_sha256 = self._parse_checksum(checksum_text, archive_name)
             if not expected_sha256:
-                raise UpdateError("Release 提供了校验文件，但未找到对应压缩包的 SHA-256")
+                raise UpdateError('Release 给了校验文件，但里面没找着对应压缩包的 SHA-256')
 
         result = {
             "current_version": current,
@@ -253,14 +253,14 @@ class PluginUpdateManager:
 
     async def apply_update(self, *, confirm_unsigned: bool = False) -> dict[str, Any]:
         if self._lock.locked():
-            raise UpdateError("已有版本检查或更新任务正在运行")
+            raise UpdateError('猪圈正在检查更新或升级呢，稍等一会再试吧')
         async with self._lock:
             try:
                 release = await self._check_unlocked()
                 if not release["update_available"]:
-                    raise UpdateError("当前已经是最新稳定版本")
+                    raise UpdateError('当前猪圈已经是最新稳定版啦，不用再升咯')
                 if not release["checksum_available"] and not confirm_unsigned:
-                    raise UpdateError("此 Release 未提供 SHA-256；需要在面板二次确认后再更新")
+                    raise UpdateError('这个 Release 没提供 SHA-256 校验码；得去面板二次确认后才能更新')
 
                 assert self._pending is not None
                 raw = await self._request_bytes(
@@ -273,7 +273,7 @@ class PluginUpdateManager:
                 if expected_sha256 and not hmac.compare_digest(
                     actual_sha256, expected_sha256.lower()
                 ):
-                    raise UpdateError("下载包 SHA-256 与 Release 校验文件不一致")
+                    raise UpdateError('下回来的压缩包 SHA-256 和 Release 校验文件对不上')
 
                 worker = asyncio.create_task(asyncio.to_thread(
                     self._stage_validate_and_apply, raw, release, actual_sha256,
@@ -300,7 +300,7 @@ class PluginUpdateManager:
                 self._last_error = str(exc)
                 if isinstance(exc, UpdateError):
                     raise
-                raise UpdateError(f"安全更新失败：{exc}") from exc
+                raise UpdateError(f'安全升级翻车了：{exc}') from exc
 
     @classmethod
     def _select_archive_asset(cls, assets: list[Any]) -> dict[str, Any] | None:
@@ -336,7 +336,7 @@ class PluginUpdateManager:
                 continue
             candidates.append((cls._version_tuple(version), item))
         if not candidates:
-            raise UpdateError("未找到可验证的 RollPig Plus 稳定 Release")
+            raise UpdateError('没找到能通过验证的 RollPig Plus 稳定版 Release')
         candidates.sort(key=lambda entry: entry[0], reverse=True)
         return candidates[0][1]
 
@@ -378,9 +378,9 @@ class PluginUpdateManager:
         try:
             payload = json.loads(raw.decode("utf-8"))
         except (UnicodeError, json.JSONDecodeError) as exc:
-            raise UpdateError("GitHub 返回了无效 JSON") from exc
+            raise UpdateError('GitHub 传回来的 JSON 数据乱码了') from exc
         if not isinstance(payload, dict):
-            raise UpdateError("GitHub Release 响应格式无效")
+            raise UpdateError('GitHub Release 返回的格式不对劲')
         return payload
 
     async def _request_json_list(self, url: str) -> list[Any]:
@@ -392,9 +392,9 @@ class PluginUpdateManager:
         try:
             payload = json.loads(raw.decode("utf-8"))
         except (UnicodeError, json.JSONDecodeError) as exc:
-            raise UpdateError("GitHub 返回了无效 JSON") from exc
+            raise UpdateError('GitHub 传回来的 JSON 数据乱码了') from exc
         if not isinstance(payload, list):
-            raise UpdateError("GitHub Releases 响应格式无效")
+            raise UpdateError('GitHub Releases 列表返回的格式不对劲')
         return payload
 
     async def _request_bytes(self, url: str, *, max_bytes: int, accept: str) -> bytes:
@@ -420,24 +420,24 @@ class PluginUpdateManager:
                         if response.status_code in {301, 302, 303, 307, 308}:
                             location = response.headers.get("location")
                             if not location:
-                                raise UpdateError("GitHub 重定向缺少 Location")
+                                raise UpdateError('GitHub 重定向时没给指路（缺少 Location）')
                             current = urljoin(current, location)
                             continue
                         response.raise_for_status()
                         length = response.headers.get("content-length")
                         if length and int(length) > max_bytes:
-                            raise UpdateError("远程文件超过安全大小上限")
+                            raise UpdateError('远程文件个头太大，超出了安全上限')
                         chunks: list[bytes] = []
                         total = 0
                         async for chunk in response.aiter_bytes():
                             total += len(chunk)
                             if total > max_bytes:
-                                raise UpdateError("远程文件超过安全大小上限")
+                                raise UpdateError('远程文件个头太大，超出了安全上限')
                             chunks.append(chunk)
                         return b"".join(chunks)
                 except httpx.HTTPError as exc:
-                    raise UpdateError(f"GitHub 请求失败：{exc}") from exc
-            raise UpdateError("GitHub 重定向次数过多")
+                    raise UpdateError(f'去 GitHub 敲门失败了：{exc}') from exc
+            raise UpdateError('GitHub 来回重定向太多次，把小猪绕晕了')
 
     async def _validate_url(self, url: str) -> None:
         parsed = urlsplit(str(url or ""))
@@ -449,23 +449,23 @@ class PluginUpdateManager:
             or parsed.password
             or host not in self.ALLOWED_HOSTS
         ):
-            raise UpdateError("更新地址未通过 HTTPS / 官方主机白名单校验")
+            raise UpdateError('更新地址没通过 HTTPS 或官方主机白名单安检')
         try:
             records = await asyncio.to_thread(
                 socket.getaddrinfo, host, 443, type=socket.SOCK_STREAM
             )
         except OSError as exc:
-            raise UpdateError(f"无法解析更新主机：{host}") from exc
+            raise UpdateError(f'解析不出这个更新主机的地址：{host}') from exc
         addresses = {str(item[4][0]).split("%", 1)[0] for item in records}
         if not addresses:
-            raise UpdateError(f"更新主机没有可用地址：{host}")
+            raise UpdateError(f'这个更新主机名下没有可用地址：{host}')
         for address in addresses:
             try:
                 ip = ipaddress.ip_address(address)
             except ValueError as exc:
-                raise UpdateError("更新主机返回了无效 IP") from exc
+                raise UpdateError('更新主机返回了一个无效的 IP 地址') from exc
             if not ip.is_global:
-                raise UpdateError(f"更新主机解析到非公网地址：{host}")
+                raise UpdateError(f'更新主机解析到了非公网地址，拦截！{host}')
 
     def _stage_validate_and_apply(
         self, raw: bytes, release: dict[str, Any], actual_sha256: str
@@ -528,10 +528,9 @@ class PluginUpdateManager:
                     self._clear_journal()
                 except Exception as rollback_exc:
                     raise UpdateError(
-                        "文件替换失败，立即回滚未完成；已保留恢复日志，"
-                        f"下次启动将再次尝试恢复：{rollback_exc}"
+                        f'文件替换没成功，紧急回滚也卡住了；已留好恢复日志，下次启动会继续救场：{rollback_exc}'
                     ) from exc
-                raise UpdateError(f"文件替换失败，已回滚：{exc}") from exc
+                raise UpdateError(f'文件替换失败，已经安全回滚到原样啦：{exc}') from exc
 
         # The committed journal is the durable commit point. If the process is
         # killed before it is written, the next manager construction restores
@@ -543,18 +542,18 @@ class PluginUpdateManager:
             )
             manifest_written = True
         except OSError as exc:
-            warning = f"代码已更新，但安装清单写入失败：{type(exc).__name__}"
+            warning = f'新代码装好了，但写入安装清单时出了岔子：{type(exc).__name__}'
             warnings.append(warning)
             self._log("warning", warning)
         if manifest_written:
             try:
                 self._clear_journal()
             except OSError as exc:
-                warning = f"代码已更新，但事务日志清理失败：{type(exc).__name__}"
+                warning = f'新代码装好了，但打扫事务日志时没清干净：{type(exc).__name__}'
                 warnings.append(warning)
                 self._log("warning", warning)
         else:
-            warning = "已保留 committed 更新事务日志，下次启动会补写安装清单"
+            warning = '已留存 committed 更新事务日志，下次启动会自动补写安装清单'
             warnings.append(warning)
             self._log("warning", warning)
 
@@ -573,18 +572,18 @@ class PluginUpdateManager:
         try:
             self._write_state(state)
         except OSError as exc:
-            warning = f"代码已更新，但状态记录写入失败：{type(exc).__name__}"
+            warning = f'新代码装好了，但写入状态记录时没存上：{type(exc).__name__}'
             warnings.append(warning)
             self._log("warning", warning)
         try:
             self._prune_backups()
         except OSError as exc:
-            warning = f"代码已更新，但旧备份清理失败：{type(exc).__name__}"
+            warning = f'新代码装好了，但清理旧备份时没成功：{type(exc).__name__}'
             warnings.append(warning)
             self._log("warning", warning)
         self._log(
             "info",
-            f"今日小猪已更新至 {release['latest_version']}，等待 AstrBot 重启生效",
+            f"今日小猪已顺利升级至 {release['latest_version']}，重启一下 AstrBot 就能见到新猪猪啦",
         )
         public_state = dict(state)
         public_state.pop("backup_dir", None)
@@ -596,33 +595,33 @@ class PluginUpdateManager:
         try:
             archive = zipfile.ZipFile(archive_path)
         except zipfile.BadZipFile as exc:
-            raise UpdateError("下载内容不是有效 ZIP") from exc
+            raise UpdateError('下回来的东西不是正经的 ZIP 压缩包') from exc
         with archive:
             files = [item for item in archive.infolist() if not item.is_dir()]
             if not files or len(files) > self.MAX_FILES:
-                raise UpdateError("ZIP 文件数量无效或超过上限")
+                raise UpdateError('ZIP 里的文件数量不对劲，或者多得超标了')
             total = sum(max(0, item.file_size) for item in files)
             if total > self.MAX_UNCOMPRESSED_BYTES:
-                raise UpdateError("ZIP 解压后体积超过安全上限")
+                raise UpdateError('ZIP 解压出来体积太大，超出了安全上限')
 
             parsed: list[tuple[zipfile.ZipInfo, tuple[str, ...]]] = []
             for item in files:
                 if "\\" in item.filename or "\x00" in item.filename:
-                    raise UpdateError("ZIP 包含非法路径")
+                    raise UpdateError('ZIP 压缩包里夹带了非法路径')
                 path = PurePosixPath(item.filename)
                 if path.is_absolute() or not path.parts or ".." in path.parts:
-                    raise UpdateError("ZIP 包含路径穿越项")
+                    raise UpdateError('ZIP 压缩包里藏了路径穿越项，已拦下')
                 mode = (item.external_attr >> 16) & 0xFFFF
                 if stat.S_ISLNK(mode):
-                    raise UpdateError("ZIP 包含符号链接，已拒绝")
+                    raise UpdateError('ZIP 压缩包里带有符号链接，已直接拒收')
                 if item.file_size > self.MAX_SINGLE_FILE_BYTES:
-                    raise UpdateError(f"ZIP 单文件过大：{item.filename}")
+                    raise UpdateError(f'ZIP 里的单个文件太胖了，超出上限：{item.filename}')
                 if (
                     item.compress_size
                     and item.file_size
                     > item.compress_size * 250 + 1024 * 1024
                 ):
-                    raise UpdateError(f"ZIP 文件压缩比异常：{item.filename}")
+                    raise UpdateError(f'ZIP 文件压缩比异常得吓人，不敢解压：{item.filename}')
                 parsed.append((item, tuple(path.parts)))
 
             first_parts = {parts[0] for _, parts in parsed}
@@ -640,7 +639,7 @@ class PluginUpdateManager:
                 relative = Path(*relative_parts)
                 destination = (staging / relative).resolve()
                 if staging.resolve() not in destination.parents:
-                    raise UpdateError("ZIP 解压目标越界")
+                    raise UpdateError('ZIP 解压目标跑出安全边界了')
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(item) as source, destination.open("wb") as target:
                     shutil.copyfileobj(source, target, length=1024 * 1024)
@@ -652,7 +651,7 @@ class PluginUpdateManager:
             staging / "resource" / "pig.json",
         ]
         if any(not path.is_file() for path in required):
-            raise UpdateError("Release 缺少 main.py、metadata.yaml 或 resource/pig.json")
+            raise UpdateError('Release 包里缺了 main.py、metadata.yaml 或 resource/pig.json')
         metadata = (staging / "metadata.yaml").read_text(encoding="utf-8")
         name = re.search(r'^name:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE)
         author = re.search(
@@ -663,22 +662,22 @@ class PluginUpdateManager:
             r'^version:\s*["\']?([^"\'\s]+)', metadata, re.MULTILINE
         )
         if not name or name.group(1) != "astrbot_plugin_rollpig_plus":
-            raise UpdateError("Release metadata 插件名不匹配")
+            raise UpdateError('Release metadata 里的插件名字对不上号')
         if not author or author.group(1).strip() != "casama233":
-            raise UpdateError("Release metadata 作者身份不匹配")
+            raise UpdateError('Release metadata 里的作者身份对不上号')
         if (
             not repo
             or repo.group(1).rstrip("/")
             != f"https://github.com/{self.OFFICIAL_REPOSITORY}"
         ):
-            raise UpdateError("Release metadata 官方仓库不匹配")
+            raise UpdateError('Release metadata 里的官方仓库地址对不上号')
         if not version or self._normalise_version(version.group(1)) != expected_version:
-            raise UpdateError("Release metadata 版本与 GitHub tag 不匹配")
+            raise UpdateError('更新校验没通过：Release 元数据里的版本号跟 GitHub tag 对不上')
         for path in staging.rglob("*.py"):
             try:
                 ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             except (OSError, UnicodeError, SyntaxError) as exc:
-                raise UpdateError(f"Release Python 完整性检查失败：{path.name}") from exc
+                raise UpdateError(f'更新校验没通过：Release 的 Python 完整性检查挂了（{path.name}）') from exc
 
     def _create_backup(self, current_version: str) -> Path:
         stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -784,7 +783,7 @@ class PluginUpdateManager:
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             self._log(
                 "warning",
-                f"更新安装清单无法读取，本次将跳过旧文件清理：{type(exc).__name__}",
+                f'没法读取更新安装清单，这轮先跳过清理旧文件了：{type(exc).__name__}',
             )
             return set()
         files = payload.get("files") if isinstance(payload, dict) else None
@@ -843,10 +842,10 @@ class PluginUpdateManager:
         try:
             candidate = Path(str(value or "")).resolve()
         except (OSError, RuntimeError) as exc:
-            raise UpdateError("更新恢复日志中的备份路径无效") from exc
+            raise UpdateError('更新恢复日志里的备份路径不对劲，无法识别') from exc
         root = self.backup_root.resolve()
         if candidate == root or root not in candidate.parents:
-            raise UpdateError("更新恢复日志中的备份路径越界")
+            raise UpdateError('更新恢复日志里的备份路径跑出允许范围了')
         return candidate
 
     def _recover_interrupted_update(self) -> None:
@@ -855,9 +854,9 @@ class PluginUpdateManager:
         try:
             payload = json.loads(self.journal_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise UpdateError("检测到损坏的更新恢复日志，已停止自动更新恢复") from exc
+            raise UpdateError('发现更新恢复日志已损坏，自动恢复流程已中止') from exc
         if not isinstance(payload, dict):
-            raise UpdateError("检测到无效的更新恢复日志，已停止自动更新恢复")
+            raise UpdateError('发现更新恢复日志无效，自动恢复流程已中止')
 
         status = str(payload.get("status") or "")
         if status == "committed":
@@ -872,11 +871,11 @@ class PluginUpdateManager:
             self._clear_journal()
             return
         if status != "replacing":
-            raise UpdateError(f"检测到未知更新事务状态：{status or 'empty'}")
+            raise UpdateError(f"遇到看不明白的更新事务状态：{status or 'empty'}")
 
         backup_dir = self._journal_backup_dir(payload.get("backup_dir"))
         if not (backup_dir / "plugin").is_dir():
-            raise UpdateError("检测到未完成更新，但对应备份不存在，无法自动恢复")
+            raise UpdateError('发现上次更新中途断掉了，但找不到对应的备份文件，没法自动还原')
         created = payload.get("created_files")
         created_files = created if isinstance(created, list) else []
 
@@ -885,10 +884,10 @@ class PluginUpdateManager:
             self._remove_created_files(str(item) for item in created_files)
             self._clear_journal()
         except Exception as exc:
-            raise UpdateError(f"未完成更新自动恢复失败：{exc}") from exc
+            raise UpdateError(f'试图自动还原未完成的更新时翻车了：{exc}') from exc
         self._log(
             "warning",
-            '上次更新换文件到一半断了，已用备份自动恢复旧版本',
+            '上次更新替换文件到一半卡断了，已经用备份自动退回旧版本',
         )
 
     def _atomic_write_json(self, path: Path, payload: Any) -> None:

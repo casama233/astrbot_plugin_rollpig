@@ -298,7 +298,7 @@ def test_updater_recovery_rejects_backup_path_outside_managed_root(tmp_path):
             "created_files": [],
         }
     )
-    with pytest.raises(UpdateError, match="备份路径越界"):
+    with pytest.raises(UpdateError, match=r"备份路径.*允许范围"):
         PluginUpdateManager(manager.plugin_dir, manager.data_dir)
 
 

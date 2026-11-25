@@ -82,7 +82,7 @@ def build_help_sections(
     ]
     if state.at_view_pig:
         daily_entries[1:1] = [
-            HelpEntry("/今日小猪 @某人", t("help.daily.today_other")),
+            HelpEntry('/今日小猪 @群友', t("help.daily.today_other")),
             mention_note(),
         ]
 
@@ -109,10 +109,10 @@ def build_help_sections(
         )
         group_entries.extend(
             [
-                HelpEntry("/烤群友 @某人", detail),
+                HelpEntry('/烤群友 @群友', detail),
                 mention_note(),
                 HelpEntry("/随机烤群友", t("help.group.random_roast")),
-                HelpEntry("/打点后厨 @某人", t("help.group.force_roast")),
+                HelpEntry('/打点后厨 @群友', t("help.group.force_roast")),
                 mention_note(),
             ]
         )
@@ -131,7 +131,7 @@ def build_help_sections(
         group_entries.extend(
             [
                 HelpEntry(
-                    "/吃群友 @某人",
+                    '/吃群友 @群友',
                     t(
                         "help.group.eat_target",
                         percent=max(1, int(state.eat_success_percent)),

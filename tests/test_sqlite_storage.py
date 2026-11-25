@@ -250,7 +250,7 @@ def test_json_mode_never_activates_existing_sqlite(tmp_path):
     auto = StorageManager(tmp_path, mode="auto")
     auto.migrate_to_sqlite()
     # Explicit JSON mode must not resurrect stale pre-migration files either.
-    with pytest.raises(StorageMigrationError, match="SQLite 需要恢复"):
+    with pytest.raises(StorageMigrationError, match=r"docs/SQLITE-RECOVERY\.md"):
         StorageManager(tmp_path, mode="json")
     assert isinstance(auto.backend, SQLitePrimaryStorage)
     assert auto.backend.get_user_collection(("v2|qq|user|10001",))["total_draws"] == 2
@@ -327,7 +327,7 @@ def test_connection_context_rolls_back_and_closes(tmp_path, monkeypatch):
 def test_forced_json_mode_rejects_server_side_migration(tmp_path):
     _documents(tmp_path)
     manager = StorageManager(tmp_path, mode="json")
-    with pytest.raises(StorageMigrationError, match="强制使用 JSON"):
+    with pytest.raises(StorageMigrationError, match=r"JSON.*storage_backend.*auto"):
         manager.migrate_to_sqlite()
     assert manager.backend.backend_name == "json"
     assert not (tmp_path / "rollpig.db").exists()
@@ -341,7 +341,7 @@ def test_mixed_sqlite_and_fallback_batch_is_rejected_atomically(tmp_path):
     )
     history = tmp_path / "pig_history.json"
     cache = tmp_path / "pighub_images.json"
-    with pytest.raises(ValueError, match="不能混合"):
+    with pytest.raises(ValueError, match=r"SQLite.*JSON.*混合"):
         storage.save_json_batch({history: {"users": {}}, cache: {"images": []}})
     assert "pig_history.json" not in storage.export_documents()
     assert not cache.exists()

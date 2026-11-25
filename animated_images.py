@@ -39,7 +39,7 @@ def _validate_source_geometry(source: PILImage.Image) -> None:
         or height > ANIMATED_GIF_MAX_SOURCE_EDGE
         or width * height > ANIMATED_GIF_MAX_SOURCE_PIXELS
     ):
-        raise ValueError('图片太大塞不下啦，最高支持 8192×8192')
+        raise ValueError('这张图尺寸太夸张啦，猪圈最高只收 8192×8192 以内的规格')
 
 
 def image_mime_type_from_bytes(raw: bytes) -> str:
@@ -102,13 +102,13 @@ def load_fitted_gif_frames(
     width, height = (max(1, int(size[0])), max(1, int(size[1])))
     with PILImage.open(source_ctx) as source:
         if str(source.format or "").upper() != "GIF":
-            raise ValueError("图片不是 GIF")
+            raise ValueError('上传的文件不是有效的 GIF 格式')
         frame_count = int(getattr(source, "n_frames", 1) or 1)
         if frame_count <= 1:
-            raise ValueError("GIF 不是动画")
+            raise ValueError('这张 GIF 只有一帧，不会动呀')
         if frame_count > ANIMATED_GIF_MAX_FRAMES:
             raise ValueError(
-                f'GIF 帧数太密啦，最多支持 {ANIMATED_GIF_MAX_FRAMES} 帧'
+                f'这张 GIF 帧数塞得太满啦，最多只支持 {ANIMATED_GIF_MAX_FRAMES} 帧'
             )
         _validate_source_geometry(source)
         method = getattr(PILImage, "Resampling", PILImage).LANCZOS
@@ -123,7 +123,7 @@ def load_fitted_gif_frames(
             total_duration += duration
             if total_duration > ANIMATED_GIF_MAX_DURATION_MS:
                 raise ValueError(
-                    f'GIF 演得太久啦，动画最多支持 {ANIMATED_GIF_MAX_DURATION_MS // 1000} 秒'
+                    f'这张 GIF 演得太长啦，单次动画时长不能超过 {ANIMATED_GIF_MAX_DURATION_MS // 1000} 秒'
                 )
             frame = source.convert("RGBA")
             frame = ImageOps.fit(frame, (width, height), method=method)
@@ -139,7 +139,7 @@ def save_animated_gif_bytes(
     loop: int = 0,
 ) -> bytes:
     if not frames:
-        raise ValueError("GIF 没有可保存的帧")
+        raise ValueError('当前 GIF 里没有任何可写入的画面帧')
     output = io.BytesIO()
     normalized_durations = [
         _safe_duration(durations[index] if index < len(durations) else 100)
@@ -163,7 +163,7 @@ def save_animated_gif_bytes(
 def normalize_image_bytes(raw: bytes, size: tuple[int, int] = (512, 512)) -> bytes:
     """Normalize still images to PNG while preserving animated GIFs as GIFs."""
     if not raw:
-        raise ValueError("图片文件为空")
+        raise ValueError('传入的图片字节数据为空')
     try:
         with PILImage.open(io.BytesIO(raw)) as source:
             source.verify()
@@ -187,7 +187,7 @@ def normalize_image_bytes(raw: bytes, size: tuple[int, int] = (512, 512)) -> byt
     except ValueError:
         raise
     except Exception as exc:
-        raise ValueError('图片读不出来，麻烦重新上传 PNG/JPG/WEBP/GIF') from exc
+        raise ValueError('图片解析失败，请重新上传标准的 PNG/JPG/WEBP/GIF 格式文件') from exc
 
     animation = load_fitted_gif_frames(raw, size)
     return save_animated_gif_bytes(

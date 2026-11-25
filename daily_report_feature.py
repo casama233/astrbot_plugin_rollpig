@@ -70,10 +70,10 @@ class DailyReportMixin:
     DAILY_REPORT_SYSTEM_ACTOR = "v2|system|user|daily-report"
 
     _REPORT_QUIPS = {
-        "roast_maniac": "后厨正在考虑给他发长期工牌。",
-        "miserable_ingredient": "今天基本没怎么离开过烤架。",
-        "escape_master": "烤架至今没想明白他是怎么跑掉的。",
-        "backlash_king": "你以为你在烤他，其实他在等你上桌。",
+        "roast_maniac": '后厨已经在给他量尺寸做正式工牌了。',
+        "miserable_ingredient": '一整天几乎都焊在烤架上面没下来过。',
+        "escape_master": '烤架到现在都没想通他是从哪条缝溜走的。',
+        "backlash_king": '表面上是你在架火烤他，背地里他正盘算怎么把你端上桌。',
     }
 
     def __init__(self, context, config):
@@ -217,7 +217,7 @@ class DailyReportMixin:
                     if name:
                         break
         if not name:
-            name = self._legacy_identity(fallback) or "群友"
+            name = self._legacy_identity(fallback) or '猪圈成员'
         return re.sub(r"\s+", " ", name)[:36]
 
     @staticmethod
@@ -404,7 +404,7 @@ class DailyReportMixin:
                 else {}
             )
             result = dict(profile) if isinstance(profile, dict) else {}
-        result.setdefault("display_name", self._legacy_identity(user_id) or "群友")
+        result.setdefault("display_name", self._legacy_identity(user_id) or '猪圈成员')
         result.setdefault("native_id", self._legacy_identity(user_id))
         return result
 
@@ -452,7 +452,7 @@ class DailyReportMixin:
                 {
                     "user_id": user_id,
                     "pig_id": str(pig.get("id") or ""),
-                    "pig_name": str(pig.get("name") or pig.get("id") or '神秘小猪'),
+                    "pig_name": str(pig.get("name") or pig.get("id") or '未名小猪'),
                     "was_eaten": bool(was_eaten),
                 }
             )
@@ -542,7 +542,7 @@ class DailyReportMixin:
                     self.DAILY_REPORT_MAX_AVATAR_BYTES,
                     attempts=1,
                 )
-            self._validate_image_dimensions(raw, "平台头像")
+            self._validate_image_dimensions(raw, '原平台头像')
             normalized = await asyncio.to_thread(self._normalise_report_avatar, raw)
 
             def save() -> None:
@@ -600,7 +600,7 @@ class DailyReportMixin:
         self, report: dict[str, Any], user_id: str, limit: int = 16
     ) -> str:
         profile = report.get("profiles", {}).get(str(user_id), {})
-        name = str(profile.get("display_name") or self._legacy_identity(user_id) or "群友")
+        name = str(profile.get("display_name") or self._legacy_identity(user_id) or '猪圈成员')
         return name if len(name) <= limit else name[: max(1, limit - 1)] + "…"
 
     def _paste_report_avatar(
@@ -703,7 +703,7 @@ class DailyReportMixin:
         )
         draw.text(
             (left + 40, top + 27),
-            "今日称号",
+            '今日头衔',
             font=badge_font,
             fill=palette["accent"],
         )
@@ -716,13 +716,13 @@ class DailyReportMixin:
         if not winners:
             draw.text(
                 (left + 24, top + 136),
-                "本日空缺",
+                '今日虚位以待',
                 font=name_font,
                 fill=palette["muted"],
             )
             draw.text(
                 (left + 24, top + 181),
-                '猪圈今天居然风平浪静。',
+                '今天猪圈居然一片祥和，无事发生。',
                 font=small_font,
                 fill=palette["secondary"],
             )
@@ -743,9 +743,9 @@ class DailyReportMixin:
             font=name_font,
             fill=palette["title"],
         )
-        suffix = f"{value} 次"
+        suffix = f'共计 {value} 次'
         if len(winners) > 1:
-            suffix += f" · 并列 {len(winners)} 人"
+            suffix += f' · 另有 {len(winners)} 人打平'
         draw.text(
             (left + 24, top + 171),
             suffix,
@@ -775,7 +775,7 @@ class DailyReportMixin:
         small_font = self.font_regular.font_variant(size=19)
 
         draw.rounded_rectangle((36, 34, 1164, 235), 36, fill=palette["surface"])
-        draw.text((76, 66), "猪圈日报", font=title_font, fill=palette["title"])
+        draw.text((76, 66), '猪圈晚报', font=title_font, fill=palette["title"])
         draw.text(
             (79, 146),
             str(report.get("date") or ""),
@@ -784,7 +784,7 @@ class DailyReportMixin:
         )
         draw.text(
             (79, 190),
-            '今天猪圈里照样鸡飞狗跳。',
+            '今日份的猪圈依旧热闹得鸡飞狗跳。',
             font=body_font,
             fill=palette["secondary"],
         )
@@ -805,12 +805,12 @@ class DailyReportMixin:
         )
 
         metrics = [
-            ("活跃猪友", report.get("active_users", 0)),
-            ("今日抽猪", report.get("draws", 0)),
-            ("成功上烤架", report.get("roasts", 0)),
-            ("今日被吃", report.get("eats", 0)),
-            ("成功逃脱", report.get("escapes", 0)),
-            ("触发反噬", report.get("backlashes", 0)),
+            ('出没猪友', report.get("active_users", 0)),
+            ('摸猪次数', report.get("draws", 0)),
+            ('上架烤制', report.get("roasts", 0)),
+            ('惨遭吞食', report.get("eats", 0)),
+            ('成功越狱', report.get("escapes", 0)),
+            ('绝地反咬', report.get("backlashes", 0)),
         ]
         card_w, card_h = 350, 118
         for index, (label, value) in enumerate(metrics):
@@ -827,7 +827,7 @@ class DailyReportMixin:
 
         draw.text(
             (58, 531),
-            f"⛽ 烤箱补货 {int(report.get('oven_refills', 0) or 0)} 次 · 添煤 {int(report.get('oven_refill_supports', 0) or 0)} 人次",
+            f"⛽ 补给加料 {int(report.get('oven_refills', 0) or 0)} 回 · 添柴 {int(report.get('oven_refill_supports', 0) or 0)} 人次",
             font=small_font,
             fill=palette["secondary"],
         )
@@ -836,7 +836,7 @@ class DailyReportMixin:
         draw.rounded_rectangle((44, pop_y, 1156, pop_y + 255), 30, fill=palette["surface"])
         draw.text(
             (76, pop_y + 30),
-            "今日最热门猪形态",
+            '本日当红猪款',
             font=big_font,
             fill=palette["title"],
         )
@@ -859,7 +859,7 @@ class DailyReportMixin:
                     )
                 except Exception:
                     pass
-            name = str(pig.get("name") or pig_id or "未知小猪")
+            name = str(pig.get("name") or pig_id or '神秘猪种')
             draw.text(
                 (292, pop_y + 92),
                 name[:22],
@@ -867,16 +867,16 @@ class DailyReportMixin:
                 fill=palette["title"],
             )
             count = int(pig.get("count", 0) or 0)
-            tie = f" · 并列 {len(popular)} 种" if len(popular) > 1 else ""
+            tie = f' · 共 {len(popular)} 款并列' if len(popular) > 1 else ""
             draw.text(
                 (294, pop_y + 145),
-                f"今天出现 {count} 次{tie}",
+                f'今日累计现身 {count} 次{tie}',
                 font=label_font,
                 fill=palette["accent"],
             )
             draw.text(
                 (294, pop_y + 190),
-                "今日猪圈指定制服，撞衫属于集体行为。",
+                '今天猪圈的统一着装，纯属集体撞衫。',
                 font=body_font,
                 fill=palette["secondary"],
             )
@@ -884,9 +884,9 @@ class DailyReportMixin:
             variety = int(report.get("pig_variety", 0) or 0)
             peak = int(report.get("popular_peak", 0) or 0)
             summary = (
-                f"今天 {variety} 种小猪各出现 1 次，尚未形成热门形态。"
+                f'今日共 {variety} 款小猪各自亮相 1 次，暂未分出人气王。'
                 if variety > 1 and peak == 1
-                else '今天大家各长各的，还没卷出爆款。'
+                else '今天大家各长各的模样，还没卷出统一爆款。'
             )
             draw.text(
                 (76, pop_y + 105),
@@ -896,12 +896,12 @@ class DailyReportMixin:
             )
 
         awards_y = 846
-        draw.text((56, awards_y), "今日猪圈名人堂", font=big_font, fill=palette["title"])
+        draw.text((56, awards_y), '今日猪圈风云榜', font=big_font, fill=palette["title"])
         award_defs = [
-            ("roast_maniac", "烧烤狂人"),
-            ("miserable_ingredient", "最惨食材"),
-            ("escape_master", "逃脱大师"),
-            ("backlash_king", "反噬之王"),
+            ("roast_maniac", '掌勺狂魔'),
+            ("miserable_ingredient", '头号食材'),
+            ("escape_master", '越狱奇才'),
+            ("backlash_king", '反杀之王'),
         ]
         for index, (key, title) in enumerate(award_defs):
             row, col = divmod(index, 2)
@@ -934,7 +934,7 @@ class DailyReportMixin:
             )
             draw.text(
                 (92, sac_y + 32),
-                "今日祭品",
+                '今日献祭',
                 font=label_font,
                 fill=palette["danger"],
             )
@@ -954,13 +954,13 @@ class DailyReportMixin:
             )
             draw.text(
                 (272, sac_y + 151),
-                '日报发布前最后一秒，他还是只完整猪。',
+                '在晚报发出来的前一秒，他都还是一只完完整整的猪。',
                 font=body_font,
                 fill=palette["secondary"],
             )
             draw.text(
                 (272, sac_y + 196),
-                '今日状态：已进肚 · 明日抽猪或受影响',
+                '当前状态：已入腹 · 明日抽猪手气或受波动',
                 font=label_font,
                 fill=palette["danger"],
             )
@@ -969,15 +969,15 @@ class DailyReportMixin:
         draw.line((64, footer_y, 1136, footer_y), fill=palette["line"], width=2)
         draw.text(
             (68, footer_y + 24),
-            "统计只记录 RollPig 玩法事件 · 称号并列时保留真实并列关系",
+            '数据仅统计 RollPig 互动事件 · 出现平局时完整保留并列名单',
             font=small_font,
             fill=palette["muted"],
         )
         detail_missing = int(report.get("roast_detail_missing", 0) or 0)
         footer_line = (
-            f"烤猪总数另含 {detail_missing} 笔仅有总量的历史记录 · 人物称号只按可追溯玩法事件计算"
+            f'烤猪总数另计入 {detail_missing} 笔仅存总量的旧账 · 个人头衔仅依据可溯源的互动记录评定'
             if detail_missing > 0
-            else f"自动推送 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机延迟"
+            else f'定时播报 {self.daily_report_send_time} + 0–{self.daily_report_random_delay_minutes} 分钟随机浮动'
         )
         draw.text(
             (68, footer_y + 58),
@@ -1191,7 +1191,7 @@ class DailyReportMixin:
             "daily_report_sacrifice",
         )
         if status not in {"updated", "already-eaten"}:
-            raise RuntimeError(f"日报祭品状态写入失败：{status}")
+            raise RuntimeError(f'晚报献祭状态保存失败：{status}')
         self._record_daily_report_event(
             group_id,
             "daily_sacrifice",
@@ -1220,7 +1220,7 @@ class DailyReportMixin:
                 return
             umo = str(group.get("umo") or "").strip()
             if not umo:
-                raise RuntimeError("没有可用于主动推送的 unified_msg_origin")
+                raise RuntimeError('缺少用于主动发送的 unified_msg_origin')
 
             sacrifice_id = ""
             if self.daily_report_random_eat_enabled:
@@ -1261,9 +1261,9 @@ class DailyReportMixin:
                         status=job_status,
                         delivery_id=str(claim.get("delivery_id") or ""),
                         last_error=(
-                            "已有同群同日投递凭证，已抑制重复发送"
+                            '检测到同群当日已有发送回执，已跳过重复投递'
                             if job_status == "sent"
-                            else "检测到既有投递凭证且结果不确定，已停止自动重发"
+                            else '发现已有发送回执且状态存疑，已中止自动重发'
                         ),
                     )
                     await asyncio.to_thread(self._flush_daily_report_state_durable)
@@ -1301,7 +1301,7 @@ class DailyReportMixin:
                         draw_date,
                         group_id,
                         status="uncertain",
-                        last_error="自动推送在平台投递期间被中断；为避免双发，不会自动重试",
+                        last_error='定时播报在平台发送过程中意外中断；为防刷屏重复，已取消自动重试',
                     )
                     self._flush_daily_report_state_durable()
                     raise
@@ -1318,7 +1318,7 @@ class DailyReportMixin:
                         group_id,
                         status="uncertain",
                         last_error=(
-                            "平台投递结果不确定；为避免双发，已停止自动重试："
+                            '平台回传状态不明确；为避免重复发送，已中止自动重试：'
                             + str(exc)[:220]
                         ),
                     )
@@ -1341,10 +1341,10 @@ class DailyReportMixin:
                         draw_date,
                         group_id,
                         status="pending",
-                        last_error="AstrBot 未找到匹配的消息平台",
+                        last_error='AstrBot 未能定位到对应的消息平台',
                     )
                     await asyncio.to_thread(self._flush_daily_report_state_durable)
-                    raise RuntimeError("AstrBot 未找到匹配的消息平台")
+                    raise RuntimeError('AstrBot 未能定位到对应的消息平台')
 
                 await asyncio.to_thread(
                     self.daily_report_delivery_claims.finalize,
@@ -1430,7 +1430,7 @@ class DailyReportMixin:
                         date_key,
                         group_id,
                         status="uncertain",
-                        last_error="检测到中断的自动投递；为避免双发，已停止自动重试",
+                        last_error='发现上次自动派报中途断线了；怕连发两份闹乌龙，自动补发已紧急叫停。',
                     )
                     await asyncio.to_thread(self._flush_daily_report_state_durable)
                     continue
@@ -1502,7 +1502,7 @@ class DailyReportMixin:
         """manual views never sacrifice; manage per-group automatic push."""
         self._claim_command_event(event)
         if not self.enable_daily_report:
-            await event.send(event.plain_result('猪圈日报这会儿还在休假呢，配置里已经把它关掉啦。'))
+            await event.send(event.plain_result('猪圈小报今天挂牌歇业，后台设置里已经把这功能锁上啦。'))
             return
         group_id = self._event_group_id(event)
         if not group_id:
@@ -1520,33 +1520,30 @@ class DailyReportMixin:
                 group_state = "已开启" if enabled else "未开启（默认）"
                 await event.send(
                     event.plain_result(
-                        f"本群猪圈日报自动推送：{group_state}\n"
-                        f"全局自动推送总开关：{global_state}\n"
-                        f"计划时间：{self.daily_report_send_time}，随机延迟最多 "
-                        f"{self.daily_report_random_delay_minutes} 分钟（不会跨自然日）"
+                        f'本群日报定时投递：{group_state}\n全局派报总闸门：{global_state}\n发报时间：{self.daily_report_send_time}，附带最多 {self.daily_report_random_delay_minutes} 分钟随机延迟（绝不拖到第二天）'
                     )
                 )
                 return
             if not self._daily_report_group_manager(event, actor_id):
                 await event.send(
-                    event.plain_result('这事得请 AstrBot 管理员出马，只有他们能改日报自动推送。')
+                    event.plain_result('这事得请 AstrBot 管理员拍板，只有他们手里握着日报推送的遥控器。')
                 )
                 return
             target = action in enable_actions
             self._set_daily_report_group_auto(group_id, target, actor_id=actor_id)
             if target:
-                suffix = "" if self.daily_report_auto_send else "；但全局自动推送总开关目前关闭"
+                suffix = "" if self.daily_report_auto_send else '；不过全局派报总闸门目前拉下来了'
                 await event.send(
                     event.plain_result(
-                        f'本群猪圈日报自动推送已就位！每天结束前按 {self.daily_report_send_time} + 随机延迟送达{suffix}。'
+                        f'本群猪圈日报定时投递已排班！每天零点前按 {self.daily_report_send_time} + 随机延迟准时派送{suffix}。'
                     )
                 )
             else:
-                await event.send(event.plain_result('已关闭本群猪圈日报自动推送。想看的话，手动 /猪圈日报 依然随时待命。'))
+                await event.send(event.plain_result('本群猪圈日报的自动投递已暂停。想随时翻阅的话，手动输入 /猪圈日报 照样能看。'))
             return
         if action:
             await event.send(
-                event.plain_result("用法：/猪圈日报、/猪圈日报 开启、/猪圈日报 关闭、/猪圈日报 状态")
+                event.plain_result('指令格式：/猪圈日报、/猪圈日报 开启、/猪圈日报 关闭、/猪圈日报 状态')
             )
             return
 
@@ -1562,7 +1559,7 @@ class DailyReportMixin:
             await event.send(event.image_result(str(output.absolute())))
         except Exception as exc:
             logger.error(f"生成猪圈日报失败：{exc}", exc_info=True)
-            await event.send(event.plain_result('猪圈日报生成失败，请稍后重试。'))
+            await event.send(event.plain_result('猪圈小报排版翻车了，请过会儿再试试。'))
         finally:
             if output:
                 output.unlink(missing_ok=True)

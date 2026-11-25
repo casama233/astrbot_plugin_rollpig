@@ -20,8 +20,8 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 _EMERGENCY_LOCAL_COPY = {
-    "dish": "猪圈炭火特餐",
-    "copy": '猪鼻一拱滚上烤架，今天不流行咸鱼翻身，只管等它滋滋冒油、两面金黄。',
+    "dish": '猪舍碳烤限定赏味',
+    "copy": '猪蹄一蹬翻上铁架，今天不讲咸鱼翻身，只管等它油花滋滋爆开、烤出焦香脆皮。',
 }
 _ROAST_IMAGE_BOX = (185, 150, 615, 580)
 
@@ -88,7 +88,7 @@ def _draw_missing_pig_placeholder(
 
     label_font = font_bold.font_variant(size=28)
     detail_font = body_font.font_variant(size=19)
-    label = "小猪图片暂不可用"
+    label = '小猪写真暂缺'
     label_w, _ = get_text_size(label, label_font)
     draw.text(
         (center_x - label_w // 2, top + 265),
@@ -96,7 +96,7 @@ def _draw_missing_pig_placeholder(
         font=label_font,
         fill=palette["roast_title"],
     )
-    detail = f"资源 ID：{pig_id or 'unknown'}"
+    detail = f"档案编号：{pig_id or 'unknown'}"
     detail_w, _ = get_text_size(detail, detail_font)
     draw.text(
         (center_x - detail_w // 2, top + 318),
@@ -124,7 +124,7 @@ def render_roast_card(
     recipe = str(selected.get("dish") or _EMERGENCY_LOCAL_COPY["dish"])
     copy = str(selected.get("copy") or _EMERGENCY_LOCAL_COPY["copy"])
     if ai_copy:
-        recipe = "AI 猪圈私房"
+        recipe = 'AI 猪舍主厨秘制'
         copy = str(ai_copy)
 
     canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
@@ -138,10 +138,10 @@ def render_roast_card(
         outline=palette["roast_outline"],
         width=5,
     )
-    source = "AI 猪话" if ai_copy else "猪圈本地话"
+    source = 'AI 猪语翻译' if ai_copy else '猪舍土味俚语'
     draw.text(
         (64, 58),
-        f"今日烤猪 · {source}",
+        f'今日炙烤主角 · {source}',
         font=title_font,
         fill=palette["roast_title"],
     )

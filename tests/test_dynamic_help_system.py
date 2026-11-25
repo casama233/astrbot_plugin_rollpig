@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from help_system import HelpFeatureState, build_help_sections, help_sections_fingerprint
+from player_copy import copy_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -72,18 +73,18 @@ def test_disabled_features_are_omitted_instead_of_advertised():
     )
     commands = _commands(state)
 
-    assert "/今日小猪 @某人" not in commands
+    assert "/今日小猪 @群友" not in commands
     assert "/今日烤猪" not in commands
-    assert "/烤群友 @某人" not in commands
+    assert "/烤群友 @群友" not in commands
     assert "/随机烤群友" not in commands
-    assert "/打点后厨 @某人" not in commands
+    assert "/打点后厨 @群友" not in commands
     assert "/添柴" not in commands
-    assert "/吃群友 @某人" not in commands
+    assert "/吃群友 @群友" not in commands
     assert "/随机吃群友" not in commands
     assert not any(command.startswith("/猪圈日报") for command in commands)
-    assert not any("新豬保底" in command for command in commands)
-    assert not any("跨日疲勞" in command for command in commands)
-    assert not any("预约烤猪" in command for command in commands)
+    assert copy_text("help.mechanic.new_pig_pity_title") not in commands
+    assert copy_text("help.mechanic.duplicate_pity_title") not in commands
+    assert copy_text("help.mechanic.reservation_title") not in commands
 
 
 def test_enabled_features_expose_new_report_and_reservation_capabilities():
@@ -102,17 +103,20 @@ def test_enabled_features_expose_new_report_and_reservation_capabilities():
     )
     commands = _commands(state)
 
-    assert "/今日小猪 @某人" in commands
+    assert "/今日小猪 @群友" in commands
     assert "/猪圈日报状态" in commands
     assert "/烤箱补货" in commands
     assert "/添柴" in commands
     assert "/添煤" not in commands
     assert "/猪圈日报开启／关闭" in commands
-    assert any("自动日报" in command for command in commands)
-    assert any("预约烤猪" in command for command in commands)
-    assert any("次日保护" in command for command in commands)
-    assert any("AI 料理文案" in command for command in commands)
-    assert any("日报祭品" in command for command in commands)
+    for key in (
+        "help.report.auto_off_title",
+        "help.mechanic.reservation_title",
+        "help.mechanic.protection_title",
+        "help.mechanic.ai_copy_title",
+        "help.mechanic.report_random_eat_title",
+    ):
+        assert copy_text(key) in commands
 
 
 def test_native_mention_note_follows_every_at_capable_help_command():
@@ -120,13 +124,13 @@ def test_native_mention_note_follows_every_at_capable_help_command():
     entries = [entry for section in sections for entry in section.entries]
     from player_copy import PLAYER_COPY
     note_text = PLAYER_COPY["zh-CN"]["help.mention.native_at_note"]
-    assert all(word in note_text for word in ("QQ", "@弹窗", "点选", "手打", "复制"))
+    assert all(word in note_text for word in ("QQ", "@列表", "选中", "手动输入", "粘贴"))
     expected_commands = {
-        "/今日小猪 @某人",
-        "/烤群友 @某人",
-        "/打点后厨 @某人",
+        "/今日小猪 @群友",
+        "/烤群友 @群友",
+        "/打点后厨 @群友",
         "/添柴",
-        "/吃群友 @某人",
+        "/吃群友 @群友",
     }
     for index, entry in enumerate(entries[:-1]):
         if entry.command in expected_commands:
@@ -210,14 +214,16 @@ def test_help_explains_configured_cost_recovery_risk_and_ex_content():
         for section in build_help_sections(state)
         for entry in section.entries
     }
-    assert "每人每群3格" in entries["烤箱 Charge"]
-    assert "每1.5小时回1格" in entries["烤箱 Charge"]
-    assert "消耗1格，逃脱不退" in entries["/烤群友 @某人"]
-    assert all(word in entries["/吃群友 @某人"] for word in ("27%成功", "失败", "吃掉自己"))
-    assert "最多9人" in entries["预约烤猪"]
-    assert "/烤群友加入不扣格" in entries["预约烤猪"]
-    assert "EX 可超5" in entries["EX 成长"]
-    assert "文案沿用最高可用差分" in entries["EX 成长"]
+    charge = entries[copy_text("help.mechanic.oven_energy_title")]
+    assert "每人每群上限3格" in charge
+    assert "1.5小时恢复1格" in charge
+    assert "消耗1格，溜走不退" in entries["/烤群友 @群友"]
+    assert all(word in entries["/吃群友 @群友"] for word in ("27%几率得手", "失手", "吃掉自己"))
+    reservation = entries[copy_text("help.mechanic.reservation_title")]
+    assert "上限9人" in reservation
+    assert "/烤群友加入不扣格" in reservation
+    growth = entries[copy_text("help.mechanic.ex_growth_title")]
+    assert all(word in growth for word in ("EX", "超", "5", "差分"))
 
     # A cached bitmap must change whenever a displayed rule changes.
     original = help_sections_fingerprint(build_help_sections(state))

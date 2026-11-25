@@ -38,9 +38,9 @@ def render_animated_pig_card(
             Path(avatar_path),
             (layout.avatar_size, layout.avatar_size),
         )
-        pig_name = str(pig_data.get("name", "未知小猪") or "未知小猪")
-        pig_desc = str(pig_data.get("description", "无描述") or "无描述")
-        pig_analysis = str(pig_data.get("analysis", "无解析") or "无解析")
+        pig_name = str(pig_data.get("name", "未知小猪") or '神秘未收录小猪')
+        pig_desc = str(pig_data.get("description", "无描述") or '暂无猪设简介')
+        pig_analysis = str(pig_data.get("analysis", "无解析") or '暂无背景考据')
         ex_level = (
             max(0, int(pig_data.get("_ex_level", 0) or 0))
             if "_ex_level" in pig_data

@@ -13,10 +13,10 @@ def approved_review(policy_raw: bytes, manifest_raw: bytes) -> dict:
     policy = parse_json(policy_raw)
     if (not isinstance(policy, dict) or type(policy.get('schema_version')) is not int
             or policy['schema_version'] != 2 or not isinstance(policy.get('approved_snapshots'), dict)):
-        raise ValueError('镜像批准清单格式无效')
+        raise ValueError('镜像批准清单的格式配置无效')
     review = policy['approved_snapshots'].get(digest(manifest_raw))
     if not isinstance(review, dict) or review.get('status') != 'approved':
-        raise ValueError('镜像快照未获批准或已撤回')
+        raise ValueError('该镜像快照未通过审核或已被正式撤回')
     return review
 
 
@@ -40,9 +40,9 @@ async def fetch_snapshot(*, root: Path, manifest_url: str, policy_raw: bytes, do
         async with semaphore:
             data = await download(urljoin(manifest_url, member['path']), member['size'])
         if member.get('sha256') and (len(data) != member['size'] or digest(data) != member['sha256']):
-            raise ValueError('镜像文件大小或 SHA-256 不一致：' + member['path'])
+            raise ValueError('镜像文件体积或 SHA-256 校验值不匹配：' + member['path'])
         if digest(data) != review.get('files', {}).get(member['path']):
-            raise ValueError('镜像文件与独立批准记录不一致：' + member['path'])
+            raise ValueError('猪圈镜像档跟独立批准记录对不上号：' + member['path'])
         path = snapshot / member['path']
         path.parent.mkdir(parents=True, exist_ok=True)
         # Each file is capped at 10 MiB. Finish the write before yielding so

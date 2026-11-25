@@ -97,7 +97,7 @@ def test_primary_failure_does_not_consult_public_mirrors(monkeypatch):
         raise OSError("primary unavailable")
 
     monkeypatch.setattr(plugin, "_probe_official_resource_manifest", probe)
-    with pytest.raises(ValueError, match="公共猪源全部不可用"):
+    with pytest.raises(ValueError, match="primary unavailable"):
         asyncio.run(plugin.sync_cloud_resources())
 
     assert probed == [plugin.OFFICIAL_RESOURCE_MANIFEST_URL]

@@ -15,6 +15,6 @@
   if (loading) {
     loading.setAttribute('role', 'status');
     loading.setAttribute('aria-live', 'polite');
-    loading.setAttribute('aria-label', '正在处理，请稍候');
+    loading.setAttribute('aria-label', "后厨正在忙碌，请稍等片刻");
   }
 })();

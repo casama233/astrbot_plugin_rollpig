@@ -114,7 +114,7 @@ def test_chef_bare_firewood_is_terminal_reservation_denial_when_no_refill():
     assert harness.refill_calls == 0
     assert event.sent
     assert any(role in event.sent[-1] for role in ("主厨", "发起人"))
-    assert "开局已经算 1 人" in event.sent[-1]
+    assert "开局" in event.sent[-1] and "1 人" in event.sent[-1]
     row = get_reservation(
         harness.roast_reservation_state, DRAW_DATE.isoformat(), "g1", "target"
     )
@@ -131,7 +131,9 @@ def test_single_pending_reservation_allows_bare_firewood_to_join():
     assert harness.claimed is True
     assert harness.refill_calls == 0
     assert event.sent == []
-    assert harness.mentions == [("target", " 🪵 又一根柴悄悄塞进来；现在共有 2 人蹲锅。")]
+    [(target_id, reply)] = harness.mentions
+    assert target_id == "target"
+    assert "柴" in reply and "2 人" in reply
     row = get_reservation(
         harness.roast_reservation_state, DRAW_DATE.isoformat(), "g1", "target"
     )
@@ -194,7 +196,7 @@ def test_no_refill_and_no_reservation_is_claimed_and_explained():
     assert harness.claimed is True
     assert harness.refill_calls == 0
     assert event.sent
-    assert "既没有补货轮次" in event.sent[-1]
+    assert "没有补货" in event.sent[-1] and "预约" in event.sent[-1]
     assert "/烤箱补货" in event.sent[-1]
 
 
@@ -215,4 +217,4 @@ def test_resolved_reservation_is_not_routed_as_pending_firewood():
 
     assert harness.claimed is True
     assert event.sent
-    assert "既没有补货轮次" in event.sent[-1]
+    assert "没有补货" in event.sent[-1] and "预约" in event.sent[-1]

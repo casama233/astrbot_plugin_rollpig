@@ -1,314 +1,314 @@
 {
-    "at_view_pig": {
-        "description": "允许艾特别人偷看今日小猪",
-        "hint": "是否允许通过艾特群友查看对方的今日小猪，默认关闭",
-        "type": "bool",
-        "default": false
-    },
-    "enable_new_pig_pity": {
-        "description": "开启连续重复保底",
-        "hint": "连续抽到重复小猪时，逐步提高下次遇见新小猪的概率",
-        "type": "bool",
-        "default": true
-    },
-    "pity_step_percent": {
-        "description": "每层保底增加概率（百分比）",
-        "hint": "每连续重复一次增加的重抽新猪概率，范围 0-50，默认 15",
-        "type": "int",
-        "default": 15
-    },
-    "enable_daily_duplicate_pity": {
-        "description": "开启跨日重复疲劳保底",
-        "hint": "连续多个自然日抽到已解锁小猪时，从指定天数开始额外提高重抽新猪概率；与原连续重复保底叠加但共同受 80% 总上限限制",
-        "type": "bool",
-        "default": true
-    },
-    "daily_duplicate_pity_start_day": {
-        "description": "跨日疲劳保底起算日",
-        "hint": "连续重复到第几天开始获得额外加成，范围 2-7，默认第 2 天",
-        "type": "int",
-        "default": 2
-    },
-    "daily_duplicate_pity_step_percent": {
-        "description": "跨日疲劳每层增加概率（百分比）",
-        "hint": "从起算日开始，每多连续重复一天增加的额外概率，范围 0-25，默认 5",
-        "type": "int",
-        "default": 5
-    },
-    "daily_duplicate_pity_max_percent": {
-        "description": "跨日疲劳额外加成上限（百分比）",
-        "hint": "跨日疲劳机制最多额外增加多少概率，范围 0-50，默认 15；最终保底概率仍封顶 80%",
-        "type": "int",
-        "default": 15
-    },
-    "enable_roast": {
-        "description": "开启今日烤猪",
-        "hint": "允许把自己当天的猪做成料理卡；人类、熟食或已吃掉的猪会被拒收",
-        "type": "bool",
-        "default": true
-    },
-    "enable_group_roast": {
-        "description": "开启烤群友玩法",
-        "hint": "群聊中可使用 /烤群友 @某人、/随机烤群友 和后门口令；关闭后仅保留今日烤猪",
-        "type": "bool",
-        "default": true
-    },
-    "enable_roast_reservation": {
-        "description": "开启预约烤猪",
-        "hint": "明确 /烤群友 @尚未抽猪的群友时建立本群当天预约；第一位主厨消耗 1 格烤箱能量，后续群友优先用 /添柴 @目标 加入，再次 /烤群友 @同一目标 仍兼容；目标在本群抽猪后按成功 70%、逃脱 20%、反噬 10% 结算",
-        "type": "bool",
-        "default": true
-    },
-    "roast_reservation_max_participants": {
-        "description": "预约烤猪最多参与人数",
-        "hint": "算上首位主厨；范围 2-20，默认 12，满员就不再添柴了",
-        "type": "int",
-        "default": 12
-    },
-    "enable_group_eat": {
-        "description": "开启吃群友玩法",
-        "hint": "允许 /吃群友 @某人 与 /随机吃群友；成功者或失败者会变为当天的「吃掉了」状态",
-        "type": "bool",
-        "default": true
-    },
-    "eat_success_percent": {
-        "description": "吃群友成功率（百分比）",
-        "hint": "范围 1-80，默认 15；失败时发起者会变为「吃掉了」",
-        "type": "int",
-        "default": 15
-    },
-    "eaten_next_day_failure_percent": {
-        "description": "被吃后次日重复猪概率（百分比）",
-        "hint": "兼容旧配置键名；范围 1-80，默认 20。命中时仍正常完成今日抽取，但强制从已解锁小猪中抽到一只重复，不再抽取失败或锁定整天",
-        "type": "int",
-        "default": 20
-    },
-    "group_roast_cooldown_hours": {
-        "description": "烤箱每格能量恢复时间（小时）",
-        "hint": "沿用旧冷却配置作为每格能量的恢复周期，范围 1-72，默认 8；缺失能量按队列逐格恢复，后门口令不消耗能量",
-        "type": "float",
-        "default": 8
-    },
-    "group_roast_max_charges": {
-        "description": "烤箱最大能量格数",
-        "hint": "按发起者 × 群组独立储存，范围 1-5，默认 2；普通烤群友与创建预约各消耗 1 格，后续添柴和预约触发不重复消耗",
-        "type": "int",
-        "default": 2
-    },
-    "enable_roast_protection": {
-        "description": "开启被烤保护机制",
-        "hint": "群友昨天在同一群被成功烤到次数达到阈值后，今天普通烤群友会被拦截；预约创建同样尊重保护，后门强制模式仍可突破",
-        "type": "bool",
-        "default": true
-    },
-    "roast_protection_threshold": {
-        "description": "触发次日保护的被烤次数",
-        "hint": "按同一群聊统计当天实际被烤次数，范围 1-20，默认 3；逃脱不计数，反噬则计入被反噬者",
-        "type": "int",
-        "default": 3
-    },
-    "enable_ai_roast_copy": {
-        "description": "启用 AI 烤猪文案",
-        "hint": "每只猪每天最多调用一次当前会话模型；结果保存 7 天，再烤同款随机复用近 7 天文案。模型不可用、超时或报错时自动切回本地模板",
-        "type": "bool",
-        "default": false
-    },
-    "enable_daily_report": {
-        "description": "开启猪圈日报",
-        "hint": "开启 /猪圈日报、群内日报统计与相关称号；一关掉，手动和自动日报就全歇业了",
-        "type": "bool",
-        "default": true
-    },
-    "daily_report_auto_send": {
-        "description": "每天自动发送猪圈日报",
-        "hint": "全局自动推送总开关；只对 AstrBot 管理员在群里手动开过的群生效，默认是关着的",
-        "type": "bool",
-        "default": true
-    },
-    "daily_report_send_time": {
-        "description": "猪圈日报发送时间",
-        "hint": "按 timezone 对应时区的 HH:MM 算（比如 23:50）；默认 23:50，到点还会随机再磨蹭一小会儿",
-        "type": "string",
-        "default": "23:50"
-    },
-    "daily_report_random_delay_minutes": {
-        "description": "日报随机延迟上限（分钟）",
-        "hint": "怕几个群挤一块儿刷屏，到点后会随机多等 0 到该值分钟再发；范围 0-60，默认 10",
-        "type": "int",
-        "default": 10
-    },
-    "daily_report_skip_empty_groups": {
-        "description": "跳过无活动群的日报",
-        "hint": "当天一条 RollPig 抽取记录都没有的冷清群，就不自动发日报啦，默认开启",
-        "type": "bool",
-        "default": true
-    },
-    "daily_report_random_eat_enabled": {
-        "description": "开启日报随机祭品",
-        "hint": "默认关闭；开启后仅在自动发日报时，从当天在本群玩过 RollPig 且可被吃的倒霉蛋里随机抽一位，把当天状态改成「吃掉了」并沿用次日重复猪风险。手动 /猪圈日报 不触发",
-        "type": "bool",
-        "default": false
-    },
-    "daily_report_avatar_enabled": {
-        "description": "日报显示平台头像",
-        "hint": "称号获得者优先用平台头像；获取失败则用昵称首字占位，不影响发日报",
-        "type": "bool",
-        "default": true
-    },
-    "daily_report_avatar_cache_hours": {
-        "description": "日报头像缓存时间（小时）",
-        "hint": "平台头像本地缓存时长，范围 1-168，默认 24 小时",
-        "type": "int",
-        "default": 24
-    },
-    "image_theme": {
-        "description": "图片卡片日夜主题",
-        "hint": "auto 会在 19:00-06:59 自动切到夜间深色模式；也能填 light 或 dark 固定死一种主题",
-        "type": "string",
-        "default": "auto"
-    },
-    "resource_sync_enabled": {
-        "description": "开启 AstrBot 小猪资源同步",
-        "hint": "默认走本项目维护的 AstrBot 专用源；每次更新只换基础层，你本地新增、改过或删除屏蔽的内容都不会被覆盖",
-        "type": "bool",
-        "default": true
-    },
-    "felis_direct_enabled": {
-        "description": "启用 Felis 官方资源直读 overlay",
-        "hint": "默认开启；仅非商业 Bot 使用，客户端直接读取官方上游并本机缓存，不作为本站 CDN/Manifest 镜像分发",
-        "type": "bool",
-        "default": true
-    },
-    "felis_direct_manifest_url": {
-        "description": "Felis 官方资源 manifest 地址",
-        "hint": "仅允许 Felis2026/rollpig-resources 官方 raw manifest；保留来源与署名",
-        "type": "string",
-        "default": "https://raw.githubusercontent.com/Felis2026/rollpig-resources/main/rollpig/manifest.json"
-    },
-    "resource_manifest_url": {
-        "description": "云端资源 manifest 地址",
-        "hint": "默认使用 AstrBot 专用源；也可改成你有权使用、兼容 v1 manifest 协议的 HTTPS 私人源",
-        "type": "string",
-        "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
-    },
-    "resource_vercel_mirror_url": {
-        "description": "Vercel 审核镜像地址",
-        "hint": "主源失败时，仅允许默认官方 Vercel 地址；留空关闭。启用前独立验证当前批准清单、完整来源材料及全部文件 SHA-256；其他地址不会自动加入公共链",
-        "type": "string",
-        "default": "https://rollpig-public-source-mirror.vercel.app/v1/manifest.json"
-    },
-    "resource_github_fallback_enabled": {
-        "description": "启用 GitHub 审核镜像备用",
-        "hint": "主源及 Vercel 不可用时尝试 GitHub；仍须读取当前批准清单并验证完整快照。私人源不会进入公共链",
-        "type": "bool",
-        "default": true
-    },
-    "resource_github_mirror_url": {
-        "description": "GitHub 审核镜像地址",
-        "hint": "只认默认官方 GitHub 地址，野路子或私人镜像一律不自动信任；未批准、已撤回或比本地还旧的快照不会启用",
-        "type": "string",
-        "default": "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/main/public/v1/manifest.json"
-    },
-    "resource_sync_interval_hours": {
-        "description": "云资源自动同步间隔（小时）",
-        "hint": "范围 1-168，新安装默认每 6 小时检查一次",
-        "type": "float",
-        "default": 6
-    },
-    "resource_sync_timeout": {
-        "description": "资源网络请求超时（秒）",
-        "hint": "连接超时范围 2-120，默认 30 秒；图片读取至少给够 45 秒并会自动重试",
-        "type": "float",
-        "default": 30
-    },
-    "resource_use_system_proxy": {
-        "description": "云资源使用系统代理",
-        "hint": "默认关闭并直连，省得失效代理把 TLS 连接憋卡住；只有服务器必须走代理访问外网时再开",
-        "type": "bool",
-        "default": false
-    },
-    "resource_max_file_size_mb": {
-        "description": "资源单文件大小上限（MiB）",
-        "hint": "范围 1-50，默认 10 MiB；同时用于 PigHub 图片导入",
-        "type": "int",
-        "default": 10
-    },
-    "timezone": {
-        "description": "每日边界时区",
-        "hint": "填写 IANA 时区（例如 Asia/Shanghai、America/Los_Angeles）；local 使用服务器系统时区",
-        "type": "string",
-        "default": "local"
-    },
-    "ai_generation_timeout_seconds": {
-        "description": "AI 文案调用超时（秒）",
-        "hint": "范围 5-120，默认 45；超时就自动切回本地文案顶上",
-        "type": "float",
-        "default": 45
-    },
-    "panel_update_enabled": {
-        "description": "开启管理面板安全更新",
-        "hint": "只检查并安装 casama233/astrbot_plugin_rollpig 的最新稳定 GitHub Release；野路子 URL、分支或预发布版本一概不收",
-        "type": "bool",
-        "default": true
-    },
-    "panel_update_timeout": {
-        "description": "管理面板更新网络超时（秒）",
-        "hint": "范围 5-120，默认 30；下载包另有 64 MiB、文件数量与解压体积限制",
-        "type": "float",
-        "default": 30
-    },
-    "storage_backend": {
-        "description": "数据存储后端",
-        "hint": "auto 推荐：新安装直接建立 SQLite，旧 JSON 先备份、迁移并对账。已有 SQLite 无法验证时停止插件载入，不自动回退旧或空 JSON；json 仅用于原生 JSON 或已完成对账回滚的安装，仍会预检既有 JSON；sqlite 同样保留恢复保护。详见 docs/SQLITE-RECOVERY.md",
-        "type": "string",
-        "default": "auto"
-    },
-    "storage_busy_timeout_ms": {
-        "description": "SQLite 写锁等待时间（毫秒）",
-        "hint": "范围 1000-30000，默认 5000；仅 SQLite 后端生效",
-        "type": "int",
-        "default": 5000
-    },
-    "enable_oven_refill": {
-        "description": "开启群体烤箱补货",
-        "hint": "仅在烤群友玩法开启时生效；允许今日在本群玩过 RollPig 的群友发起 /烤箱补货，靠 /添柴 一起添柴恢复烤箱能量",
-        "type": "bool",
-        "default": true
-    },
-    "oven_refill_daily_limit": {
-        "description": "每日每群补货成功上限",
-        "hint": "范围 1-5，默认 2；全员已满的作废轮次不算数。一旦启动结算后遇到存储异常或进程中断，会直接封账并计入一次，防止刷出重复能量",
-        "type": "int",
-        "default": 2
-    },
-    "oven_refill_support_ratio_percent": {
-        "description": "补货基础参与比例（百分比）",
-        "hint": "按发起补货时的今日活跃人数算本轮添柴门槛，默认 30%；中途新冒出来的活跃玩家不会重算门槛",
-        "type": "int",
-        "default": 30
-    },
-    "oven_refill_min_supporters": {
-        "description": "补货最低添柴人数",
-        "hint": "范围 2-20，默认 3；2 人小群固定需要 2 人",
-        "type": "int",
-        "default": 3
-    },
-    "oven_refill_max_base_supporters": {
-        "description": "首轮基础添柴人数上限",
-        "hint": "范围 3-50，默认 8；后续成功轮次仍会继续增加难度",
-        "type": "int",
-        "default": 8
-    },
-    "oven_refill_extra_supporters_per_success": {
-        "description": "每次成功后额外添柴人数",
-        "hint": "同群同日每成功一次，下轮得再多喊几人来添柴；默认 +2",
-        "type": "int",
-        "default": 2
-    },
-    "oven_refill_round_timeout_minutes": {
-        "description": "单轮补货有效时间（分钟）",
-        "hint": "范围 5-720，默认 120；超时还没凑够人手就会自动散场，得重新 /烤箱补货",
-        "type": "int",
-        "default": 120
-    }
+  "at_view_pig": {
+    "description": "允许通过 @ 群友偷看其今日小猪",
+    "hint": "开启后，允许玩家在指令中艾特其他群友来查看对方今日抽到的小猪，默认处于关闭状态",
+    "type": "bool",
+    "default": false
+  },
+  "enable_new_pig_pity": {
+    "description": "开启连续重复保底机制",
+    "hint": "每次连续抽到重复小猪时，都会逐步提高下一次遇到未解锁新猪的概率",
+    "type": "bool",
+    "default": true
+  },
+  "pity_step_percent": {
+    "description": "单层保底概率增幅（%）",
+    "hint": "每连续抽到重复小猪时累加的新猪抽取概率，范围 0-50，默认 15",
+    "type": "int",
+    "default": 15
+  },
+  "enable_daily_duplicate_pity": {
+    "description": "开启跨日连非疲劳保底",
+    "hint": "连续多个自然日只抽到已解锁小猪时，从指定天数起额外拔高重抽新猪的概率；该加成可与原有的单日连续重复保底叠加，但总和仍受 80% 上限约束",
+    "type": "bool",
+    "default": true
+  },
+  "daily_duplicate_pity_start_day": {
+    "description": "跨日连非保底起算天数",
+    "hint": "连续几天都只抽到旧猪后开始触发额外补偿，可选范围 2-7，默认第 2 天起生效",
+    "type": "int",
+    "default": 2
+  },
+  "daily_duplicate_pity_step_percent": {
+    "description": "跨日连非每日递增概率（%）",
+    "hint": "从起算日往后，每多连非一天就额外多加多少出新概率，可选范围 0-25，默认每天 +5",
+    "type": "int",
+    "default": 5
+  },
+  "daily_duplicate_pity_max_percent": {
+    "description": "跨日连非额外保底封顶（%）",
+    "hint": "跨日疲劳机制最多能额外叠多少出新率，可选范围 0-50，默认 15；不过最终总保底概率依然卡死在 80% 以内",
+    "type": "int",
+    "default": 15
+  },
+  "enable_roast": {
+    "description": "开启今日烤猪功能",
+    "hint": "允许把当天抽到的小猪做成专属料理卡；若当天抽到人类、熟食或处于已被吃掉的状态则无法下锅",
+    "type": "bool",
+    "default": true
+  },
+  "enable_group_roast": {
+    "description": "开启烤群友互动玩法",
+    "hint": "群内可使用 /烤群友 @某人、/随机烤群友 以及后门口令；关闭后仅保留自烤当天的今日烤猪功能",
+    "type": "bool",
+    "default": true
+  },
+  "enable_roast_reservation": {
+    "description": "开启预约烤猪玩法",
+    "hint": "发送 /烤群友 @还没抽猪的群友 即可立下本群当日预约；首位主厨先扣 1 格烤箱能量，后续围观群友优先发 /添柴 @目标 参团，继续发 /烤群友 @同一目标 同样兼容；等目标在本群抽猪后，按成功 70%、逃脱 20%、反噬 10% 比例自动结算",
+    "type": "bool",
+    "default": true
+  },
+  "roast_reservation_max_participants": {
+    "description": "预约烤猪最大参与人数",
+    "hint": "包含发起预约的首位主厨在内；范围 2-20，默认 12 人，人齐即止不再加位",
+    "type": "int",
+    "default": 12
+  },
+  "enable_group_eat": {
+    "description": "开启吃群友互动玩法",
+    "hint": "允许群友使用 /吃群友 @某人 与 /随机吃群友；交锋后无论成功还是失手，对应一方都会变成当天的「吃掉了」状态",
+    "type": "bool",
+    "default": true
+  },
+  "eat_success_percent": {
+    "description": "吃群友判定成功率（%）",
+    "hint": "设置范围 1-80，默认 15；一旦失手反被噎住，发起人自己会变成「吃掉了」状态",
+    "type": "int",
+    "default": 15
+  },
+  "eaten_next_day_failure_percent": {
+    "description": "被吃后次日抽到旧猪概率（%）",
+    "hint": "沿用旧配置键名；可选范围 1-80，默认 20。触发时依然正常完成当天抽猪，但会强制从已解锁图鉴里挑一只重复小猪，不再直接抽空或锁死一整天",
+    "type": "int",
+    "default": 20
+  },
+  "group_roast_cooldown_hours": {
+    "description": "烤箱单格能量恢复时长（小时）",
+    "hint": "沿用旧冷却参数作为每格能量的充能周期，可选范围 1-72，默认 8；消耗掉的能量按队列逐格回满，后门口令不耗能量",
+    "type": "float",
+    "default": 8
+  },
+  "group_roast_max_charges": {
+    "description": "烤箱能量槽上限（格）",
+    "hint": "按「发起人 × 所在群」独立计算并存储，可选范围 1-5，默认 2；普通烤群友和发起预约各消耗 1 格能量，后续帮忙添柴以及预约正式触发不再重复扣费",
+    "type": "int",
+    "default": 2
+  },
+  "enable_roast_protection": {
+    "description": "开启高频被烤保护机制",
+    "hint": "群友昨天在同一群内被成功烤到的次数达到上限后，今天针对他的普通烤群友与预约创建都会被拦截；不过后门强制指令依然可以无视保护",
+    "type": "bool",
+    "default": true
+  },
+  "roast_protection_threshold": {
+    "description": "触发次日保护的被烤次数阈值",
+    "hint": "按单个群聊累计当日实际被烤次数，范围 1-20，默认 3 次；成功逃脱不计入，触发反噬则算在被反噬者头上",
+    "type": "int",
+    "default": 3
+  },
+  "enable_ai_roast_copy": {
+    "description": "开启 AI 烤猪评语生成",
+    "hint": "每只小猪每天最多调用一次当前会话模型写评语；生成结果缓存 7 天，再烤同款会随机复用近 7 天的存货。模型罢工、超时或报错时自动切回本地文案库",
+    "type": "bool",
+    "default": false
+  },
+  "enable_daily_report": {
+    "description": "开启猪圈日报功能",
+    "hint": "启用 /猪圈日报、本群日报数据统计及每日趣味称号；一旦关闭，手动查询和自动推送都会全面停摆",
+    "type": "bool",
+    "default": true
+  },
+  "daily_report_auto_send": {
+    "description": "每日自动推送猪圈日报",
+    "hint": "定时自动发日报的全局总开关；仅对 AstrBot 管理员在群内手动开启过的群有效，默认关闭",
+    "type": "bool",
+    "default": true
+  },
+  "daily_report_send_time": {
+    "description": "猪圈日报定时发送时刻",
+    "hint": "按 timezone 所设时区的 HH:MM 格式计算（例如 23:50）；默认 23:50，到点后还会随机稍等一小会儿再发",
+    "type": "string",
+    "default": "23:50"
+  },
+  "daily_report_random_delay_minutes": {
+    "description": "日报发送随机延迟上限（分钟）",
+    "hint": "防止多个群同一秒扎堆刷屏，到点后随机再摸鱼 0 到设定值分钟才发；范围 0-60，默认 10",
+    "type": "int",
+    "default": 10
+  },
+  "daily_report_skip_empty_groups": {
+    "description": "跳过零活跃群的日报推送",
+    "hint": "当天一条 RollPig 抽猪记录都没有的冷清群聊，就自动跳过不发日报了，默认开启",
+    "type": "bool",
+    "default": true
+  },
+  "daily_report_random_eat_enabled": {
+    "description": "开启日报随机献祭",
+    "hint": "默认关闭；开启后仅在自动发日报时，从当天本群玩过 RollPig 且还能被吃的倒霉蛋里随机挑一人，将其当天状态改为「吃掉了」并继承次日重猪风险。手动执行 /猪圈日报 不会触发",
+    "type": "bool",
+    "default": false
+  },
+  "daily_report_avatar_enabled": {
+    "description": "猪圈日报展示群友头像",
+    "hint": "上榜拿称号的玩家优先展示平台头像；拉取失败时自动退回昵称首字占位，不耽误日报正常发出",
+    "type": "bool",
+    "default": true
+  },
+  "daily_report_avatar_cache_hours": {
+    "description": "日报头像缓存有效期（小时）",
+    "hint": "群友平台头像在本地保存多久，可选范围 1-168，默认存 24 小时",
+    "type": "int",
+    "default": 24
+  },
+  "image_theme": {
+    "description": "图片卡片日夜配色主题",
+    "hint": "设为 auto 会在 19:00-06:59 自动切换成夜间深色模式；也可以直接填 light 或 dark 锁定单一外观",
+    "type": "string",
+    "default": "auto"
+  },
+  "resource_sync_enabled": {
+    "description": "启用 AstrBot 小猪云端资源同步",
+    "hint": "默认同步本项目维护的 AstrBot 专用源；更新时仅替换基础资源层，你在本地新增、修改或屏蔽的内容均完好保留",
+    "type": "bool",
+    "default": true
+  },
+  "felis_direct_enabled": {
+    "description": "启用 Felis 官方资源直连加载",
+    "hint": "默认开启；仅供非商业 Bot 使用，客户端将直接拉取官方上游资源并缓存在本地，不作为本站 CDN/Manifest 镜像对外分发",
+    "type": "bool",
+    "default": true
+  },
+  "felis_direct_manifest_url": {
+    "description": "Felis 官方资源 manifest 链接",
+    "hint": "仅支持填写 Felis2026/rollpig-resources 官方 raw manifest 地址；请完整保留原作者来源与署名",
+    "type": "string",
+    "default": "https://raw.githubusercontent.com/Felis2026/rollpig-resources/main/rollpig/manifest.json"
+  },
+  "resource_manifest_url": {
+    "description": "云端资源清单（manifest）地址",
+    "hint": "默认连接 AstrBot 官方专用源；也可替换为你有访问权限、且遵循 v1 manifest 规范的 HTTPS 私人源",
+    "type": "string",
+    "default": "https://curryudon.top/astrbot-rollpig/v1/manifest.json"
+  },
+  "resource_vercel_mirror_url": {
+    "description": "Vercel 审核镜像链接",
+    "hint": "主源不可用时，仅放行默认官方 Vercel 节点；留空则禁用。启用前会独立核验批准清单、完整溯源材料及全量文件 SHA-256 校验和；第三方地址不会自动加入公共链",
+    "type": "string",
+    "default": "https://rollpig-public-source-mirror.vercel.app/v1/manifest.json"
+  },
+  "resource_github_fallback_enabled": {
+    "description": "开启 GitHub 审核镜像备援",
+    "hint": "主源与 Vercel 均无法访问时自动切换至 GitHub；仍会校验当前批准清单与完整快照。私人源不会纳入公共同步链",
+    "type": "bool",
+    "default": true
+  },
+  "resource_github_mirror_url": {
+    "description": "GitHub 审核镜像链接",
+    "hint": "仅认可默认官方 GitHub 地址，野路子或私人镜像不会自动信任；未经批准、已撤回或版本旧于本地的快照均不生效",
+    "type": "string",
+    "default": "https://raw.githubusercontent.com/casama233/rollpig-public-source-mirror/main/public/v1/manifest.json"
+  },
+  "resource_sync_interval_hours": {
+    "description": "云端资源自动检查间隔（小时）",
+    "hint": "设置范围 1-168，新装环境默认每 6 小时自动巡检一次",
+    "type": "float",
+    "default": 6
+  },
+  "resource_sync_timeout": {
+    "description": "资源同步网络超时（秒）",
+    "hint": "握手连接超时范围 2-120，默认 30 秒；拉取图片时至少预留 45 秒并支持自动重试",
+    "type": "float",
+    "default": 30
+  },
+  "resource_use_system_proxy": {
+    "description": "云端资源同步走系统代理",
+    "hint": "默认关闭以保持直连，避免失效代理拖死 TLS 握手；仅在服务器必须经代理出网时开启",
+    "type": "bool",
+    "default": false
+  },
+  "resource_max_file_size_mb": {
+    "description": "单个资源文件大小上限（MiB）",
+    "hint": "允许范围 1-50，默认 10 MiB；此限制同样适用于 PigHub 图片导入",
+    "type": "int",
+    "default": 10
+  },
+  "timezone": {
+    "description": "每日结算重置时区",
+    "hint": "请填入标准 IANA 时区名称（如 Asia/Shanghai、America/Los_Angeles）；填写 local 则跟随服务器系统时区",
+    "type": "string",
+    "default": "local"
+  },
+  "ai_generation_timeout_seconds": {
+    "description": "AI 文案生成超时时间（秒）",
+    "hint": "取值范围 5-120，默认 45 秒；一旦请求超时，系统会自动切回本地内置文案顶场",
+    "type": "float",
+    "default": 45
+  },
+  "panel_update_enabled": {
+    "description": "启用管理面板安全更新",
+    "hint": "仅检测并安装 casama233/astrbot_plugin_rollpig 发布的最新稳定版 GitHub Release；来源不明的 URL、开发分支或预发布版本一律拦截",
+    "type": "bool",
+    "default": true
+  },
+  "panel_update_timeout": {
+    "description": "管理面板更新连接超时（秒）",
+    "hint": "取值范围 5-120，默认 30 秒；下载包同时受限于 64 MiB 体积、文件总数及解压后大小上限",
+    "type": "float",
+    "default": 30
+  },
+  "storage_backend": {
+    "description": "数据存储引擎选择",
+    "hint": "推荐使用 auto：全新安装直接初始化 SQLite，旧版 JSON 会在备份后迁移并核账。若现有 SQLite 校验异常则直接中止加载，绝不回退至旧或空 JSON；json 仅适用于原生 JSON 或已完成核账回滚的环境（启动仍会预检既有 JSON）；sqlite 模式同样具备完整恢复保护。详见 docs/SQLITE-RECOVERY.md",
+    "type": "string",
+    "default": "auto"
+  },
+  "storage_busy_timeout_ms": {
+    "description": "SQLite 写锁等待上限（毫秒）",
+    "hint": "允许范围 1000-30000，默认 5000 毫秒；仅在使用 SQLite 后端时生效",
+    "type": "int",
+    "default": 5000
+  },
+  "enable_oven_refill": {
+    "description": "开启群友烤箱合力补货",
+    "hint": "仅在烤群友玩法开启时生效；允许当天在本群玩过 RollPig 的玩家发起 /烤箱补货，大家一起发送 /添柴 添柴凑火恢复烤箱能量",
+    "type": "bool",
+    "default": true
+  },
+  "oven_refill_daily_limit": {
+    "description": "每日每群补货成功次数上限",
+    "hint": "可选范围 1-5，默认 2；全员能量本就满格的无效轮次不占名额。一旦进入结算阶段却遇上存储异常或进程中断，系统会直接封账并计入一次次数，防止卡出无限能量",
+    "type": "int",
+    "default": 2
+  },
+  "oven_refill_support_ratio_percent": {
+    "description": "补货基础人数参与比例（%）",
+    "hint": "按照发起补货那一刻的本群今日活跃玩家数计算本轮添柴门槛，默认 30%；开局后新冒出来的活跃群友不会中途抬高门槛",
+    "type": "int",
+    "default": 30
+  },
+  "oven_refill_min_supporters": {
+    "description": "补货最低添柴人数门槛",
+    "hint": "可选范围 2-20，默认 3；2 人迷你小群固定只需 2 人即可点着",
+    "type": "int",
+    "default": 3
+  },
+  "oven_refill_max_base_supporters": {
+    "description": "首轮补货基础添柴人数上限",
+    "hint": "可选范围 3-50，默认 8；第一轮封顶于此，但后续每次成功补货后门槛仍会继续往上加",
+    "type": "int",
+    "default": 8
+  },
+  "oven_refill_extra_supporters_per_success": {
+    "description": "每次补货成功后递增添柴人数",
+    "hint": "同一群聊同一天每成功补货一次，下一轮就得多喊几个人来帮忙添柴；默认每次 +2 人",
+    "type": "int",
+    "default": 2
+  },
+  "oven_refill_round_timeout_minutes": {
+    "description": "单轮补货有效倒计时（分钟）",
+    "hint": "可选范围 5-720，默认 120；超时还没凑齐人手添柴就会自动熄火散场，需要重新发送 /烤箱补货 开局",
+    "type": "int",
+    "default": 120
+  }
 }

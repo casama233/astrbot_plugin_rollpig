@@ -29,7 +29,10 @@ def test_roast_service_keeps_actor_and_target_rules_separate():
     service = RoastService()
     pork = {"id": "mc_porkchop", "name": "猪排"}
     machine = {"id": "mechanical-pig", "name": "机械猪"}
-    assert "你今天是" in service.eat_actor_block_reason(pork)
+    actor_reason = service.eat_actor_block_reason(pork)
+    assert actor_reason.startswith("🍖 你") and "猪排" in actor_reason
     assert service.eat_target_block_reason(pork) is None
     assert service.eat_target_block_reason(machine) is None
-    assert "开袋即食成功" in service.eat_success_message(pork)
+    cooked_success = service.eat_success_message(pork)
+    assert "开袋即食" in cooked_success and "猪排" in cooked_success
+    assert "吃群友" in service.eat_success_message(machine)

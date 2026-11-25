@@ -26,7 +26,7 @@ def strip_ex_level_labels(text: str) -> str:
     inside a sentence. Keep those sentences readable with a neutral reference.
     Call only for a card that has its own EX badge, never for a prediction.
     """
-    return _EX_LEVEL_REFERENCE.sub("这个阶段", _EX_LEVEL_PREFIX.sub("", text))
+    return _EX_LEVEL_REFERENCE.sub('当前阶段', _EX_LEVEL_PREFIX.sub("", text))
 
 
 @lru_cache(maxsize=8192)

@@ -153,13 +153,23 @@ def test_random_target_uses_the_same_platform_mention_policy(case, result_type):
         event, plugin = Event(case, result_type), Plugin()
         plugin._claim_command_event(event)
         await event.send(plugin._random_roast_target_announcement(event, event.target))
-        expected = [
-            case[4], ("Plain", "\n🎲 随机转盘停在了 "),
-            case[5], ("Plain", " 头上。后厨说：就你了。"),
-        ]
+        message = signature(event.sent[0])
         if case[4][0] == "Plain":
-            expected = [("Plain", case[4][1] + "\n🎲 随机转盘停在了 " + case[5][1] + " 头上。后厨说：就你了。")]
-        assert signature(event.sent[0]) == expected
+            [(kind, body)] = message
+            assert kind == "Plain"
+            requester, announcement = body.split("\n", 1)
+            assert requester == case[4][1]
+            assert announcement.count(case[5][1]) == 1
+            assert requester not in announcement
+            before_target, after_target = announcement.split(case[5][1], 1)
+            assert before_target.strip() and after_target.strip()
+        else:
+            requester, before_target, target, after_target = message
+            assert requester == case[4]
+            assert target == case[5]
+            assert before_target[0] == after_target[0] == "Plain"
+            assert before_target[1].startswith("\n")
+            assert before_target[1].strip() and after_target[1].strip()
     asyncio.run(run())
 
 

@@ -108,7 +108,7 @@ class RoastReservationMixin:
         if actor_reason:
             await event.send(
                 event.plain_result(
-                    "🔥 想埋伏别人，先证明自己今天也是一只可上桌的小猪。先 /今日小猪。"
+                    '🔥 想要设伏坑人，得先证明自己今日也是只可下锅的小猪。请先 /今日小猪。'
                     if not actor_pig
                     else actor_reason
                 )
@@ -141,7 +141,7 @@ class RoastReservationMixin:
                 if self._get_daily_pig(target_id, self._today()):
                     await event.send(
                         event.plain_result(
-                            "🔥 目标刚露头，原来的埋伏锅已经在掀盖。别往正在结算的锅里再塞第二把柴。"
+                            '🔥 目标刚一露头，先前的埋伏锅便已掀盖。切勿往正在结算的锅里硬塞第二把柴。'
                         )
                     )
                     return True
@@ -163,12 +163,12 @@ class RoastReservationMixin:
                 if status == "full":
                     await event.send(
                         event.plain_result(
-                            f"🪵 这口锅旁边已经挤满 {self.roast_reservation_max_participants} 人。再来一个只能站窗外闻味。"
+                            f'🪵 这口锅边已经围满 {self.roast_reservation_max_participants} 人。再挤进来就只能站窗外闻个香味了。'
                         )
                     )
                 elif status == "existing":
                     await event.send(
-                        event.plain_result("🪵 你早就在这口锅旁边蹲着了。重复签到不送第二把椅子。")
+                        event.plain_result('🪵 你早就在这口锅旁蹲守多时了。重复签到可不会多发你一把小板凳。')
                     )
                 else:
                     writer = getattr(self, "_record_gameplay_event", None)
@@ -188,7 +188,7 @@ class RoastReservationMixin:
                     await self._send_with_mention(
                         event,
                         target_id,
-                        f" 🪵 又一根柴悄悄塞进来；现在共有 {len(participants)} 人蹲锅。",
+                        f' 🪵 又一根干柴悄然入灶；当前已有 {len(participants)} 人围锅蹲守。',
                     )
                 return True
 
@@ -205,7 +205,7 @@ class RoastReservationMixin:
                 remaining = int(charge_status.get("next_refill_seconds", 0) or 0)
                 await event.send(
                     event.plain_result(
-                        f'🔥 炉火一格都不剩了（0/{self.group_roast_max_charges}），下一格 {self._format_cooldown(remaining)} 后才自己长回来。现在埋伏只能守一口冷锅。'
+                        f'🔥 炉火能量已彻底耗尽（0/{self.group_roast_max_charges}），下一格需等待 {self._format_cooldown(remaining)} 方能自动恢复。眼下设伏也只能守着一口冷锅。'
                     )
                 )
                 return True
@@ -239,7 +239,7 @@ class RoastReservationMixin:
             await self._send_with_mention(
                 event,
                 target_id,
-                f'🔥 你今天还没抽猪，但埋伏锅已经替你架好了。等你在本群 /今日小猪，立刻开盖结算。\n主厨先蹲位，最多 {self.roast_reservation_max_participants} 人能围锅；可 /添柴 @你 加入，继续 /烤群友 @你 也行。'
+                f'🔥 你今日虽未抽猪，但埋伏大锅已替你支好。只待你在本群 /今日小猪，即刻开盖结算。\n主厨率先蹲点，至多 {self.roast_reservation_max_participants} 人可围炉；输入 /添柴 @你 即可入伙，继续 /烤群友 @你 亦可。'
                 + self._roast_charge_note(charge_status),
             )
             logger.info(
@@ -328,7 +328,7 @@ class RoastReservationMixin:
         await self._send_with_mention(
             event,
             target_id,
-            f'🔥 你前脚刚抽完猪，埋伏锅后脚就掀盖了！\n主厨带着 {max(0, len(participants) - 1)} 位添柴群友开始结算。',
+            f'🔥 你前脚刚领完猪，埋伏锅后脚便掀了盖！\n主厨携 {max(0, len(participants) - 1)} 位添柴群友正式开启结算。',
         )
 
         if outcome == "escape":
@@ -365,14 +365,14 @@ class RoastReservationMixin:
             if chef_reason:
                 await event.send(
                     event.plain_result(
-                        "🔥 烤架想反噬主厨，翻面一看：主厨今天没可料理的小猪。这一口算他命硬。"
+                        '🔥 烤架本欲反噬主厨，翻面一瞧：主厨今日并无可供料理的小猪。这一口算他命硬。'
                     )
                 )
                 return
             await self._send_with_mention(
                 event,
                 chef_id,
-                " 🔥 埋伏翻车，烤架顺着火舌反咬主厨。\n这次轮到主厨的小猪上桌。",
+                ' 🔥 设伏意外翻车，烤架顺着火舌反咬主厨一口。\n这回轮到主厨的小猪亲自上桌。',
             )
             await self._record_group_roast(group_id, chef_id, draw_date)
             await self._send_roast_card(event, chef_pig, chef_id)
@@ -451,7 +451,7 @@ class RoastReservationMixin:
         event,
         pig_data: dict,
         user_id: str,
-        intro: str = ". 这是你的今日小猪：",
+        intro: str = '。这是为你派发的今日小猪：',
         fallback_title: str = "今日小猪",
     ):
         result = await super().send_rendered_pig(

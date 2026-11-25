@@ -131,7 +131,7 @@ def test_main_manager_loads_rights_integration_without_dropping_ex_manager():
     assert "rights_verified" in rights_ui
     assert "redistribution_authorized" in rights_ui
     assert "permission_evidence_url" in rights_ui
-    assert "审核通过不会自动发布" in rights_ui
+    assert "审阅通过也不会直接上线" in rights_ui
     assert "[data-review-approve]" in rights_ui
     assert "[data-submit]" in rights_ui
 

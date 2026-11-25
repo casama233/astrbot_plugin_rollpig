@@ -32,7 +32,7 @@ class AnimatedImageMixin:
     def _write_custom_image(self, pig_id: str, data: bytes):
         ext = image_extension_from_bytes(data)
         if ext not in {"png", "gif"}:
-            raise ValueError("规范化后的小猪图片格式无效")
+            raise ValueError('经过规范化处理的小猪图片格式不合法')
         target = self.custom_image_dir / f"{pig_id}.{ext}"
         with tempfile.NamedTemporaryFile(
             "wb",
@@ -77,23 +77,23 @@ class AnimatedImageMixin:
                 (dict(item) for item in overrides if item["id"] == pig_id), None
             )
             if not record:
-                raise ValueError('只能提交本地新添或覆盖过的小猪哦')
+                raise ValueError('只有本地新创建或覆写过的小猪才能提交投稿哦')
             path = self.find_image_file(pig_id)
             if not path or not path.is_file():
-                raise ValueError('这只本地小猪还没带照片，没法提交')
+                raise ValueError('这只本地小猪还是光杆司令，没配图可没法投稿')
             raw = path.read_bytes()
         if not raw:
-            raise ValueError('小猪图片是空的，啥也没见着')
+            raise ValueError('上传的小猪图片是空文件，里面啥也没有')
         if len(raw) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError('投喂公共猪源的图片不能超过 10MB')
+            raise ValueError('投稿至公共猪源的图片体积不能超过 10MB')
         normalized = normalize_image_bytes(raw, (512, 512))
         if len(normalized) > self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE:
-            raise ValueError('转换后的公共猪源投稿图片还是超了 10MB')
+            raise ValueError('转码处理后的公共猪源投稿图依然超出了 10MB 上限')
         return record, normalized
 
     async def _public_source_review_image_payload(self, submission_id: str) -> dict:
         if not re.fullmatch(r"[0-9a-f]{32}", submission_id):
-            raise ValueError("投稿 ID 无效")
+            raise ValueError('找不到对应的投稿 ID，参数无效')
         url = (
             self.PUBLIC_SOURCE_API_URL
             + f"/admin/submissions/{submission_id}/image"
@@ -108,7 +108,7 @@ class AnimatedImageMixin:
                     response, self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE
                 )
                 if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError('公共猪源投稿图片没读出来，读取失败了')
+                    raise ValueError('没能成功读取公共猪源的投稿图片，文件读取失败')
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),

@@ -125,14 +125,14 @@ class ResourceFailoverMixin:
             )
         manifest = json.loads(raw.decode("utf-8-sig"))
         if not isinstance(manifest, dict):
-            raise ValueError("manifest 必须是 JSON 对象")
+            raise ValueError('资源清单 manifest 必须是标准的 JSON 对象格式')
         if manifest.get("schema_version") not in (1, "1"):
-            raise ValueError("镜像资源源缺少 Resource Protocol v1 标识")
+            raise ValueError('镜像资源源缺少 Resource Protocol v1 协议标识')
         if str(manifest.get("client") or "").strip() != self.RESOURCE_CLIENT_ID:
-            raise ValueError("镜像资源源客户端标识不匹配")
+            raise ValueError('镜像资源源的客户端标识校验未通过')
         version = str(manifest.get("resource_version") or "").strip()
         if not version:
-            raise ValueError("manifest 缺少 resource_version")
+            raise ValueError('资源清单 manifest 中缺失 resource_version 字段')
         return version
 
     def _fallback_would_downgrade(self, candidate_version: str) -> bool:
@@ -217,7 +217,7 @@ class ResourceFailoverMixin:
             self.resource_manifest_url = configured_url
             self._resource_sync_sources = None
 
-        message = "公共猪源全部不可用；继续使用最近一次已验证缓存或内置资源：" + "；".join(
+        message = '所有公共猪源均拉取失败，当前继续使用最近一次已验证缓存或内置资源：' + "；".join(
             failures
         )
         self._save_sync_status(error=message)
@@ -236,7 +236,7 @@ class ResourceFailoverMixin:
         policy = parse_json(raw)
         if (not isinstance(policy, dict) or type(policy.get("schema_version")) is not int
                 or policy["schema_version"] != 2 or not isinstance(policy.get("approved_snapshots"), dict)):
-            raise ValueError("镜像批准清单格式无效")
+            raise ValueError('镜像批准清单的格式配置无效')
         return raw
 
     def _withdraw_revoked_mirror_cache(self, policy_raw: bytes) -> None:
@@ -261,7 +261,7 @@ class ResourceFailoverMixin:
             active.rename(quarantined)
         self.save_json(self.resource_state_path, {})
         self._reload_catalog_layers()
-        self._save_sync_status(error="已撤回的镜像缓存已停用，继续使用内置及本地资源")
+        self._save_sync_status(error='已撤销授权的镜像缓存已停止加载，当前继续使用内置及本地资源')
 
     async def _sync_reviewed_mirror(self, source_name, source_url, force):
         policy_raw = await self._read_mirror_policy()
@@ -279,7 +279,7 @@ class ResourceFailoverMixin:
                     policy_raw=policy_raw, download=download,
                 )
             if self._fallback_would_downgrade(candidate["resource_version"]):
-                raise ValueError("备用源版本旧于本地，拒绝降级")
+                raise ValueError('备用镜像源的版本低于本地现有版本，已拒绝降级同步')
             # Recheck after downloads. A withdrawal during transfer must not win
             # a race with activation, even when the resource version is unchanged.
             latest_policy = await self._read_mirror_policy()
@@ -305,10 +305,10 @@ class ResourceFailoverMixin:
             relative = url[len(reviewed[0]):]
             from_path = reviewed[1] / relative
             if not from_path.resolve().is_relative_to(reviewed[1].resolve()):
-                raise ValueError("镜像路径越界")
+                raise ValueError('请求的镜像文件路径超出允许范围')
             raw = from_path.read_bytes()
             if len(raw) > max_size:
-                raise ValueError("镜像文件超过单档大小限制")
+                raise ValueError('镜像文件体积超出单文件大小上限')
             return raw
         return await super()._download_limited(client, url, max_size, attempts=attempts)
 

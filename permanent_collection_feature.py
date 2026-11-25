@@ -122,8 +122,7 @@ class PermanentCollectionMixin:
                 unlocked_count = self._active_unlock_count(self.pig_list, unlocked)
                 await event.send(
                     event.plain_result(
-                        f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
-                        "收藏还在，图鉴画师先罢工了。图片生成失败，请查看后台日志。"
+                        f'【我的猪圈】已点亮 {unlocked_count}/{len(self.pig_list)} 只，家底都在，不过图鉴画师突然撂挑子了。生图失败，麻烦去后台日志瞧瞧。'
                     )
                 )
                 return
@@ -144,8 +143,7 @@ class PermanentCollectionMixin:
                 try:
                     await event.send(
                         event.plain_result(
-                            f"【我的猪圈】已解锁 {unlocked_count}/{len(self.pig_list)}，"
-                            "图鉴已经画好，但快递猪把包裹送丢了。图片发送失败，请稍后重试。"
+                            f'【我的猪圈】已点亮 {unlocked_count}/{len(self.pig_list)} 只，图鉴已经画得漂漂亮亮，可惜快递小猪半路把包裹弄丢了。发图失败，稍后再试试吧。'
                         )
                     )
                 except Exception as fallback_exc:
@@ -178,7 +176,7 @@ class PermanentCollectionMixin:
             if favorite_id
             else None
         )
-        favorite_name = str(favorite.get("name")) if favorite else "还没选出"
+        favorite_name = str(favorite.get("name")) if favorite else '虚位以待'
 
         return render_pigsty(
             catalog=self.pig_list,

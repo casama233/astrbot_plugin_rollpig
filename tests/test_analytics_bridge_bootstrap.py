@@ -24,5 +24,5 @@ def test_missing_bridge_is_reported_only_after_the_user_clicks():
     click_binding = bootstrap.index("button.addEventListener('click', load")
     load_function = bootstrap.index("const load = async () =>")
     assert load_function < lookup < click_binding
-    assert "AstrBot Plugin Page Bridge 不存在" in bootstrap
-    assert "数据总览、猪猪图鉴和管理操作不受影响" in bootstrap
+    assert "找不到 AstrBot 插件页面通信桥接" in bootstrap
+    assert "基础总览、猪猪图鉴和管理功能都能正常用" in bootstrap
