@@ -47,6 +47,12 @@
     "type": "bool",
     "default": true
   },
+  "enable_roast_feeding": {
+    "description": "开启料理卡投喂",
+    "hint": "开启后，本群每日自烤的料理可选择今天或明天投喂给群友，使对方在本群获得一日突变效果。默认关闭。",
+    "type": "bool",
+    "default": false
+  },
   "enable_group_roast": {
     "description": "开启烤群友互动玩法",
     "hint": "群内可使用 /烤群友 @某人、/随机烤群友 以及后门口令；关闭后仅保留自烤当天的今日烤猪功能",
@@ -118,6 +124,18 @@
     "hint": "启用 /猪圈日报、本群日报数据统计及每日趣味称号；一旦关闭，手动查询和自动推送都会全面停摆",
     "type": "bool",
     "default": true
+  },
+  "enable_weekly_tabloid": {
+    "description": "开启猪圈周报与公投",
+    "hint": "开启后，已允许日报推送的群将于周日最晚 22:00 定时收到八卦周刊，发出后可投票至当地午夜。默认关闭。",
+    "type": "bool",
+    "default": false
+  },
+  "weekly_tabloid_ai": {
+    "description": "实时 AI 头条",
+    "hint": "开启后，小猪会调用当前对话的 Gemini 模型，根据匿名玩法统计现写周报头条（默认关闭）。此功能要求当前对话模型必须为 Gemini，且仅传递匿名统计数据；若为其他模型、找不到模型，或发生超时与生成失败，将自动改用内附的 Gemini 原稿。",
+    "type": "bool",
+    "default": false
   },
   "daily_report_auto_send": {
     "description": "每日自动推送猪圈日报",

@@ -1113,6 +1113,21 @@ class DailyReportMixin:
             str(draw_date), {}
         )
 
+    def _weekly_tabloid_day(self, report_date: datetime.date) -> bool:
+        return getattr(self, "enable_weekly_tabloid", False) and report_date.weekday() == 6
+
+    def _daily_report_due(self, report_date: datetime.date, delay: int):
+        due = due_datetime(
+            report_date, self.daily_report_send_hour, self.daily_report_send_minute,
+            self.timezone, delay,
+        )
+        if self._weekly_tabloid_day(report_date):
+            cutoff = datetime.datetime.combine(
+                report_date, datetime.time(hour=22), tzinfo=self.timezone
+            )
+            return min(due, cutoff)
+        return due
+
     def _ensure_daily_report_job(
         self, group_id: str, report_date: datetime.date
     ) -> dict[str, Any]:
@@ -1123,13 +1138,7 @@ class DailyReportMixin:
             if not isinstance(job, dict):
                 max_delay = self.daily_report_random_delay_minutes * 60
                 delay = random.SystemRandom().randint(0, max_delay) if max_delay else 0
-                due = due_datetime(
-                    report_date,
-                    self.daily_report_send_hour,
-                    self.daily_report_send_minute,
-                    self.timezone,
-                    delay,
-                )
+                due = self._daily_report_due(report_date, delay)
                 # Automatic reports belong to the report natural day. Random
                 # delay may approach midnight but must never schedule after it.
                 day_end = datetime.datetime.combine(
@@ -1222,30 +1231,27 @@ class DailyReportMixin:
             if not umo:
                 raise RuntimeError('缺少用于主动发送的 unified_msg_origin')
 
-            sacrifice_id = ""
-            if self.daily_report_random_eat_enabled:
-                sacrifice_id = await self._apply_job_sacrifice(group_id, draw_date)
-
-            report = await self._build_daily_report_payload(
-                group_id, draw_date, sacrifice_id
-            )
-            if self.daily_report_skip_empty_groups and not int(
-                report.get("active_users", 0) or 0
-            ):
-                self._update_daily_report_job(
-                    draw_date,
-                    group_id,
-                    status="sent",
-                    sent_at=int(time.time()),
-                    skipped="empty",
-                )
-                await asyncio.to_thread(self._flush_daily_report_state_durable)
-                return
-
             # Render and build the chain before taking the delivery claim. Failures
             # here are known-safe to retry because no platform send has started.
-            output = await asyncio.to_thread(self.render_daily_report_image, report)
-            chain = MessageChain().file_image(str(output.absolute()))
+            today = self._today()
+            weekly = None
+            if self._weekly_tabloid_day(today) and draw_date == today.isoformat():
+                weekly = await self._prepare_scheduled_weekly_tabloid(group_id, draw_date, umo)
+            if weekly is not None:
+                chain, output = weekly
+            else:
+                sacrifice_id = ""
+                if self.daily_report_random_eat_enabled:
+                    sacrifice_id = await self._apply_job_sacrifice(group_id, draw_date)
+                report = await self._build_daily_report_payload(group_id, draw_date, sacrifice_id)
+                if self.daily_report_skip_empty_groups and not int(report.get("active_users", 0) or 0):
+                    self._update_daily_report_job(
+                        draw_date, group_id, status="sent", sent_at=int(time.time()), skipped="empty"
+                    )
+                    await asyncio.to_thread(self._flush_daily_report_state_durable)
+                    return
+                output = await asyncio.to_thread(self.render_daily_report_image, report)
+                chain = MessageChain().file_image(str(output.absolute()))
             claim_path: Path | None = None
             delivery_uncertain = False
             try:
@@ -1278,6 +1284,7 @@ class DailyReportMixin:
                     draw_date,
                     group_id,
                     status="sending",
+                    report_type="weekly" if weekly is not None else "daily",
                     started_at=int(time.time()),
                     attempts=int(current_job.get("attempts", 0) or 0) + 1,
                     delivery_id=delivery_id,
@@ -1364,10 +1371,11 @@ class DailyReportMixin:
                     f"delivery={delivery_id}"
                 )
             finally:
-                if delivery_uncertain:
-                    asyncio.create_task(self._cleanup_temp_file_later(output))
-                else:
-                    output.unlink(missing_ok=True)
+                if output is not None:
+                    if delivery_uncertain:
+                        asyncio.create_task(self._cleanup_temp_file_later(output))
+                    else:
+                        output.unlink(missing_ok=True)
 
     async def _daily_report_tick(self) -> None:
         now = self._now()
@@ -1398,13 +1406,7 @@ class DailyReportMixin:
 
         now_ts = int(now.timestamp())
         for report_date in candidates:
-            base_due = due_datetime(
-                report_date,
-                self.daily_report_send_hour,
-                self.daily_report_send_minute,
-                self.timezone,
-                0,
-            )
+            base_due = self._daily_report_due(report_date, 0)
             if now < base_due:
                 continue
             date_key = report_date.isoformat()
@@ -1412,8 +1414,11 @@ class DailyReportMixin:
                 enabled_since = str(group_meta.get("auto_enabled_since") or "")
                 if enabled_since and date_key < enabled_since:
                     continue
-                members = self._daily_group_members(group_id, date_key)
-                if self.daily_report_skip_empty_groups and not members:
+                weekly_today = report_date == today and self._weekly_tabloid_day(report_date)
+                if (
+                    self.daily_report_skip_empty_groups and not weekly_today
+                    and not self._daily_group_members(group_id, date_key)
+                ):
                     continue
                 job = self._ensure_daily_report_job(group_id, report_date)
                 status = str(job.get("status") or "pending")
@@ -1503,6 +1508,9 @@ class DailyReportMixin:
         self._claim_command_event(event)
         if not self.enable_daily_report:
             await event.send(event.plain_result('猪圈小报今天挂牌歇业，后台设置里已经把这功能锁上啦。'))
+            return
+        weekly_command = getattr(self, "_weekly_command", None)
+        if weekly_command and await weekly_command(event, args):
             return
         group_id = self._event_group_id(event)
         if not group_id:

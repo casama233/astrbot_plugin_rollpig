@@ -4,7 +4,7 @@ import logging
 import tempfile
 import threading
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Mapping
 
@@ -149,6 +149,29 @@ def draw_ex_level_badge(
     )
 
 
+def draw_pig_stamps(draw, labels, *, center_x, top, font, paper, ink):
+    widths = [int(draw.textlength(label, font=font)) + 30 for label in labels]
+    gap = 12
+    left = center_x - (sum(widths) + gap * (len(widths) - 1)) // 2
+    height = font.size + 14
+    for label, width in zip(labels, widths):
+        draw.rounded_rectangle(
+            (left, top, left + width, top + height),
+            radius=7,
+            fill=paper,
+            outline=ink,
+            width=2,
+        )
+        draw.text(
+            (left + width // 2, top + height // 2),
+            label,
+            font=font,
+            fill=ink,
+            anchor="mm",
+        )
+        left += width + gap
+
+
 def _font_identity(font: ImageFont.FreeTypeFont) -> tuple[object, ...]:
     try:
         name = tuple(font.getname())
@@ -234,12 +257,15 @@ def render_pig_card_frame(
     font_bold: ImageFont.FreeTypeFont,
     font_regular: ImageFont.FreeTypeFont,
     layout: PigCardLayout,
+    stamps: tuple[str, ...] = (),
 ) -> PILImage.Image:
     """Draw the same card body and EX footer for PNGs and every GIF frame."""
     show_ex_badge = ex_level is not None
     if show_ex_badge:
         pig_desc = strip_ex_level_labels(pig_desc)
         pig_analysis = strip_ex_level_labels(pig_analysis)
+    if stamps:
+        layout = replace(layout, content_top_margin=max(layout.content_top_margin, 72))
     canvas_width = layout.canvas_width
 
     avatar_w = avatar_h = layout.avatar_size
@@ -347,6 +373,13 @@ def render_pig_card_frame(
             layout=layout,
         )
 
+    if stamps:
+        draw_pig_stamps(
+            draw, stamps, center_x=canvas_width // 2, top=22,
+            font=font_bold.font_variant(size=24),
+            paper=palette["canvas"], ink=palette["title"],
+        )
+
     return canvas
 
 
@@ -367,6 +400,7 @@ def render_pig_card(
     pig_analysis = str(pig_data.get("analysis", "无解析") or '暂无背景考据')
     ex_level = max(0, int(pig_data.get("_ex_level", 0) or 0))
     show_ex_badge = "_ex_level" in pig_data
+    stamps = tuple(pig_data.get("_pig_card_stamps", ()))
 
     avatar_path = image_resolver(pig_id, ex_level)
     avatar_key, cacheable = _avatar_identity(avatar_path)
@@ -378,6 +412,7 @@ def render_pig_card(
         pig_analysis,
         ex_level,
         show_ex_badge,
+        stamps,
         layout,
         _palette_identity(palette),
         _font_identity(font_bold),
@@ -414,6 +449,7 @@ def render_pig_card(
         font_bold=font_bold,
         font_regular=font_regular,
         layout=layout,
+        stamps=stamps,
     )
 
     try:

@@ -30,6 +30,8 @@ description: 經歷了一整天的抽豬、架火燒烤、驚險逃脫與慘遭�
 
 ## 今日豬圈名人堂
 
+想看整週戰況，請輸入 `/豬圈日報 八卦`。週日晚間也可在已啟用週刊的群選週一祭品。投票方式與生效時間見[週日小報與週一祭品](../COMMANDS.md#週日小報與週一祭品)。
+
 <div class="pig-card-grid">
 <div class="pig-card" markdown>
 <span class="pig-card__icon">🔥</span>
