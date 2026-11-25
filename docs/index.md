@@ -1,6 +1,6 @@
 ---
-title: 今日小猪使用面板
-description: 抽小猪、查玩法、找设置，就从这里开始。
+title: 今日小猪玩家导航面板
+description: 抽小猪、查图鉴、找玩法、翻设置，一切从这里出发。
 ---
 
 <div class="pig-dashboard" markdown="1">
@@ -8,44 +8,44 @@ description: 抽小猪、查玩法、找设置，就从这里开始。
 
 <img class="pig-logo" src="assets/plugin-logo.png" alt="" width="64" height="64">
 
-# 今日小豬使用面板
+# 今日小豬玩家導航面板
 
-每天抽一只，慢慢凑齐你自己的小猪圈。
+每天上线抽一只，一点点填满你的专属小猪圈。
 
 </div>
 
 <div class="pig-start" markdown="1">
 <div markdown="1">
 
-## 今天，先抽一隻
+## 今天，先來抽一隻吧
 
-把这条指令发给机器人就行，今天手气已锁定，随时可复查。
+直接把这条指令发进群里就行，今日手气一经抽取便会锁定，随时都能回来复查。
 
 </div>
 <button class="pig-copy" type="button" data-copy-command="/今日小豬" aria-label="複製 /今日小豬"><code>/今日小豬</code><span>复制指令</span></button>
 </div>
 <p class="pig-copy-status" role="status" aria-live="polite" data-copy-status></p>
 
-## 常用指令
+## 高頻常用指令
 
 <div class="pig-command-grid" markdown="1">
 <div class="pig-quick-command" markdown="1">
 
-**翻翻自己的猪圈收藏**
+**翻翻自己攒下的小猪收藏**
 
 <button class="pig-copy" type="button" data-copy-command="/我的豬圈" aria-label="複製 /我的豬圈"><code>/我的豬圈</code><span>複製</span></button>
 
 </div>
 <div class="pig-quick-command" markdown="1">
 
-**看看还能怎么玩**
+**看看群里还解锁了哪些玩法**
 
 <button class="pig-copy" type="button" data-copy-command="/豬豬幫助" aria-label="複製 /豬豬幫助"><code>/豬豬幫助</code><span>複製</span></button>
 
 </div>
 <div class="pig-quick-command" markdown="1">
 
-**围观群里今天的乐子**
+**围观一下群友今天的整活乐子**
 
 <button class="pig-copy" type="button" data-copy-command="/豬圈日報" aria-label="複製 /豬圈日報"><code>/豬圈日報</code><span>複製</span></button>
 
@@ -54,7 +54,7 @@ description: 抽小猪、查玩法、找设置，就从这里开始。
 
 [第一次玩？看 30 秒入門](getting-started/index.md) · [全部指令與別名](COMMANDS.md)
 
-## 你想做什麼？
+## 接下來想幹點什麼？
 
 <div class="pig-task-grid">
 <a class="pig-task" href="gameplay/"><strong>了解玩法</strong><span>收藏、EX 成长、烤群友与添柴</span><small>玩家指南 →</small></a>
@@ -67,9 +67,9 @@ description: 抽小猪、查玩法、找设置，就从这里开始。
 
 <div class="pig-help-row" markdown="1">
 
-**Discord 输入 `/` 没弹出菜单？** [查看原生指令排錯](troubleshooting/discord.md)
+**在 Discord 输入 `/` 却没弹出指令菜单？** [查看原生指令排錯](troubleshooting/discord.md)
 
-想找特定功能？用页顶搜索即可。实际开放哪些，以群里 `/豬豬幫助` 显示为准。
+想直达某个特定功能？直接用页面顶部的搜索框就行。至于群里实际开放了哪些玩法，请以发送 `/豬豬幫助` 后的显示结果为准。
 
 </div>
 </div>

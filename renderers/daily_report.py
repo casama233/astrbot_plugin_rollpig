@@ -16,8 +16,8 @@ REPORT_HEIGHT_WITH_SACRIFICE = 1390
 REPORT_MAX_HEIGHT = 1400
 PNG_COMPRESS_LEVEL = 1
 
-_RECEIPT_LABEL = "猪圈日报 · 今日小票"
-_LEDGER_TITLE = "今日记录明细"
+_RECEIPT_LABEL = '猪圈日报 · 今日账单'
+_LEDGER_TITLE = '今日流水明细'
 _LEDGER_ROWS = (
     ("draws", "抽猪人数（人）"),
     ("pig_variety", "抽中猪种（种）"),
@@ -32,56 +32,56 @@ _LEDGER_ROWS = (
 _HEADLINES = (
     (
         "backlashes",
-        "炉膛反吞火把",
-        "今天炉火反噬了 {backlashes} 次，铁钳把柄都烤出了焦油味。",
+        '灶火倒灌烧了手',
+        '今天炉火闹脾气反噬了 {backlashes} 次，火钳手柄都被熏出了一层黑焦油。',
     ),
     (
         "escapes",
-        "后栅栏又松了",
-        "今天成功逃脱了 {escapes} 次，门闩被拱弯得连铁丝都缠不住。",
+        '后院栅栏又被拱开',
+        '今天一共逃脱了 {escapes} 次，门闩被撞得歪七扭八，拿铁丝拧都拧不直。',
     ),
     (
         "eats",
-        "食槽底被舔亮",
-        "今天一共有 {eats} 人被吃，连刷槽的猪鬃扫把都啃秃了。",
+        '食槽底儿舔得锃亮',
+        '今天足足有 {eats} 人进了肚子，连刷食槽的猪鬃刷都被顺嘴啃秃了。',
     ),
     (
         "roasts",
-        "热盘上桌",
-        "烤架今天稳稳送出 {roasts} 次好货，铁托盘刚滑出炉口，出餐铃自己先响了两声。",
+        '滋滋冒油端上桌',
+        '烤架今天稳稳出了 {roasts} 次好货，铁盘刚滑出炉门，传菜铃自己先叮当响了两声。',
     ),
     (
         "oven_refills",
-        "后厨推来新木箱",
-        "炉膛里刚添进新货，今天累计 {oven_refills} 次实际补货，木箱盖子正搭在旁边。",
+        '后厨推进新货箱',
+        '炉膛里刚续上新鲜货，今天累计完成 {oven_refills} 次实际补货，撬开的木箱盖还靠在墙边。',
     ),
     (
         "oven_refill_supports",
-        "炉膛添柴",
-        "今天有 {oven_refill_supports} 人次往柴堆抱了木头，签收单在炉边夹得哗哗响，烤箱还在等着下一趟补货。",
+        '抱柴火来添把旺',
+        '今天有 {oven_refill_supports} 人次往柴堆抱了木头，签收单在炉边夹得哗哗作响，烤箱正张嘴等下一趟补货。',
     ),
     (
         "popular_peak",
-        "签筒卡死同款",
-        "同款猪最高被抽中 {popular_peak} 次，竹签上的漆全蹭在了同一面。",
+        '签筒里卡死同一只',
+        '同款小猪最高被抽中 {popular_peak} 次，竹签上的红漆全蹭在了同一张背上。',
     ),
     (
         "draws",
-        "猪圈门口排长队",
-        "今天共 {draws} 人进圈抽猪，木门槛被鞋底磨出一道凹槽。",
+        '猪圈门口排起长龙',
+        '今天共有 {draws} 人进圈摸猪，木门槛被鞋底硬生生磨出一道深凹槽。',
     ),
 )
 
 _EMPTY_HEADLINE = (
-    "今天还没开张",
-    "猪圈里暂时没动静，干草垛上的露水都没被拱散。",
+    '今天铺子还没开张',
+    '猪圈里静悄悄的，干草垛上的露水珠子都还没被猪鼻子拱散。',
 )
 
 _AWARD_META = (
-    ("roast_maniac", "烧烤狂人", '今天没人折腾烤箱，主厨到点准时下班。'),
-    ("miserable_ingredient", "最惨食材", '今天没人包场烤架，食材区难得风平浪静。'),
-    ("escape_master", "逃脱大师", '今天没人成功越狱，大伙都乖乖排好队了。'),
-    ("backlash_king", "反噬之王", '今天灶台没炸，反噬之王带薪休假一天。'),
+    ("roast_maniac", '烧烤狂魔', '今天没人去折腾烤箱，主厨到点准时摘围裙下班。'),
+    ("miserable_ingredient", "最惨食材", '今天没人包场占烤架，食材区难得一片岁月静好。'),
+    ("escape_master", "逃脱大师", '今天没人越狱成功，大伙都在栏杆里乖乖排好队了。'),
+    ("backlash_king", "反噬之王", '今天灶台安安稳稳没炸锅，反噬之王喜提带薪休假一天。'),
 )
 
 
@@ -150,17 +150,17 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
     accent_font = plugin.font_bold.font_variant(size=23)
     max_width = right - left - 56
     center = (left + right) // 2
-    draw.text((left + 28, top + 22), "今日热猪榜", font=title_font, fill=palette["title"])
+    draw.text((left + 28, top + 22), '今日热猪风云榜', font=title_font, fill=palette["title"])
     popular = list(report.get("popular_pigs", []) or [])
     if not popular:
         variety = int(report.get("pig_variety", 0) or 0)
         peak = int(report.get("popular_peak", 0) or 0)
         if variety > 1 and peak == 1:
-            headline = f"{variety} 种小猪各来一次"
-            copy = "今天没有撞衫王，猪圈审美难得百花齐放。"
+            headline = f'{variety} 种小猪各露了一面'
+            copy = '今天零撞衫，猪圈的审美难得来了一次百花齐放。'
         else:
-            headline = "暂时没有热门款"
-            copy = "大家还没把同一只猪抽到能成立粉丝后援会。"
+            headline = '暂时没有爆款猪'
+            copy = '大伙还没把同一只猪抽到能凑齐粉丝后援会的地步。'
         headline_y = top + max(96, (bottom - top) // 2 - 28)
         draw.text((left + 28, headline_y), headline, font=name_font, fill=palette["muted"])
         for row, line in enumerate(wrap_text(copy, body_font, max_width, max_lines=2)):
@@ -187,7 +187,7 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
             name_y = top + 249
         except Exception:
             pass
-    name = str(pig.get("name") or pig_id or "未知小猪")
+    name = str(pig.get("name") or pig_id or '神秘来客猪')
     count = int(pig.get("count", 0) or 0)
     draw.text(
         (center, name_y),
@@ -198,15 +198,15 @@ def _draw_popular(plugin, canvas, draw, report, palette, box) -> None:
     )
     draw.text(
         (center, name_y + 46),
-        f"今天出现 {count} 次",
+        f'今天登场 {count} 次',
         font=accent_font,
         fill=palette["title"],
         anchor="ma",
     )
     copy = (
-        "撞衫属于集体行为。"
+        '撞衫这事讲究的是集体默契。'
         if len(popular) <= 1
-        else f"另有 {len(popular) - 1} 种并列，今天撞衫是团建。"
+        else f'另有 {len(popular) - 1} 种猪并列热门，今日猪圈流行大型撞衫团建。'
     )
     draw.text(
         (center, name_y + 86),
@@ -230,7 +230,7 @@ def _draw_award(plugin, canvas, draw, report, palette, box, key, title, empty_co
     if not winners:
         draw.text(
             (left + 22, top + 60),
-            "今天没人领走这个称号",
+            '今日此项殊荣暂时空缺',
             font=name_font,
             fill=palette["muted"],
         )
@@ -261,7 +261,7 @@ def _draw_award(plugin, canvas, draw, report, palette, box, key, title, empty_co
         font=name_font,
         fill=palette["title"],
     )
-    suffix = f"{value} 次" + (f" · 并列 {len(winners)} 人" if len(winners) > 1 else "")
+    suffix = f'{value} 回' + (f' · 合计 {len(winners)} 人同登榜首' if len(winners) > 1 else "")
     draw.text((left + 22, top + 94), suffix, font=small_font, fill=palette["accent"])
     quip = str(getattr(plugin, "_REPORT_QUIPS", {}).get(key, ""))
     draw.text(
@@ -287,7 +287,7 @@ def _draw_sacrifice(plugin, canvas, draw, report, palette, box) -> None:
     title_font = plugin.font_bold.font_variant(size=22)
     name_font = plugin.font_bold.font_variant(size=26)
     small_font = plugin.font_regular.font_variant(size=16)
-    draw.text((left + 22, top + 16), "今日祭品", font=title_font, fill=palette["danger"])
+    draw.text((left + 22, top + 16), '今日特供祭品', font=title_font, fill=palette["danger"])
     plugin._paste_report_avatar(
         canvas,
         draw,
@@ -304,7 +304,7 @@ def _draw_sacrifice(plugin, canvas, draw, report, palette, box) -> None:
     )
     draw.text(
         (left + 102, top + 96),
-        "晚报发出前还很完整，现在已经正式进入菜单。",
+        '晚报排版前还活蹦乱跳，此刻已正式写入主厨菜单。',
         font=small_font,
         fill=palette["secondary"],
     )
@@ -324,7 +324,7 @@ def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
     small_font = plugin.font_regular.font_variant(size=15)
 
     _draw_receipt(plugin, canvas, draw, report, palette)
-    draw.text((54, 818), "今日猪圈名人堂", font=hero_font, fill=palette["title"])
+    draw.text((54, 818), '今日猪圈风云榜', font=hero_font, fill=palette["title"])
     for index, (key, title, empty_copy) in enumerate(_AWARD_META):
         row, col = divmod(index, 2)
         x = 44 + col * 566
@@ -355,9 +355,9 @@ def render_daily_report_dashboard(plugin, report: dict[str, Any]) -> Path:
     draw.line((58, footer_y, 1142, footer_y), fill=palette["line"], width=2)
     detail_missing = int(report.get("roast_detail_missing", 0) or 0)
     footer = (
-        f"另有 {detail_missing} 笔历史烤猪只有总量；称号只按可追溯事件统计。"
+        f'另有 {detail_missing} 笔陈年烤猪仅录得总数；各项荣誉仅依据可溯源记录评定。'
         if detail_missing > 0
-        else "统计只记 RollPig 玩法事件 · 并列称号照实保留 · 明天继续看谁倒霉。"
+        else '榜单仅收录 RollPig 玩法动态 · 并列名次如实公示 · 明日再看谁喜提倒霉蛋。'
     )
     draw.text((62, footer_y + 18), footer, font=small_font, fill=palette["muted"])
 

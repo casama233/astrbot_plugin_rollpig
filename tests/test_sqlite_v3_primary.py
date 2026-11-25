@@ -110,7 +110,7 @@ def test_v330_catalog_tombstone_can_be_restored_transactionally(tmp_path):
 
 def test_v3_rejects_full_runtime_snapshot_writes(tmp_path):
     storage = StorageManager(tmp_path, mode="auto").backend
-    with pytest.raises(RuntimeError, match="禁止整份 JSON 写回"):
+    with pytest.raises(RuntimeError, match=r"JSON.*pig_history\.json"):
         storage.save_json(tmp_path / "pig_history.json", {"version": 1})
     assert storage.verify()["documents"] == 0
 

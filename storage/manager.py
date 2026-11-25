@@ -110,7 +110,7 @@ class StorageManager:
             return
         if not self.database_path.exists():
             if self.mode == "sqlite":
-                self._last_error = "配置要求 SQLite，但数据库尚未迁移；已安全回退 JSON"
+                self._last_error = '設定指定啟用 SQLite，但數據庫尚未完成遷移，系統已安全切回 JSON 儲存'
             self.backend = self.json_storage
             return
         try:
@@ -126,13 +126,13 @@ class StorageManager:
                 self._last_action = {"status": "auto-rebuilt-projections"}
             if not verification.get("ok"):
                 raise StorageMigrationError(
-                    f"SQLite 完整性或投影检查失败：{verification.get('integrity')}"
+                    f"SQLite 數據完整性或投影校驗未通過：{verification.get('integrity')}"
                 )
             self.backend = candidate
             self._last_error = ""
         except Exception as exc:
             self.backend = self.json_storage
-            self._last_error = f"SQLite 不可用，已回退 JSON：{exc}"
+            self._last_error = f'SQLite 暫時無法連線使用，已自動降級回 JSON 儲存：{exc}'
 
     @staticmethod
     def _canonical(value: Any) -> str:
@@ -151,7 +151,7 @@ class StorageManager:
             try:
                 documents[relative] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                raise StorageMigrationError(f"迁移前无法读取 {relative}：{exc}") from exc
+                raise StorageMigrationError(f'啟動遷移前無法讀取檔案 {relative}：{exc}') from exc
         return documents
 
     def _create_backup(self, documents: dict[str, Any]) -> Path:
@@ -190,7 +190,7 @@ class StorageManager:
         with self._lock:
             if self.mode == "json":
                 raise StorageMigrationError(
-                    "配置已强制使用 JSON；请先将 storage_backend 改为 auto"
+                    '目前配置已鎖死使用 JSON 儲存，請先將 storage_backend 調整為 auto 再操作'
                 )
             if isinstance(self.backend, SQLiteStorage):
                 verification = self.backend.verify()
@@ -205,7 +205,7 @@ class StorageManager:
 
             documents = self._read_existing_json()
             if not documents:
-                raise StorageMigrationError("没有找到可迁移的现有 JSON 数据")
+                raise StorageMigrationError('未掃描到任何可進行遷移的現有 JSON 存檔數據')
             backup = self._create_backup(documents)
             temporary = self.data_root / f".rollpig.db.migrating-{uuid.uuid4().hex}.tmp"
             self._remove_sqlite_sidecars(temporary)
@@ -220,7 +220,7 @@ class StorageManager:
                 verification = target.verify()
                 if not verification.get("ok"):
                     raise StorageMigrationError(
-                        f"SQLite 完整性检查失败：{verification.get('integrity')}"
+                        f"SQLite 數據庫完整性校驗不通過：{verification.get('integrity')}"
                     )
                 expected = {
                     relative: self._digest(value)
@@ -232,7 +232,7 @@ class StorageManager:
                 )
                 if mismatched:
                     raise StorageMigrationError(
-                        "迁移对账失败：" + ", ".join(mismatched[:8])
+                        '數據遷移後的帳目核對不一致：' + ", ".join(mismatched[:8])
                     )
                 target.checkpoint()
                 self._remove_sqlite_sidecars(temporary)
@@ -241,7 +241,7 @@ class StorageManager:
                 self.backend = self._new_sqlite()
                 final_verification = self.backend.verify()
                 if not final_verification.get("ok"):
-                    raise StorageMigrationError("迁移后的正式数据库完整性检查失败")
+                    raise StorageMigrationError('遷移完成後的正式數據庫未能通過完整性檢查')
                 state = {
                     "active_backend": "sqlite",
                     "migrated_at": int(time.time()),
@@ -267,7 +267,7 @@ class StorageManager:
                 self._last_error = str(exc)
                 if isinstance(exc, StorageMigrationError):
                     raise
-                raise StorageMigrationError(f"SQLite 迁移失败：{exc}") from exc
+                raise StorageMigrationError(f'執行 SQLite 數據遷移時發生異常：{exc}') from exc
 
     def verify(self) -> dict[str, Any]:
         with self._lock:
@@ -276,7 +276,7 @@ class StorageManager:
                     "ok": False,
                     "backend": self.backend.backend_name,
                     "database_exists": False,
-                    "message": "尚未建立 SQLite 数据库",
+                    "message": '系統尚未初始化建立 SQLite 數據庫',
                 }
             try:
                 verification = self._new_sqlite().verify()
@@ -302,7 +302,7 @@ class StorageManager:
             else:
                 documents = self._read_existing_json()
             if not documents:
-                raise StorageMigrationError("没有可导出的存储数据")
+                raise StorageMigrationError('目前沒有任何可匯出的存檔數據')
             stamp = time.strftime("%Y%m%d-%H%M%S")
             archive = self.export_root / f"rollpig-json-{stamp}.zip"
             suffix = 0
@@ -345,10 +345,10 @@ class StorageManager:
             source = self._new_sqlite()
             verification = source.verify()
             if not verification.get("ok"):
-                raise StorageMigrationError("SQLite 数据库未通过完整性检查，拒绝回滚覆盖 JSON")
+                raise StorageMigrationError('SQLite 數據庫未通過完整性檢查，為保護存檔，系統拒絕回滾覆蓋現有 JSON')
             documents = source.export_documents()
             if not documents:
-                raise StorageMigrationError("SQLite 数据库没有可回滚的文档")
+                raise StorageMigrationError('SQLite 數據庫內目前沒有可供回滾的文檔記錄')
             updates = {
                 self.data_root / relative: value
                 for relative, value in documents.items()
@@ -362,7 +362,7 @@ class StorageManager:
             )
             if mismatched:
                 raise StorageMigrationError(
-                    "JSON 回滚对账失败：" + ", ".join(mismatched[:8])
+                    'JSON 回滾後的數據核對不一致：' + ", ".join(mismatched[:8])
                 )
             stamp = time.strftime("%Y%m%d-%H%M%S")
             disabled = self.data_root / f"rollpig.db.disabled-{stamp}"
@@ -389,12 +389,12 @@ class StorageManager:
     def rebuild_projections(self) -> dict[str, Any]:
         with self._lock:
             if not self.database_path.exists():
-                raise StorageMigrationError("尚未建立 SQLite 数据库")
+                raise StorageMigrationError('系統尚未初始化建立 SQLite 數據庫')
             target = self._new_sqlite()
             target.rebuild_projections(reason="manual")
             verification = target.verify()
             if not verification.get("ok"):
-                raise StorageMigrationError("投影重建后仍未通过一致性验证")
+                raise StorageMigrationError('重新構建投影後，數據仍未通過一致性校驗')
             if isinstance(self.backend, SQLiteStorage):
                 self.backend = target
             action = {

@@ -55,7 +55,7 @@ def test_sparse_variants_inherit_each_field_independently():
 
 def test_variant_cannot_change_identity_or_name():
     payload = {"pigs": {"sleep-pig": {"1": {"name": "另一个名字"}}}}
-    with pytest.raises(ValueError, match="不允许字段"):
+    with pytest.raises(ValueError, match=r"字段.*name"):
         validate_ex_variants(payload, {"sleep-pig"})
 
 
@@ -69,7 +69,7 @@ def test_variant_rejects_unknown_pig_and_unsafe_image_name():
 
 def test_variant_levels_are_limited_to_one_through_five():
     payload = {"pigs": {"sleep-pig": {"6": {"description": "too high"}}}}
-    with pytest.raises(ValueError, match="必须在 1-5"):
+    with pytest.raises(ValueError, match=r"EX 等级.*1.*5"):
         validate_ex_variants(payload, {"sleep-pig"})
 
 

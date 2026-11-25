@@ -1,3 +1,5 @@
+import json
+import re
 from pathlib import Path
 
 
@@ -13,7 +15,7 @@ def test_public_source_submit_is_sandbox_safe_and_requires_explicit_second_click
 
     assert "window.confirm" not in submit_code
     assert "dataset.submitConfirm" in submit_code
-    assert "再次点击确认" in submit_code
+    assert "再点一次确认" in submit_code
     assert "pigs/submit-public-source" in submit_code
     assert "confirm:true" in submit_code
     assert "submitPublicSource(localOverrides[Number(b.dataset.submit)],b)" in page
@@ -34,10 +36,14 @@ def test_public_source_review_decision_uses_capability_gated_in_page_modal():
     assert 'id="reviewNote"' not in static_markup
     assert "if(!publicSourceReviewEnabled)return false" in review_code
     assert "modal.id='reviewModal'" in review_code
-    assert 'id="reviewForm"' in review_code
-    assert 'id="reviewNote" maxlength="300"' in review_code
+    encoded_form = re.search(r'modal\.innerHTML=("(?:[^"\\]|\\.)*")', review_code)
+    assert encoded_form is not None
+    form = json.loads(encoded_form[1])
+    assert 'id="reviewForm"' in form
+    assert 'id="reviewNote" maxlength="300"' in form
     assert "form.onsubmit=submitReviewDecision" in review_code
     assert "source/reviews/decision" in review_code
     assert "confirm:true" in review_code
-    assert "批准并立即发布" in review_code
-    assert "确认拒绝" in review_code
+    assert "const approving=decision==='approve'" in review_code
+    assert "pendingReviewDecision={pig:p,decision}" in review_code
+    assert "确认驳回" in review_code

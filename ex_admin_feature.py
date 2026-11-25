@@ -53,31 +53,31 @@ class ExAdminMixin:
             f"/{self.PLUGIN_NAME}/ex/variants",
             self.page_ex_variants,
             ["GET"],
-            "查看本地 EX 差分与实际生效预览",
+            '查看本地 EX 差分及当前实际生效的预览效果',
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/ex/variants/save",
             self.page_ex_variant_save,
             ["POST"],
-            "新增或编辑本地 EX 差分",
+            '新建或修改本地 EX 差分',
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/ex/variants/delete",
             self.page_ex_variant_delete,
             ["POST"],
-            "删除本地 EX 差分",
+            '移除本地 EX 差分',
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/ex/variants/image",
             self.page_ex_variant_image,
             ["POST"],
-            "预览本地或实际生效 EX 图片",
+            '预览本地或当前生效的 EX 立绘',
         )
         context.register_web_api(
             f"/{self.PLUGIN_NAME}/ex/variants/card",
             self.page_ex_variant_card,
             ["POST"],
-            "渲染与真实发送一致的 EX 聊天卡预览",
+            '生成与群聊实际发送效果一致的 EX 卡片预览',
         )
 
     def _reload_catalog_layers(self):
@@ -110,7 +110,7 @@ class ExAdminMixin:
                         image = str(item.get("image") or "")
                         if image and not (image_root / image).is_file():
                             raise ValueError(
-                                f"本地 EX 差分缺少图片：{pig_id} EX Lv.{level} -> {image}"
+                                f'本地 EX 差分缺失对应图片：{pig_id} EX Lv.{level} -> {image}'
                             )
             self._local_ex_variants = variants
         except Exception as exc:
@@ -313,29 +313,29 @@ class ExAdminMixin:
     def _normalise_local_ex_upload(self, encoded: str) -> bytes:
         value = str(encoded or "").strip()
         if not value:
-            raise ValueError("EX 图片内容为空")
+            raise ValueError('传入的 EX 图片内容为空')
         if "," in value:
             value = value.split(",", 1)[1]
         try:
             raw = base64.b64decode(value, validate=True)
         except Exception as exc:
-            raise ValueError("EX 图片不是有效 Base64") from exc
+            raise ValueError('EX 图片不是合法的 Base64 编码') from exc
         if not raw or len(raw) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-            raise ValueError("EX 图片为空或超过 10MB")
+            raise ValueError('EX 图片为空，或体积超过了 10MB 上限')
         normalized = normalize_image_bytes(raw, (512, 512))
         if not normalized or len(normalized) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-            raise ValueError("正规化后的 EX 图片超过 10MB")
+            raise ValueError('处理规范化后的 EX 图片仍超过 10MB')
         return normalized
 
     def _write_local_ex_image(self, filename: str, data: bytes) -> None:
         root = self.local_ex_variant_image_dir
         if not isinstance(root, Path):
-            raise ValueError("本地 EX 图片目录尚未初始化")
+            raise ValueError('本地 EX 图片存放目录尚未完成初始化')
         if len(data) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-            raise ValueError("EX 图片超过 10MB")
+            raise ValueError('EX 图片体积超出 10MB 限制')
         extension = image_extension_from_bytes(data)
         if extension not in {"png", "gif"} or Path(filename).suffix.lower() != f".{extension}":
-            raise ValueError("EX 图片副档名与实际格式不一致")
+            raise ValueError('EX 图片的文件后缀与实际图像格式不匹配')
         root.mkdir(parents=True, exist_ok=True)
         target = root / filename
         with tempfile.NamedTemporaryFile(dir=root, delete=False, suffix=".tmp") as tmp:
@@ -349,22 +349,22 @@ class ExAdminMixin:
         normalized = self._validated_local_variant_state(variants)
         path = self.local_ex_variants_path
         if not isinstance(path, Path):
-            raise ValueError("本地 EX 存储尚未初始化")
+            raise ValueError('本地 EX 存储模块尚未初始化')
         self.save_json(path, serialize_ex_variants(normalized))
         self._local_ex_variants = normalized
 
     def _parse_ex_target(self, payload: dict) -> tuple[str, int]:
         pig_id = str(payload.get("id") or "").strip()
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", pig_id):
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('小猪 ID 格式无效')
         if not self._find_catalog_pig(pig_id):
-            raise ValueError('这只小猪好像走丢了，圈里没找着')
+            raise ValueError('猪圈里翻遍了也没找着这只小猪，怕是溜走了')
         try:
             level = int(payload.get("level"))
         except (TypeError, ValueError) as exc:
-            raise ValueError('EX 这个等级不太对劲') from exc
+            raise ValueError('这个 EX 等级数值不太对劲') from exc
         if level < 1 or level > 5:
-            raise ValueError('EX 等级得在 1-5 之间')
+            raise ValueError('EX 等级必须落在 1-5 的范围内')
         return pig_id, level
 
     async def page_ex_variants(self):
@@ -372,15 +372,15 @@ class ExAdminMixin:
             return self._jsonify({"status": "ok", "data": self._admin_ex_snapshot()})
         except Exception as exc:
             logger.error(f"读取 EX 管理数据失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": "读取 EX 管理数据失败"})
+            return self._jsonify({"status": "error", "message": '读取 EX 管理后台数据失败'})
 
     async def page_ex_variant_save(self):
         try:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
-                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+                return self._jsonify({"status": "error", "message": '请求来源异常或访问令牌无效'})
             if not isinstance(payload, dict):
-                raise ValueError('请求格式没对上')
+                raise ValueError('提交的请求格式不对')
             pig_id, level = self._parse_ex_target(payload)
 
             image_content = str(payload.get("image") or "")
@@ -409,7 +409,7 @@ class ExAdminMixin:
                 if normalized_image is not None:
                     extension = image_extension_from_bytes(normalized_image)
                     if extension not in {"png", "gif"}:
-                        raise ValueError('EX 图片格式好像认不出来')
+                        raise ValueError('这张 EX 图片的格式系统认不出来')
                     filename = f"{pig_id}-ex{level}.{extension}"
                     self._write_local_ex_image(filename, normalized_image)
                     item["image"] = filename
@@ -438,7 +438,7 @@ class ExAdminMixin:
             return self._jsonify(
                 {
                     "status": "ok",
-                    "message": f"已保存 {pig_id} EX Lv.{level}",
+                    "message": f'已成功保存 {pig_id} EX Lv.{level}',
                     "data": self._admin_ex_snapshot(),
                 }
             )
@@ -446,15 +446,15 @@ class ExAdminMixin:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"保存本地 EX 差分失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": '本地 EX 差分没保存住，失败了'})
+            return self._jsonify({"status": "error", "message": '本地 EX 差分保存失败，没能存下来'})
 
     async def page_ex_variant_delete(self):
         try:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
-                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+                return self._jsonify({"status": "error", "message": '请求来源异常或访问令牌无效'})
             if not isinstance(payload, dict):
-                raise ValueError('请求格式没对上')
+                raise ValueError('提交的请求格式不对')
             pig_id, level = self._parse_ex_target(payload)
             with self._data_lock:
                 variants = copy.deepcopy(self._local_ex_variants)
@@ -472,7 +472,7 @@ class ExAdminMixin:
             return self._jsonify(
                 {
                     "status": "ok",
-                    "message": f"已重置 {pig_id} EX Lv.{level}",
+                    "message": f'已将 {pig_id} EX Lv.{level} 重置还原',
                     "data": self._admin_ex_snapshot(),
                 }
             )
@@ -480,7 +480,7 @@ class ExAdminMixin:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"删除本地 EX 差分失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": '本地 EX 差分没删除掉，失败了'})
+            return self._jsonify({"status": "error", "message": '本地 EX 差分移除失败，没删掉'})
 
     def _render_ex_card_preview_payload(
         self, pig_id: str, level: int, *, base: bool = False
@@ -494,7 +494,7 @@ class ExAdminMixin:
         """
         pig = self._find_catalog_pig(str(pig_id))
         if not isinstance(pig, dict):
-            raise ValueError('这只小猪好像走丢了，圈里没找着')
+            raise ValueError('猪圈里翻遍了也没找着这只小猪，怕是溜走了')
 
         if base:
             display = dict(pig)
@@ -512,16 +512,16 @@ class ExAdminMixin:
 
         rendered = self.render_pig_image(display)
         if not rendered or not Path(rendered).is_file():
-            raise ValueError('聊天卡预览画崩了，渲染失败')
+            raise ValueError('聊天卡片预览绘制出错，渲染失败')
         rendered_path = Path(rendered)
         try:
             raw = rendered_path.read_bytes()
         finally:
             rendered_path.unlink(missing_ok=True)
         if not raw:
-            raise ValueError('聊天卡预览里空空如也')
+            raise ValueError('渲染出的聊天卡片预览是空的')
         if len(raw) > self.EX_CARD_PREVIEW_MAX_SIZE:
-            raise ValueError('聊天卡预览超重了，超过 64MB')
+            raise ValueError('聊天卡片预览文件超重了，已超过 64MB')
         return {
             "mime_type": image_mime_type_from_bytes(raw),
             "base64": base64.b64encode(raw).decode("ascii"),
@@ -533,9 +533,9 @@ class ExAdminMixin:
         try:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
-                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+                return self._jsonify({"status": "error", "message": '请求来源异常或访问令牌无效'})
             if not isinstance(payload, dict):
-                raise ValueError('请求格式没对上')
+                raise ValueError('提交的请求格式不对')
             pig_id, level = self._parse_ex_target(payload)
             data = await asyncio.to_thread(
                 self._render_ex_card_preview_payload,
@@ -548,15 +548,15 @@ class ExAdminMixin:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"渲染 EX 聊天卡预览失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": '渲染 EX 聊天卡预览失败了'})
+            return self._jsonify({"status": "error", "message": '生成 EX 聊天卡片预览失败'})
 
     async def page_ex_variant_image(self):
         try:
             payload = await request.json(default={})
             if not self._is_authorized_write_request(request, payload):
-                return self._jsonify({"status": "error", "message": "请求来源或令牌无效"})
+                return self._jsonify({"status": "error", "message": '请求来源异常或访问令牌无效'})
             if not isinstance(payload, dict):
-                raise ValueError('请求格式没对上')
+                raise ValueError('提交的请求格式不对')
             pig_id, level = self._parse_ex_target(payload)
 
             if payload.get("base") is True:
@@ -578,10 +578,10 @@ class ExAdminMixin:
                 image_level = level if path and path.is_file() else 0
 
             if not path or not path.is_file():
-                raise ValueError('这一等级还没攒出能预览的图片')
+                raise ValueError('当前这一等级还没配上可供预览的图片')
             raw = path.read_bytes()
             if len(raw) > self.LOCAL_EX_IMAGE_MAX_SIZE:
-                raise ValueError('EX 图片太大，超过读取上限了')
+                raise ValueError('EX 图片体积太大，超出了读取上限')
             mime_type = image_mime_type_from_bytes(raw)
             return self._jsonify(
                 {
@@ -599,4 +599,4 @@ class ExAdminMixin:
             return self._jsonify({"status": "error", "message": str(exc)})
         except Exception as exc:
             logger.error(f"读取 EX 图片失败：{exc}", exc_info=True)
-            return self._jsonify({"status": "error", "message": '读取 EX 图片失败了'})
+            return self._jsonify({"status": "error", "message": '读取 EX 图片文件时出错'})

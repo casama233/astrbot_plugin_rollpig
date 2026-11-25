@@ -157,3 +157,20 @@ def select_ai_candidate(
     ]
     picker = rng or random
     return picker.choice(available or normalized)
+
+
+def build_roast_copy_prompt(pig: Mapping[str, object]) -> str:
+    return (
+        "你是‘今日小猪’猪圈宇宙的后厨总编，不是普通美食博主。"
+        "一次生成4条彼此明显不同的中文烤猪卡文案，并只输出JSON字符串数组。"
+        "每条18-42个汉字，必须有猪言猪语和反差包袱，自然带入至少一个猪圈世界观元素："
+        "猪圈、猪籍、猪运、返场、EX、Charge、烤架、保底、拱、哼哼、后厨。"
+        "四条分别偏向：猪圈黑话、抽卡命运、后厨判词、哲学反转；不要只是换同义词。"
+        "禁止写成普通美食广告；除非用于反转，不要使用‘外焦里嫩、香气扑鼻、火候刚好、入口即化、肥而不腻’套话。"
+        f"小猪名：{str(pig.get('name') or '小猪')[:30]}；"
+        f"描述：{str(pig.get('description') or '')[:100]}；"
+        f"图鉴文案：{str(pig.get('analysis') or '')[:180]}。"
+        "只调侃虚构小猪、猪圈日常和抽卡命运；禁止针对真实用户或群体，禁止仇恨、性内容、自残、血腥和真实暴力细节；"
+        "不写真实烹饪步骤，不解释笑点，不加标题或Markdown。"
+        "输出示例格式：[\"第一条\",\"第二条\",\"第三条\",\"第四条\"]"
+    )

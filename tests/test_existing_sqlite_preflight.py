@@ -26,7 +26,7 @@ def test_existing_empty_or_truncated_database_is_never_initialized(tmp_path, mon
         pytest.fail('existing database preflight must happen before backend initialization')
 
     monkeypatch.setattr(StorageManager, '_new_sqlite', forbidden)
-    with pytest.raises(StorageMigrationError, match='SQLite 需要恢复'):
+    with pytest.raises(StorageMigrationError, match=r'docs/SQLITE-RECOVERY\.md'):
         StorageManager(tmp_path, mode=mode)
     assert database.read_bytes() == content
     assert {path.name: path.read_bytes() for path in tmp_path.glob('*.json')} == before
@@ -43,7 +43,7 @@ def test_valid_sqlite_file_without_rollpig_schema_is_not_bootstrapped(tmp_path, 
             connection.commit()
     before = database.read_bytes()
     monkeypatch.setattr(StorageManager, '_new_sqlite', lambda *args: pytest.fail('must preflight first'))
-    with pytest.raises(StorageMigrationError, match='核心表'):
+    with pytest.raises(StorageMigrationError, match=r'RollPig 核心(?:數據)?表'):
         StorageManager(tmp_path)
     assert database.read_bytes() == before
 
@@ -58,7 +58,7 @@ def test_missing_core_table_is_not_recreated_before_validation(tmp_path, table):
         connection.execute(f'DROP TABLE {table}')
         connection.commit()
     before = database.read_bytes()
-    with pytest.raises(StorageMigrationError, match='核心表'):
+    with pytest.raises(StorageMigrationError, match=r'RollPig 核心(?:數據)?表'):
         StorageManager(tmp_path)
     assert database.read_bytes() == before
 
@@ -133,7 +133,7 @@ def test_empty_database_preserves_orphan_sidecar_evidence(tmp_path):
     database.write_bytes(b'')
     for suffix in ('-wal', '-shm'):
         Path(f'{database}{suffix}').write_bytes(('evidence' + suffix).encode())
-    with pytest.raises(StorageMigrationError, match='SQLite 需要恢复'):
+    with pytest.raises(StorageMigrationError, match=r'docs/SQLITE-RECOVERY\.md'):
         StorageManager(tmp_path)
     assert database.read_bytes() == b''
     for suffix in ('-wal', '-shm'):

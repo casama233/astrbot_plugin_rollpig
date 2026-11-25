@@ -40,35 +40,35 @@
   window[STATE_KEY] = state;
 
   const unwrap = response => {
-    if (response?.status === 'error') throw new Error(response.message || '后端拒绝读取深度分析资源');
+    if (response?.status === 'error') throw new Error(response.message || "后端拒绝交出深度分析资源");
     const first = response?.data ?? response;
-    if (first?.status === 'error') throw new Error(first.message || '深度分析资源返回错误');
+    if (first?.status === 'error') throw new Error(first.message || "深度分析资源返回了错误状态");
     return first?.data ?? first;
   };
 
   const validateBundle = bundle => {
     if (!bundle || bundle.version !== VERSION || !Array.isArray(bundle.assets)) {
-      throw Object.assign(new Error(`深度分析资源版本不匹配：期望 ${VERSION}`), {code: 'version-mismatch'});
+      throw Object.assign(new Error(`深度分析资源版本对不上：需要 ${VERSION}`), {code: 'version-mismatch'});
     }
     const seen = new Set();
     let total = 0;
     for (const asset of bundle.assets) {
       if (!asset || ALLOWED.get(asset.name) !== asset.kind || typeof asset.source !== 'string') {
-        throw Object.assign(new Error(`深度分析资源清单包含未知项目：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
+        throw Object.assign(new Error(`深度分析资源清单里混进了未知项：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
       }
       if (seen.has(asset.name)) {
-        throw Object.assign(new Error(`深度分析资源重复：${asset.name}`), {code: 'duplicate-asset'});
+        throw Object.assign(new Error(`深度分析资源出现重复项：${asset.name}`), {code: 'duplicate-asset'});
       }
       seen.add(asset.name);
       total += asset.source.length;
     }
     for (const name of ALLOWED.keys()) {
       if (!seen.has(name)) {
-        throw Object.assign(new Error(`深度分析资源缺失：${name}`), {code: 'missing-asset'});
+        throw Object.assign(new Error(`深度分析资源缺了关键文件：${name}`), {code: 'missing-asset'});
       }
     }
     if (total > 768_000) {
-      throw Object.assign(new Error('深度分析资源总量超出安全限制'), {code: 'bundle-too-large'});
+      throw Object.assign(new Error("深度分析资源体积超出了安全上限"), {code: 'bundle-too-large'});
     }
     return bundle;
   };
@@ -83,7 +83,7 @@
     if (!asset.sha256) return;
     const actual = await sha256(asset.source);
     if (actual && actual !== asset.sha256) {
-      throw Object.assign(new Error(`深度分析资源校验失败：${asset.name}`), {code: 'checksum-mismatch'});
+      throw Object.assign(new Error(`深度分析资源校验没通过：${asset.name}`), {code: 'checksum-mismatch'});
     }
   };
 
@@ -136,21 +136,19 @@
     details.className = 'rollpig-doc-menu';
     const summary = document.createElement('summary');
     summary.className = 'btn ghost';
-    summary.textContent = '📚 文档';
-    summary.title = '打开今日小猪 Wiki';
+    summary.textContent = "📚 养猪宝典";
+    summary.title = "翻开今日小猪 Wiki";
     const popover = document.createElement('div');
     popover.className = 'rollpig-doc-popover';
     popover.append(
-      makeDocLink('📖', '玩家 Wiki', '玩法、EX、烤箱、日报与保底', WIKI_LINKS.player),
-      makeDocLink('⚙️', '管理员手册', '完整配置、资源、存储与运维', WIKI_LINKS.admin),
-      makeDocLink('🎨', '投稿指南', "捏一只自己的小猪，再交到管理员手里", WIKI_LINKS.creator),
+      makeDocLink('📖', "群友玩猪指南", "抽猪规则、EX 稀有款、烤箱、日报与保底机制", WIKI_LINKS.player),
+      makeDocLink('⚙️', "场长运维手册", "全套配置、图鉴资源、数据存储与日常维护", WIKI_LINKS.admin),
+      makeDocLink('🎨', "画师投稿指路", "亲手捏一只专属小猪，再递交给管理员审核", WIKI_LINKS.creator),
     );
     details.append(summary, popover);
     const refreshButton = pageRoot.querySelector('#refreshBtn');
     topActions.insertBefore(details, refreshButton || null);
   };
-
-  const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i;
 
   const setContextDoc = (host, key, show, label, href) => {
     if (!host) return;
@@ -171,12 +169,12 @@
     host.appendChild(link);
   };
 
-  state.setResourceSyncFeedback = (host, message) => {
+  state.setResourceSyncFeedback = (host, failed) => {
     setContextDoc(
       host,
       'resource-sync',
-      ERROR_PATTERN.test(String(message || '')),
-      '查看猪源同步排障',
+      failed,
+      "排查猪源同步故障",
       WIKI_LINKS.resourceSync,
     );
   };
@@ -200,13 +198,13 @@
     host.style.display = '';
     host.innerHTML = '<strong></strong><div class="panel-desc" style="margin-top:5px"></div>';
     host.querySelector('strong').textContent =
-      kind === 'loading' ? '正在载入深度分析' : '深度分析未载入';
+      kind === 'loading' ? "正在搬运深度分析报表" : "深度分析尚未加载";
     host.querySelector('.panel-desc').textContent = message;
     setContextDoc(
       host,
       'admin-ui',
       kind === 'error',
-      '查看管理页定向排障',
+      "查看后台定向排障指南",
       WIKI_LINKS.adminUi,
     );
   };
@@ -233,7 +231,7 @@
   };
 
   state.reportModuleError = (name, error) => {
-    const message = error instanceof Error ? error.message : String(error || '未知脚本错误');
+    const message = error instanceof Error ? error.message : String(error || "未知的脚本小脾气");
     state.assets[name] = 'error';
     state.errors.push({name, message});
     console.error(`[rollpig] ${name} failed`, error);
@@ -257,7 +255,7 @@
   installWikiStyles();
   installWikiMenu();
   const initialSync = pageRoot.querySelector('#syncFeedback');
-  if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.textContent || '');
+  if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.dataset.rollpigSyncError === 'true');
 
   let button = pageRoot.querySelector('#analyticsLoadBtn');
   if (!button) {
@@ -265,8 +263,8 @@
     button.id = 'analyticsLoadBtn';
     button.type = 'button';
     button.className = 'btn ghost';
-    button.textContent = '深度分析';
-    button.title = '点击后才载入深度分析资源与数据';
+    button.textContent = "深度报表";
+    button.title = "点一下才会按需加载深度分析资源与数据";
     const refreshButton = pageRoot.querySelector('#refreshBtn');
     topActions.insertBefore(button, refreshButton || null);
   }
@@ -287,16 +285,16 @@
     state.errors = [];
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
-    button.textContent = '载入中…';
-    showStatus('loading', '仅本次点击会通过认证桥接读取 Analytics 代码与聚合数据；核心页面不会等待它。');
+    button.textContent = "搬运中…";
+    showStatus('loading', "只有点下按钮才会通过认证桥接去拉取 Analytics 脚本与统计数据；主界面不会傻等它。");
 
     state.loadPromise = (async () => {
       const bridge = window.AstrBotPluginPage;
       if (!bridge?.apiGet) {
-        throw Object.assign(new Error('AstrBot Plugin Page Bridge 不存在'), {code: 'bridge-missing'});
+        throw Object.assign(new Error("找不到 AstrBot 插件页面通信桥接"), {code: 'bridge-missing'});
       }
       if (typeof bridge.ready === 'function') {
-        await withTimeout(bridge.ready(), 6000, '管理桥接在 6 秒内没有就绪');
+        await withTimeout(bridge.ready(), 6000, "管理通信桥接在 6 秒内没能顺利接通");
       }
       const bundle = validateBundle(unwrap(await bridge.apiGet('ui/assets', {version: VERSION})));
       const byName = new Map(bundle.assets.map(asset => [asset.name, asset]));
@@ -306,12 +304,12 @@
       if (state.errors.length) throw new Error(state.errors.map(item => item.message).join('；'));
       state.status = 'ready';
       hideStatus();
-      button.textContent = '刷新深度分析';
-      button.title = '重新读取深度分析聚合数据';
+      button.textContent = "刷新深度报表";
+      button.title = "重新拉取最新深度统计数据";
     })().catch(error => {
       state.status = 'error';
-      showStatus('error', `原因：${error?.message || error}。数据总览、猪猪图鉴和管理操作不受影响。`);
-      button.textContent = '重试深度分析';
+      showStatus('error', `卡壳原因：${error?.message || error}。放心，基础总览、猪猪图鉴和管理功能都能正常用。`);
+      button.textContent = "重连深度报表";
     }).finally(() => {
       button.disabled = false;
       button.removeAttribute('aria-busy');

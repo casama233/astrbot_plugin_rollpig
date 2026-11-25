@@ -61,7 +61,8 @@ def test_collection_display_has_safe_fallback_when_snapshot_is_missing():
     assert [pig["id"] for pig in display] == ["missing-history", "active"]
     assert display[0]["_collection_retired"] is True
     assert display[0]["name"] == "missing-history"
-    assert "永久收藏" in display[0]["analysis"]
+    assert "永久" in display[0]["analysis"]
+    assert "不再提供" in display[0]["analysis"]
 
 
 def test_retired_collection_entries_are_sorted_by_first_unlock_then_id():

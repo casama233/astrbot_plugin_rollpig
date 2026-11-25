@@ -2,13 +2,13 @@
 
 <img src="https://raw.githubusercontent.com/casama233/astrbot_plugin_rollpig/main/logo.png" width="168" alt="今日小豬 · 增強版 Logo">
 
-# 今日小豬 · 增強版
+# 今日小豬 · 進階版
 
-本分支程式版本：**v3.12.4** · 鏡像來源／撤回收口、既有 SQLite 啟動前檢查與管理頁來源顯示修正。**可更新的穩定版本**以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 為準；只有對應 tag、ZIP 與 SHA256SUMS 建立完成才算正式發布，main 合併本身不代表已可更新。
+本專案以 [GitHub 穩定 Release](https://github.com/casama233/astrbot_plugin_rollpig/releases/latest) 作為唯一且權威的當前版本發佈入口。在進行初次安裝或後續版本更新時，請務必從該頁面取得對應的正式版 ZIP 壓縮包，並搭配隨附的 `SHA256SUMS` 校驗檔完成完整性驗證後再行部署，以確保執行環境的安全與穩定。
 
-### 每天抽一隻。抽著抽著，群裡就多了一座豬圈和一間後廚。
+### 每天抽一隻小豬，抽著抽著，群裡就熱鬧地搭起了一座豬圈和一間後廚。
 
-`astrbot_plugin_rollpig_plus` · AstrBot 每日互動 × 永久豬籍 × EX 成長 × 群聊後廚
+`astrbot_plugin_rollpig_plus` · AstrBot 每日抽豬 × 永久豬籍檔案 × EX 形態成長 × 群聊後廚大作戰
 
 [![CI](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml/badge.svg)](https://github.com/casama233/astrbot_plugin_rollpig/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/casama233/astrbot_plugin_rollpig?display_name=tag&sort=semver)](https://github.com/casama233/astrbot_plugin_rollpig/releases)
@@ -23,19 +23,19 @@
 </div>
 
 > [!CAUTION]
-> **本插件代碼由 AI 生成，並經人工審閱。** 即使經過審閱，仍可能存在未發現的缺陷、安全風險或相容性問題。請謹慎使用；在重要帳號、生產環境或敏感場景部署前，建議先自行審查代碼並充分測試。
+> **本插件程式碼由 AI 輔助生成，並經人工審閱把關。** 儘管如此，程式仍可能潛藏未發現的漏洞、安全隱患或相容性問題。請務必謹慎使用；在部署至重要帳號、正式生產環境或敏感場景前，強烈建議先自行審查源碼並完成充分測試。
 
 > [!IMPORTANT]
-> **項目來源與署名說明（2026-08-19）**
+> **專案來源與版權署名說明（2026-08-19）**
 >
 > 本倉庫是 [MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig) 的 AstrBot 延續分支，其更早來源為 [Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)。後續增強開發中，部分功能設計、指令表面及／或實現曾參考或移植自 [Felis2026/nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)。此前 README、metadata 與 LICENSE 對這段來源關係說明不足，現已補充並進行逐項來源與授權審計。
 >
 > 詳細項目沿革、MIT 署名、代碼／功能設計／圖片與文案的不同授權邊界，以及目前審計範圍見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。在來源審計完成前，無法確認再分發權的第三方圖片、文案或資源不應被視為本項目原創或可自由再分發。
 
 > [!NOTE]
-> **它还是那个 `/今日小豬`，只是现在抽完还没完。** 你的猪会留下猪籍、反复返场、长 EX；群友能预约烤你、往锅里添柴、把 Roast Charge 烧光，再全群合力把烤箱救回来。夜里还有人负责把事故记进《猪圈日报》。
+> **它还是你熟悉的那个 `/今日小豬`，只不过现在抽完猪才算刚刚开始。** 抽到的小猪会录入永久猪籍、在群里反复返场、解锁 EX 形态；群友不仅能预约把你架上烤架、往灶膛里添柴火、一口气烧光 Roast Charge，还能在炸炉后全群合力把烤箱抢救回来。到了夜里，更有专人把白天的种种事故写进《猪圈日报》。
 
-## 🐷 現在這隻豬會什麼？
+## 🐷 這隻小豬現在有哪些本事？
 
 | 豬圈區域 | 會發生什麼 |
 | --- | --- |
@@ -50,7 +50,7 @@
 | 📰 豬圈日報 | 把成功燒烤、逃脫、反噬、被吃與群聊稱號整理成海報；手動查看只讀，自動推送按群 opt-in |
 | 🎨 創作者後廚 | 本地豬、EX 差分、私人豬源與公共源人工審核都能從管理工作台完成 |
 
-## ⚡ 快速開始
+## ⚡ 火速開張
 
 ### 環境
 
@@ -61,29 +61,29 @@
 | Python 依賴 | 依 [`requirements.txt`](requirements.txt) 自動安裝 Pillow、httpx、OpenCC |
 | 插件身份 | `astrbot_plugin_rollpig_plus` |
 
-推薦直接在 AstrBot 插件管理介面搜尋 **「今日小豬 · 增強版」** 或 `astrbot_plugin_rollpig_plus`。
+建議直接打開 AstrBot 的插件管理頁面，搜尋 **「今日小豬 · 增強版」** 或 `astrbot_plugin_rollpig_plus` 即可安裝。
 
-手動安裝：
+手動部署步驟：
 
 ```bash
 cd /AstrBot/data/plugins
 git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rollpig_plus
 ```
 
-完成後重啟 AstrBot，確認載入身份為 `astrbot_plugin_rollpig_plus`。
+裝好後請重啟 AstrBot，並確認載入的插件識別為 `astrbot_plugin_rollpig_plus`。
 
 > [!IMPORTANT]
-> v3.2.0 起增強版使用獨立程式、配置與資料命名空間。不要把新版直接塞進舊 `astrbot_plugin_rollpig` 目錄；舊版升級先看 [運維、身份遷移與恢復](docs/OPERATIONS.md)。
+> 自 v3.2.0 版本起，增強版已採用獨立的程式碼、設定檔與資料命名空間。請勿直接將新版檔案覆蓋進舊有的 `astrbot_plugin_rollpig` 資料夾；若需從舊版升級，請先詳閱 [運維、身份遷移與恢復](docs/OPERATIONS.md)。
 
-基本功能使用隨包中文字體和離線資源，無需設定本機絕對路徑、Gemini 登入或私人源令牌。AI 附加功能與自訂豬源按需開啟。
+基礎玩法均內建中文字型與離線素材，免設定本機絕對路徑、無需登入 Gemini，也不必準備私人源權杖。至於 AI 擴充功能與自訂豬源，依需求手動開啟即可。
 
-### 第一次進豬圈
+### 初次踏入豬圈
 
 ```text
 /今日小豬
 ```
 
-然後建議立刻再試：
+接著不妨馬上試試這幾招：
 
 | 指令 | 豬圈翻譯 |
 | --- | --- |
@@ -96,44 +96,46 @@ git clone https://github.com/casama233/astrbot_plugin_rollpig astrbot_plugin_rol
 | `/添柴 @某人` | 明確加入對某人的預約烤豬 |
 | `/豬圈日報` | 看今天誰最會烤、誰最慘、誰跑得最快 |
 
-完整 command surface、繁簡別名與限制以 [指令百科](docs/COMMANDS.md) 和運行時 `/豬豬幫助` 為準。
+完整的指令清單、繁簡體別名與使用限制，請以 [指令百科](docs/COMMANDS.md) 及執行時期的 `/豬豬幫助` 為準。
 
-## 📚 永久豬籍不是臨時相簿
+## 📚 永久豬籍簿，不只是臨時相簿
 
-`/我的豬圈` 认的是玩家历史上真正养过哪些猪，而不是「当前猪圈里还有啥」。图鉴会把现役已解锁和仍有历史记录的退役小猪放在同一套 read model 里；管理员明确 tombstone 的内容仍会老实屏蔽。
+`/我的豬圈` 统计的是玩家历来真正养过的所有小猪，而非「目前猪圈里还留着几只」。图鉴会将现役已解锁与仍有历史纪录的退役猪只整合在同一套读取模型中；至于管理员明确标记 tombstone 的内容，依旧会老老实实屏蔽。
 
-图鉴卡面还会直接告诉你：
+图鉴卡片上还会直观列出：
 
-- 现役入圈进度；
-- 老猪留档数量；
-- 最常返场的小猪；
+- 当前现役图鉴的收集进度；
+- 退役老猪的归档数量；
+- 最常跑回来串门的小猪；
 - 最高 EX；
-- 每只猪的返场次数；
-- 哪些还没拱进你家。
+- 每只小猪各自的返场次数；
+- 还有哪些小猪尚未拱进你家门槛。
 
-保底怎么算看 [永久圖鑑與新豬保底](docs/gameplay/collection-pity.md)，EX 怎么长看 [EX 成長](docs/gameplay/ex-growth.md)。
+保底机制怎么计算请参考 [永久圖鑑與新豬保底](docs/gameplay/collection-pity.md)，EX 形态如何解锁成长请见 [EX 成長](docs/gameplay/ex-growth.md)。
 
-## 🔥 後廚規則，先記三句
+## 🔥 後廚規矩，先記牢這三條
 
-1. **Charge 决定你能不能点火。** 默认每人每群 2 格，`group_roast_cooldown_hours` 现在表示「每缺一格 Charge 的恢复时间」，不是整个人的单一冷却。
-2. **70/20/10 决定点火后谁倒霉。** 70% 成功、20% 逃脱、10% 反噬；添柴不会提高成功率。
-3. **`/添柴` 是上下文入口。** 补货轮次进行中时裸 `/添柴` 支持补货；`/添柴 @目標` 明确支持预约。没有补货且只有一张预约时，裸 `/添柴` 也会跟进那张；多张就得指定目标。
+1. **Charge 决定了你手头能不能点火。** 默认每位玩家在每个群拥有 2 格，而 `group_roast_cooldown_hours` 代表的是「每消耗一格 Charge 后的恢复时间」，并非整个人的单一总冷却。
+2. **70/20/10 决定点火之后究竟谁遭殃。** 70% 代表烤制成功、20% 则是小猪溜走、10% 会引发炉火反噬；中途添柴并不会拉高成功率。
+3. **`/添柴` 是依赖上下文的快捷入口。** 当群体补货轮次正在进行时，单发 `/添柴` 会直接参与补货；`/添柴 @目標` 则明确对应预约支持。若当前没有补货活动且场内仅有一张预约单，单发 `/添柴` 也会自动跟进该预约；一旦存在多张预约单，就必须明确指定目标。
 
-旧 `/添煤` / `/加煤` / `/烤箱添煤` / `/烤箱添柴` 仅保留为补货兼容入口，不再作为玩家文档主推命令。
+原有的 `/添煤` / `/加煤` / `/烤箱添煤` / `/烤箱添柴` 仅作为补货兼容指令保留，不再列入玩家手册的主推用法。
 
-精确规则见 [Roast Charge](docs/gameplay/roast-charge.md)、[70/20/10](docs/gameplay/roast-outcomes.md) 与 [預約烤豬技術規則](docs/ROAST-RESERVATIONS.md)。
+详细的数值与判定细则，请参阅 [Roast Charge](docs/gameplay/roast-charge.md)、[70/20/10](docs/gameplay/roast-outcomes.md) 与 [預約烤豬技術規則](docs/ROAST-RESERVATIONS.md)。
 
 ## 📰 豬圈日報
 
-手动 `/豬圈日報` 只读。自动日报有全局 master switch，但每个群仍要自己 opt-in；没显式开启的群不会因为「曾经有人养过猪」就半夜突然收到晚报。
+手动执行 `/豬圈日報` 仅作只读浏览。自动日报虽然设有全局总开关，但各群仍需手动开启订阅（opt-in）；未明确启用的群聊，绝不会因为「曾经有人抽过猪」就在半夜莫名收到晚报。
 
-可选「今日祭品」默认关闭，而且只可能在自动日报流程触发；手动翻报纸不会吃人。
+附加的「今日祭品」功能默认处于关闭状态，且仅会在自动日报流程中触发；平时手动翻看报纸绝对不会把猪吃掉。
 
-详见 [豬圈日報玩家頁](docs/gameplay/daily-report.md) 与 [日報技術規則](docs/DAILY-REPORT.md)。
+具体规则详见 [豬圈日報玩家頁](docs/gameplay/daily-report.md) 与 [日報技術規則](docs/DAILY-REPORT.md)。
 
-## ⚙️ 管理面板
+<a name="管理面板"></a>
 
-AstrBot 插件页内的 RollPig 工作台包含：
+## ⚙️ 管理後台
+
+AstrBot 插件页面内的 RollPig 控制台涵盖了：
 
 | 工作區 | 主要能力 |
 | --- | --- |
@@ -146,11 +148,11 @@ AstrBot 插件页内的 RollPig 工作台包含：
 | 數據存儲 | SQLite 驗證、JSON 匯出、派生狀態修復與安全回退 |
 | 插件更新 | 只接受本倉庫穩定 Release，下載校驗、備份後替換 |
 
-管理写操作仍走 AstrBot Plugin Page 认证桥接、同源与 CSRF 边界；文案可以猪言猪语，权限不能跟着胡闹。
+所有管理端的写入操作依然严格经过 AstrBot Plugin Page 鉴权桥接、同源校验与 CSRF 防护；虽然文案可以满口猪言猪语，但系统权限绝不能跟着胡闹。
 
-## ☁️ 資源與同步
+## ☁️ 資源庫與同步
 
-小猪图鉴采用明确分层：
+小猪图鉴采取清晰的分层架构：
 
 ```text
 內置／AstrBot v1／私人 manifest 基礎層
@@ -162,46 +164,46 @@ AstrBot 插件页内的 RollPig 工作台包含：
            最終可抽取圖鑑
 ```
 
-同步只替换基础层，不会吞掉管理员的本地创作。默认 AstrBot 专用 manifest 为：
+同步操作只会覆盖更新基础层，绝不会抹除管理员在本地创作的内容。默认的 AstrBot 专用 manifest 地址为：
 
 ```text
 https://curryudon.top/astrbot-rollpig/v1/manifest.json
 ```
 
-普通浏览器或不兼容客户端可能收到 403；这是协议兼容性闸门，不等同于不可伪造的秘密认证。真正封闭的私人源请用你自己的 Token / mTLS 等边界。
+普通浏览器或不兼容的客户端访问时可能会收到 403；这只是协议兼容性闸门，不能当作不可伪造的机密认证。若需部署真正封闭的私人猪源，请自行配置 Token 或 mTLS 等安全边界。
 
-公共投稿只会在管理员明确确认后提交小猪 ID、名称、描述、完整文案、图片及对应 EX 差分；不提交群聊原文、群号、SQLite、备份或插件配置。人工审核批准后才会发布。
+发起公共投稿时，仅会在管理员明确确认后上传小猪 ID、名称、简介、完整文案、立绘及对应的 EX 差分图；绝不会收集群聊记录、群号、SQLite 数据库、备份档或插件配置。稿件须经人工审核通过后才会正式发布。
 
 > [!WARNING]
 > 公開資源同步與第三方素材仍受來源與再分發權約束。來源或授權無法確認的圖片、文案、資源包與鏡像條目應在審計完成前停止公開分發；MIT 軟件授權不會自動授予第三方圖片或文案的再分發權。詳見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
 
-完整规则见 [資源管理](docs/RESOURCE-MANAGEMENT.md)。
+完整的投稿与同步规范请见 [資源管理](docs/RESOURCE-MANAGEMENT.md)。
 
-## 🛡️ 資料與安全
+## 🛡️ 資料與安全防護
 
-- 正常运行时以 SQLite 规范化数据承担核心权威；JSON 留作导出与灾难回退。
-- 资源下载在 manifest、大小、SHA-256、图片限制全部通过后才原子切换。
-- 更新与同步失败会保留最后可用数据，不先把能跑的猪圈拆掉。
-- 增强版使用独立 namespace，身份迁移采用 Copy → Verify → Atomic Commit。
-- 群聊收藏采用 claim-aware logical-user 边界，避免把不能证明相同身份的数据硬凑一块。
+- 日常运行期间，系统以规范化的 SQLite 数据库作为核心权威存储；JSON 文件则保留用于数据导出与灾难恢复回退。
+- 拉取外部资源时，必须完整通过 manifest 校验、体积限制、SHA-256 哈希核对及图片规格检查后，才会执行原子切换。
+- 一旦更新或同步中途出错，系统将自动保留最后一份可用数据，绝不会先把好端端运行着的猪圈拆毁。
+- 增强版拥有独立的命名空间，跨版本身份迁移严格遵循 Copy → Verify → Atomic Commit 流程。
+- 跨群图鉴收藏采用 claim-aware logical-user 隔离边界，杜绝将无法证明属于同一身份的数据强行合并。
 
 詳見 [OPERATIONS.md](docs/OPERATIONS.md) 與 [COLLECTION-IDENTITY.md](docs/COLLECTION-IDENTITY.md)。
 
-## 🔧 常用配置
+## 🔧 常用參數配置
 
-- `enable_new_pig_pity` / `pity_step_percent`：连续重复保底。
-- `enable_daily_duplicate_pity`：跨日疲劳保底。
-- `group_roast_max_charges`：每人每群最大 Roast Charge，默认 2。
-- `group_roast_cooldown_hours`：**每格缺失 Charge 的恢复时间**，默认 8 小时。
-- `enable_roast_reservation` / `roast_reservation_max_participants`：预约烤猪。
-- `enable_oven_refill` / `oven_refill_*`：群体补货。
-- `enable_daily_report` / `daily_report_*`：猪圈日报。
-- `resource_sync_enabled` / `resource_manifest_url`：官方与私人猪源同步。
-- `storage_backend`：SQLite / JSON 回退策略。
+- `enable_new_pig_pity` / `pity_step_percent`：连抽重复触发的保底机制。
+- `enable_daily_duplicate_pity`：跨日连续抽猪的疲劳补偿保底。
+- `group_roast_max_charges`：每位玩家在单个群聊内的 Roast Charge 上限，默认为 2。
+- `group_roast_cooldown_hours`：**每消耗一格 Charge 所需的恢复时长**，默认为 8 小时。
+- `enable_roast_reservation` / `roast_reservation_max_participants`：烤猪预约相关设置。
+- `enable_oven_refill` / `oven_refill_*`：群内集体补货相关设置。
+- `enable_daily_report` / `daily_report_*`：猪圈日报推送设置。
+- `resource_sync_enabled` / `resource_manifest_url`：官方及私人猪源同步配置。
+- `storage_backend`：SQLite 与 JSON 数据回退策略。
 
-完整默认值与有效范围见 [配置參考](docs/CONFIGURATION.md)。
+所有配置项的完整默认值与合法取值范围，请查阅 [配置參考](docs/CONFIGURATION.md)。
 
-## 📖 文檔中心
+## 📖 文件與指南中心
 
 | 想做什麼 | 去哪裡 |
 | --- | --- |
@@ -214,7 +216,7 @@ https://curryudon.top/astrbot-rollpig/v1/manifest.json
 | 我維護豬源 | [資源管理](docs/RESOURCE-MANAGEMENT.md) / [豬源維護](docs/RESOURCE-SOURCE-MAINTENANCE.md) |
 | 我在寫插件代碼 | [架構](docs/ARCHITECTURE.md) / [文案規範](docs/COPY-STYLE.md) / [貢獻指南](CONTRIBUTING.md) |
 
-## 🧪 開發與驗證
+## 🧪 開發與自動化驗證
 
 ```bash
 python -m pip install -r requirements.txt pytest pre-commit
@@ -223,14 +225,14 @@ pytest -q
 pre-commit run --all-files --show-diff-on-failure
 ```
 
-Release 流程还会运行 AstrBot 真实加载 smoke、Marketplace package、Wiki strict build 与 Resource Source gate。
+发版流水线还会自动执行 AstrBot 真实加载冒烟测试、插件市场打包校验、Wiki 严格构建以及资源源站门禁检查。
 
-## 致謝與來源
+## 致謝與專案來源
 
-- 原始核心：[Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
+- 原始核心架构：[Bearlele/nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
 - AstrBot 直接上游／本倉庫 GitHub parent：[MegSopern/astrbot_plugin_rollpig](https://github.com/MegSopern/astrbot_plugin_rollpig)
 - 後續部分功能設計、指令表面及／或實現參考與移植來源：[Felis2026/nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)
-- 公共图片平台：[PigHub](https://pighub.top/) 与 [PigHub-DB](https://github.com/BadFish-HSrui/PigHub-DB)
+- 公共图库素材平台：[PigHub](https://pighub.top/) 与 [PigHub-DB](https://github.com/BadFish-HSrui/PigHub-DB)
 
 本增強分支持續保留上游作者署名與 MIT 授權資訊。更完整的來源、授權邊界與 2026-08 provenance audit 見 [`ATTRIBUTION.md`](ATTRIBUTION.md)。
 

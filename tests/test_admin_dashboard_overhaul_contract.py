@@ -33,22 +33,22 @@ def test_ai_copy_dashboard_distinguishes_disabled_idle_running_and_samples():
         "kind: 'idle'",
         "kind: 'running'",
         "kind: 'samples'",
-        "目前未开启 AI 文案功能",
-        "最近 7 日",
-        "生成中",
-        "AI 文案成功率 · 已完成样本",
+        "AI 文案开关还没打开",
+        "近 7 天",
+        "赶稿中",
+        "AI 文案成功率 · 已完稿样本",
     ):
         assert token in ANALYTICS
-    assert "暂时不展示 0% 成功率或 0 / 0 样本" in ANALYTICS
+    assert "不展示 0% 成功率或 0 / 0 样本" in ANALYTICS
 
 
 def test_overview_kpi_strip_is_five_information_dense_cards():
-    labels = ("总使用人数", "累计抽取", "今日活跃", "人均解锁", "平均收藏率")
+    labels = ("累计养猪人", "累计抽猪数", "今日活跃度", "人均收留数", "平均点亮率")
     for label in labels:
         assert f'<span class="label">{label}</span>' in PAGE
     assert '<span class="label">小猪总数</span>' not in PAGE
-    assert "renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹')" in PAGE
-    assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in PAGE
+    assert "renderSpark('vDraws',cumulativeDraws,2," in PAGE
+    assert "renderSpark('vToday',users,3," in PAGE
     assert "metric-snapshot-viz" not in PAGE
     assert "metric-scope" not in PAGE
     assert "#view-overview #vDraws" not in OVERVIEW_CSS

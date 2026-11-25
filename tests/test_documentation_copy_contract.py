@@ -35,7 +35,7 @@ def test_player_wiki_promotes_canonical_firewood_not_legacy_coal():
         assert "/添柴" in _read(relative), relative
 
     report = _read("docs/gameplay/daily-report.md")
-    assert "支持／添柴" in report
+    assert "應援與添柴" in report
 
     # The legacy spelling remains searchable so old users can still discover
     # the new canonical docs without promoting it as the primary UI surface.
@@ -50,34 +50,34 @@ def test_command_reference_tracks_charge_and_contextual_firewood_semantics():
     assert "group_roast_max_charges" in text
     assert "每缺一格 Charge" in text
     assert "/添柴 @目標" in text
-    assert "只作補貨相容入口" in text
+    assert "僅保留作為補貨相容入口" in text
 
 
 def test_configuration_reference_matches_public_schema_for_roast_energy():
     text = _read("docs/CONFIGURATION.md")
     assert "`group_roast_max_charges`" in text
-    assert "每缺一格 Charge 的自然恢復時間" in text
+    assert "每缺一格 Charge 的獨立回充週期" in text
     assert "/添柴 @目標" in text
     assert "它不是群體補貨的 `/添柴` 指令" not in text
 
     schema = json.loads(_read("_conf_schema.json"))
     assert schema["group_roast_max_charges"]["default"] == 2
-    assert "每格能量的恢复周期" in schema["group_roast_cooldown_hours"]["hint"]
+    assert "每格能量的充能周期" in schema["group_roast_cooldown_hours"]["hint"]
     reservation_hint = schema["enable_roast_reservation"]["hint"]
     assert "/添柴 @目标" in reservation_hint
-    assert "再次 /烤群友 @同一目标 仍兼容" in reservation_hint
+    assert "继续发 /烤群友 @同一目标 同样兼容" in reservation_hint
 
 
 def test_pigsty_renderer_uses_player_facing_pig_registry_voice():
     source = _read("renderers/catalog.py")
     for signature in (
-        "我的猪圈 · 猪籍档案",
-        "现役入圈",
-        "老猪留档",
-        "最常返场",
-        "老猪籍",
-        "还没拱进你家",
-        "熟猪优先",
+        "私人猪舍 · 猪籍名录",
+        "在栏小猪",
+        "退役留档",
+        "头号常客",
+        "旧籍留档",
+        "尚未光临猪舍",
+        "熟脸靠前",
     ):
         assert signature in source
 
@@ -111,6 +111,6 @@ def test_requester_header_behavior_is_covered_by_changelog_and_wiki():
     commands = (ROOT / "docs" / "COMMANDS.md").read_text(encoding="utf-8")
 
     assert "@指令發起者" in changelog
-    assert "## 👤 群聊回覆署名" in commands
-    assert "第一條機器人回覆" in commands
-    assert "私聊不增加 `@` 署名" in commands
+    assert "## 👤 群聊專屬署名機制" in commands
+    assert "首條回覆" in commands
+    assert "系統不會額外加上 `@` 署名" in commands

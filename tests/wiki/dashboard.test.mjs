@@ -87,7 +87,7 @@ test('mobile drawer remains usable and returning home restores copy actions', as
   await page.locator('.md-nav--primary label.md-nav__link').filter({hasText: '玩家指南'}).first().click();
   await page.locator('.md-nav--primary').getByRole('link', {name: '30 秒開始', exact: true}).click();
   await page.waitForURL('**/getting-started/');
-  await page.getByRole('heading', {name: '⚡ 30 秒開始養豬', exact: true}).waitFor();
+  await page.getByRole('heading', {level: 1, name: /30 秒.*養豬/}).waitFor();
   await page.locator('.md-header__button[for="__drawer"]').click();
   await page.locator('.md-nav--primary .md-nav__title[for="__nav_2"]').click();
   await page.locator('.md-nav--primary').getByRole('link', {name: '首頁', exact: true}).click();

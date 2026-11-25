@@ -21,6 +21,12 @@
     const identified = root.querySelector(`${selector}${repeatMetricSelector}`);
     if (identified) return identified;
 
+    const totalDraws = root.querySelector(`${selector}[data-rollpig-metric="total-draws"]`);
+    if (totalDraws) {
+      totalDraws.setAttribute('data-rollpig-metric', REPEAT_METRIC_ID);
+      return totalDraws;
+    }
+
     const expected = new Set(labels);
     const candidate = Array.from(root.querySelectorAll(selector)).find(node => {
       const label = labelSelector ? node.querySelector(labelSelector) : node;
@@ -41,9 +47,9 @@
 
   const unwrap = response => {
     const first = response?.data ?? response;
-    if (first?.status === 'error') throw new Error(first.message || '操作失败');
+    if (first?.status === 'error') throw new Error(first.message || "操作没成功");
     const payload = first?.data ?? first;
-    if (payload?.status === 'error') throw new Error(payload.message || '操作失败');
+    if (payload?.status === 'error') throw new Error(payload.message || "操作没成功");
     return payload;
   };
 
@@ -67,7 +73,7 @@
   function replaceLegendCopy() {
     const description = panel.querySelector('.panel-head .panel-desc');
     if (description) {
-      description.textContent = '移动到折线可查看每日使用人数、重复抽中与新解锁';
+      description.textContent = "把鼠标移到折线上，就能看清每天的活跃人数、撞猪次数和新图鉴解锁数";
     }
 
     const repeatLegend = findMetricNode(
@@ -92,7 +98,7 @@
     const svg = chart.querySelector('svg');
     if (!svg || !rows.length) return;
 
-    svg.setAttribute('aria-label', '近十四日使用人数、重复抽中与新解锁趋势');
+    svg.setAttribute('aria-label', "近十四天养猪人数、撞猪与新解锁趋势");
 
     const bars = Array.from(svg.querySelectorAll('.chart-draw-bar'));
     const gridlines = Array.from(svg.querySelectorAll('.gridline'));
@@ -113,7 +119,7 @@
       bar.setAttribute('data-rollpig-metric', REPEAT_METRIC_ID);
       bar.setAttribute('height', height.toFixed(3));
       bar.setAttribute('y', (base - height).toFixed(3));
-      bar.setAttribute('aria-label', `重复抽中 ${repeatCount} 次`);
+      bar.setAttribute('aria-label', `撞猪 ${repeatCount} 次`);
     });
   }
 
@@ -190,7 +196,7 @@
       setRefreshState('ready');
     })().catch(error => {
       setRefreshState('error', error);
-      console.warn('[rollpig] 重复抽中趋势增强失败，保留原始趋势展示', error);
+      console.warn("[rollpig] 重抽热度趋势增强异常，已回退至基础趋势展示", error);
     }).finally(() => {
       refreshPromise = null;
       if (refreshQueued) {

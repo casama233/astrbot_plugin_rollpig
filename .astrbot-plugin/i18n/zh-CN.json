@@ -1,8 +1,8 @@
 {
   "pages": {
     "pig-manager": {
-      "title": "猪圈管理",
-      "description": "管理本地／云端小猪素材、EX 差分、公共源投稿与使用统计"
+      "title": "猪圈总管",
+      "description": "管理本地与云端小猪图库、EX 形态差分、公共猪圈投稿及游玩统计"
     }
   }
 }

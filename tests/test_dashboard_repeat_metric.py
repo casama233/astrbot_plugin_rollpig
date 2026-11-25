@@ -13,15 +13,16 @@ def test_dashboard_trend_uses_semantic_metric_identity_and_error_handling():
     assert "repeats: Math.max(0, draws - unlocks)" in source
     assert "first?.status === 'error'" in source
     assert "payload?.status === 'error'" in source
+    assert 'data-rollpig-metric="total-draws"' in source
     assert 'data-rollpig-metric' in source
     assert "REPEAT_METRIC_ID = 'repeat-draws'" in source
     assert "legend[1]" not in source
     assert "items[2]" not in source
     assert "tooltipRows[1]" not in source
-    assert "移动到折线可查看每日使用人数、重复抽中与新解锁" in source
-    assert "近十四日使用人数、重复抽中与新解锁趋势" in source
+    assert "每天的活跃人数、撞猪次数和新图鉴解锁数" in source
+    assert "近十四天养猪人数、撞猪与新解锁趋势" in source
     assert "14 日重复抽中" in source
-    assert "bar.setAttribute('aria-label', `重复抽中 ${repeatCount} 次`)" in source
+    assert "bar.setAttribute('aria-label', `撞猪 ${repeatCount} 次`)" in source
 
 
 def test_repeat_metric_has_executable_browser_regression():

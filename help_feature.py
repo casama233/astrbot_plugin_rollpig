@@ -186,7 +186,7 @@ class HelpFeatureMixin:
             try:
                 await event.send(
                     event.plain_result(
-                        f'📖 玩法、投稿、排障全套小剧场已备好，今日小猪 Wiki：\n{WIKI_HOME_URL}'
+                        f'🐷 养猪秘籍、投稿通道与疑难杂症全收录！快戳今日小猪 Wiki：\n{WIKI_HOME_URL}'
                     )
                 )
             except Exception as link_exc:
@@ -195,8 +195,7 @@ class HelpFeatureMixin:
             logger.error(f"生成猪猪帮助图片失败：{exc}", exc_info=True)
             await event.send(
                 event.plain_result(
-                    "猪猪帮助图片生成失败，请查看后台日志。\n"
-                    f"🧯 排障指南：{WIKI_TROUBLESHOOTING_URL}"
+                    f'小猪说明书画图翻车啦，快去后台翻翻日志吧。\n🧯 排障指南：{WIKI_TROUBLESHOOTING_URL}'
                 )
             )
         finally:

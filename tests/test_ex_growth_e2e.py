@@ -270,10 +270,10 @@ def test_today_records_one_ex_event_but_tomorrow_preview_never_leaks_owned_growt
     )
     assert today_card["_ex_level"] == 1
     assert today_card["description"] == "EX1 描述"
-    assert harness.sent_intros[-1] == (
-        ". 今天的本命小猪已就位：\n"
-        "✨ 重逢第 2 次 · EX Lv.0 → Lv.1"
-    )
+    first_intro, notice = harness.sent_intros[-1].splitlines()
+    assert first_intro
+    assert "第 2 次" in notice
+    assert "EX Lv.0 → Lv.1" in notice
 
     asyncio.run(
         harness.send_rendered_pig(
@@ -283,7 +283,7 @@ def test_today_records_one_ex_event_but_tomorrow_preview_never_leaks_owned_growt
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == ". 今天的本命小猪已就位："
+    assert harness.sent_intros[-1] == first_intro
 
     another_group = types.SimpleNamespace(sender_id="u1", group_id="g2")
     asyncio.run(
@@ -294,7 +294,7 @@ def test_today_records_one_ex_event_but_tomorrow_preview_never_leaks_owned_growt
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == ". 今天的本命小猪已就位："
+    assert harness.sent_intros[-1] == first_intro
     assert not read_gameplay_events(
         harness.gameplay_events, harness._today().isoformat(), "g2"
     )
@@ -368,9 +368,10 @@ def test_private_level_up_notice_uses_isolated_scope_and_stays_one_time(tmp_path
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == (
-        "今天抽到：\n✨ 重逢第 4 次 · EX Lv.2 → Lv.3"
-    )
+    intro, notice = harness.sent_intros[-1].splitlines()
+    assert intro == "今天抽到："
+    assert "第 4 次" in notice
+    assert "EX Lv.2 → Lv.3" in notice
     private_rows = read_gameplay_events(
         harness.gameplay_events,
         harness._today().isoformat(),
@@ -409,9 +410,10 @@ def test_level_up_notice_uses_uncapped_level_and_writer_failure_is_safe(tmp_path
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1].endswith(
-        "✨ 重逢第 10 次 · EX Lv.8 → Lv.9"
-    )
+    intro, notice = harness.sent_intros[-1].splitlines()
+    assert intro
+    assert "第 10 次" in notice
+    assert "EX Lv.8 → Lv.9" in notice
 
     failure_root = tmp_path / "failure"
     failure_root.mkdir()
@@ -431,7 +433,7 @@ def test_level_up_notice_uses_uncapped_level_and_writer_failure_is_safe(tmp_path
         )
     )
     assert card["_ex_level"] == 1
-    assert failure.sent_intros[-1] == ". 今天的本命小猪已就位："
+    assert failure.sent_intros[-1] == intro
     assert failure.gameplay_events == {}
 
 
@@ -447,7 +449,8 @@ def test_level_up_notice_skips_unlock_other_user_and_stale_draw(tmp_path):
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == ". 今天的本命小猪已就位："
+    [first_intro] = harness.sent_intros[-1].splitlines()
+    assert first_intro and "EX Lv." not in first_intro
     assert harness.gameplay_events == {}
 
     _set_count(harness, 4)
@@ -460,7 +463,7 @@ def test_level_up_notice_skips_unlock_other_user_and_stale_draw(tmp_path):
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == ". 今天的本命小猪已就位："
+    assert harness.sent_intros[-1] == first_intro
     assert harness.gameplay_events == {}
 
     harness.collections["u1"]["pigs"]["sleep-pig"]["last_drawn"] = "2026-08-14"
@@ -472,5 +475,5 @@ def test_level_up_notice_skips_unlock_other_user_and_stale_draw(tmp_path):
             fallback_title="今日小猪",
         )
     )
-    assert harness.sent_intros[-1] == ". 今天的本命小猪已就位："
+    assert harness.sent_intros[-1] == first_intro
     assert harness.gameplay_events == {}

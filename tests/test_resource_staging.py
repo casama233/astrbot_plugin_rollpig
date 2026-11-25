@@ -64,15 +64,15 @@ def test_accepted_base_image_is_readable_after_staging(tmp_path, filename):
 
 
 @pytest.mark.parametrize(('field', 'value', 'error'), [
-    ('image_metas', [{'filename': '../pig.png'}], '文件名无效'),
-    ('variant_image_metas', [{'filename': '../pig.png'}], '文件名无效'),
-    ('image_metas', [None], '条目无效'),
-    ('variant_image_metas', [None], '条目无效'),
-    ('pig_ids', {'missing'}, '缺少图片'),
-    ('image_metas', [{'filename': 'pig.png'}] * 2, '重复图片'),
-    ('variant_image_metas', [{'filename': 'pig.EX1.png'}] * 2, '重复 EX'),
-    ('variant_image_metas', [], '缺少 EX'),
-    ('normalized_ex', {}, '未引用 EX'),
+    ('image_metas', [{'filename': '../pig.png'}], r'文件名.*\.\./pig\.png'),
+    ('variant_image_metas', [{'filename': '../pig.png'}], r'文件名.*\.\./pig\.png'),
+    ('image_metas', [None], r'manifest.*条目'),
+    ('variant_image_metas', [None], r'manifest.*条目'),
+    ('pig_ids', {'missing'}, r'立绘.*missing'),
+    ('image_metas', [{'filename': 'pig.png'}] * 2, r'重名.*猪猪立绘'),
+    ('variant_image_metas', [{'filename': 'pig.EX1.png'}] * 2, r'重名.*EX 差分立绘'),
+    ('variant_image_metas', [], r'缺.*EX.*pig\.EX1\.png'),
+    ('normalized_ex', {}, r'引用.*EX.*pig\.EX1\.png'),
     ('initial_size', 101, '总大小'),
 ])
 def test_stage_rejects_invalid_packages(tmp_path, field, value, error):

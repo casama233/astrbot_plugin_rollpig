@@ -20,7 +20,7 @@ const FIXTURE = `<!doctype html>
     <div class="legend">
       <span><i class="dot"></i>新解锁</span>
       <span><i class="dot"></i>使用人数</span>
-      <span><i class="dot"></i>抽取次数</span>
+      <span data-rollpig-metric="total-draws"><i class="dot"></i>抽猪次数</span>
     </div>
     <div id="trendChart">
       <svg aria-label="原始抽取趋势">
@@ -35,14 +35,14 @@ const FIXTURE = `<!doctype html>
         <div class="tooltip-date">08-14</div>
         <div class="tooltip-row"><span>新解锁</span><b>2</b></div>
         <div class="tooltip-row"><span>使用人数</span><b>5</b></div>
-        <div class="tooltip-row"><span>抽取次数</span><b>5</b></div>
+        <div class="tooltip-row" data-rollpig-metric="total-draws"><span>抽猪次数</span><b>5</b></div>
       </div>
     </div>
     <div id="trendSummary">
       <div class="trend-summary-item"><span>活跃峰值</span><strong>6 人</strong></div>
       <div class="trend-summary-item"><span>14 日新解锁</span><strong>12 次</strong></div>
       <div class="trend-summary-item"><span>日均活跃</span><strong>5 人</strong></div>
-      <div class="trend-summary-item"><span>14 日抽取</span><strong>12 次</strong></div>
+      <div class="trend-summary-item" data-rollpig-metric="total-draws"><span>14 日抽猪</span><strong>12 次</strong></div>
     </div>
   </section>
 </body>
@@ -99,7 +99,7 @@ test('repeat-draw integration patches reordered metric DOM by identity', async t
   assert.deepEqual(warnings, []);
   assert.equal(
     window.document.querySelector('.panel-desc').textContent,
-    '移动到折线可查看每日使用人数、重复抽中与新解锁',
+    '把鼠标移到折线上，就能看清每天的活跃人数、撞猪次数和新图鉴解锁数',
   );
 
   const repeatLegend = window.document.querySelector(
@@ -113,13 +113,13 @@ test('repeat-draw integration patches reordered metric DOM by identity', async t
   );
 
   const svg = window.document.querySelector('#trendChart svg');
-  assert.equal(svg.getAttribute('aria-label'), '近十四日使用人数、重复抽中与新解锁趋势');
+  assert.equal(svg.getAttribute('aria-label'), '近十四天养猪人数、撞猪与新解锁趋势');
   const bars = [...svg.querySelectorAll('.chart-draw-bar')];
   assert.deepEqual(bars.map(bar => bar.getAttribute('height')), ['30.000', '0.000', '0.000']);
   assert.deepEqual(bars.map(bar => bar.getAttribute('y')), ['80.000', '110.000', '110.000']);
   assert.deepEqual(
     bars.map(bar => bar.getAttribute('aria-label')),
-    ['重复抽中 3 次', '重复抽中 0 次', '重复抽中 0 次'],
+    ['撞猪 3 次', '撞猪 0 次', '撞猪 0 次'],
   );
   assert.ok(bars.every(bar => bar.getAttribute('data-rollpig-metric') === 'repeat-draws'));
 
@@ -152,12 +152,12 @@ test('application-level overview errors are reported without relabelling stale d
   assert.equal(window.document.querySelector('.panel-desc').textContent, '原始趋势说明');
   assert.equal(
     window.document.querySelector('.legend span:last-child').textContent.trim(),
-    '抽取次数',
+    '抽猪次数',
   );
   assert.equal(window.document.querySelector('[data-rollpig-metric="repeat-draws"]'), null);
   assert.equal(window.document.querySelector('#trendChart svg').getAttribute('aria-label'), '原始抽取趋势');
   assert.equal(window.document.querySelector('.chart-draw-bar').getAttribute('height'), '50');
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /重复抽中趋势增强失败/);
+  assert.match(String(warnings[0][0]), /趋势增强异常.*回退/);
   assert.match(String(warnings[0][1]?.message || warnings[0][1]), /overview unavailable/);
 });

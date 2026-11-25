@@ -129,8 +129,8 @@ def test_empty_daily_report_renders_without_inventing_activity():
         "avatars": {},
     }
     mood, story = _activity_story(empty)
-    assert mood == "今天还没开张"
-    assert "暂时没动静" in story
+    assert mood == "今天铺子还没开张"
+    assert "猪圈里静悄悄" in story
 
     output = render_daily_report_dashboard(plugin, empty)
     try:
@@ -151,7 +151,7 @@ def test_main_keeps_daily_report_under_shared_render_backpressure():
         ({"backlashes": 1, "roasts": 7, "draws": 8}, "反噬了 1 次"),
         ({"escapes": 1, "draws": 8}, "逃脱了 1 次"),
         ({"oven_refill_supports": 2}, "2 人次"),
-        ({"draws": 4, "popular_peak": 1}, "4 人进圈抽猪"),
+        ({"draws": 4, "popular_peak": 1}, "4 人进圈摸猪"),
         ({"draws": 4, "popular_peak": 2}, "抽中 2 次"),
     ],
 )
@@ -184,7 +184,7 @@ def test_receipt_lists_draw_count_once_and_keeps_tied_awards(monkeypatch):
         assert observed[draw_label + 1] == str(report["draws"])
         assert "活跃猪友" not in observed
         assert "抽中猪种（种）" in observed
-        assert any("1 种并列" in line for line in observed)
-        assert "2 次 · 并列 2 人" in observed
+        assert any("1 种猪并列" in line for line in observed)
+        assert "2 回 · 合计 2 人同登榜首" in observed
     finally:
         output.unlink(missing_ok=True)

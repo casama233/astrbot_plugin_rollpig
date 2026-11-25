@@ -55,7 +55,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             try:
                 documents[relative] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                raise StorageMigrationError(f"迁移前无法读取 {relative}：{exc}") from exc
+                raise StorageMigrationError(f'啟動遷移前無法讀取檔案 {relative}：{exc}') from exc
         return documents
 
     @staticmethod
@@ -202,7 +202,7 @@ class PrimaryStorageManager(LegacyStorageManager):
         backend = self._new_sqlite()
         verification = backend.verify()
         if not verification.get("ok"):
-            raise StorageMigrationError("正式 SQLite 数据库未通过完整性检查")
+            raise StorageMigrationError('正式運行的 SQLite 數據庫未通過完整性檢查')
         self.backend = backend
         self._last_error = ""
         return backend
@@ -215,7 +215,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             target = self._new_sqlite(temporary)
             verification = target.verify()
             if not verification.get("ok"):
-                raise StorageMigrationError("新建 SQLite 数据库未通过完整性检查")
+                raise StorageMigrationError('新建的 SQLite 數據庫未通過完整性檢查')
             target.checkpoint()
             self._replace_database(temporary)
             backend = self._activate_sqlite()
@@ -251,7 +251,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             target.import_legacy_documents(documents)
             verification = target.verify()
             if not verification.get("ok"):
-                raise StorageMigrationError("SQLite 规范化导入未通过完整性检查")
+                raise StorageMigrationError('SQLite 規範化數據匯入後未通過完整性檢查')
             exported = target.export_documents()
             expected_documents = {
                 str(key): SQLitePrimaryStorage._clone(value)
@@ -272,7 +272,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             }
             if mismatched:
                 names = ", ".join(sorted(mismatched)[:8])
-                raise StorageMigrationError("迁移事实对账失败：" + names)
+                raise StorageMigrationError('數據遷移後的底層事實核對不一致：' + names)
             target.checkpoint()
             self._replace_database(temporary)
             backend = self._activate_sqlite()
@@ -310,14 +310,11 @@ class PrimaryStorageManager(LegacyStorageManager):
             self.backend = self.json_storage
             if isinstance(exc, StorageMigrationError):
                 raise
-            raise StorageMigrationError(f"SQLite 迁移失败：{exc}") from exc
+            raise StorageMigrationError(f'執行 SQLite 數據遷移時發生異常：{exc}') from exc
 
     def _recovery_required(self, reason: str) -> None:
         self._last_error = (
-            f"SQLite 需要恢复，已停止插件载入／迁移，未切换到旧或空 JSON：{reason}。"
-            "请先停止插件并备份整个插件数据目录（包括 rollpig.db、WAL、SHM），"
-            "核验并恢复数据库或已验证备份后再重载；不要删除数据库或修改存储模式来绕过检查。"
-            "恢复步骤见 docs/SQLITE-RECOVERY.md。"
+            f'檢測到 SQLite 數據庫需要修復，系統已緊急中止插件載入與遷移，並禁止回退至舊版或空白 JSON：{reason}。請立即停用插件並完整備份整個數據目錄（包含 rollpig.db、WAL 及 SHM 檔案），核驗並修復數據庫或還原已驗證的備份後再重載；切勿直接刪除數據庫或更改儲存模式以繞過檢查。詳細修復指引請查閱 docs/SQLITE-RECOVERY.md。'
         )
         raise StorageMigrationError(self._last_error)
 
@@ -333,23 +330,23 @@ class PrimaryStorageManager(LegacyStorageManager):
             Path(f"{self.database_path}{suffix}").exists()
             for suffix in ("-wal", "-shm")
         ):
-            self._recovery_required("发现现有 SQLite 数据库或未处理的 sidecar")
+            self._recovery_required('目錄中已存在現有的 SQLite 數據庫或未處理的附屬（sidecar）檔案')
         if not self.state_path.exists():
             return
         try:
             state = json.loads(self.state_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            self._recovery_required(f"无法核验 storage_state.json：{exc}")
+            self._recovery_required(f'無法讀取或核驗 storage_state.json 狀態檔：{exc}')
         if not isinstance(state, dict):
-            self._recovery_required("storage_state.json 不是有效对象")
+            self._recovery_required('storage_state.json 的內容格式不是有效的物件結構')
         if state.get("active_backend") != "json":
-            self._recovery_required("存储记录不是已确认的 JSON 权威，数据库可能缺失")
+            self._recovery_required('儲存狀態記錄顯示目前並非已確認的 JSON 主控模式，數據庫檔案可能已遺失')
 
     def _preflight_existing_sqlite(self) -> None:
         """Read the existing SQL identity before the backend initializes tables."""
         with self.database_path.open("rb") as source:
             if source.read(16) != b"SQLite format 3\x00":
-                raise StorageMigrationError("既有数据库为空、被截断或不是 SQLite 文件")
+                raise StorageMigrationError('現有數據庫檔案為空、遭截斷損毀，或並非有效的 SQLite 格式')
         uri = self.database_path.resolve().as_uri() + "?mode=ro"
         with closing(sqlite3.connect(
             uri, uri=True, timeout=self.busy_timeout_ms / 1000,
@@ -363,10 +360,10 @@ class PrimaryStorageManager(LegacyStorageManager):
             }
             required = {"schema_migrations", "documents", "identities", "daily_draws", "user_pigs"}
             if not required.issubset(tables):
-                raise StorageMigrationError("既有数据库缺少 RollPig 核心表，禁止按新库初始化")
+                raise StorageMigrationError('現有數據庫缺少 RollPig 核心數據表，為防覆蓋已禁止將其當作新庫初始化')
             version = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
             if type(version) is not int or not 1 <= version <= 6:
-                raise StorageMigrationError("既有数据库的 RollPig schema 版本不能核验")
+                raise StorageMigrationError('無法核驗現有數據庫的 RollPig schema 結構版本')
 
     def _select_initial_backend(self) -> None:
         if self.mode == "json":
@@ -391,7 +388,7 @@ class PrimaryStorageManager(LegacyStorageManager):
                     self._last_action = {"status": "auto-repaired-normalized-state"}
                 if not verification.get("ok"):
                     raise StorageMigrationError(
-                        f"SQLite 完整性或规范化状态检查失败：{verification.get('integrity')}"
+                        f"SQLite 完整性或規範化狀態校驗未通過：{verification.get('integrity')}"
                     )
                 self.backend = candidate
                 self._last_error = ""
@@ -413,13 +410,13 @@ class PrimaryStorageManager(LegacyStorageManager):
         except Exception as exc:
             self._assert_json_authority()
             self.backend = self.json_storage
-            self._last_error = f"SQLite 初次建立失败，仍使用原 JSON：{exc}"
+            self._last_error = f'首次建立 SQLite 數據庫失敗，系統將繼續沿用原有的 JSON 存檔：{exc}'
 
     def migrate_to_sqlite(self) -> dict[str, Any]:
         with self._lock:
             if self.mode == "json":
                 raise StorageMigrationError(
-                    "配置已强制使用 JSON；请先将 storage_backend 改为 auto"
+                    '目前配置已鎖死使用 JSON 儲存，請先將 storage_backend 調整為 auto 再操作'
                 )
             if isinstance(self.backend, SQLitePrimaryStorage):
                 verification = self.backend.verify()
@@ -431,7 +428,7 @@ class PrimaryStorageManager(LegacyStorageManager):
                     }
                     self._last_action = result
                     return result
-                self._recovery_required("当前 SQLite 未通过验证，禁止以旧 JSON 重建替换")
+                self._recovery_required('當前 SQLite 數據庫尚未通過安全驗證，禁止使用舊版 JSON 強行重建覆蓋')
             self._assert_json_authority()
             documents = self._read_existing_json()
             if documents:
@@ -450,7 +447,7 @@ class PrimaryStorageManager(LegacyStorageManager):
             else:
                 documents = self._read_existing_json()
             if not documents:
-                raise StorageMigrationError("没有可导出的存储数据")
+                raise StorageMigrationError('目前沒有任何可匯出的存檔數據')
             stamp = time.strftime("%Y%m%d-%H%M%S")
             archive = self.export_root / f"rollpig-json-{stamp}.zip"
             suffix = 0

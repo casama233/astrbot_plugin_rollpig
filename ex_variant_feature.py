@@ -65,10 +65,10 @@ class ExVariantMixin:
         for pack in sorted(root.glob("*.json")):
             payload = json.loads(pack.read_text(encoding="utf-8-sig"))
             if not isinstance(payload, dict):
-                raise ValueError(f"EX 精品包必须是对象：{pack.name}")
+                raise ValueError(f'EX 精品图鉴包的顶层结构必须是对象格式：{pack.name}')
             raw_pigs = payload.get("pigs", {})
             if not isinstance(raw_pigs, dict):
-                raise ValueError(f"EX 精品包 pigs 必须是对象：{pack.name}")
+                raise ValueError(f'EX 精品图鉴包里的 pigs 字段必须是对象格式：{pack.name}')
             filtered = {
                 "schema_version": payload.get("schema_version", 1),
                 "pigs": {
@@ -87,7 +87,7 @@ class ExVariantMixin:
             duplicates = set(merged).intersection(variants)
             if duplicates:
                 raise ValueError(
-                    f"EX 精品包重复小猪：{', '.join(sorted(duplicates))}"
+                    f"EX 精品图鉴包里塞进了重复的小猪：{', '.join(sorted(duplicates))}"
                 )
             merged.update(variants)
         return merged
@@ -163,7 +163,7 @@ class ExVariantMixin:
             duplicates = set(variants).intersection(curated)
             if duplicates:
                 raise ValueError(
-                    "pig_ex_variants.json 与 EX 精品包重复小猪："
+                    'pig_ex_variants.json 和 EX 精品图鉴包里出现了重复的小猪：'
                     + ", ".join(sorted(duplicates))
                 )
             variants.update(curated)
@@ -193,7 +193,7 @@ class ExVariantMixin:
                 image = str(item.get("image") or "")
                 if image and not (image_root / image).is_file():
                     raise ValueError(
-                        f"{source} EX 差分缺少图片：{pig_id} EX Lv.{level} -> {image}"
+                        f'{source} 的 EX 差分立绘缺图了：{pig_id} EX Lv.{level} -> {image}'
                     )
         # Explicit authored resources stay authoring layers. The deterministic
         # baseline remains underneath as the safety net for as-yet-unwritten,
@@ -320,8 +320,7 @@ class ExVariantMixin:
     @staticmethod
     def _ex_level_up_notice(ex_level: int) -> str:
         return (
-            f"✨ 重逢第 {ex_level + 1} 次 · "
-            f"EX Lv.{ex_level - 1} → Lv.{ex_level}"
+            f'✨ 第 {ex_level + 1} 次重逢 · EX Lv.{ex_level - 1} → Lv.{ex_level}'
         )
 
     def _maybe_record_ex_level_event(
@@ -383,7 +382,7 @@ class ExVariantMixin:
         event,
         pig_data: dict,
         user_id: str,
-        intro: str = '. 今天的本命小猪已就位：',
+        intro: str = '今天的本命猪猪已就位：',
         fallback_title: str = "今日小猪",
     ):
         # Tomorrow is a preview rather than an owned draw; do not leak collection

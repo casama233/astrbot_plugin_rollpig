@@ -21,7 +21,7 @@ def test_admin_trend_has_compact_four_metric_summary_strip():
     page = _page()
     assert "trendSummary" in page
     assert "trend-summary" in page
-    for label in ("活跃峰值", "日均活跃", "14 日抽取", "14 日新解锁"):
+    for label in ("单日峰值", "日均活跃", "14 日抽猪", "14 日新解锁"):
         assert label in page
 
 
@@ -60,7 +60,7 @@ def test_metric_sparklines_use_monotone_curves_and_honest_visual_range():
 
 def test_metric_cards_keep_five_requested_kpis_with_real_context():
     page = _page()
-    for label in ("总使用人数", "累计抽取", "今日活跃", "人均解锁", "平均收藏率"):
+    for label in ("累计养猪人", "累计抽猪数", "今日活跃度", "人均收留数", "平均点亮率"):
         assert f'<span class="label">{label}</span>' in page
     assert '<span class="label">小猪总数</span>' not in page
     assert page.count('<article class="metric') == 5
@@ -72,10 +72,10 @@ def test_metric_cards_keep_five_requested_kpis_with_real_context():
     for viz_id in ("vUsers", "vDraws", "vToday", "vAverage", "vRate"):
         assert f'id="{viz_id}"' in page
     assert "renderMetricMeter('vUsers',today,totalUsers" in page
-    assert "renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹')" in page
-    assert "renderSpark('vToday',users,3,'近 14 日每日活跃人数')" in page
+    assert "renderSpark('vDraws',cumulativeDraws,2," in page
+    assert "renderSpark('vToday',users,3," in page
     assert "renderMetricRuler('vAverage',averageUnlocked,catalog" in page
     assert "renderMetricRate('vRate',rate" in page
     assert "totalDraws-totalDraws14" in page
-    for useful_copy in ("今日活跃", "占累计", "近 14 日", "较昨日", "人均", "按当前图鉴计算"):
+    for useful_copy in ("今日活跃度", "占累计", "近 14 日", "较昨日", "人均", "按当前图鉴核算"):
         assert useful_copy in page

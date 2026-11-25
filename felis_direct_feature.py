@@ -48,8 +48,7 @@ FELIS_DIRECT_LICENSE_URL = (
     FELIS_DIRECT_REPOSITORY_URL + "/blob/main/RESOURCES-LICENSE.md"
 )
 FELIS_DIRECT_NOTICE = (
-    "Felis 资源由非商业 Bot 客户端直接读取官方上游并在本机缓存；"
-    "不在 curryudon 公共 CDN/Manifest 中重新托管。请保留来源与署名。"
+    'Felis 资源由非商业 Bot 客户端直接拉取官方上游并于本地缓存，不在 curryudon 公共 CDN/Manifest 中重新托管。请保留来源与署名信息。'
 )
 FELIS_DIRECT_IDS = frozenset(
     {
@@ -262,7 +261,7 @@ class FelisDirectFeature:
             or parsed.query
             or parsed.fragment
         ):
-            raise ValueError("Felis manifest URL 仅允许官方 rollpig-resources 地址")
+            raise ValueError('Felis manifest URL 仅限使用官方 rollpig-resources 地址')
 
     @staticmethod
     def _felis_direct_validate_path(path: str) -> None:
@@ -280,9 +279,9 @@ class FelisDirectFeature:
             raise ValueError(f"Felis 文件元数据无效：{path}")
         data = await self._download_limited(client, urljoin(base_url, path), max_size)
         if len(data) != expected_size:
-            raise ValueError(f"Felis 文件大小校验失败：{path}")
+            raise ValueError(f'Felis 文件大小校验未通过：{path}')
         if hashlib.sha256(data).hexdigest() != expected_hash:
-            raise ValueError(f"Felis 文件 SHA-256 校验失败：{path}")
+            raise ValueError(f'Felis 文件 SHA-256 校验未通过：{path}')
         return data
 
     async def sync_felis_direct_resources(self, force: bool = False) -> dict:
@@ -301,7 +300,7 @@ class FelisDirectFeature:
                         raise ValueError("Felis manifest 协议版本不受支持")
                     version = str(manifest.get("resource_version") or "").strip()
                     if not version:
-                        raise ValueError("Felis manifest 缺少 resource_version")
+                        raise ValueError('Felis manifest 缺少 resource_version 字段')
                     if not force and version == str(self._felis_direct_state().get("resource_version") or "") and len(cached) == len(self.FELIS_DIRECT_IDS):
                         now = int(time.time())
                         self._felis_direct_atomic_json(self.felis_direct_state_path, {"resource_version": version, "synced_at": now, "source": self.felis_direct_manifest_url, "allowlisted_ids": sorted(self.FELIS_DIRECT_IDS)})
@@ -319,12 +318,12 @@ class FelisDirectFeature:
                         len(records) != len(self.FELIS_DIRECT_IDS)
                         or {item["id"] for item in records} != set(self.FELIS_DIRECT_IDS)
                     ):
-                        raise ValueError("Felis pig.json 未包含完整 34 项 allowlist")
+                        raise ValueError('Felis pig.json 未完整涵盖 34 项 allowlist')
                     if any(
                         not all(str(item.get(key) or "").strip() for key in ("name", "description", "analysis"))
                         for item in records
                     ):
-                        raise ValueError("Felis pig.json 存在不完整记录")
+                        raise ValueError('Felis pig.json 中存在不完整的条目')
                     metadata = {}
                     for item in image_metas:
                         if not isinstance(item, dict):
@@ -332,10 +331,10 @@ class FelisDirectFeature:
                         pig_id = str(item.get("id") or "")
                         if pig_id in self.FELIS_DIRECT_IDS:
                             if pig_id in metadata:
-                                raise ValueError(f"Felis 图片重复：{pig_id}")
+                                raise ValueError(f'Felis 图片存在重复项：{pig_id}')
                             metadata[pig_id] = item
                     if set(metadata) != set(self.FELIS_DIRECT_IDS):
-                        raise ValueError("Felis manifest 未包含完整 34 项图片 allowlist")
+                        raise ValueError('Felis manifest 未完整涵盖 34 项图片 allowlist')
                     staging_images = staging / "images"
                     staging_images.mkdir(parents=True, exist_ok=True)
                     (staging / "pig.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -345,19 +344,19 @@ class FelisDirectFeature:
                         meta = metadata[pig_id]
                         filename = str(meta.get("filename") or Path(str(meta.get("path") or "")).name)
                         if Path(filename).name != filename or Path(filename).stem != pig_id:
-                            raise ValueError(f"Felis 图片文件名与 ID 不匹配：{filename}")
+                            raise ValueError(f'Felis 图片文件名与对应 ID 不一致：{filename}')
                         data = await self._felis_direct_download_item(client, self.felis_direct_manifest_url, meta, self.FELIS_DIRECT_MAX_FILE_SIZE)
                         total += len(data)
                         if total > self.FELIS_DIRECT_MAX_TOTAL_SIZE:
-                            raise ValueError("Felis overlay 超过总大小上限")
+                            raise ValueError('Felis overlay 超出总体积上限')
                         try:
                             with Image.open(io.BytesIO(data)) as image:
                                 image.verify()
                             with Image.open(io.BytesIO(data)) as image:
                                 if not image.width or not image.height or image.width > 8192 or image.height > 8192:
-                                    raise ValueError("图片尺寸无效")
+                                    raise ValueError('图片尺寸不合法')
                         except Exception as exc:
-                            raise ValueError(f"Felis 图片校验失败：{filename}") from exc
+                            raise ValueError(f'Felis 图片校验未通过：{filename}') from exc
                         canonical = f"{pig_id}{Path(filename).suffix.lower()}"
                         (staging_images / canonical).write_bytes(data)
                         selected["images"].append({"id": pig_id, "path": str(meta.get("path") or ""), "filename": canonical, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()})

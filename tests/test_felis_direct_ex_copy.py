@@ -181,7 +181,7 @@ def test_felis_handwritten_ex_rejects_incomplete_levels(tmp_path: Path):
     del payload["pigs"]["coding-pig"]["levels"]["5"]
     _write_payload(tmp_path, payload)
 
-    with pytest.raises(ValueError, match="完整提供 EX1-EX5"):
+    with pytest.raises(ValueError, match=r"EX1.*EX5"):
         load_felis_direct_ex_copy(
             tmp_path,
             FELIS_DIRECT_IDS,

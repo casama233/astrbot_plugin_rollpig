@@ -75,9 +75,9 @@ def _validate_bridge_marker(source: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(marker_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise IdentityMigrationError("旧数据身份标记损坏，拒绝自动迁移") from exc
+        raise IdentityMigrationError('旧猪圈的身份标记已损坏，为保安全已跳过自动搬家') from exc
     if not isinstance(payload, dict):
-        raise IdentityMigrationError("旧数据身份标记格式无效，拒绝自动迁移")
+        raise IdentityMigrationError('旧猪圈的身份标记格式不对，无法自动迁移')
     expected = {
         "source_repository": SOURCE_REPOSITORY,
         "source_plugin_name": LEGACY_PLUGIN_NAME,
@@ -86,7 +86,7 @@ def _validate_bridge_marker(source: Path) -> dict[str, Any] | None:
     mismatched = [key for key, value in expected.items() if payload.get(key) != value]
     if mismatched:
         raise IdentityMigrationError(
-            "旧数据身份标记与增强版来源不匹配：" + ", ".join(mismatched)
+            '旧猪圈的身份标记和当前增强版血统对不上：' + ", ".join(mismatched)
         )
     return payload
 
@@ -95,13 +95,13 @@ def _inspect_sqlite(path: Path) -> dict[str, Any]:
     try:
         connection = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True, timeout=10)
     except sqlite3.Error as exc:
-        raise IdentityMigrationError("无法只读打开旧 SQLite 数据库") from exc
+        raise IdentityMigrationError('无法以只读模式打开旧 SQLite 数据库') from exc
     try:
         integrity_row = connection.execute("PRAGMA integrity_check").fetchone()
         integrity = str(integrity_row[0]) if integrity_row else "missing"
         foreign_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
         if integrity != "ok" or foreign_errors:
-            raise IdentityMigrationError("旧 SQLite 数据库未通过完整性或外键检查")
+            raise IdentityMigrationError('旧 SQLite 数据库没通过完整性或外键体检')
         tables = {
             str(row[0])
             for row in connection.execute(
@@ -125,7 +125,7 @@ def _inspect_sqlite(path: Path) -> dict[str, Any]:
             and bool(versions),
         }
     except sqlite3.Error as exc:
-        raise IdentityMigrationError("检查旧 SQLite 数据库失败") from exc
+        raise IdentityMigrationError('检查旧 SQLite 数据库时出了岔子') from exc
     finally:
         connection.close()
 
@@ -141,7 +141,7 @@ def _qualify_source(source: Path) -> tuple[str, dict[str, Any]] | None:
         if inspection["enhanced_fingerprint"]:
             return "enhanced-sqlite-fingerprint", inspection
         raise IdentityMigrationError(
-            "发现旧 SQLite，但无法确认它来自本增强分支；拒绝自动迁移"
+            '发现了旧版 SQLite 数据库，但没法确认它是不是本增强分支的产物，为防串号已取消自动迁移'
         )
 
     distinctive = sorted(
@@ -156,14 +156,14 @@ def _copy_verified(source: Path, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
     if _hash_file(source) != _hash_file(target):
-        raise IdentityMigrationError(f"复制校验失败：{source.name}")
+        raise IdentityMigrationError(f'文件复制后的校验没通过：{source.name}')
 
 
 def _copy_tree_verified(source: Path, target: Path) -> int:
     count = 0
     for path in sorted(source.rglob("*")):
         if path.is_symlink():
-            raise IdentityMigrationError(f"旧图片目录包含符号链接：{path.name}")
+            raise IdentityMigrationError(f'旧图片目录里混进了符号链接：{path.name}')
         relative = path.relative_to(source)
         destination = target / relative
         if path.is_dir():
@@ -191,10 +191,10 @@ def _backup_sqlite(source: Path, target: Path) -> dict[str, Any]:
             destination_connection.close()
             source_connection.close()
     except sqlite3.Error as exc:
-        raise IdentityMigrationError("创建旧 SQLite 一致性快照失败") from exc
+        raise IdentityMigrationError('给旧 SQLite 生成一致性快照失败了') from exc
     copied = _inspect_sqlite(target)
     if copied["integrity"] != "ok" or copied["foreign_key_errors"]:
-        raise IdentityMigrationError("SQLite 快照未通过复制后检查")
+        raise IdentityMigrationError('SQLite 快照在复制后的复检中翻车了')
     return inspection
 
 
@@ -231,7 +231,7 @@ def migrate_legacy_data(
     destination = Path(new_data_dir).resolve()
     if destination.name != PLUGIN_NAME:
         raise IdentityMigrationError(
-            f"新数据目录必须为 {PLUGIN_NAME}，实际为 {destination.name}"
+            f'新数据目录必须落在 {PLUGIN_NAME}，但当前检测到的却是 {destination.name}'
         )
     destination.mkdir(parents=True, exist_ok=True)
     if any(destination.iterdir()):
@@ -246,7 +246,7 @@ def migrate_legacy_data(
         _log(
             logger,
             "warning",
-            "发现 astrbot_plugin_rollpig 旧数据，但无法确认来自增强分支；已拒绝自动迁移。",
+            '找到了 astrbot_plugin_rollpig 的旧存档，但不能确定它出自增强版分支，已放弃自动迁移。',
         )
         return {"status": "legacy-source-ambiguous", "migrated": False}
 
@@ -268,7 +268,7 @@ def migrate_legacy_data(
                 try:
                     json.loads((stage / name).read_text(encoding="utf-8"))
                 except (UnicodeError, json.JSONDecodeError) as exc:
-                    raise IdentityMigrationError(f"旧 JSON 数据损坏：{name}") from exc
+                    raise IdentityMigrationError(f'旧 JSON 存档文件已损坏：{name}') from exc
                 copied_items += 1
 
         images = source / "images"
@@ -288,7 +288,7 @@ def migrate_legacy_data(
         )
         verification = validator.verify()
         if (stage / "rollpig.db").exists() and not verification.get("ok"):
-            raise IdentityMigrationError("迁移暂存区未通过完整 SQLite 运行态验证")
+            raise IdentityMigrationError('迁移暂存区没能通过完整的 SQLite 运行态验收')
         backend = getattr(validator, "backend", None)
         checkpoint = getattr(backend, "checkpoint", None)
         if callable(checkpoint):
@@ -321,7 +321,7 @@ def migrate_legacy_data(
         )
 
         if any(destination.iterdir()):
-            raise IdentityMigrationError("迁移提交前新数据目录出现内容，拒绝覆盖")
+            raise IdentityMigrationError('准备正式搬入前发现新数据目录里已有文件，为防覆盖已紧急刹车')
         destination.rmdir()
         try:
             os.replace(stage, destination)
@@ -332,7 +332,7 @@ def migrate_legacy_data(
         _log(
             logger,
             "info",
-            "今日小猪增强版旧数据已验证复制到 astrbot_plugin_rollpig_plus；旧数据仍完整保留。",
+            '今日小猪增强版的旧存档已核验无误，安全搬入 astrbot_plugin_rollpig_plus；老数据依旧完整保留在原处。',
         )
         return {
             "status": "migrated",
@@ -347,7 +347,7 @@ def migrate_legacy_data(
         destination.mkdir(parents=True, exist_ok=True)
         if isinstance(exc, IdentityMigrationError):
             raise
-        raise IdentityMigrationError(f"增强版身份数据迁移失败：{exc}") from exc
+        raise IdentityMigrationError(f'增强版身份数据搬家失败：{exc}') from exc
 
 
 def migrate_legacy_config(config: Any, *, logger: Any = None) -> dict[str, Any]:
@@ -363,7 +363,7 @@ def migrate_legacy_config(config: Any, *, logger: Any = None) -> dict[str, Any]:
         _log(
             logger,
             "warning",
-            f"新插件配置文件名不是 {expected_name}；为避免命名空间冲突，拒绝自动迁移配置。",
+            f'新插件的配置文件名不是预期的 {expected_name}；怕串了配置项，已跳过自动迁移。',
         )
         return {"status": "unsafe-config-namespace", "migrated": False}
     old_path = new_path.with_name(f"{LEGACY_PLUGIN_NAME}_config.json")
@@ -372,7 +372,7 @@ def migrate_legacy_config(config: Any, *, logger: Any = None) -> dict[str, Any]:
     try:
         payload = json.loads(old_path.read_text(encoding="utf-8-sig"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        _log(logger, "warning", f"旧增强版配置无法读取，保留新插件默认配置：{exc}")
+        _log(logger, "warning", f'没法读取旧增强版配置，先沿用新插件的默认配置：{exc}')
         return {"status": "legacy-config-invalid", "migrated": False}
     if not isinstance(payload, dict):
         return {"status": "legacy-config-invalid", "migrated": False}
@@ -384,7 +384,7 @@ def migrate_legacy_config(config: Any, *, logger: Any = None) -> dict[str, Any]:
     save = getattr(config, "save_config", None)
     if callable(save):
         save()
-    _log(logger, "info", f"已迁移 {len(migrated)} 个旧增强版配置项到新插件命名空间。")
+    _log(logger, "info", f'成功把 {len(migrated)} 项旧增强版配置搬进了新插件空间。')
     return {"status": "migrated", "migrated": True, "keys": sorted(migrated)}
 
 
@@ -393,13 +393,12 @@ def validate_runtime_namespace(plugin_dir: Path, config: Any) -> None:
     directory = Path(plugin_dir).resolve()
     if directory.name != PLUGIN_NAME:
         raise IdentityMigrationError(
-            "今日小猪增强版 3.2.0 必须安装在 astrbot_plugin_rollpig_plus 目录。"
-            "请通过 AstrBot 插件市场安装，或手动 clone 时显式指定该目录名。"
+            '今日小猪增强版 3.2.0 必须安在 astrbot_plugin_rollpig_plus 目录下。建议直接走 AstrBot 插件市场安装，手动 clone 的话请务必指定这个目录名。'
         )
     config_path = getattr(config, "config_path", None)
     if config_path and Path(str(config_path)).name != f"{PLUGIN_NAME}_config.json":
         raise IdentityMigrationError(
-            "AstrBot 为本插件分配了旧配置命名空间，已拒绝启动以避免覆盖原版配置。"
+            'AstrBot 给本插件分了旧版的配置命名空间，为免覆盖原版设置，已主动拒绝启动。'
         )
 
 
@@ -416,8 +415,7 @@ def warn_if_legacy_loaded(context: Any, *, logger: Any = None) -> bool:
         _log(
             logger,
             "warning",
-            "检测到 astrbot_plugin_rollpig 与 rollpig_plus 同时启用；两者指令重叠。"
-            "确认新插件数据无误后请停用旧插件。",
+            '检测到原版 astrbot_plugin_rollpig 和增强版 rollpig_plus 正在同时运行，两边指令会打架哦。确认新猪圈数据没问题后，记得把旧插件关掉。',
         )
         return True
     return False

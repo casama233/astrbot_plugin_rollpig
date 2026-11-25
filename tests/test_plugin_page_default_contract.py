@@ -27,7 +27,7 @@ def test_pig_manager_is_the_only_astrbot_plugin_page():
 
 
 def test_plugin_page_i18n_tracks_the_stable_page_names():
-    for locale in ("zh-CN", "zh-TW"):
+    for locale, title in (("zh-CN", "猪圈总管"), ("zh-TW", "豬圈總管後台")):
         payload = json.loads(
             (ROOT / ".astrbot-plugin" / "i18n" / f"{locale}.json").read_text(
                 encoding="utf-8"
@@ -35,7 +35,7 @@ def test_plugin_page_i18n_tracks_the_stable_page_names():
         )
         pages = payload["pages"]
         assert set(pages) == {"pig-manager"}
-        assert "管理" in pages["pig-manager"]["title"]
+        assert pages["pig-manager"]["title"] == title
 
 
 def test_retired_admin_surfaces_are_absent_from_the_release_tree():

@@ -157,7 +157,7 @@ def test_ex_editor_previews_exact_runtime_cards_instead_of_fake_browser_cards():
     assert "ex/variants/card" in source
     assert "data-effective-card-image" in source
     assert "data-base-card-image" in source
-    assert "真实发送 renderer" in source
+    assert "实发渲染器" in source
     assert "effective: true" in source
     assert "base: true" in source
     assert "FileReader" in source

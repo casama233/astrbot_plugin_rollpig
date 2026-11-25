@@ -259,11 +259,11 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
             if not self._is_managed(Path(path))
         }
         if managed and unmanaged:
-            raise ValueError("同一批次不能混合 SQLite 关键状态与普通 JSON 缓存")
+            raise ValueError('同一個寫入批次中，禁止將 SQLite 核心關鍵狀態與普通 JSON 快取混合處理')
         if managed:
             names = ", ".join(sorted(self._relative_key(path) for path in managed))
             raise RuntimeError(
-                "SQLite v3 关键状态禁止整份 JSON 写回；请使用领域事务 API：" + names
+                'SQLite v3 核心關鍵狀態嚴禁以整份 JSON 覆蓋寫回；請改用專屬的領域事務 API：' + names
             )
         self.fallback.save_json_batch(unmanaged)
 
@@ -513,7 +513,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
         generated_date = str(generated_date)
         owner_token = str(owner_token).strip()
         if not pig_id or not generated_date or not owner_token:
-            raise ValueError("AI 文案生成权参数无效")
+            raise ValueError('申請 AI 銳評文案生成權的參數無效')
         with self.transaction() as connection:
             self._prune_ai_rows(connection, cutoff_date, through_date)
             cached = connection.execute(
@@ -573,7 +573,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
                 (pig_id, generated_date),
             ).fetchone()
             if not attempt or str(attempt["owner_token"]) != owner_token:
-                raise ValueError("AI 文案生成权已失效")
+                raise ValueError('該筆 AI 銳評文案的生成權限已過期失效')
             if text:
                 connection.execute(
                     "INSERT OR IGNORE INTO ai_roast_copies(pig_id, generated_date, content) "
@@ -617,7 +617,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
         generated_date = str(generated_date)
         content = str(content).strip()
         if not pig_id or not generated_date or not content:
-            raise ValueError("AI 文案缓存参数无效")
+            raise ValueError('寫入 AI 銳評文案快取的參數無效')
         with self.transaction() as connection:
             self._prune_ai_rows(connection, cutoff_date, through_date)
             cursor = connection.execute(
@@ -651,7 +651,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
         payload = self._clone(record)
         pig_id = str(payload.get("id") or "").strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "INSERT INTO catalog_overrides(pig_id, payload_json) VALUES (?, ?) "
@@ -668,7 +668,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
     def delete_catalog_entry(self, *, pig_id: str) -> dict[str, Any]:
         pig_id = str(pig_id).strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "DELETE FROM catalog_overrides WHERE pig_id = ?", (pig_id,)
@@ -685,7 +685,7 @@ class SQLitePrimaryStorage(LegacySQLiteStorage):
         """Remove one catalog tombstone so its base record may appear again."""
         pig_id = str(pig_id).strip()
         if not pig_id:
-            raise ValueError("小猪 ID 无效")
+            raise ValueError('輸入的小豬編號（ID）格式無效')
         with self.transaction() as connection:
             connection.execute(
                 "DELETE FROM catalog_tombstones WHERE pig_id = ?", (pig_id,)

@@ -57,6 +57,7 @@ def test_quick_start_keeps_the_minimum_three_command_path():
 def test_troubleshooting_uses_canonical_firewood_and_documents_at_view_gate():
     text = _text(DOCS / "troubleshooting" / "index.md")
     assert "at_view_pig = true" in text
-    assert "## `/添柴`" in text
-    assert "## `/添煤`" not in text
+    headings = [line for line in text.splitlines() if line.startswith("## ")]
+    assert any("`/添柴`" in heading for heading in headings)
+    assert all("`/添煤`" not in heading for heading in headings)
     assert "/添煤" in text  # compatibility alias remains searchable

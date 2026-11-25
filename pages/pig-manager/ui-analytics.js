@@ -4,7 +4,7 @@
   const VERSION = '3.2.0';
   const pageRoot = document.querySelector('.shell');
   const bridge = window.AstrBotPluginPage;
-  if (!pageRoot || !bridge?.apiGet) throw new Error('深度分析缺少页面根节点或管理桥接');
+  if (!pageRoot || !bridge?.apiGet) throw new Error("猪圈侦察室缺少页面根节点或管理桥接");
 
   const previous = window[STATE_KEY];
   if (
@@ -109,11 +109,11 @@
       <header class="analytics-suite__head">
         <div>
           <div class="eyebrow">Growth Intelligence</div>
-          <h2 id="analyticsSuiteTitle">猪圈深度分析</h2>
-          <p>比较最近两个 7 日周期，观察回访、解锁效率、图鉴覆盖与玩法运行健康。</p>
+          <h2 id="analyticsSuiteTitle">猪圈侦察室</h2>
+          <p>把最近两个 7 天周期拉出来比一比，看看大家回棚频率、开图鉴手气和猪圈运转情况。</p>
         </div>
         <div class="analytics-suite__meta">
-          <span class="analytics-live"><i></i><span id="analyticsSource">读取中</span></span>
+          <span class="analytics-live"><i></i><span id="analyticsSource">翻账本中</span></span>
           <span id="analyticsLatency">—</span>
         </div>
       </header>
@@ -143,10 +143,10 @@
     const retention = data.retention || {};
     const catalog = data.catalog || {};
     const items = [
-      {label: '7 日活跃用户', value: format(current.active_users), delta: signed(delta.active_users), className: deltaClass(delta.active_users), note: `上周期 ${format(data.periods?.previous?.active_users)}`},
-      {label: '7 日新解锁', value: format(current.new_unlocks), delta: signed(delta.new_unlocks), className: deltaClass(delta.new_unlocks), note: `解锁效率 ${percent(current.unlock_efficiency)}`},
-      {label: '上期→本期回访率', value: percent(retention.rate), delta: `${format(retention.returning_users)} 人回访`, className: 'is-accent', note: `本期独有活跃 ${format(retention.new_current_users)} 人`},
-      {label: '零收藏猪猪', value: format(catalog.zero_collector_count), delta: `中位解锁 ${format(catalog.median_unlocked)}`, className: catalog.zero_collector_count ? 'is-warning' : 'is-up', note: `P90 ${format(catalog.p90_unlocked)} / ${format(catalog.catalog_count)}`}
+      {label: "7 日进棚玩家", value: format(current.active_users), delta: signed(delta.active_users), className: deltaClass(delta.active_users), note: `上个周期 ${format(data.periods?.previous?.active_users)}`},
+      {label: "7 日新开图鉴", value: format(current.new_unlocks), delta: signed(delta.new_unlocks), className: deltaClass(delta.new_unlocks), note: `出货率 ${percent(current.unlock_efficiency)}`},
+      {label: "上期→本期回头率", value: percent(retention.rate), delta: `${format(retention.returning_users)} 人回来逛了`, className: 'is-accent', note: `本期专属活跃 ${format(retention.new_current_users)} 人`},
+      {label: "零收藏冷门猪", value: format(catalog.zero_collector_count), delta: `中位解锁 ${format(catalog.median_unlocked)}`, className: catalog.zero_collector_count ? 'is-warning' : 'is-up', note: `P90 ${format(catalog.p90_unlocked)} / ${format(catalog.catalog_count)}`}
     ];
     document.getElementById('analyticsKpis').innerHTML = items.map(item => `
       <article class="analytics-kpi">
@@ -161,19 +161,19 @@
     const maxUsers = Math.max(1, ...rows.map(item => Number(item.users || 0)));
     const cells = rows.map(item => {
       const intensity = Math.max(.07, Number(item.users || 0) / maxUsers);
-      const title = `${item.date} · 活跃 ${item.users || 0} · 新解锁 ${item.new_unlocks || 0} · 烧烤 ${item.roasts || 0} · 被吃 ${item.eats || 0}`;
+      const title = `${item.date} · 进棚 ${item.users || 0} · 新图鉴 ${item.new_unlocks || 0} · 架上烤 ${item.roasts || 0} · 被吃掉 ${item.eats || 0}`;
       return `<div class="activity-cell" style="--intensity:${intensity.toFixed(3)}" title="${esc(title)}"><i></i><span>${esc(String(item.date || '').slice(5))}</span></div>`;
     }).join('');
     const current = data.periods?.current || {};
     document.getElementById('analyticsActivity').innerHTML = `
-      ${cardHead('28 Day Activity', '活跃热力与玩法脉冲', `${format(current.avg_daily_users)} 日均活跃`)}
-      <div class="activity-legend"><span>低</span><i></i><i></i><i></i><i></i><span>高</span></div>
-      <div class="activity-heatmap">${cells || "<div class=\"analytics-empty\">还没记下每日活动呢</div>"}</div>
+      ${cardHead('28 Day Activity', "猪圈热闹度与事件脉搏", `${format(current.avg_daily_users)} 日均进棚`)}
+      <div class="activity-legend"><span>冷清</span><i></i><i></i><i></i><i></i><span>热闹</span></div>
+      <div class="activity-heatmap">${cells || "<div class=\"analytics-empty\">还没记下每天的猪圈动静呢</div>"}</div>
       <div class="activity-summary">
-        <span><b>${format(current.draws)}</b> 抽取</span>
+        <span><b>${format(current.draws)}</b> 抽猪次数</span>
         <span><b>${format(current.new_unlocks)}</b> 新解锁</span>
-        <span><b>${format(data.operations?.roasts)}</b> 烧烤</span>
-        <span><b>${format(data.operations?.eats)}</b> 被吃事件</span>
+        <span><b>${format(data.operations?.roasts)}</b> 烧烤摊</span>
+        <span><b>${format(data.operations?.eats)}</b> 被吃掉</span>
       </div>`;
   }
 
@@ -181,30 +181,30 @@
     const current = data.periods?.current || {};
     const previousPeriod = data.periods?.previous || {};
     const rows = [
-      ['活跃用户', current.active_users, previousPeriod.active_users],
-      ['周期抽取', current.draws, previousPeriod.draws],
-      ['新解锁', current.new_unlocks, previousPeriod.new_unlocks]
+      ["活跃养猪户", current.active_users, previousPeriod.active_users],
+      ["本轮抽猪数", current.draws, previousPeriod.draws],
+      ["新点亮图鉴", current.new_unlocks, previousPeriod.new_unlocks]
     ];
     document.getElementById('analyticsComparison').innerHTML = `
-      ${cardHead('Period Compare', '双周期增长对比', '最近 7 日 vs 上一周期')}
+      ${cardHead('Period Compare', "前后两轮战绩对比", "最近 7 天 vs 上一轮")}
       <div class="compare-list">${rows.map(([label, now, before]) => {
         const max = Math.max(1, Number(now || 0), Number(before || 0));
         return `<div class="compare-row"><div class="compare-row__top"><span>${esc(label)}</span><b>${format(now)} <small>/ ${format(before)}</small></b></div><div class="compare-bars"><i style="width:${(Number(now || 0) / max * 100).toFixed(2)}%"></i><i style="width:${(Number(before || 0) / max * 100).toFixed(2)}%"></i></div></div>`;
       }).join('')}</div>
-      <div class="compare-legend"><span><i class="is-current"></i>当前周期</span><span><i class="is-previous"></i>上一周期</span></div>`;
+      <div class="compare-legend"><span><i class="is-current"></i>这一轮</span><span><i class="is-previous"></i>上一轮</span></div>`;
   }
 
   function renderRetention(data) {
     const retention = data.retention || {};
     const rate = Math.max(0, Math.min(100, Number(retention.rate || 0)));
     document.getElementById('analyticsRetention').innerHTML = `
-      ${cardHead('Audience', '回访与周期独有活跃')}
+      ${cardHead('Audience', "回头率与本轮独有活跃")}
       <div class="retention-layout">
-        <div class="retention-ring" style="--rate:${rate}"><div><strong>${percent(rate)}</strong><span>上期→本期回访率</span></div></div>
+        <div class="retention-ring" style="--rate:${rate}"><div><strong>${percent(rate)}</strong><span>上期→本期回头率</span></div></div>
         <dl class="analytics-dl">
-          <div><dt>回访用户</dt><dd>${format(retention.returning_users)}</dd></div>
-          <div><dt>本期独有活跃</dt><dd>${format(retention.new_current_users)}</dd></div>
-          <div><dt>上期活跃基数</dt><dd>${format(retention.previous_active_users)}</dd></div>
+          <div><dt>回头老主顾</dt><dd>${format(retention.returning_users)}</dd></div>
+          <div><dt>本期专属新面孔</dt><dd>${format(retention.new_current_users)}</dd></div>
+          <div><dt>上期活跃底数</dt><dd>${format(retention.previous_active_users)}</dd></div>
         </dl>
       </div>`;
   }
@@ -214,27 +214,27 @@
     const buckets = Array.isArray(catalog.distribution) ? catalog.distribution : [];
     const total = Math.max(1, buckets.reduce((sum, item) => sum + Number(item.users || 0), 0));
     document.getElementById('analyticsCoverage').innerHTML = `
-      ${cardHead('Collection Coverage', '图鉴覆盖分布', `Top 5 占抽取 ${percent(catalog.top5_draw_share)}`)}
+      ${cardHead('Collection Coverage', "图鉴点亮分布", `前 5 热门猪占了总抽取的 ${percent(catalog.top5_draw_share)}`)}
       <div class="coverage-strip">${buckets.map((item, index) => `<i class="coverage-tone-${index + 1}" style="width:${(Number(item.users || 0) / total * 100).toFixed(2)}%" title="${esc(item.label)}：${format(item.users)} 人"></i>`).join('')}</div>
       <div class="coverage-list">${buckets.map((item, index) => `<div><span><i class="coverage-tone-${index + 1}"></i>${esc(item.label)}</span><b>${format(item.users)}</b></div>`).join('')}</div>
-      <footer class="analytics-card__footer"><span>长尾猪猪 ${format(catalog.long_tail_count)}</span><span>零收藏 ${format(catalog.zero_collector_count)}</span></footer>`;
+      <footer class="analytics-card__footer"><span>冷门长尾猪 ${format(catalog.long_tail_count)}</span><span>无人认领 ${format(catalog.zero_collector_count)}</span></footer>`;
   }
 
   function renderPlatforms(data) {
     const rows = Array.isArray(data.platforms) ? data.platforms : [];
     const max = Math.max(1, ...rows.map(item => Number(item.users || 0)));
     document.getElementById('analyticsPlatforms').innerHTML = `
-      ${cardHead('Audience Mix', '平台身份构成', `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 个身份`)}
-      <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : "<div class=\"analytics-empty\">暂时没有平台分布数据</div>"}</div>`;
+      ${cardHead('Audience Mix', "各平台养猪户成分", `${format(rows.reduce((sum, item) => sum + Number(item.users || 0), 0))} 种身份`)}
+      <div class="platform-list">${rows.length ? rows.map(item => `<div class="platform-row"><div><span>${esc(item.platform || 'unknown')}</span><b>${format(item.users)}</b></div><i><em style="width:${(Number(item.users || 0) / max * 100).toFixed(2)}%"></em></i></div>`).join('') : "<div class=\"analytics-empty\">暂时还没统计到平台分布账单</div>"}</div>`;
   }
 
   function renderRising(data) {
     const rows = Array.isArray(data.rising_pigs) ? data.rising_pigs : [];
     document.getElementById('analyticsRising').innerHTML = `
-      ${cardHead('Momentum', "人气蹿升最快的猪猪", '当前 7 日与上一周期抽中次数差值')}
+      ${cardHead('Momentum', "人气飙升的黑马猪猪", "近 7 天与上个周期的出货次数差")}
       <div class="rising-table" role="table">
-        <div class="rising-table__head" role="row"><span>猪猪</span><span>本期</span><span>上期</span><span>变化</span></div>
-        ${rows.length ? rows.map((item, index) => `<div class="rising-table__row" role="row"><span><i>${index + 1}</i><b>${esc(item.name || item.id)}</b><small>${esc(item.id)}</small></span><span>${format(item.current)}</span><span>${format(item.previous)}</span><span class="analytics-delta ${Number(item.delta || 0) >= 0 ? 'is-up' : 'is-down'}">${Number(item.delta || 0) > 0 ? '+' : ''}${format(item.delta)}</span></div>`).join('') : "<div class=\"analytics-empty\">双周期数据还不够，暂时算不出来</div>"}
+        <div class="rising-table__head" role="row"><span>小猪名录</span><span>本轮热度</span><span>上轮热度</span><span>涨跌幅度</span></div>
+        ${rows.length ? rows.map((item, index) => `<div class="rising-table__row" role="row"><span><i>${index + 1}</i><b>${esc(item.name || item.id)}</b><small>${esc(item.id)}</small></span><span>${format(item.current)}</span><span>${format(item.previous)}</span><span class="analytics-delta ${Number(item.delta || 0) >= 0 ? 'is-up' : 'is-down'}">${Number(item.delta || 0) > 0 ? '+' : ''}${format(item.delta)}</span></div>`).join('') : "<div class=\"analytics-empty\">双周期样本还没攒够，暂时算不出趋势</div>"}
       </div>`;
   }
 
@@ -246,53 +246,53 @@
     const failed = Number(ai.failed || 0);
     const generating = Number(ai.generating || 0);
     const completed = ready + failed;
-    if (!enabled) return {kind: 'disabled', label: '未启用', ready, failed, generating, completed, success: null};
-    if (!completed && generating > 0) return {kind: 'running', label: '生成中', ready, failed, generating, completed, success: null};
-    if (!completed) return {kind: 'idle', label: '已启用', ready, failed, generating, completed, success: null};
-    return {kind: 'samples', label: '有样本', ready, failed, generating, completed, success: ready / completed * 100};
+    if (!enabled) return {kind: 'disabled', label: "未通电", ready, failed, generating, completed, success: null};
+    if (!completed && generating > 0) return {kind: 'running', label: "赶稿中", ready, failed, generating, completed, success: null};
+    if (!completed) return {kind: 'idle', label: "已上线", ready, failed, generating, completed, success: null};
+    return {kind: 'samples', label: "有战绩", ready, failed, generating, completed, success: ready / completed * 100};
   }
 
   function renderAiState(data) {
     const ai = resolveAiState(data);
     if (ai.kind === 'disabled') {
       return `<div class="ai-state ai-state--disabled">
-        <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>AI roast copy feature</p></div><span class="state-pill state-pill--disabled">未启用</span></div>
-        <div class="ai-state__message"><strong>目前未开启 AI 文案功能</strong>这里暂时不展示 0% 成功率或 0 / 0 样本，省得你把“没开灯”当成“翻车失败”。要用时到插件配置里把 AI 文案打开就行。</div>
+        <div class="ai-state__title"><div><h4>AI 毒舌文案</h4><p>AI roast copy feature</p></div><span class="state-pill state-pill--disabled">未通电</span></div>
+        <div class="ai-state__message"><strong>AI 文案开关还没打开</strong>这里先不展示 0% 成功率或 0 / 0 样本，免得把“没开机”误判成“写崩了”。想用的话去插件配置里拨开开关就行。</div>
       </div>`;
     }
     if (ai.kind === 'running') {
       return `<div class="ai-state">
-        <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>最近 7 日运行状态</p></div><span class="state-pill state-pill--running">生成中</span></div>
-        <div class="ai-state__message"><strong>目前有 ${format(ai.generating)} 次任务还在路上</strong>手头还没有跑完的样本，暂时不算成功率；还在生成的任务不会算进成功率分母。</div>
+        <div class="ai-state__title"><div><h4>AI 毒舌文案</h4><p>近 7 天营业状况</p></div><span class="state-pill state-pill--running">赶稿中</span></div>
+        <div class="ai-state__message"><strong>还有 ${format(ai.generating)} 份文案正在路上</strong>手头暂时没有写完的成稿，先不算成功率；还在憋大招的任务不会算进分母里。</div>
       </div>`;
     }
     if (ai.kind === 'idle') {
       return `<div class="ai-state">
-        <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>最近 7 日运行状态</p></div><span class="state-pill state-pill--idle">已启用</span></div>
-        <div class="ai-state__message"><strong>最近 7 日还没攒到完成样本</strong>功能已经打开了，不过眼下还没有成功或失败的 AI 文案记录；等第一条完整跑完就给你算成功率。</div>
+        <div class="ai-state__title"><div><h4>AI 毒舌文案</h4><p>近 7 天营业状况</p></div><span class="state-pill state-pill--idle">已上线</span></div>
+        <div class="ai-state__message"><strong>近 7 天还没攒到完稿样本</strong>开关已经打开啦，不过眼下还没有成功或翻车的记录；等第一篇正式出炉就给你算成功率。</div>
       </div>`;
     }
     return `<div class="ai-state">
-      <div class="ai-state__title"><div><h4>AI 文案状态</h4><p>最近 7 日完成样本</p></div><span class="state-pill state-pill--samples">有样本</span></div>
+      <div class="ai-state__title"><div><h4>AI 毒舌文案</h4><p>近 7 天完稿战绩</p></div><span class="state-pill state-pill--samples">有战绩</span></div>
       <div class="ai-state-grid">
-        <div><span>AI 成功</span><strong>${format(ai.ready)}</strong></div>
-        <div><span>AI 失败</span><strong>${format(ai.failed)}</strong></div>
-        <div><span>生成中</span><strong>${format(ai.generating)}</strong></div>
+        <div><span>出稿成功</span><strong>${format(ai.ready)}</strong></div>
+        <div><span>写稿翻车</span><strong>${format(ai.failed)}</strong></div>
+        <div><span>赶稿中</span><strong>${format(ai.generating)}</strong></div>
       </div>
-      <div class="ai-health"><div><span>AI 文案成功率 · 已完成样本</span><b>${percent(ai.success)}</b></div><i><em style="width:${Math.max(0, Math.min(100, ai.success)).toFixed(2)}%"></em></i><small>生成中 ${format(ai.generating)} 次，不计入成功率分母</small></div>
+      <div class="ai-health"><div><span>AI 文案成功率 · 已完稿样本</span><b>${percent(ai.success)}</b></div><i><em style="width:${Math.max(0, Math.min(100, ai.success)).toFixed(2)}%"></em></i><small>正在赶稿 ${format(ai.generating)} 篇，不计入成功率分母</small></div>
     </div>`;
   }
 
   function renderOperations(data) {
     const ops = data.operations || {};
     document.getElementById('analyticsOperations').innerHTML = `
-      ${cardHead('Runtime Signals', '玩法运行健康', '最近 7 日')}
+      ${cardHead('Runtime Signals', "猪场生态体检", "近 7 天")}
       <div class="runtime-layout">
         <section class="runtime-block">
-          <div class="runtime-block__head"><strong>玩法事件</strong><span>实际发生次数</span></div>
+          <div class="runtime-block__head"><strong>猪圈大事件</strong><span>真实发生次数</span></div>
           <div class="operations-grid">
-            <div><span>烧烤次数</span><strong>${format(ops.roasts)}</strong></div>
-            <div><span>被吃事件</span><strong>${format(ops.eats)}</strong></div>
+            <div><span>架火开烤</span><strong>${format(ops.roasts)}</strong></div>
+            <div><span>惨遭下肚</span><strong>${format(ops.eats)}</strong></div>
           </div>
         </section>
         <section class="runtime-block runtime-block--ai">${renderAiState(data)}</section>
@@ -340,7 +340,7 @@
     installAnalyticsMotion();
     const source = document.getElementById('analyticsSource');
     const latency = document.getElementById('analyticsLatency');
-    if (source) source.textContent = data.source === 'normalized-sql' ? 'SQL 事实聚合' : 'JSON 兼容统计';
+    if (source) source.textContent = data.source === 'normalized-sql' ? "SQL 账本直出" : "JSON 兼容核算";
     if (latency) latency.textContent = `${number.format(data.observability?.query_elapsed_ms || 0)} ms`;
   }
 
@@ -351,10 +351,10 @@
     const grid = document.getElementById('analyticsGrid');
     const kpis = document.getElementById('analyticsKpis');
     if (kpis) kpis.innerHTML = '';
-    if (grid) grid.innerHTML = `<div class="analytics-error"><strong>深度分析暂时不可用</strong><span>${esc(error?.message || error || '读取失败')}</span><button type="button" class="btn ghost" id="analyticsRetry">重新读取</button></div>`;
+    if (grid) grid.innerHTML = `<div class="analytics-error"><strong>深度报表暂时罢工了</strong><span>${esc(error?.message || error || "拉取数据失败")}</span><button type="button" class="btn ghost" id="analyticsRetry">再试一次</button></div>`;
     document.getElementById('analyticsRetry')?.addEventListener('click', loadInsights, {once: true});
     const source = document.getElementById('analyticsSource');
-    if (source) source.textContent = '读取失败';
+    if (source) source.textContent = "拉取数据失败";
   }
 
   let pending = null;
@@ -365,7 +365,7 @@
       try {
         const response = await bridge.apiGet('analytics/insights', {});
         const data = unwrap(response);
-        if (!data || typeof data !== 'object') throw new Error('分析接口返回格式无效');
+        if (!data || typeof data !== 'object') throw new Error("分析接口吐出的格式不对劲");
         render(data);
       } catch (error) {
         renderError(error);
@@ -379,7 +379,7 @@
   const mount = () => {
     installOverhaulStyles();
     const suite = ensureSuite();
-    if (!suite) throw new Error('深度分析挂载点不存在');
+    if (!suite) throw new Error("没找到深度分析的页面落脚点");
     state.mounted = true;
     state.refresh = loadInsights;
 

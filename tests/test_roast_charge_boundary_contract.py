@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -22,10 +23,13 @@ def test_charge_state_roundtrips_through_roast_projection():
 
 
 def test_existing_cooldown_config_is_reused_as_recovery_interval():
-    schema = Path("_conf_schema.json").read_text(encoding="utf-8")
+    schema = json.loads(Path("_conf_schema.json").read_text(encoding="utf-8"))
     legacy = Path("legacy_main.py").read_text(encoding="utf-8")
 
-    assert '"group_roast_max_charges"' in schema
-    assert "烤箱每格能量恢复时间" in schema
+    assert "group_roast_max_charges" in schema
+    cooldown = schema["group_roast_cooldown_hours"]
+    assert cooldown["type"] == "float"
+    assert "每格能量" in cooldown["hint"] and "逐格" in cooldown["hint"]
+    assert '"group_roast_cooldown_hours"' in legacy
     assert 'self.config.get("group_roast_max_charges", 2)' in legacy
     assert "self.group_roast_cooldown_seconds" in legacy

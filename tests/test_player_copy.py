@@ -69,11 +69,14 @@ def test_dynamic_help_uses_same_simplified_display_copy_for_all_locale_aliases()
     cn = _flatten_help("zh-CN")
 
     for text in (tw, cn):
-        assert "每天抽猪" in text
-        assert "群体补货" in text
-        assert "预约烤猪" in text
-        assert "猪圈日报" in text
-        assert "EX 成长" in text
+        for key in (
+            "help.section.daily",
+            "help.mechanic.group_refill_title",
+            "help.mechanic.reservation_title",
+            "help.section.report",
+            "help.mechanic.ex_growth_title",
+        ):
+            assert copy_text(key, locale="zh-CN") in text
         assert "/今日小猪" in text
 
     # Locale aliases remain accepted, but generated cards deliberately use
@@ -88,7 +91,7 @@ def test_dynamic_help_defaults_to_simplified_chinese_for_generated_card():
         rows.append(section.title)
         rows.extend(f"{entry.command} {entry.detail}" for entry in section.entries)
     text = "\n".join(rows)
-    assert "每天抽猪" in text
+    assert copy_text("help.section.daily", locale="zh-CN") in text
     assert "/今日小猪" in text
     assert "/猪圈日报" in text
     assert "/烤箱补货" in text

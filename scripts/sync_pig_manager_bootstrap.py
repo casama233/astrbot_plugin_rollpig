@@ -16,10 +16,16 @@ _BOOTSTRAP_BLOCK = re.compile(
 _OLD_SYNC_FEEDBACK = (
     "const setSyncFeedback=message=>$('syncFeedback').textContent=message;"
 )
-_EVENT_SYNC_FEEDBACK = (
+_LEGACY_EVENT_SYNC_FEEDBACK = (
     "const setSyncFeedback=message=>{const host=$('syncFeedback');"
     "host.textContent=message;"
     "window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,message)};"
+)
+
+_EVENT_SYNC_FEEDBACK = (
+    "const setSyncFeedback=(message,failed=false)=>{const host=$('syncFeedback');"
+    "host.textContent=message;host.dataset.rollpigSyncError=String(failed);"
+    "window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,failed)};"
 )
 
 
@@ -37,13 +43,10 @@ def render_page(page: str, bootstrap: str) -> str:
     if count != 1:
         raise RuntimeError("pig-manager bootstrap block not found exactly once")
 
-    if _OLD_SYNC_FEEDBACK in updated:
-        updated = updated.replace(
-            _OLD_SYNC_FEEDBACK,
-            _EVENT_SYNC_FEEDBACK,
-            1,
-        )
-    elif _EVENT_SYNC_FEEDBACK not in updated:
+    for legacy_hook in (_OLD_SYNC_FEEDBACK, _LEGACY_EVENT_SYNC_FEEDBACK):
+        if legacy_hook in updated:
+            return updated.replace(legacy_hook, _EVENT_SYNC_FEEDBACK, 1)
+    if _EVENT_SYNC_FEEDBACK not in updated:
         raise RuntimeError("pig-manager setSyncFeedback hook not found")
     return updated
 

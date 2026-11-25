@@ -134,11 +134,13 @@ def test_special_pig_copy_separates_actor_roast_and_eat_targets():
     assert "_eat_target_block_reason(pig)" in random_eat
     assert '_roast_block_reason(pig, subject="actor")' in self_roast
     assert "self.roast_service.eat_actor_block_reason" in actor_rules
-    assert "你今天是" in service_source
+    actor_copy = service_source.split("def eat_actor_block_reason", 1)[1].split("def eat_target_block_reason", 1)[0]
+    assert "你" in actor_copy and "吃群友" in actor_copy
     assert "self.roast_service.eat_target_block_reason" in target_rules
     assert 'state in {"normal", "cooked"}' in service_source
     assert "self.roast_service.eat_success_message" in success_copy
-    assert "开袋即食成功" in service_source
+    assert "开袋即食" in service_source
+    assert "吃群友" in service_source
 
 
 
@@ -288,7 +290,9 @@ def test_v350_public_source_submission_is_fixed_bounded_and_complete():
     assert "Authorization" in headers
     assert "public_source_admin_token_path" not in submit
     assert "self.PUBLIC_SOURCE_SUBMISSION_MAX_SIZE" in payload
-    assert "只能提交本地新增或本地覆盖的小猪" in payload
+    assert '"catalog_overrides", self.local_overrides_path' in payload
+    assert "if not record:" in payload
+    assert "公共猪源提交" in payload
 
 
 def test_v350_review_authority_is_backend_only_and_absent_from_release():
@@ -329,8 +333,10 @@ def test_v340_astrbot_resource_source_replaces_rejected_nonebot_default():
     assert "X-RollPig-Client" in client
     assert "X-RollPig-Protocol" in client
     assert "extra_headers=self._resource_request_headers()" in sync
-    assert "manifest 协议版本不受支持" in sync
-    assert "AstrBot 官方资源源客户端标识不匹配" in sync
+    assert 'if schema_version not in (None, 1, "1"):' in sync
+    assert 'if self.resource_manifest_url == self.OFFICIAL_RESOURCE_MANIFEST_URL:' in sync
+    assert 'if schema_version not in (1, "1"):' in sync
+    assert "if source_client != self.RESOURCE_CLIENT_ID:" in sync
 
 
 
@@ -374,16 +380,16 @@ def test_v214_dashboard_uses_sql_analytics_and_exposes_repair_status():
     assert "idx_daily_draws_date_pig" in storage_source
     assert "last_repair_reason" in storage_source
     assert "sql-primary-v2.14" in storage_source
-    assert "统计 SQL" in page
-    assert "写入权威" in page
-    assert "最近修复" in page
+    assert "'normalized-sql'?" in page
+    assert "write_authority" in page
+    assert "last_repair_reason" in page
 
 
 def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     primary = (ROOT / "storage" / "sqlite_primary.py").read_text(encoding="utf-8")
     manager = (ROOT / "storage" / "primary_manager.py").read_text(encoding="utf-8")
     metadata = (ROOT / "metadata.yaml").read_text(encoding="utf-8")
-    config = (ROOT / "_conf_schema.json").read_text(encoding="utf-8")
+    config = json.loads((ROOT / "_conf_schema.json").read_text(encoding="utf-8"))
     page = (ROOT / "pages" / "pig-manager" / "index.html").read_text(
         encoding="utf-8"
     )
@@ -392,7 +398,9 @@ def test_v3_release_contract_uses_sql_single_authority_and_on_demand_json():
     assert '"compatibility_mode": "on-demand"' in primary
     assert 'connection.execute("DELETE FROM documents")' in primary
     assert "RUNTIME_MANAGED_PATHS" in manager
-    assert "新安装直接建立 SQLite" in config
+    assert config["storage_backend"]["default"] == "auto"
+    assert "全新安装" in config["storage_backend"]["hint"]
+    assert "SQLite" in config["storage_backend"]["hint"]
     assert "兼容 JSON" in page
     assert "按需生成" in page
 
@@ -414,8 +422,9 @@ def test_eaten_next_day_player_copy_and_wiki_describe_forced_duplicate():
     troubleshooting = (ROOT / "docs" / "troubleshooting" / "index.md").read_text(
         encoding="utf-8"
     )
-    assert "明天抽猪可能会重样" in SOURCE
-    assert "明天抽猪可能失败" not in SOURCE
-    assert "次日仍可正常抽豬" in commands
-    assert "不會失敗或鎖天" in commands
-    assert "抽取仍正常完成，不会锁到自然日结束" in troubleshooting
+    player_copy = SOURCE + (ROOT / "player_copy.py").read_text(encoding="utf-8")
+    assert "明天抽猪" in player_copy and "重样" in player_copy
+    assert "明天抽猪可能失败" not in player_copy
+    assert "正常抽豬" in commands and "已解鎖的重複小豬" in commands
+    assert "已解锁的重复猪" in troubleshooting
+    assert "不会锁定到自然日结束" in troubleshooting

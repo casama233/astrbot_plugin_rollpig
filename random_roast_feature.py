@@ -10,8 +10,8 @@ class RandomRoastMixin:
         return self._mention_message(
             event,
             target_id,
-            " 头上。后厨说：就你了。",
-            before="🎲 随机转盘停在了 ",
+            ' 头上！后厨拍板：今晚就宠幸你了。',
+            before='🎲 命运转盘滴溜溜停在了 ',
         )
 
     async def roast_random_group_member(self, event):
@@ -20,7 +20,7 @@ class RandomRoastMixin:
         if not self.enable_roast or not self.enable_group_roast:
             await event.send(
                 event.plain_result(
-                    "🔒 今天后厨不开群友这桌。管理员已经把烤群友的火关了。"
+                    '🔒 今天后厨不开“烤群友”这桌。管理员已经把灶台的火给掐了。'
                 )
             )
             return
@@ -29,7 +29,7 @@ class RandomRoastMixin:
         if not group_id:
             await event.send(
                 event.plain_result(
-                    "🎲 随机烤群友只能在群里转盘。私聊只有你一个，随机得有点侮辱概率学。"
+                    '🎲 随机烤群友只能在群里转盘。私聊就你一个光杆司令，随机起来实在太不尊重概率学了。'
                 )
             )
             return
@@ -65,7 +65,7 @@ class RandomRoastMixin:
         if not target_id or not target_pig:
             await event.send(
                 event.plain_result(
-                    "🎲 今天本群没有可随机下锅的群友：没抽、已上桌或有保护的都被转盘剔除了。"
+                    '🎲 今天群里挑不出能下锅的群友：没抽猪的、已经端上桌的、还有套着保护罩的都被转盘踢出局啦。'
                 )
             )
             return
@@ -78,9 +78,7 @@ class RandomRoastMixin:
             remaining = int(charge_status.get("next_refill_seconds", 0) or 0)
             await event.send(
                 event.plain_result(
-                    "🔥 烤箱能量已耗尽（"
-                    f"0/{self.group_roast_max_charges}）；下一格将在 "
-                    f"{self._format_cooldown(remaining)} 后恢复。"
+                    f'🔥 烤箱火力已经见底（0/{self.group_roast_max_charges}）；下一格能量还要等 {self._format_cooldown(remaining)} 才能回满。'
                 )
             )
             return
@@ -153,7 +151,7 @@ class RandomRoastMixin:
         )
         await event.send(
             event.plain_result(
-                "🔥 烧烤成功，对方今天的小猪已经被后厨端走，围裙都没来得及系。"
+                '🔥 烧烤大功告成！对方今天刚抽的小猪已经被后厨连锅端走，连小围裙都没来得及系上。'
                 + charge_note
             )
         )

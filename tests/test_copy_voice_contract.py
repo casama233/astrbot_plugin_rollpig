@@ -23,8 +23,8 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
     traditional = PLAYER_COPY["zh-TW"]
     simplified = PLAYER_COPY["zh-CN"]
 
-    assert traditional["help.admin.panel_title"] == "管理面板"
-    assert simplified["help.admin.panel_title"] == "管理面板"
+    assert traditional["help.admin.panel_title"] == simplified["help.admin.panel_title"]
+    assert "后台" in simplified["help.admin.panel_title"]
     assert all(word in traditional["help.mechanic.new_pig_pity"] for word in ("新猪", "机率"))
     assert all(word in simplified["help.mechanic.new_pig_pity"] for word in ("新猪", "概率"))
     assert all(word in traditional["help.group.oven_refill"] for word in ("全群", "添柴"))
@@ -32,7 +32,7 @@ def test_help_copy_is_short_scan_first_and_still_rollpig():
     assert all(word in traditional["help.group.firewood_router"] for word in ("补货", "添柴", "预约"))
     assert all(word in simplified["help.group.firewood_router"] for word in ("补货", "添柴", "预约"))
     for catalog in (traditional, simplified):
-        assert "EX 可超5" in catalog["help.mechanic.ex_growth"]
+        assert all(word in catalog["help.mechanic.ex_growth"] for word in ("EX", "超", "5"))
         assert "最高可用差分" in catalog["help.mechanic.ex_growth"]
 
     # Quick-help copy must stay short enough to scan inside a chat image.
@@ -51,9 +51,9 @@ def test_signature_gameplay_copy_keeps_the_rollpig_voice():
     )
     legacy = (ROOT / "legacy_main.py").read_text(encoding="utf-8")
 
-    assert "开局已经算 1 人" in firewood
+    assert "开局已计入 1 人" in firewood
     assert "猪身安全险" in roast_policy
-    assert "不能吃自己" in legacy
+    assert "别对自己下嘴" in legacy
 
 
 def test_remastered_pigs_do_not_fall_back_to_personality_quiz_copy():

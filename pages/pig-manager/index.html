@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>今日小猪 · 猪圈管理</title>
+  <title>RollPig · 猪圈大管家</title>
   <style>
     :root{
       --bg:#f7f3f1;--surface:rgba(255,255,255,.76);--surface-solid:#fffaf9;--surface-strong:#fff;
@@ -213,129 +213,129 @@
 <div class="ambient" aria-hidden="true"><i class="orb one"></i><i class="orb two"></i><i class="orb three"></i></div><div class="noise" aria-hidden="true"></div>
 <main class="shell">
   <header class="topbar">
-    <div class="brand"><div class="logo">🐷</div><div class="brand-copy"><div class="brand-title">今日小猪 · 猪圈管理</div><div class="brand-sub">Rollpig Intelligence Studio</div></div></div>
-    <nav class="nav" aria-label="管理页面"><button class="nav-btn" data-route="overview">数据总览</button><button class="nav-btn" data-route="catalog">猪猪图鉴</button><button class="nav-btn" data-route="layers">本地资源</button></nav>
-    <div class="top-actions"><span class="live"><i class="live-dot"></i>数据已连接</span><button class="btn ghost icon-btn" id="refreshBtn" title="刷新全部数据" aria-label="刷新全部数据">↻</button></div>
+    <div class="brand"><div class="logo">🐷</div><div class="brand-copy"><div class="brand-title">RollPig · 猪圈大管家</div><div class="brand-sub">Rollpig Intelligence Studio</div></div></div>
+    <nav class="nav" aria-label="管理导航"><button class="nav-btn" data-route="overview">猪圈看板</button><button class="nav-btn" data-route="catalog">小猪图鉴</button><button class="nav-btn" data-route="layers">本地猪库</button></nav>
+    <div class="top-actions"><span class="live"><i class="live-dot"></i>猪圈已连线</span><button class="btn ghost icon-btn" id="refreshBtn" title="重新盘点数据" aria-label="重新盘点数据">↻</button></div>
   </header>
 
   <section class="view" id="view-overview">
     <section class="hero">
-      <div class="hero-copy"><div class="eyebrow">Pig Intelligence · Local Snapshot</div><h1>看见猪圈的每一次<span>生长与解锁</span></h1><p class="sub">抽取、活跃和图鉴收藏都摆在这儿了。每次刷新只按本地记录重算，绝不上传群友资料。</p></div>
-      <div class="hero-side"><div class="hero-side-label">今日参与</div><div class="hero-side-value"><span id="heroToday">—</span> 人</div><div class="hero-side-line"></div><div class="panel-desc" id="heroInsight">正在翻看今日猪圈动态…</div><div class="overview-scope" id="overviewScope">正在确认统计口径…</div></div>
+      <div class="hero-copy"><div class="eyebrow">Pig Intelligence · Local Snapshot</div><h1>记录猪圈里的每一次<span>萌动与相遇</span></h1><p class="sub">抽猪记录、群友活跃和图鉴进度全在这儿。每次刷新只在本地重新盘算，绝不上传任何群友隐私。</p></div>
+      <div class="hero-side"><div class="hero-side-label">今日来撸猪</div><div class="hero-side-value"><span id="heroToday">—</span> 位群友</div><div class="hero-side-line"></div><div class="panel-desc" id="heroInsight">正在偷瞄今天的猪圈动静…</div><div class="overview-scope" id="overviewScope">正在核对统计规则…</div></div>
     </section>
 
-    <section class="metrics metrics--primary" aria-label="核心指标">
+    <section class="metrics metrics--primary" aria-label="核心账本">
     <article class="metric" style="--tone:var(--pink)">
-      <div class="metric-top"><span class="label">总使用人数</span></div>
+      <div class="metric-top"><span class="label">累计养猪人</span></div>
       <div class="value" id="mUsers">—</div>
-      <div class="note">至少抽过一次猪的去重玩家</div>
+      <div class="note">至少来抽过一回猪的去重群友</div>
       <div class="metric-viz metric-viz--meter" id="vUsers"></div>
-      <div class="metric-context" id="cUsers">正在计算今日活跃占比…</div>
+      <div class="metric-context" id="cUsers">正在估算今日活跃占比…</div>
     </article>
     <article class="metric" style="--tone:var(--violet)">
-      <div class="metric-top"><span class="label">累计抽取</span></div>
+      <div class="metric-top"><span class="label">累计抽猪数</span></div>
       <div class="value" id="mDraws">—</div>
-      <div class="note">永久累计抽取次数</div>
+      <div class="note">开圈以来总共抽出的猪猪次数</div>
       <div class="metric-viz metric-viz--spark" id="vDraws"></div>
-      <div class="metric-context" id="cDraws">正在计算近 14 日抽取…</div>
+      <div class="metric-context" id="cDraws">正在核算近 14 天抽猪手气…</div>
     </article>
     <article class="metric metric--trend" style="--tone:var(--green)">
-      <div class="metric-top"><span class="label">今日活跃</span></div>
+      <div class="metric-top"><span class="label">今日活跃度</span></div>
       <div class="value" id="mToday">—</div>
-      <div class="note">今天来抽猪的去重玩家</div>
+      <div class="note">今天进圈抽过猪的去重群友</div>
       <div class="metric-viz metric-viz--spark" id="vToday"></div>
-      <div class="metric-context" id="cToday">正在计算今日变化…</div>
+      <div class="metric-context" id="cToday">正在对比昨日变化…</div>
     </article>
     <article class="metric" style="--tone:var(--blue)">
-      <div class="metric-top"><span class="label">人均解锁</span></div>
+      <div class="metric-top"><span class="label">人均收留数</span></div>
       <div class="value" id="mAverage">—</div>
-      <div class="note">每位玩家平均集齐的不同小猪</div>
+      <div class="note">每位群友平均点亮的不同小猪</div>
       <div class="metric-viz metric-viz--ruler" id="vAverage"></div>
-      <div class="metric-context" id="cAverage">正在盘算图鉴还剩多少空位…</div>
+      <div class="metric-context" id="cAverage">正在清点图鉴里还空着多少格…</div>
     </article>
     <article class="metric" style="--tone:var(--plum)">
-      <div class="metric-top"><span class="label">平均收藏率</span></div>
+      <div class="metric-top"><span class="label">平均点亮率</span></div>
       <div class="value" id="mRate">—</div>
-      <div class="note">人均解锁 / 当前图鉴总数</div>
+      <div class="note">人均收留数 / 当前图鉴总物种</div>
       <div class="metric-viz metric-viz--rate" id="vRate"></div>
-      <div class="metric-context" id="cRate">正在盘点收藏覆盖…</div>
+      <div class="metric-context" id="cRate">正在统计全群收集进度…</div>
     </article>
   </section>
 
     <section class="dashboard-grid">
-      <article class="panel"><div class="panel-head"><div><div class="eyebrow">14 Days Flow</div><h2>近 14 日猪圈脉搏</h2><div class="panel-desc">悬停折线可看每日使用人数、抽取与新解锁数</div></div><div class="legend"><span><i class="dot" style="background:var(--pink)"></i>使用人数</span><span><i class="dot" style="background:var(--blue)"></i>抽取次数</span><span><i class="dot" style="background:var(--violet)"></i>新解锁</span></div></div><div class="chart" id="trendChart"><div class="empty">正在画走势图…</div></div></article>
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">14 Days Flow</div><h2>近 14 天猪圈心跳图</h2><div class="panel-desc">鼠标移到折线上，就能查看每天的养猪人数、抽猪次数与新点亮数</div></div><div class="legend"><span><i class="dot" style="background:var(--pink)"></i>养猪人数</span><span data-rollpig-metric="total-draws"><i class="dot" style="background:var(--blue)"></i>抽猪次数</span><span><i class="dot" style="background:var(--violet)"></i>新点亮图鉴</span></div></div><div class="chart" id="trendChart"><div class="empty">正在绘制猪圈走势…</div></div></article>
       <div class="insight-stack">
-        <article class="panel ring-panel"><div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ringGradient"><stop stop-color="var(--pink)"/><stop offset="1" stop-color="var(--violet)"/></linearGradient></defs><circle class="ring-track" cx="60" cy="60" r="54"/><circle class="ring-progress" id="rateRing" cx="60" cy="60" r="54"/></svg><div class="ring-copy"><div class="ring-value" id="ringValue">—</div><div class="ring-label">平均收藏率</div></div></div><div class="insight-list"><div class="insight-item"><div class="insight-value" id="insightAverage">—</div><div class="insight-text">平均每位群友抱走</div></div><div class="insight-item"><div class="insight-value" id="insightCatalog">—</div><div class="insight-text">还没摸清的图鉴角落</div></div></div></article>
-        <article class="panel"><div class="panel-head"><div><div class="eyebrow">Popularity</div><h2>人气王小猪</h2><div class="panel-desc">谁被翻牌最多就排前面</div></div></div><div class="bar-list" id="barChart"><div class="empty">正在给小猪排座次…</div></div></article>
+        <article class="panel ring-panel"><div class="ring"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ringGradient"><stop stop-color="var(--pink)"/><stop offset="1" stop-color="var(--violet)"/></linearGradient></defs><circle class="ring-track" cx="60" cy="60" r="54"/><circle class="ring-progress" id="rateRing" cx="60" cy="60" r="54"/></svg><div class="ring-copy"><div class="ring-value" id="ringValue">—</div><div class="ring-label">平均点亮率</div></div></div><div class="insight-list"><div class="insight-item"><div class="insight-value" id="insightAverage">—</div><div class="insight-text">平均每位群友抱回家</div></div><div class="insight-item"><div class="insight-value" id="insightCatalog">—</div><div class="insight-text">还没被发现的神秘角落</div></div></div></article>
+        <article class="panel"><div class="panel-head"><div><div class="eyebrow">Popularity</div><h2>群宠人气榜</h2><div class="panel-desc">哪只小猪被群友翻牌最多，谁就坐头把交椅</div></div></div><div class="bar-list" id="barChart"><div class="empty">正在给小猪们排座次…</div></div></article>
       </div>
     </section>
 
     <section class="panel sync-panel">
-      <div class="sync-copy"><div class="sync-icon">☁️</div><div><h2>AstrBot 猪源同步</h2><div class="panel-desc">默认连着项目维护的 AstrBot v1 专用源，也能换用兼容的私人 manifest；你本地新增、修改和删除屏蔽的规矩永远最大。</div><div class="status-row" id="syncStatus"><span class="pill">正在打探状态…</span></div><div class="sync-feedback" id="syncFeedback" role="status">正在打探同步进度…</div></div></div>
-      <button class="btn ghost" id="syncBtn">立即同步</button>
+      <div class="sync-copy"><div class="sync-icon">☁️</div><div><h2>AstrBot 猪源同步</h2><div class="panel-desc">默认直连官方维护的 AstrBot v1 猪源仓库，也支持切换自定义 manifest 地址；你在本地新增、魔改或拉黑的规矩永远拥有最高优先级。</div><div class="status-row" id="syncStatus"><span class="pill">正在打探连接状况…</span></div><div class="sync-feedback" id="syncFeedback" role="status">正在查看同步进展…</div></div></div>
+      <button class="btn ghost" id="syncBtn">马上同步猪源</button>
     </section>
 
     <section class="panel update-panel">
-      <div class="sync-copy"><div class="sync-icon">🗄️</div><div><h2>数据存储与恢复</h2><div class="panel-desc">运行时全听 SQLite 规范化表的；旧 JSON 会先存个备份再自动搬家，兼容 JSON 只有导出、回滚或救急恢复时才按需生成。</div><div class="status-row" id="storageStatus"><span class="pill">正在翻看仓库…</span></div><div class="sync-feedback" id="storageFeedback" role="status">正在逐项体检后端和数据库…</div></div></div>
-      <div class="update-actions"><button class="btn ghost" id="storageVerifyBtn">验证</button><button class="btn ghost" id="storageRebuildBtn">修复状态</button><button class="btn ghost" id="storageExportBtn">生成 JSON 备份</button><button class="btn" id="storageMigrateBtn">重试迁移</button><button class="btn danger" id="storageRollbackBtn" disabled>回滚 JSON</button></div>
+      <div class="sync-copy"><div class="sync-icon">🗄️</div><div><h2>账本存储与救急</h2><div class="panel-desc">支持 SQLite 和 JSON 双存储模式：JSON 模式下继续直接读写 JSON；SQLite 模式下则以规范化数据表为准，迁移前会先备份旧 JSON，兼容 JSON 仅在导出、回滚或紧急恢复时按需生成。</div><div class="status-row" id="storageStatus"><span class="pill">正在清点本地仓库…</span></div><div class="sync-feedback" id="storageFeedback" role="status">正在给后端和数据库做全身检查…</div></div></div>
+      <div class="update-actions"><button class="btn ghost" id="storageVerifyBtn">校验数据</button><button class="btn ghost" id="storageRebuildBtn">修复账本</button><button class="btn ghost" id="storageExportBtn">导出 JSON 备份</button><button class="btn" id="storageMigrateBtn">再次尝试迁移</button><button class="btn danger" id="storageRollbackBtn" disabled>回退至 JSON</button></div>
     </section>
 
     <section class="panel update-panel">
-      <div class="sync-copy"><div class="sync-icon">🛡️</div><div><h2>插件安全更新</h2><div class="panel-desc">只连官方仓库的最新稳定 Release；下完先验明正身、拆包体检并留备份，再替换代码。不会覆盖你的插件数据，也不会偷偷重启 AstrBot。</div><div class="status-row" id="updateStatus"><span class="pill">正在核对版本号…</span></div><div class="sync-feedback" id="updateFeedback" role="status">正在摸底版本和存储状况…</div><div class="update-notes" id="updateNotes"></div></div></div>
-      <div class="update-actions"><button class="btn ghost" id="updateCheckBtn">检查更新</button><button class="btn" id="updateApplyBtn" disabled>安全更新</button></div>
+      <div class="sync-copy"><div class="sync-icon">🛡️</div><div><h2>插件无忧更新</h2><div class="panel-desc">仅从官方仓库下载最新稳定版 Release；下载后先校验 SHA-256 校验和、验证压缩包结构并自动备份，随后再替换核心代码。完整保留你的插件数据，也不会自动重启 AstrBot。</div><div class="status-row" id="updateStatus"><span class="pill">正在核对当前版本…</span></div><div class="sync-feedback" id="updateFeedback" role="status">正在清点版本与数据现状…</div><div class="update-notes" id="updateNotes"></div></div></div>
+      <div class="update-actions"><button class="btn ghost" id="updateCheckBtn">检查新版本</button><button class="btn" id="updateApplyBtn" disabled>执行安全更新</button></div>
     </section>
   </section>
 
   <section class="view" id="view-catalog">
-    <section class="catalog-hero"><div><div class="eyebrow">Pig Collection</div><h1>每一只小猪，<br>都有自己的小剧场。</h1><p class="sub">单独打理图片、名称、描述和完整文案；也能去 PigHub 淘点新灵感。</p></div><div class="catalog-count"><span id="catalogHeroCount">—</span><small>CATALOG TOTAL</small></div></section>
+    <section class="catalog-hero"><div><div class="eyebrow">Pig Collection</div><h1>每一头小猪，<br>都有专属的性格舞台。</h1><p class="sub">独立定制立绘、名字、短评与完整小传；也能随时去 PigHub 逛逛、找找灵感。</p></div><div class="catalog-count"><span id="catalogHeroCount">—</span><small>CATALOG TOTAL</small></div></section>
     <section class="panel catalog-panel">
-      <div class="panel-head"><div><h2>猪猪图鉴</h2><div class="panel-desc" id="catalogMeta">读取中…</div></div><div class="catalog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="searchInput" placeholder="搜索 ID、名称、描述或文案"></div><button class="btn" id="addBtn">＋ 新增小猪</button></div></div>
-      <div class="pig-grid" id="pigGrid"><div class="empty">正在推开猪圈大门…</div></div>
+      <div class="panel-head"><div><h2>猪猪全图鉴</h2><div class="panel-desc" id="catalogMeta">加载中…</div></div><div class="catalog-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="searchInput" placeholder="搜 ID、名字、短评或小传关键词"></div><button class="btn" id="addBtn">＋ 迎新猪入栏</button></div></div>
+      <div class="pig-grid" id="pigGrid"><div class="empty">正在吱呀推开猪圈大门…</div></div>
       <div class="pagination"><button class="btn ghost" id="prevBtn">上一页</button><span id="pageText">1 / 1</span><button class="btn ghost" id="nextBtn">下一页</button></div>
     </section>
   </section>
 
   <section class="view" id="view-layers">
-    <section class="catalog-hero"><div><div class="eyebrow">Local Resource Layers</div><h1>看清每一只<br>被本地改写过的小猪。</h1><p class="sub">本地覆盖优先于基础源；删除屏蔽可在此随时取消。</p></div><div class="catalog-count"><span id="layerHeroCount">—</span><small>LOCAL CHANGES</small></div></section>
-    <section class="panel layer-note"><div><h2>AstrBot 公共猪源投稿</h2><div class="panel-desc">把本地小猪的 ID、名称、描述、完整文案和图片提交到审核队列；通过后会自动加入 AstrBot 专用公共猪源。每次投稿都需再次确认，绝不上传群友或聊天记录。</div></div><div class="top-actions"><span class="pill ok">自建来源 · 人工审核</span><button class="btn ghost" id="publicSourceBrowseBtn" type="button">浏览公共猪源</button></div></section>
-    <section class="panel layer-panel"><div class="panel-head"><div><h2>本地新增与覆盖</h2><div class="panel-desc" id="overrideMeta">读取中…</div></div></div><div class="pig-grid" id="overrideGrid"><div class="empty">正在翻看本地覆盖记录…</div></div></section>
-    <section class="panel layer-panel"><div class="panel-head"><div><h2>删除屏蔽</h2><div class="panel-desc" id="blockedMeta">读取中…</div></div></div><div class="pig-grid" id="blockedGrid"><div class="empty">正在清点小黑屋名单…</div></div></section>
+    <section class="catalog-hero"><div><div class="eyebrow">Local Resource Layers</div><h1>一目了然，<br>所有经过本地魔改的小猪。</h1><p class="sub">本地定制版优先级高于默认猪源；被拉黑隐藏的小猪也能随时在这里放出。</p></div><div class="catalog-count"><span id="layerHeroCount">—</span><small>LOCAL CHANGES</small></div></section>
+    <section class="panel layer-note"><div><h2>AstrBot 公共猪库投喂</h2><div class="panel-desc">将本地小猪的 ID、名字、短评、小传及立绘打包送审；过审后便会收录进 AstrBot 官方公共猪库。每次投喂前均需二次确认，绝不泄露群友隐私或聊天记录。</div></div><div class="top-actions"><span class="pill ok">原创投稿 · 人工把关</span><button class="btn ghost" id="publicSourceBrowseBtn" type="button">逛逛公共猪库</button></div></section>
+    <section class="panel layer-panel"><div class="panel-head"><div><h2>本地新增与魔改记录</h2><div class="panel-desc" id="overrideMeta">加载中…</div></div></div><div class="pig-grid" id="overrideGrid"><div class="empty">正在翻阅本地改写档案…</div></div></section>
+    <section class="panel layer-panel"><div class="panel-head"><div><h2>屏蔽与小黑屋</h2><div class="panel-desc" id="blockedMeta">加载中…</div></div></div><div class="pig-grid" id="blockedGrid"><div class="empty">正在核对小黑屋名单…</div></div></section>
   </section>
 </main>
 
-<div class="modal" id="confirmModal"><div class="dialog" style="max-width:440px"><div class="dialog-head"><div><div class="eyebrow">Danger Zone</div><h2>删除小猪</h2></div></div><p id="confirmMessage" class="panel-desc"></p><div class="dialog-actions"><button class="btn ghost" type="button" id="confirmNo">取消</button><button class="btn danger" type="button" id="confirmYes">确认删除</button></div></div></div>
+<div class="modal" id="confirmModal"><div class="dialog" style="max-width:440px"><div class="dialog-head"><div><div class="eyebrow">Danger Zone</div><h2>送走这只小猪</h2></div></div><p id="confirmMessage" class="panel-desc"></p><div class="dialog-actions"><button class="btn ghost" type="button" id="confirmNo">算了</button><button class="btn danger" type="button" id="confirmYes">确定送走</button></div></div></div>
 <div class="modal" id="modal"><form class="dialog" id="pigForm">
-  <div class="dialog-head"><div><div class="eyebrow">Pig Pipeline</div><h2 id="dialogTitle">新增小猪</h2></div><button class="close" type="button" id="closeBtn" aria-label="关闭">×</button></div>
-  <div class="flow" aria-label="新增流程"><div class="flow-step current" data-step="1"><i class="flow-node">1</i><span>选择图片</span></div><div class="flow-step" data-step="2"><i class="flow-node">2</i><span>补全资料</span></div><div class="flow-step" data-step="3"><i class="flow-node">3</i><span>检查发布</span></div></div>
+  <div class="dialog-head"><div><div class="eyebrow">Pig Pipeline</div><h2 id="dialogTitle">迎新猪入栏</h2></div><button class="close" type="button" id="closeBtn" aria-label="关掉">×</button></div>
+  <div class="flow" aria-label="入栏三步走"><div class="flow-step current" data-step="1"><i class="flow-node">1</i><span>挑张美照</span></div><div class="flow-step" data-step="2"><i class="flow-node">2</i><span>填好档案</span></div><div class="flow-step" data-step="3"><i class="flow-node">3</i><span>核对入栏</span></div></div>
   <input type="hidden" id="originalId">
   <div class="form-grid">
-    <div class="field"><label for="pigId">唯一 ID *</label><input id="pigId" maxlength="64" pattern="[a-z0-9][a-z0-9_-]*" placeholder="例如: strawberry-pig" required><div class="hint">小写字母、数字、-、_；保存后不可修改</div></div>
-    <div class="field"><label for="pigName">名称 *</label><input id="pigName" maxlength="30" placeholder="草莓小猪" required></div>
-    <div class="field full"><label for="pigDescription">描述 *</label><input id="pigDescription" maxlength="80" placeholder="AI 建议 3-8 字一语道天机；手动编辑最多 80 字" required></div>
-    <div class="field full"><label for="pigAnalysis">完整文案 *</label><textarea id="pigAnalysis" maxlength="500" placeholder="AI 建议 40-120 字、风趣有梗并带一点哲学意味；手动编辑最多 500 字" required></textarea><div class="hint"><span id="copyCount">0</span>/500</div></div>
-    <div class="field full ai-draft-row"><button class="btn ghost" type="button" id="aiDraftBtn" disabled>✨ AI 自动填写描述／文案</button><span class="hint" id="aiDraftHint">从 PigHub 挑好图后，可按名称和现有图鉴画风生成草稿，之后也能自己改。</span></div>
-    <div class="field full"><label for="aiGuidance">AI 创作引导（可选）</label><textarea id="aiGuidance" maxlength="240" rows="2" placeholder="补充画面、动作、穿搭或想玩的梗，比如：粉猪穿雨衣踩水坑，一脸看破猪生"></textarea><div class="hint">PigHub 不会把原图直接传给模型；请用关键词补充画面，帮 AI 少猜错。</div></div>
-    <div class="field full ai-progress" id="aiProgress" role="status" aria-live="polite" aria-hidden="true"><div class="ai-progress-head"><span id="aiProgressText">正在打磨 AI 草稿…</span><span id="aiProgressPercent">0%</span></div><div class="ai-progress-track"><div class="ai-progress-fill" id="aiProgressFill"></div></div><div class="hint">生成时别关掉当前窗口，写好后会自动填进上方栏位。</div></div>
-    <div class="field full"><label>小猪图片 *</label><div class="upload"><canvas class="preview" id="imagePreview" width="192" height="192" aria-label="上传预览"></canvas><div><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="hint" id="imageSourceHint">支持 PNG/JPG/WEBP/GIF，原图 ≤10MB。小图等比放大，大图缩小并居中裁切，统一保存为 512×512 PNG。</p><div class="upload-actions"><button class="btn ghost" type="button" id="chooseImageBtn">本地上传</button><button class="btn ghost" type="button" id="pighubBtn">从 PigHub 挑选</button><button class="btn ghost" type="button" id="downloadOriginalBtn" hidden>↓ 下载原图重修</button></div><div class="source-note" id="sourceNote"></div></div></div></div>
+    <div class="field"><label for="pigId">专属编号 (ID) *</label><input id="pigId" maxlength="64" pattern="[a-z0-9][a-z0-9_-]*" placeholder="比如：strawberry-pig" required><div class="hint">仅限小写字母、数字、- 和 _；一旦敲定便不可更改</div></div>
+    <div class="field"><label for="pigName">小猪大名 *</label><input id="pigName" maxlength="30" placeholder="草莓猪猪" required></div>
+    <div class="field full"><label for="pigDescription">一句话短评 *</label><input id="pigDescription" maxlength="80" placeholder="AI 推荐用 3-8 字点睛；手动填写上限 80 字" required></div>
+    <div class="field full"><label for="pigAnalysis">完整小传 *</label><textarea id="pigAnalysis" maxlength="500" placeholder="AI 推荐 40-120 字左右，幽默有梗带点猪生哲理；手动填写上限 500 字" required></textarea><div class="hint"><span id="copyCount">0</span>/500</div></div>
+    <div class="field full ai-draft-row"><button class="btn ghost" type="button" id="aiDraftBtn" disabled>✨ 召唤 AI 撰写短评与小传</button><span class="hint" id="aiDraftHint">在 PigHub 选定立绘后，可结合名字与现有图鉴画风自动生成初稿，随后仍可自由修改。</span></div>
+    <div class="field full"><label for="aiGuidance">AI 脑洞提示（选填）</label><textarea id="aiGuidance" maxlength="240" rows="2" placeholder="补充画面细节、神态穿搭或想玩的热梗，例如：穿小黄雨衣踩水坑的粉猪，一脸看透红尘"></textarea><div class="hint">系统不会直接把原图发给模型；多写点画面关键词，能让 AI 写得更贴切。</div></div>
+    <div class="field full ai-progress" id="aiProgress" role="status" aria-live="polite" aria-hidden="true"><div class="ai-progress-head"><span id="aiProgressText">AI 正在奋笔疾书润色中…</span><span id="aiProgressPercent">0%</span></div><div class="ai-progress-track"><div class="ai-progress-fill" id="aiProgressFill"></div></div><div class="hint">生成期间请勿关闭弹窗，写好后会自动填入上方对应的输入框。</div></div>
+    <div class="field full"><label>小猪立绘 *</label><div class="upload"><canvas class="preview" id="imagePreview" width="192" height="192" aria-label="立绘预览区"></canvas><div><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="hint" id="imageSourceHint">兼容 PNG/JPG/WEBP/GIF 格式，单张不超 10MB。小图将等比放大，大图则居中裁切缩放，最终统一存为 512×512 PNG。</p><div class="upload-actions"><button class="btn ghost" type="button" id="chooseImageBtn">从本地传图</button><button class="btn ghost" type="button" id="pighubBtn">去 PigHub 选图</button><button class="btn ghost" type="button" id="downloadOriginalBtn" hidden>↓ 存下原图精修</button></div><div class="source-note" id="sourceNote"></div></div></div></div>
   </div>
-  <div class="dialog-actions"><button class="btn ghost" type="button" id="cancelBtn">取消</button><button class="btn" type="submit" id="saveBtn">完成一条龙保存</button></div>
+  <div class="dialog-actions"><button class="btn ghost" type="button" id="cancelBtn">取消</button><button class="btn" type="submit" id="saveBtn">确认无误，直接保存</button></div>
 </form></div>
 <div class="modal" id="publicSourceModal"><div class="dialog hub-dialog">
-  <div class="dialog-head"><div><div class="eyebrow">Official Public Source</div><h2>AstrBot 公共猪源图鉴</h2><div class="panel-desc" id="publicSourceMeta">打开后读取当前正式 v1 资源；仅展示公共源，不会混入本地覆盖。</div></div><button class="close" type="button" id="publicSourceClose" aria-label="关闭">×</button></div>
-  <div class="hub-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="publicSourceSearch" placeholder="搜索 ID、名称、描述或完整文案"></div><button class="btn ghost" id="publicSourceRefresh" type="button">刷新公共源</button></div>
-  <div class="hub-grid" id="publicSourceGrid"><div class="empty">打开后加载公共猪源中…</div></div><div class="pagination"><button class="btn ghost" id="publicSourcePrev" type="button">上一页</button><span id="publicSourcePageText">1 / 1</span><button class="btn ghost" id="publicSourceNext" type="button">下一页</button></div>
+  <div class="dialog-head"><div><div class="eyebrow">Official Public Source</div><h2>AstrBot 公共猪库图鉴</h2><div class="panel-desc" id="publicSourceMeta">点开即拉取最新正式版 v1 猪库；仅展示纯净公共源，不包含任何本地魔改内容。</div></div><button class="close" type="button" id="publicSourceClose" aria-label="收起">×</button></div>
+  <div class="hub-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="publicSourceSearch" placeholder="搜编号、猪名、简介或完整档案"></div><button class="btn ghost" id="publicSourceRefresh" type="button">重载公共猪源</button></div>
+  <div class="hub-grid" id="publicSourceGrid"><div class="empty">点开即刻拉取公共猪源…</div></div><div class="pagination"><button class="btn ghost" id="publicSourcePrev" type="button">上一页</button><span id="publicSourcePageText">1 / 1</span><button class="btn ghost" id="publicSourceNext" type="button">下一页</button></div>
 </div></div>
 <div class="modal" id="publicSourceDetailModal"><div class="dialog" style="max-width:720px">
-  <div class="dialog-head"><div><div class="eyebrow">Public Pig Preview</div><h2 id="publicSourceDetailName">公共猪源预览</h2></div><button class="close" type="button" id="publicSourceDetailClose" aria-label="关闭">×</button></div>
-  <div class="upload"><canvas class="preview" id="publicSourceDetailCanvas" width="192" height="192" aria-label="公共猪源图片预览"></canvas><div><div class="pig-id" id="publicSourceDetailId"></div><p class="panel-desc" id="publicSourceDetailDescription"></p></div></div>
+  <div class="dialog-head"><div><div class="eyebrow">Public Pig Preview</div><h2 id="publicSourceDetailName">公共猪源预览</h2></div><button class="close" type="button" id="publicSourceDetailClose" aria-label="收起">×</button></div>
+  <div class="upload"><canvas class="preview" id="publicSourceDetailCanvas" width="192" height="192" aria-label="公共猪源立绘预览"></canvas><div><div class="pig-id" id="publicSourceDetailId"></div><p class="panel-desc" id="publicSourceDetailDescription"></p></div></div>
   <div class="review-analysis" id="publicSourceDetailAnalysis" style="height:auto;max-height:260px;margin-top:16px"></div>
-  <div id="publicSourceExSummary" class="public-source-ex-summary"><strong>当前实例 EX 1–5</strong><small>点开公共小猪后会读取当前实例实际生效阶段。</small></div>
-  <div class="dialog-actions"><button class="btn ghost" type="button" id="publicSourceLocateLocal">在本地图鉴定位</button><button class="btn ghost" type="button" id="publicSourceManageEx">管理本地 EX</button><button class="btn ghost" type="button" id="publicSourceDetailDone">关闭</button></div>
+  <div id="publicSourceExSummary" class="public-source-ex-summary"><strong>当前实例 EX 1–5</strong><small>点选公共小猪后，会自动读取当前实例正在生效的阶段。</small></div>
+  <div class="dialog-actions"><button class="btn ghost" type="button" id="publicSourceLocateLocal">去本地图鉴定位</button><button class="btn ghost" type="button" id="publicSourceManageEx">调教本地 EX</button><button class="btn ghost" type="button" id="publicSourceDetailDone">收起</button></div>
 </div></div>
 <div class="modal" id="pighubModal"><div class="dialog hub-dialog">
-  <div class="dialog-head"><div><div class="eyebrow">PigHub Picker</div><h2>从 PigHub 挑选图片</h2><div class="panel-desc">图片、名称和文件名会自动填好；描述与完整文案可自己写，也能用 AI 一键出草稿。</div><div class="panel-desc">索引本地缓存 12 小时；缩略图由插件缓存 7 天，不会由浏览器直接请求 PigHub。</div></div><button class="close" type="button" id="pighubClose" aria-label="关闭">×</button></div>
-  <div class="hub-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="pighubSearch" placeholder="按标题或文件名搜索"></div><button class="btn ghost" id="pighubRandom" type="button">换一批</button><button class="btn ghost" id="pighubRefresh" type="button">刷新索引</button></div>
-  <div class="hub-grid" id="pighubGrid"><div class="empty">打开后加载 PigHub 图库…</div></div><div class="pagination"><button class="btn ghost" id="hubPrev" type="button">上一页</button><span id="hubPageText">1 / 1</span><button class="btn ghost" id="hubNext" type="button">下一页</button></div>
+  <div class="dialog-head"><div><div class="eyebrow">PigHub Picker</div><h2>去 PigHub 挑张好图</h2><div class="panel-desc">图、猪名和文件名都会自动填好；简介与完整文案既能自己写，也能喊 AI 一键起草。</div><div class="panel-desc">索引在本地留存 12 小时；缩略图由插件缓存 7 天，浏览器不会直连 PigHub。</div></div><button class="close" type="button" id="pighubClose" aria-label="收起">×</button></div>
+  <div class="hub-toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="pighubSearch" placeholder="按标题或文件名找猪"></div><button class="btn ghost" id="pighubRandom" type="button">换一拨</button><button class="btn ghost" id="pighubRefresh" type="button">更新索引</button></div>
+  <div class="hub-grid" id="pighubGrid"><div class="empty">点开即刻加载 PigHub 图库…</div></div><div class="pagination"><button class="btn ghost" id="hubPrev" type="button">上一页</button><span id="hubPageText">1 / 1</span><button class="btn ghost" id="hubNext" type="button">下一页</button></div>
 </div></div>
 <div class="toast" id="toast"></div><div class="loading" id="loading"><div class="spinner"></div></div>
 
@@ -383,35 +383,35 @@
   window[STATE_KEY] = state;
 
   const unwrap = response => {
-    if (response?.status === 'error') throw new Error(response.message || '后端拒绝读取深度分析资源');
+    if (response?.status === 'error') throw new Error(response.message || "后端拒绝交出深度分析资源");
     const first = response?.data ?? response;
-    if (first?.status === 'error') throw new Error(first.message || '深度分析资源返回错误');
+    if (first?.status === 'error') throw new Error(first.message || "深度分析资源返回了错误状态");
     return first?.data ?? first;
   };
 
   const validateBundle = bundle => {
     if (!bundle || bundle.version !== VERSION || !Array.isArray(bundle.assets)) {
-      throw Object.assign(new Error(`深度分析资源版本不匹配：期望 ${VERSION}`), {code: 'version-mismatch'});
+      throw Object.assign(new Error(`深度分析资源版本对不上：需要 ${VERSION}`), {code: 'version-mismatch'});
     }
     const seen = new Set();
     let total = 0;
     for (const asset of bundle.assets) {
       if (!asset || ALLOWED.get(asset.name) !== asset.kind || typeof asset.source !== 'string') {
-        throw Object.assign(new Error(`深度分析资源清单包含未知项目：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
+        throw Object.assign(new Error(`深度分析资源清单里混进了未知项：${asset?.name || 'unknown'}`), {code: 'invalid-manifest'});
       }
       if (seen.has(asset.name)) {
-        throw Object.assign(new Error(`深度分析资源重复：${asset.name}`), {code: 'duplicate-asset'});
+        throw Object.assign(new Error(`深度分析资源出现重复项：${asset.name}`), {code: 'duplicate-asset'});
       }
       seen.add(asset.name);
       total += asset.source.length;
     }
     for (const name of ALLOWED.keys()) {
       if (!seen.has(name)) {
-        throw Object.assign(new Error(`深度分析资源缺失：${name}`), {code: 'missing-asset'});
+        throw Object.assign(new Error(`深度分析资源缺了关键文件：${name}`), {code: 'missing-asset'});
       }
     }
     if (total > 768_000) {
-      throw Object.assign(new Error('深度分析资源总量超出安全限制'), {code: 'bundle-too-large'});
+      throw Object.assign(new Error("深度分析资源体积超出了安全上限"), {code: 'bundle-too-large'});
     }
     return bundle;
   };
@@ -426,7 +426,7 @@
     if (!asset.sha256) return;
     const actual = await sha256(asset.source);
     if (actual && actual !== asset.sha256) {
-      throw Object.assign(new Error(`深度分析资源校验失败：${asset.name}`), {code: 'checksum-mismatch'});
+      throw Object.assign(new Error(`深度分析资源校验没通过：${asset.name}`), {code: 'checksum-mismatch'});
     }
   };
 
@@ -479,21 +479,19 @@
     details.className = 'rollpig-doc-menu';
     const summary = document.createElement('summary');
     summary.className = 'btn ghost';
-    summary.textContent = '📚 文档';
-    summary.title = '打开今日小猪 Wiki';
+    summary.textContent = "📚 养猪宝典";
+    summary.title = "翻开今日小猪 Wiki";
     const popover = document.createElement('div');
     popover.className = 'rollpig-doc-popover';
     popover.append(
-      makeDocLink('📖', '玩家 Wiki', '玩法、EX、烤箱、日报与保底', WIKI_LINKS.player),
-      makeDocLink('⚙️', '管理员手册', '完整配置、资源、存储与运维', WIKI_LINKS.admin),
-      makeDocLink('🎨', '投稿指南', "捏一只自己的小猪，再交到管理员手里", WIKI_LINKS.creator),
+      makeDocLink('📖', "群友玩猪指南", "抽猪规则、EX 稀有款、烤箱、日报与保底机制", WIKI_LINKS.player),
+      makeDocLink('⚙️', "场长运维手册", "全套配置、图鉴资源、数据存储与日常维护", WIKI_LINKS.admin),
+      makeDocLink('🎨', "画师投稿指路", "亲手捏一只专属小猪，再递交给管理员审核", WIKI_LINKS.creator),
     );
     details.append(summary, popover);
     const refreshButton = pageRoot.querySelector('#refreshBtn');
     topActions.insertBefore(details, refreshButton || null);
   };
-
-  const ERROR_PATTERN = /(失败|失敗|错误|錯誤|不可用|403|401|超时|逾時|校验失败|校驗失敗|bridge|版本不匹配)/i;
 
   const setContextDoc = (host, key, show, label, href) => {
     if (!host) return;
@@ -514,12 +512,12 @@
     host.appendChild(link);
   };
 
-  state.setResourceSyncFeedback = (host, message) => {
+  state.setResourceSyncFeedback = (host, failed) => {
     setContextDoc(
       host,
       'resource-sync',
-      ERROR_PATTERN.test(String(message || '')),
-      '查看猪源同步排障',
+      failed,
+      "排查猪源同步故障",
       WIKI_LINKS.resourceSync,
     );
   };
@@ -543,13 +541,13 @@
     host.style.display = '';
     host.innerHTML = '<strong></strong><div class="panel-desc" style="margin-top:5px"></div>';
     host.querySelector('strong').textContent =
-      kind === 'loading' ? '正在载入深度分析' : '深度分析未载入';
+      kind === 'loading' ? "正在搬运深度分析报表" : "深度分析尚未加载";
     host.querySelector('.panel-desc').textContent = message;
     setContextDoc(
       host,
       'admin-ui',
       kind === 'error',
-      '查看管理页定向排障',
+      "查看后台定向排障指南",
       WIKI_LINKS.adminUi,
     );
   };
@@ -576,7 +574,7 @@
   };
 
   state.reportModuleError = (name, error) => {
-    const message = error instanceof Error ? error.message : String(error || '未知脚本错误');
+    const message = error instanceof Error ? error.message : String(error || "未知的脚本小脾气");
     state.assets[name] = 'error';
     state.errors.push({name, message});
     console.error(`[rollpig] ${name} failed`, error);
@@ -600,7 +598,7 @@
   installWikiStyles();
   installWikiMenu();
   const initialSync = pageRoot.querySelector('#syncFeedback');
-  if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.textContent || '');
+  if (initialSync) state.setResourceSyncFeedback(initialSync, initialSync.dataset.rollpigSyncError === 'true');
 
   let button = pageRoot.querySelector('#analyticsLoadBtn');
   if (!button) {
@@ -608,8 +606,8 @@
     button.id = 'analyticsLoadBtn';
     button.type = 'button';
     button.className = 'btn ghost';
-    button.textContent = '深度分析';
-    button.title = '点击后才载入深度分析资源与数据';
+    button.textContent = "深度报表";
+    button.title = "点一下才会按需加载深度分析资源与数据";
     const refreshButton = pageRoot.querySelector('#refreshBtn');
     topActions.insertBefore(button, refreshButton || null);
   }
@@ -630,16 +628,16 @@
     state.errors = [];
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
-    button.textContent = '载入中…';
-    showStatus('loading', '仅本次点击会通过认证桥接读取 Analytics 代码与聚合数据；核心页面不会等待它。');
+    button.textContent = "搬运中…";
+    showStatus('loading', "只有点下按钮才会通过认证桥接去拉取 Analytics 脚本与统计数据；主界面不会傻等它。");
 
     state.loadPromise = (async () => {
       const bridge = window.AstrBotPluginPage;
       if (!bridge?.apiGet) {
-        throw Object.assign(new Error('AstrBot Plugin Page Bridge 不存在'), {code: 'bridge-missing'});
+        throw Object.assign(new Error("找不到 AstrBot 插件页面通信桥接"), {code: 'bridge-missing'});
       }
       if (typeof bridge.ready === 'function') {
-        await withTimeout(bridge.ready(), 6000, '管理桥接在 6 秒内没有就绪');
+        await withTimeout(bridge.ready(), 6000, "管理通信桥接在 6 秒内没能顺利接通");
       }
       const bundle = validateBundle(unwrap(await bridge.apiGet('ui/assets', {version: VERSION})));
       const byName = new Map(bundle.assets.map(asset => [asset.name, asset]));
@@ -649,12 +647,12 @@
       if (state.errors.length) throw new Error(state.errors.map(item => item.message).join('；'));
       state.status = 'ready';
       hideStatus();
-      button.textContent = '刷新深度分析';
-      button.title = '重新读取深度分析聚合数据';
+      button.textContent = "刷新深度报表";
+      button.title = "重新拉取最新深度统计数据";
     })().catch(error => {
       state.status = 'error';
-      showStatus('error', `原因：${error?.message || error}。数据总览、猪猪图鉴和管理操作不受影响。`);
-      button.textContent = '重试深度分析';
+      showStatus('error', `卡壳原因：${error?.message || error}。放心，基础总览、猪猪图鉴和管理功能都能正常用。`);
+      button.textContent = "重连深度报表";
     }).finally(() => {
       button.disabled = false;
       button.removeAttribute('aria-busy');
@@ -676,64 +674,64 @@ const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');
 const applyTheme=()=>document.documentElement.dataset.theme=themeMedia.matches?'dark':'light';applyTheme();themeMedia.addEventListener?.('change',applyTheme);
 function routeName(){const route=location.hash.replace(/^#\/?/,'');return['catalog','layers'].includes(route)?route:'overview'}
-function showRoute(name,push=false){const route=['catalog','layers'].includes(name)?name:'overview';if(push&&routeName()!==route)location.hash=`/${route}`;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${route}`));document.querySelectorAll('[data-route]').forEach(b=>{const active=b.dataset.route===route;b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false')});const titles={overview:'数据总览',catalog:'猪猪图鉴',layers:'本地资源'};document.title=`${titles[route]} · 今日小猪`;window.scrollTo({top:0,behavior:reduceMotion?'auto':'smooth'})}
+function showRoute(name,push=false){const route=['catalog','layers'].includes(name)?name:'overview';if(push&&routeName()!==route)location.hash=`/${route}`;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${route}`));document.querySelectorAll('[data-route]').forEach(b=>{const active=b.dataset.route===route;b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false')});const titles={overview:"猪圈总览",catalog:"小猪图鉴",layers:"本地仓库"};document.title=`${titles[route]} · 今日小猪`;window.scrollTo({top:0,behavior:reduceMotion?'auto':'smooth'})}
 document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>showRoute(b.dataset.route,true));window.addEventListener('hashchange',()=>showRoute(routeName()));showRoute(routeName());
 function pighubPigId(p){const raw=String(p.filename||p.title||'pig').replace(/\.[a-z0-9]+$/i,'').toLowerCase();const slug=raw.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48)||'pig';let hash=2166136261;for(const char of String(p.image_url||p.filename||p.title||'')){hash^=char.codePointAt(0);hash=Math.imul(hash,16777619)}return `pighub-${slug}-${(hash>>>0).toString(16).padStart(8,'0')}`.slice(0,64)}
-function setAiDraftAvailability(enabled){$('aiDraftBtn').disabled=!enabled;$('aiDraftHint').textContent=enabled?"已选中 PigHub，能顺着名字和现有图鉴画风帮你起个草稿，之后随时能自己改。":"先从 PigHub 挑张图吧，AI 草稿会照着 PigHub 名字找找灵感。"}
+function setAiDraftAvailability(enabled){$('aiDraftBtn').disabled=!enabled;$('aiDraftHint').textContent=enabled?"已锁定 PigHub 图片，顺着猪名和现有图鉴的调性帮你起份草稿，之后随时能改。":"先去 PigHub 挑张图吧，AI 会照着 PigHub 的名字找找灵感。"}
 function setAiProgress(value,message){$('aiProgress').classList.add('open');$('aiProgress').setAttribute('aria-hidden','false');$('aiProgressFill').style.width=`${Math.max(0,Math.min(100,value))}%`;$('aiProgressPercent').textContent=`${Math.round(value)}%`;$('aiProgressText').textContent=message}
-function beginAiProgress(){clearInterval(aiProgressTimer);clearTimeout(aiProgressHideTimer);const phases=[[12,"正在理顺 PigHub 名称、文件名和引导词…"],[28,"翻翻现有图鉴的画风样本…"],[56,"正喊 AI 帮忙憋文案…"],[82,"核对 3-8 字描述与文案长度…"]];let index=0;setAiProgress(5,"正在收拾 AI 草稿…");aiProgressTimer=setInterval(()=>{if(index<phases.length){setAiProgress(phases[index][0],phases[index][1]);index++}},700)}
+function beginAiProgress(){clearInterval(aiProgressTimer);clearTimeout(aiProgressHideTimer);const phases=[[12,"正在梳理 PigHub 名称、文件名和提示词…"],[28,"翻看现有图鉴的文风样本…"],[56,"正催着 AI 憋文案…"],[82,"核对 3-8 字简介与正文篇幅…"]];let index=0;setAiProgress(5,"正在整理 AI 草稿…");aiProgressTimer=setInterval(()=>{if(index<phases.length){setAiProgress(phases[index][0],phases[index][1]);index++}},700)}
 function finishAiProgress(success,message){clearInterval(aiProgressTimer);aiProgressTimer=null;setAiProgress(100,message);clearTimeout(aiProgressHideTimer);aiProgressHideTimer=setTimeout(()=>{$('aiProgress').classList.remove('open');$('aiProgress').setAttribute('aria-hidden','true')},success?800:2600)}
-function setImageSource(mode){const fromHub=mode==='pighub';$('imageFile').disabled=fromHub;$('chooseImageBtn').disabled=fromHub;$('imageSourceHint').textContent=fromHub?"已锁定 PigHub 资源；想换来源的话，取消这次编辑再重开新增窗口就行。":"支持 PNG/JPG/WEBP/GIF，原图 ≤10MB。小图等比放大，大图缩小并居中裁切，最后统一保存为 512×512 PNG。";setAiDraftAvailability(fromHub);updateFlow()}
+function setImageSource(mode){const fromHub=mode==='pighub';$('imageFile').disabled=fromHub;$('chooseImageBtn').disabled=fromHub;$('imageSourceHint').textContent=fromHub?"已绑定 PigHub 资源；想换个来源的话，取消这次编辑再重开新建窗口就行。":"支持 PNG/JPG/WEBP/GIF，原图不超 10MB。小图等比放大，大图缩小并居中裁切，统一存为 512×512 PNG。";setAiDraftAvailability(fromHub);updateFlow()}
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-const unwrap=r=>{if(r&&r.status==='error')throw new Error(r.message||'操作失败');return r&&r.data?r.data:r};
+const unwrap=r=>{if(r&&r.status==='error')throw new Error(r.message||"没操作成");return r&&r.data?r.data:r};
 const toast=message=>{$('toast').textContent=message;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600)};
 const busy=value=>$('loading').classList.toggle('show',value);
 async function get(path,params){return unwrap(await bridge.apiGet(path,params||{}))}
 let csrfToken='';async function post(path,payload){return unwrap(await bridge.apiPost(path,{...(payload||{}),__rollpig_csrf:csrfToken}))}
-const formatTime=value=>value?new Date(value*1000).toLocaleString():"还没成功同步过";const setSyncFeedback=message=>{const host=$('syncFeedback');host.textContent=message;window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,message)};
+const formatTime=value=>value?new Date(value*1000).toLocaleString():"还没完整同步过";const setSyncFeedback=(message,failed=false)=>{const host=$('syncFeedback');host.textContent=message;host.dataset.rollpigSyncError=String(failed);window.__rollpigUiBootstrapState?.setResourceSyncFeedback?.(host,failed)};
 let resourceSnapshot=null;
 function renderResourceStatus(d){
   resourceSnapshot=d;
   const names={primary:'AstrBot 主源',custom:'私人源',vercel:'Vercel 镜像',github:'GitHub 镜像'};
-  const sourceName=name=>names[name]||name||'来源未记录';
+  const sourceName=name=>names[name]||name||"未记下源头";
   const cloud=d.source==='cloud'||d.source==='cloud+felis-direct';
   const bundled=d.source==='bundled'||d.source==='bundled+felis-direct';
   const felis=d.source==='cloud+felis-direct'||d.source==='bundled+felis-direct';
-  const base=cloud?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:'云端缓存（来源未记录）'):bundled?'内置兜底':'来源状态未识别';
-  const cached=base+(felis?' + Felis 官方直读':'');
+  const base=cloud?(d.active_remote_source?`${sourceName(d.active_remote_source)}缓存`:"云端缓存（来源未记）"):bundled?"内置保底":"源头状态没认出来";
+  const cached=base+(felis?" + Felis 官方直连":'');
   const allowed=Array.isArray(d.source_chain)?d.source_chain.map(item=>sourceName(item.name)).join(' → '):'';
   const attempt=d.last_attempt?`上次尝试 ${formatTime(d.last_attempt)}`:"还没发起过同步";
   $('syncStatus').innerHTML=`<span class="pill ${cloud?'ok':''}">当前资源：${esc(cached)}</span>
-    <span class="pill">可用远端：${esc(allowed||'尚未读取')}</span>
-    ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':d.public_mirror_policy==='reviewed-snapshot-only'?'<span class="pill">镜像按批准清单校验</span>':''}
-    ${d.running?'<span class="pill">同步中…</span>':''}
-    <span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?'自动同步开启':'自动同步关闭'}</span>
+    <span class="pill">可用远端：${esc(allowed||"还没读取")}</span>
+    ${d.public_mirror_fail_closed?'<span class="pill warn">公共镜像已停用</span>':d.public_mirror_policy==='reviewed-snapshot-only'?"<span class=\"pill\">镜像按核准清单校验</span>":''}
+    ${d.running?"<span class=\"pill\">正在同步…</span>":''}
+    <span class="pill ${d.enabled?'ok':'warn'}">${d.enabled?"自动同步已开":"自动同步已关"}</span>
     <span class="pill">版本 ${esc(d.version||'—')}</span><span class="pill">${esc(attempt)}</span>
     <span class="pill">本地覆盖 ${esc(d.local_overrides||0)}</span><span class="pill">删除屏蔽 ${esc(d.deleted_count||0)}</span>`;
   $('syncBtn').disabled=Boolean(d.running)||!d.manifest_url||Boolean(d.source_rejected);
-  $('syncBtn').textContent=d.running?'同步中…':d.source_rejected?'来源不可用':'立即同步';
-  if(d.running)setSyncFeedback("正在后台下载并校验资源；点右上角刷新就能看结果和图鉴。");
-  else if(d.last_error)setSyncFeedback(`同步失败：${d.last_error}；手头的资源都留着呢。${d.diagnosis||'请稍后手动重试。'}`);
-  else if(d.last_success)setSyncFeedback(`上次同步已成功：${formatTime(d.last_success)}。${d.diagnosis||''}`);
-  else setSyncFeedback(d.diagnosis||(d.manifest_url?"还没成功同步过，可以手动点一次同步。":"还没配好资源源，先去插件配置里瞧瞧。"));
+  $('syncBtn').textContent=d.running?'同步中…':d.source_rejected?"源头连不上":"马上同步";
+  if(d.running)setSyncFeedback("正在后台拉取并校验资源；点右上角刷新就能看结果和图鉴。");
+  else if(d.last_error)setSyncFeedback(`同步没成：${d.last_error}；手头的资源都好好留着。${d.diagnosis||"过会儿再手动点一次吧。"}`,true);
+  else if(d.last_success)setSyncFeedback(`上次已经同步好了：${formatTime(d.last_success)}。${d.diagnosis||''}`);
+  else setSyncFeedback(d.diagnosis||(d.manifest_url?"还没成功同步过，可以先手动点一次同步。":"资源仓库还没填好，先移步插件配置里设置一下吧。"),Boolean(d.source_rejected));
 }
 async function loadResourceStatus(){const d=await get('resources/status');renderResourceStatus(d);return d}
 async function startResourceSync(){
   const previous=resourceSnapshot;
   let accepted=false;
   $('syncBtn').disabled=true;
-  setSyncFeedback("正在拉起云资源同步任务…");
+  setSyncFeedback("正在启动云端资源同步任务…");
   try{
     const result=await post('resources/sync',{});
     accepted=true;
     if(result.sync)renderResourceStatus(result.sync);
-    toast(result.started===false?"已经有云资源同步任务在跑了":"云资源同步已经在后台跑起来了");
+    toast(result.started===false?"已经有云端同步任务在运行了":"云端资源同步已经在后台跑起来了");
     await loadResourceStatus();
   }catch(e){
     try{await loadResourceStatus()}catch{if(!accepted&&previous)renderResourceStatus(previous)}
     setSyncFeedback(accepted
-      ?`同步请求已接下，暂时没读到最新状态：${e.message}。点右上角刷新看看结果。`
-      :`同步请求失败：${e.message}。刷新状态后再试一次。`);
+      ?`同步指令已下达，暂时没抓到最新进度：${e.message}。点右上角刷新查看状态。`
+      :`同步请求受阻：${e.message}。刷新状态后再试一次吧。`,true);
     toast(e.message);
   }
 }
@@ -746,27 +744,27 @@ function renderUpdateStatus(d){
   const restart=Boolean(d.last_result?.restart_required),error=String(d.last_error||'');
   const available=checked&&p.update_available===true,signed=checked&&p.checksum_available===true;
   updateSnapshot=checked&&!restart&&!error?p:null;
-  let label="还没检查过更新";
-  if(restart)label="装好了，等重载生效";
-  else if(error)label='更新操作失败';
-  else if(d.busy)label="正在检查或更新中…";
-  else if(checked)label=available?`可更新 ${p.latest_version}`:'已是最新稳定版';
-  $('updateStatus').innerHTML=`<span class="pill">已安装 ${esc(current)}</span>
+  let label="尚未检查过版本更新";
+  if(restart)label="安装完毕，等待重载生效";
+  else if(error)label="版本更新失败";
+  else if(d.busy)label="正在检查或执行更新…";
+  else if(checked)label=available?`发现新版本 ${p.latest_version}`:'已是最新稳定版';
+  $('updateStatus').innerHTML=`<span class="pill">当前版本 ${esc(current)}</span>
     <span class="pill ${restart||error||available?'warn':checked&&!d.busy?'ok':''}">${esc(label)}</span>
-    ${checked?`<span class="pill">上次成功检查 ${esc(formatTime(d.last_check_at))}</span>`:''}
-    ${error&&checked?`<span class="pill">上次结果：${available?`可更新 ${esc(p.latest_version)}`:`当时已是最新稳定版 ${esc(p.latest_version)}`}</span>`:''}
-    ${checked?`<span class="pill ${signed?'ok':'warn'}">${signed?'SHA-256 可验证':'未附校验文件'}</span>`:''}
-    <span class="pill">存储 ${esc(d.storage?.backend||'未知')}</span>`;
+    ${checked?`<span class="pill">上次核查时间 ${esc(formatTime(d.last_check_at))}</span>`:''}
+    ${error&&checked?`<span class="pill">上次检测结论：${available?`发现新版本 ${esc(p.latest_version)}`:`彼时已是最新稳定版 ${esc(p.latest_version)}`}</span>`:''}
+    ${checked?`<span class="pill ${signed?'ok':'warn'}">${signed?"支持 SHA-256 校验":"未提供校验文件"}</span>`:''}
+    <span class="pill">存储引擎 ${esc(d.storage?.backend||'未知')}</span>`;
   $('updateCheckBtn').disabled=Boolean(d.busy)||d.enabled===false;
   $('updateApplyBtn').disabled=!updateSnapshot||!available||Boolean(d.busy)||d.enabled===false;
-  $('updateApplyBtn').textContent=available&&!restart?`更新到 ${p.latest_version}`:'安全更新';
+  $('updateApplyBtn').textContent=available&&!restart?`升级至 ${p.latest_version}`:"安全升级";
   $('updateNotes').textContent=checked?p.notes||'':'';
   const messages=[];
-  if(restart)messages.push(`${d.last_result.to_version||current} 装好啦，记得重载插件或重启 AstrBot 才会生效哦。`);
-  if(error)messages.push(`上次更新失败了：${error}。先重新检查更新再安装吧。`);
-  if(d.enabled===false)messages.push("面板更新功能在插件配置里关掉了，暂时不能从这儿更。");
-  if(!messages.length&&available)messages.push(signed?'Release 提供 SHA-256，更新时会强制核对。':"Release 没提供 SHA-256，点更新后得再人工确认一次才行。");
-  if(!messages.length)messages.push(checked?"只帮忙查官方稳定 Release，不会擅自自动更新或重启。":"先点一下检查更新吧，目前还没拿到可用的稳定版结果。");
+  if(restart)messages.push(`${d.last_result.to_version||current} 已经装好啦，记得重载插件或重启 AstrBot 才能生效哦。`);
+  if(error)messages.push(`上次更新翻车了：${error}。先重新检查更新再安装吧。`);
+  if(d.enabled===false)messages.push("面板更新开关在插件配置里关掉了，暂时无法在此升级。");
+  if(!messages.length&&available)messages.push(signed?"官方 Release 附带了 SHA-256，更新时会自动强制核验。":"官方 Release 没提供 SHA-256，点击更新后需要你再手动确认一次。");
+  if(!messages.length)messages.push(checked?"仅帮忙检索官方稳定版 Release，绝不会私自自动更新或重启。":"先点一下检查更新吧，目前还没获取到可用的稳定版信息。");
   setUpdateFeedback(messages.join(' '));
 }
 async function loadUpdateStatus(){const d=await get('updates/status');renderUpdateStatus(d);return d}
@@ -774,7 +772,7 @@ async function checkPluginUpdate(){
   try{
     const result=await post('updates/check',{});
     await loadUpdateStatus();
-    toast(result.update_available?`发现稳定版 ${result.latest_version}`:'当前已是最新稳定版');
+    toast(result.update_available?`检测到稳定版 ${result.latest_version}`:'当前已是最新稳定版');
     return result;
   }catch(e){
     let status=updateStatusSnapshot||{};
@@ -785,24 +783,24 @@ async function checkPluginUpdate(){
 }
 let storageSnapshot=null;
 const setStorageFeedback=message=>$('storageFeedback').textContent=message;
-function formatStorageRepair(h){if(!h.last_repair_action)return'尚无修复记录';const reason=h.last_repair_reason?` · ${h.last_repair_reason}`:'';const when=Number(h.last_repair_at||0)?` · ${new Date(Number(h.last_repair_at)*1000).toLocaleString()}`:'';return`${h.last_repair_action}${reason}${when}`}
-function renderStorageStatus(d){storageSnapshot=d;const h=d.health||{},sqlite=d.active_backend==='sqlite',ok=Boolean(h.ok),mode=d.configured_mode||'auto',sqlAnalytics=h.analytics_source==='normalized-sql',repair=formatStorageRepair(h),authority=String(h.write_authority||'compatibility-documents'),onDemand=h.compatibility_mode==='on-demand';$('storageStatus').innerHTML=`<span class="pill ${sqlite?'ok':''}">当前 ${esc(d.active_backend||'json')}</span><span class="pill">配置 ${esc(mode)}</span><span class="pill ${ok?'ok':'warn'}">${d.database_exists?(ok?'数据库完整':'数据库需检查'):'尚未建库'}</span>${h.schema_version?`<span class="pill">Schema ${h.schema_version}</span>`:''}${sqlAnalytics?'<span class="pill ok">统计 SQL</span>':'<span class="pill">统计 JSON</span>'}${sqlite?`<span class="pill">写入权威 ${esc(authority)}</span><span class="pill ${onDemand?'ok':''}">兼容 JSON ${onDemand?'按需生成':'同步保存'}</span>`:''}${h.documents!==undefined?`<span class="pill">文档 ${h.documents}</span>`:''}${h.users!==undefined?`<span class="pill">用户 ${h.users}</span>`:''}${h.last_repair_action?`<span class="pill">最近修复 ${esc(h.last_repair_reason||'manual')}</span>`:''}`;$('storageMigrateBtn').disabled=sqlite||mode==='json';$('storageRollbackBtn').disabled=!sqlite;$('storageVerifyBtn').disabled=!d.database_exists;$('storageRebuildBtn').disabled=!d.database_exists;if(d.last_error)setStorageFeedback(`存储操作失败：${d.last_error}；快去核查下当前后端和日志吧。`);else if(sqlite)setStorageFeedback(`SQLite 正在使用 WAL 与事务；运行时权威：${authority}；兼容 JSON：${onDemand?'仅在导出或回滚时按需生成':'仍同步保存'}；最近修复：${repair}；最近迁移备份：${d.latest_backup||'无'}。`);else if(mode==='json')setStorageFeedback("配置已强制使用 JSON，得先改成 auto 才能从面板迁移。");else setStorageFeedback('当前使用 JSON；迁移会先备份、临时建库、事实对账并通过完整性检查后才切换。')}
+function formatStorageRepair(h){if(!h.last_repair_action)return"暂无修复记录";const reason=h.last_repair_reason?` · ${h.last_repair_reason}`:'';const when=Number(h.last_repair_at||0)?` · ${new Date(Number(h.last_repair_at)*1000).toLocaleString()}`:'';return`${h.last_repair_action}${reason}${when}`}
+function renderStorageStatus(d){storageSnapshot=d;const h=d.health||{},sqlite=d.active_backend==='sqlite',ok=Boolean(h.ok),mode=d.configured_mode||'auto',sqlAnalytics=h.analytics_source==='normalized-sql',repair=formatStorageRepair(h),authority=String(h.write_authority||'compatibility-documents'),onDemand=h.compatibility_mode==='on-demand';$('storageStatus').innerHTML=`<span class="pill ${sqlite?'ok':''}">当前后端 ${esc(d.active_backend||'json')}</span><span class="pill">配置模式 ${esc(mode)}</span><span class="pill ${ok?'ok':'warn'}">${d.database_exists?(ok?"数据库状态完好":"数据库需要排查"):"尚未初始化建库"}</span>${h.schema_version?`<span class="pill">Schema ${h.schema_version}</span>`:''}${sqlAnalytics?"<span class=\"pill ok\">统计口径 SQL</span>":"<span class=\"pill\">统计口径 JSON</span>"}${sqlite?`<span class="pill">主写入库 ${esc(authority)}</span><span class="pill ${onDemand?'ok':''}">兼容 JSON ${onDemand?'按需生成':"实时双写"}</span>`:''}${h.documents!==undefined?`<span class="pill">文档数 ${h.documents}</span>`:''}${h.users!==undefined?`<span class="pill">玩家数 ${h.users}</span>`:''}${h.last_repair_action?`<span class="pill">最近修复 ${esc(h.last_repair_reason||'manual')}</span>`:''}`;$('storageMigrateBtn').disabled=sqlite||mode==='json';$('storageRollbackBtn').disabled=!sqlite;$('storageVerifyBtn').disabled=!d.database_exists;$('storageRebuildBtn').disabled=!d.database_exists;if(d.last_error)setStorageFeedback(`存储操作异常：${d.last_error}；快去核查一下当前后端和运行日志吧。`);else if(sqlite)setStorageFeedback(`SQLite 已开启 WAL 与事务模式；运行时主库：${authority}；兼容 JSON：${onDemand?'仅在导出或回滚时按需生成':"保持同步双写"}；最近修复：${repair}；最近迁移备份：${d.latest_backup||'无'}。`);else if(mode==='json')setStorageFeedback("配置已锁定使用 JSON，得先改为 auto 才能通过面板执行迁移。");else setStorageFeedback("当前正使用 JSON 存储；迁移流程会先完整备份、建立临时库、核对数据一致性并通过完整性校验后才正式切换。")}
 async function loadStorageStatus(){const d=await get('storage/status');renderStorageStatus(d);return d}
-async function migrateStorage(){if(storageSnapshot?.configured_mode==='json'){toast('请先把 storage_backend 改为 auto');return}if(!window.confirm("确定重试迁移到 SQLite 吗？会先完整备份旧 JSON，对账或完整性检查失败就不会切换。"))return;busy(true);setStorageFeedback('正在备份旧 JSON、建立临时数据库并执行事实对账…');try{const d=await post('storage/migrate',{confirm:true});toast(`已迁移 ${d.documents||0} 份文档到 SQLite`);await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`迁移失败：${e.message}；放心，还在用原来的 JSON。`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
-async function verifyStorage(){busy(true);setStorageFeedback('正在执行 integrity_check 与 foreign_key_check…');try{const d=await post('storage/verify',{});toast(d.ok?'数据库完整性正常':'数据库验证未通过');await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
-async function rebuildStorage(){if(!window.confirm("确定检查并修复 SQLite 规范化表的可推导状态吗？不会用旧 JSON 覆盖 SQL，但期间会暂锁数据库写入。"))return;busy(true);setStorageFeedback('正在事务性检查并修复规范化派生状态…');try{const d=await post('storage/rebuild',{confirm:true});toast('SQLite 规范化状态已修复');await loadStorageStatus()}catch(e){setStorageFeedback(`重建失败：${e.message}`);toast(e.message)}finally{busy(false)}}
-async function exportStorage(){busy(true);try{const d=await post('storage/export',{});toast(`已导出 ${d.filename}`);setStorageFeedback(`已从当前 SQL 按需生成 ${d.filename}；SHA-256：${d.sha256}`);await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
-async function rollbackStorage(){if(!window.confirm("确定把 SQLite 的最新数据写回 JSON 并停用数据库吗？原数据库只改名保留，不会删除。"))return;if(!window.confirm("再次确认：回滚一完成，当前实例就会立刻切换回 JSON。"))return;busy(true);setStorageFeedback("正在导出 SQLite 最新文档、原子写回 JSON 并核对账目…");try{const d=await post('storage/rollback',{confirm:true});toast("已稳稳回滚到 JSON");await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`回滚失败：${e.message}`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
-async function applyPluginUpdate(){if(!updateSnapshot?.update_available){toast('请先检查更新');return}const unsigned=!updateSnapshot.checksum_available;if(unsigned&&!window.confirm('这个官方 Release 没有附带 SHA-256 校验文件。系统仍会执行仓库身份、HTTPS、ZIP 路径、文件数量、体积、metadata 与 Python 语法检查，并在替换前完整备份。确定继续吗？'))return;busy(true);$('updateApplyBtn').disabled=true;setUpdateFeedback("正在下载、校验、备份并替换插件代码，马上就好…");try{const d=await post('updates/apply',{confirm_unsigned:unsigned});toast(`${d.to_version} 已装好，重启一下 AstrBot 就能生效`);setUpdateFeedback(`安装搞定，旧版备份也留好了。挑个方便的时候重启 AstrBot 载入 ${d.to_version} 吧。`);await loadUpdateStatus()}catch(e){setUpdateFeedback(`更新失败：${e.message}；现有插件与数据已保留或回滚。`);toast(e.message);try{await loadUpdateStatus()}catch{}}finally{busy(false)}}
-async function paintRgbaCanvas(canvas,thumbnail){const w=Number(thumbnail?.width),h=Number(thumbnail?.height),png=String(thumbnail?.png||'');if(!w||!h||w>512||h>512||!png)throw new Error('缩略图数据无效');const image=new Image();image.src='data:image/png;base64,'+png;await image.decode();canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(image,0,0,w,h)}
+async function migrateStorage(){if(storageSnapshot?.configured_mode==='json'){toast("请先将 storage_backend 调整为 auto");return}if(!window.confirm("确认重新尝试迁移至 SQLite 吗？系统会先完整备份旧 JSON，若对账或完整性校验不通过则不会切换。"))return;busy(true);setStorageFeedback("正在备份旧 JSON、构建临时数据库并执行数据对账…");try{const d=await post('storage/migrate',{confirm:true});toast(`已成功迁移 ${d.documents||0} 份文档至 SQLite`);await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`迁移未能完成：${e.message}；放心，数据依然安全留在原来的 JSON 里。`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
+async function verifyStorage(){busy(true);setStorageFeedback("正在运行 integrity_check 与 foreign_key_check…");try{const d=await post('storage/verify',{});toast(d.ok?"数据库完整性校验通过":"数据库完整性验证异常");await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
+async function rebuildStorage(){if(!window.confirm("确定要检测并修复 SQLite 规范化表的派生状态吗？这不会用旧 JSON 覆盖现有 SQL，但执行期间会暂时锁定数据库写入。"))return;busy(true);setStorageFeedback("正在事务模式下检查并修复规范化派生状态…");try{const d=await post('storage/rebuild',{confirm:true});toast("SQLite 规范化状态已修复完成");await loadStorageStatus()}catch(e){setStorageFeedback(`状态重建失败：${e.message}`);toast(e.message)}finally{busy(false)}}
+async function exportStorage(){busy(true);try{const d=await post('storage/export',{});toast(`已成功导出 ${d.filename}`);setStorageFeedback(`已从当前 SQL 按需生成 ${d.filename}；SHA-256：${d.sha256}`);await loadStorageStatus()}catch(e){toast(e.message)}finally{busy(false)}}
+async function rollbackStorage(){if(!window.confirm("确定将 SQLite 的最新数据回写至 JSON 并停用数据库吗？原数据库文件仅重命名保留，不会被删除。"))return;if(!window.confirm("再确认一遍：一旦开始回滚，当前实例会立刻切回 JSON 格式。"))return;busy(true);setStorageFeedback("正在把 SQLite 最新数据导出、原子写回 JSON 并核对猪圈账本…");try{const d=await post('storage/rollback',{confirm:true});toast("已安全回滚到 JSON 模式");await Promise.all([loadStorageStatus(),loadUpdateStatus()])}catch(e){setStorageFeedback(`回滚翻车了：${e.message}`);toast(e.message);try{await loadStorageStatus()}catch{}}finally{busy(false)}}
+async function applyPluginUpdate(){if(!updateSnapshot?.update_available){toast("请先检查一下版本更新");return}const unsigned=!updateSnapshot.checksum_available;if(unsigned&&!window.confirm("这个官方 Release 没附带 SHA-256 校验文件。不过系统依然会做仓库身份、HTTPS、ZIP 路径、文件数量、体积、metadata 与 Python 语法核验，并在替换前做完整备份。确定要继续装吗？"))return;busy(true);$('updateApplyBtn').disabled=true;setUpdateFeedback("正在拉取新包、核验安全、留好备份并替换插件，马上就好…");try{const d=await post('updates/apply',{confirm_unsigned:unsigned});toast(`${d.to_version} 已经装好啦，重启一下 AstrBot 就能上线`);setUpdateFeedback(`安装完成，旧版备份也妥妥存好了。挑个顺手的时间重启 AstrBot 载入 ${d.to_version} 吧。`);await loadUpdateStatus()}catch(e){setUpdateFeedback(`更新没成功：${e.message}；原有插件和猪圈数据都已保住或自动回滚。`);toast(e.message);try{await loadUpdateStatus()}catch{}}finally{busy(false)}}
+async function paintRgbaCanvas(canvas,thumbnail){const w=Number(thumbnail?.width),h=Number(thumbnail?.height),png=String(thumbnail?.png||'');if(!w||!h||w>512||h>512||!png)throw new Error("缩略图数据损坏或无效");const image=new Image();image.src='data:image/png;base64,'+png;await image.decode();canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(image,0,0,w,h)}
 function clearPreview(){const canvas=$('imagePreview'),ctx=canvas.getContext('2d');canvas.width=192;canvas.height=192;ctx.clearRect(0,0,192,192)}
 function paintBitmapPreview(bitmap){const canvas=$('imagePreview'),ctx=canvas.getContext('2d');canvas.width=192;canvas.height=192;const scale=Math.max(192/bitmap.width,192/bitmap.height),w=bitmap.width*scale,h=bitmap.height*scale;ctx.clearRect(0,0,192,192);ctx.drawImage(bitmap,(192-w)/2,(192-h)/2,w,h)}
-function renderHub(){const token=++hubRenderToken;if(!hubItems.length){$('pighubGrid').innerHTML="<div class=\"empty\">没翻到符合条件的 PigHub 图片</div>";return}$('pighubGrid').innerHTML=hubItems.map((p,i)=>`<button type="button" class="hub-card ${pighubUrl===p.image_url?'selected':''}" style="--delay:${Math.min(i,12)*30}ms" data-hub="${i}"><div class="hub-thumb"><canvas width="160" height="160" data-hub-canvas="${i}" aria-label="${esc(p.title)}"></canvas><div class="image-fallback">🐽</div></div><div class="hub-title">${esc(p.title)}</div><div class="hub-file">${esc(p.filename)}</div></button>`).join('');document.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>selectHub(hubItems[+b.dataset.hub]));loadHubThumbnails(token)}
+function renderHub(){const token=++hubRenderToken;if(!hubItems.length){$('pighubGrid').innerHTML="<div class=\"empty\">在 PigHub 里没搜到符合条件的小猪图</div>";return}$('pighubGrid').innerHTML=hubItems.map((p,i)=>`<button type="button" class="hub-card ${pighubUrl===p.image_url?'selected':''}" style="--delay:${Math.min(i,12)*30}ms" data-hub="${i}"><div class="hub-thumb"><canvas width="160" height="160" data-hub-canvas="${i}" aria-label="${esc(p.title)}"></canvas><div class="image-fallback">🐽</div></div><div class="hub-title">${esc(p.title)}</div><div class="hub-file">${esc(p.filename)}</div></button>`).join('');document.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>selectHub(hubItems[+b.dataset.hub]));loadHubThumbnails(token)}
 async function loadHubThumbnails(token){let next=0;const source=hubItems.slice();const worker=async()=>{while(next<source.length){const index=next++;try{const thumbnail=await get('pighub/thumbnail',{url:source[index].image_url});if(token!==hubRenderToken)return;source[index].thumbnail=thumbnail;const canvas=document.querySelector(`[data-hub-canvas="${index}"]`);if(canvas)await paintRgbaCanvas(canvas,thumbnail)}catch{if(token!==hubRenderToken)return;const canvas=document.querySelector(`[data-hub-canvas="${index}"]`);if(canvas)canvas.closest('.hub-thumb').classList.add('broken')}}};await Promise.all(Array.from({length:Math.min(3,source.length)},worker))}
 const withTimeout=(promise,ms,message)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(message)),ms))]);
-async function loadHub(refresh=false){$('pighubGrid').innerHTML="<div class=\"empty\">正在去 PigHub 翻找图库索引…</div>";const d=await withTimeout(get('pighub',{page:hubPage,search:hubSearch,refresh:refresh?1:0}),20000,"PigHub 超过 20 秒没搭理，稍后再试试吧");hubItems=d.items||[];hubPage=d.page;hubPages=d.pages;$('hubPageText').textContent=`${hubPage} / ${hubPages}`;$('hubPrev').disabled=hubPage<=1;$('hubNext').disabled=hubPage>=hubPages;renderHub();toast(`PigHub 图库加载完毕：共 ${d.total} 张图片`)}
-async function selectHub(p){pighubUrl=p.image_url;pighubFilename=String(p.filename||'');imageData='';$('imageFile').value='';if(!$('originalId').value)$('pigId').value=pighubPigId(p);$('pigName').value=String(p.title||p.filename||'PigHub 小猪').trim().slice(0,30);setImageSource('pighub');$('sourceNote').textContent=`已选中 PigHub：${p.title}（ID 和名称已自动填好，保存时由服务端安全下载）`;$('pighubModal').classList.remove('open');busy(true);try{await paintRgbaCanvas($('imagePreview'),p.thumbnail||await get('pighub/preview',{url:p.image_url}));toast("已把 PigHub 图片领回来了，接着写描述和文案吧")}catch(e){clearPreview();toast(e.message)}finally{busy(false);updateFlow()}}
-async function generateAiDraft(){if(!pighubUrl){toast("请先从 PigHub 挑一张图片");return}if(($('pigDescription').value.trim()||$('pigAnalysis').value.trim())&&!window.confirm("描述或文案里已经有字了，确定让 AI 直接覆盖吗？"))return;$('aiDraftBtn').disabled=true;beginAiProgress();try{const draft=await post('pigs/suggest',{name:$('pigName').value.trim(),filename:pighubFilename,pighub_url:pighubUrl,guidance:$('aiGuidance').value.trim()});$('pigDescription').value=draft.description||'';$('pigAnalysis').value=draft.analysis||'';$('copyCount').textContent=$('pigAnalysis').value.length;finishAiProgress(true,"AI 草稿出炉，正在往表单里填…");toast("AI 草稿已填好，随时可以继续改")}catch(e){finishAiProgress(false,`生成失败：${e.message}`);toast(e.message)}finally{setAiDraftAvailability(Boolean(pighubUrl));updateFlow()}}
+async function loadHub(refresh=false){$('pighubGrid').innerHTML="<div class=\"empty\">正在去 PigHub 翻找图库索引…</div>";const d=await withTimeout(get('pighub',{page:hubPage,search:hubSearch,refresh:refresh?1:0}),20000,"PigHub 超过 20 秒没回应，过会儿再敲它试试吧");hubItems=d.items||[];hubPage=d.page;hubPages=d.pages;$('hubPageText').textContent=`${hubPage} / ${hubPages}`;$('hubPrev').disabled=hubPage<=1;$('hubNext').disabled=hubPage>=hubPages;renderHub();toast(`PigHub 图库载入完成：一共 ${d.total} 张图片`)}
+async function selectHub(p){pighubUrl=p.image_url;pighubFilename=String(p.filename||'');imageData='';$('imageFile').value='';if(!$('originalId').value)$('pigId').value=pighubPigId(p);$('pigName').value=String(p.title||p.filename||"PigHub 猪猪").trim().slice(0,30);setImageSource('pighub');$('sourceNote').textContent=`已挑中 PigHub：${p.title}（ID 和名字都自动填上了，点保存时后端会自动安全拉图）`;$('pighubModal').classList.remove('open');busy(true);try{await paintRgbaCanvas($('imagePreview'),p.thumbnail||await get('pighub/preview',{url:p.image_url}));toast("已把 PigHub 图片领进圈啦，接着写介绍和抽卡台词吧")}catch(e){clearPreview();toast(e.message)}finally{busy(false);updateFlow()}}
+async function generateAiDraft(){if(!pighubUrl){toast("请先从 PigHub 挑一张喜欢的图片");return}if(($('pigDescription').value.trim()||$('pigAnalysis').value.trim())&&!window.confirm("介绍或抽卡台词里已经有内容了，确定让 AI 直接覆盖重写吗？"))return;$('aiDraftBtn').disabled=true;beginAiProgress();try{const draft=await post('pigs/suggest',{name:$('pigName').value.trim(),filename:pighubFilename,pighub_url:pighubUrl,guidance:$('aiGuidance').value.trim()});$('pigDescription').value=draft.description||'';$('pigAnalysis').value=draft.analysis||'';$('copyCount').textContent=$('pigAnalysis').value.length;finishAiProgress(true,"AI 文案草稿写好了，正在往格子里填…");toast("AI 草稿已填入，随时都能动手微调")}catch(e){finishAiProgress(false,`AI 生成没成功：${e.message}`);toast(e.message)}finally{setAiDraftAvailability(Boolean(pighubUrl));updateFlow()}}
 function animateNumber(node,target,suffix=''){const end=Number(target)||0;if(reduceMotion){node.textContent=`${target}${suffix}`;return}const decimal=String(target).includes('.');const start=performance.now(),duration=900;const tick=now=>{const p=Math.min(1,(now-start)/duration),eased=1-Math.pow(1-p,4),value=end*eased;node.textContent=`${decimal?value.toFixed(1):Math.round(value).toLocaleString()}${suffix}`;if(p<1)requestAnimationFrame(tick)};requestAnimationFrame(tick)}
 function metricSparkRange(values){
   const nums=values.map(value=>Number(value)).filter(Number.isFinite);
@@ -833,7 +831,7 @@ function monotoneSparkPath(pts){
   }
   return path
 }
-function renderSpark(id,values,index,label='近 14 日趋势'){
+function renderSpark(id,values,index,label="近 14 日走势"){
   const root=$(id);if(!root)return;root.setAttribute('aria-label',label);
   const w=240,h=48,padX=5,padY=7,pts=sparkPoints(values.length?values:[0],w,h,padX,padY),line=monotoneSparkPath(pts),baseline=h-padY,first=pts[0],last=pts[pts.length-1],area=`${line} L ${last[0].toFixed(2)} ${baseline.toFixed(2)} L ${first[0].toFixed(2)} ${baseline.toFixed(2)} Z`,gradient=`spark-${index}`;
   root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><defs><linearGradient id="${gradient}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--tone)" stop-opacity=".18"/><stop offset="1" stop-color="var(--tone)" stop-opacity="0"/></linearGradient></defs><path class="spark-area" d="${area}" fill="url(#${gradient})"/><path class="spark-path" vector-effect="non-scaling-stroke" d="${line}"/><circle class="spark-endpoint" cx="${last[0].toFixed(2)}" cy="${last[1].toFixed(2)}" r="2.8"/></svg>`;
@@ -841,13 +839,13 @@ function renderSpark(id,values,index,label='近 14 日趋势'){
 }
 function renderMetricEmptyViz(id,label){const root=$(id);if(!root)return;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-viz-empty">${esc(label)}</div>`}
 function renderMetricMeter(id,value,max,label){
-  const root=$(id);if(!root)return;const numerator=Math.max(0,Number(value)||0),denominator=Math.max(0,Number(max)||0),ratio=denominator>0?Math.max(0,Math.min(100,numerator/denominator*100)):0;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-meter" role="img" aria-label="${esc(label)}"><div class="metric-meter-track"><span class="metric-meter-fill" data-width="${ratio.toFixed(3)}"></span></div><div class="metric-viz-caption"><span>今日活跃占累计用户</span><strong>${metricDecimal(ratio)}%</strong></div></div>`;requestAnimationFrame(()=>{const fill=root.querySelector('.metric-meter-fill');if(fill)fill.style.width=`${fill.dataset.width}%`})
+  const root=$(id);if(!root)return;const numerator=Math.max(0,Number(value)||0),denominator=Math.max(0,Number(max)||0),ratio=denominator>0?Math.max(0,Math.min(100,numerator/denominator*100)):0;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-meter" role="img" aria-label="${esc(label)}"><div class="metric-meter-track"><span class="metric-meter-fill" data-width="${ratio.toFixed(3)}"></span></div><div class="metric-viz-caption"><span>今日活跃占累计群友</span><strong>${metricDecimal(ratio)}%</strong></div></div>`;requestAnimationFrame(()=>{const fill=root.querySelector('.metric-meter-fill');if(fill)fill.style.width=`${fill.dataset.width}%`})
 }
 function renderMetricRuler(id,value,max,label){
   const root=$(id);if(!root)return;const current=Math.max(0,Number(value)||0),limit=Math.max(0,Number(max)||0),ratio=limit>0?Math.max(0,Math.min(100,current/limit*100)):0;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-ruler" role="img" aria-label="${esc(label)}"><div class="metric-ruler-track"><span class="metric-ruler-fill" data-width="${ratio.toFixed(3)}"></span><i class="metric-ruler-marker" data-left="${ratio.toFixed(3)}"></i></div><div class="metric-viz-caption"><span>0</span><strong>${metricDecimal(current)} / ${limit.toLocaleString()}</strong><span>${limit.toLocaleString()}</span></div></div>`;requestAnimationFrame(()=>{const fill=root.querySelector('.metric-ruler-fill'),marker=root.querySelector('.metric-ruler-marker');if(fill)fill.style.width=`${fill.dataset.width}%`;if(marker)marker.style.left=`${marker.dataset.left}%`})
 }
 function renderMetricRate(id,percent,label){
-  const root=$(id);if(!root)return;const value=Math.max(0,Math.min(100,Number(percent)||0)),offset=100-value;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-rate" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="metric-rate-track" cx="24" cy="24" r="18"/><circle class="metric-rate-arc" cx="24" cy="24" r="18" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 24 24)" data-offset="${offset.toFixed(3)}"/></svg><div class="metric-rate-copy"><strong>${metricDecimal(value)}% 已覆盖</strong><span>${metricDecimal(100-value)}% 仍待探索</span></div></div>`;requestAnimationFrame(()=>{const arc=root.querySelector('.metric-rate-arc');if(arc)arc.style.strokeDashoffset=arc.dataset.offset})
+  const root=$(id);if(!root)return;const value=Math.max(0,Math.min(100,Number(percent)||0)),offset=100-value;root.setAttribute('aria-label',label);root.innerHTML=`<div class="metric-rate" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="metric-rate-track" cx="24" cy="24" r="18"/><circle class="metric-rate-arc" cx="24" cy="24" r="18" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 24 24)" data-offset="${offset.toFixed(3)}"/></svg><div class="metric-rate-copy"><strong>${metricDecimal(value)}% 已集齐</strong><span>${metricDecimal(100-value)}% 待发掘</span></div></div>`;requestAnimationFrame(()=>{const arc=root.querySelector('.metric-rate-arc');if(arc)arc.style.strokeDashoffset=arc.dataset.offset})
 }
 function smoothLinePath(values,w,h,padX,padY,max,curve=.42){
   const span=Math.max(1,values.length-1),pts=values.map((v,i)=>[padX+i*(w-padX*2)/span,h-padY-(Number(v)||0)/max*(h-padY*2)]);
@@ -861,7 +859,7 @@ function renderTrend(data){
   const root=$('trendChart'),panel=root.closest('.panel'),w=840,h=300,padX=42,padY=34;
   panel?.classList.add('trend-panel');
   let summary=$('trendSummary');
-  if(!data.length){root.innerHTML='<div class="empty">暂无历史趋势数据</div>';summary?.remove();return}
+  if(!data.length){root.innerHTML="<div class=\"empty\">暂时还没有历史走势记录</div>";summary?.remove();return}
   const users=data.map(x=>Number(x.users)||0),draws=data.map(x=>Number(x.draws)||0),unlocks=data.map(x=>Number(x.new_unlocks)||0);
   const max=Math.max(1,...users,...draws,...unlocks),userLine=smoothLinePath(users,w,h,padX,padY,max),unlockLine=smoothLinePath(unlocks,w,h,padX,padY,max),base=h-padY,userArea=`${userLine} L ${w-padX} ${base} L ${padX} ${base} Z`,step=(w-padX*2)/Math.max(1,data.length-1),barWidth=Math.max(8,Math.min(24,step*.34));
   let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="近十四日使用人数、抽取次数与新解锁趋势"><defs><linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--pink)" stop-opacity=".38"/><stop offset="1" stop-color="var(--pink)" stop-opacity="0"/></linearGradient><linearGradient id="drawBars" x1="0" y1="0" x2="0" y2="1"><stop stop-color="var(--blue)" stop-opacity=".42"/><stop offset="1" stop-color="var(--blue)" stop-opacity=".08"/></linearGradient></defs>`;
@@ -871,12 +869,12 @@ function renderTrend(data){
   data.forEach((x,i)=>{const px=padX+i*(w-padX*2)/Math.max(1,data.length-1);svg+=`<text class="chart-label" text-anchor="middle" x="${px}" y="${h-7}">${esc(x.date)}</text>`});
   root.innerHTML=svg+'</svg><div class="chart-tooltip" id="trendTip"></div>';
   const peakIndex=users.reduce((best,value,index)=>value>users[best]?index:best,0),average=users.reduce((sum,value)=>sum+value,0)/Math.max(1,users.length),totalDraws=draws.reduce((sum,value)=>sum+value,0),totalUnlocks=unlocks.reduce((sum,value)=>sum+value,0);
-  if(!summary){summary=document.createElement('div');summary.id='trendSummary';summary.className='trend-summary';summary.setAttribute('aria-label','近 14 日摘要');summary.setAttribute('aria-live','polite');root.insertAdjacentElement('afterend',summary)}
-  summary.innerHTML=`<div class="trend-summary-item"><span>活跃峰值</span><strong>${users[peakIndex]} 人</strong><small>${esc(data[peakIndex]?.date||'—')}</small></div><div class="trend-summary-item"><span>日均活跃</span><strong>${average.toFixed(1).replace(/\.0$/,'')} 人</strong><small>近 14 日均值</small></div><div class="trend-summary-item"><span>14 日抽取</span><strong>${totalDraws.toLocaleString()} 次</strong><small>趋势窗口累计</small></div><div class="trend-summary-item"><span>14 日新解锁</span><strong>${totalUnlocks.toLocaleString()} 次</strong><small>趋势窗口累计</small></div>`;
+  if(!summary){summary=document.createElement('div');summary.id='trendSummary';summary.className='trend-summary';summary.setAttribute('aria-label',"近 14 日战报");summary.setAttribute('aria-live','polite');root.insertAdjacentElement('afterend',summary)}
+  summary.innerHTML=`<div class="trend-summary-item"><span>单日峰值</span><strong>${users[peakIndex]} 人</strong><small>${esc(data[peakIndex]?.date||'—')}</small></div><div class="trend-summary-item"><span>日均活跃</span><strong>${average.toFixed(1).replace(/\.0$/,'')} 人</strong><small>近 14 日均值</small></div><div class="trend-summary-item" data-rollpig-metric="total-draws"><span>14 日抽猪</span><strong>${totalDraws.toLocaleString()} 次</strong><small>统计期内累计</small></div><div class="trend-summary-item"><span>14 日新解锁</span><strong>${totalUnlocks.toLocaleString()} 次</strong><small>统计期内累计</small></div>`;
   animateSvgPaths(root);bindTrendPointer(root,data,{w,h,padX,padY,max})
 }
-function bindTrendPointer(root,data,dims){const svg=root.querySelector('svg'),tip=$('trendTip'),{w,h,padX,padY,max}=dims;let guide=null,points=[];const clear=()=>{guide?.remove();points.forEach(p=>p.remove());guide=null;points=[];tip.classList.remove('show')};svg.onpointerleave=clear;svg.onpointermove=e=>{const rect=svg.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width*w,index=Math.max(0,Math.min(data.length-1,Math.round((x-padX)/(w-padX*2)*Math.max(1,data.length-1)))),px=padX+index*(w-padX*2)/Math.max(1,data.length-1),entry=data[index];clear();guide=document.createElementNS('http://www.w3.org/2000/svg','line');guide.setAttribute('class','chart-guide');guide.setAttribute('x1',px);guide.setAttribute('x2',px);guide.setAttribute('y1',padY);guide.setAttribute('y2',h-padY);svg.appendChild(guide);[[Number(entry.users)||0,'var(--pink)'],[Number(entry.new_unlocks)||0,'var(--violet)']].forEach(([value,color])=>{const p=document.createElementNS('http://www.w3.org/2000/svg','circle');p.setAttribute('class','chart-point');p.setAttribute('cx',px);p.setAttribute('cy',h-padY-value/max*(h-padY*2));p.setAttribute('r','6');p.setAttribute('fill',color);svg.appendChild(p);points.push(p)});tip.innerHTML=`<div class="tooltip-date">${esc(entry.date)}</div><div class="tooltip-row"><span>使用人数</span><b>${entry.users}</b></div><div class="tooltip-row"><span>抽取次数</span><b>${entry.draws}</b></div><div class="tooltip-row"><span>新解锁</span><b>${entry.new_unlocks}</b></div>`;tip.style.left=`${px/w*100}%`;tip.style.top=`${Math.max(80,Math.min(h-20,e.clientY-rect.top))}px`;tip.classList.add('show')}}
-function renderBars(data){const root=$('barChart');if(!data.length){root.innerHTML='<div class="empty">暂无历史抽取数据</div>';return}const shown=data.slice(0,7),max=Math.max(1,...shown.map(x=>Number(x.draws)||0));root.innerHTML=shown.map((x,i)=>`<div class="bar-row" title="${esc(x.name)} · ${x.draws} 次"><div class="bar-name">${i+1}. ${esc(x.name)}</div><div class="bar-track"><div class="bar-fill" style="--delay:${i*75}ms" data-width="${Math.max(4,(Number(x.draws)||0)/max*100)}"></div></div><div class="bar-value">${x.draws}</div></div>`).join('');requestAnimationFrame(()=>root.querySelectorAll('.bar-fill').forEach(bar=>bar.style.width=`${bar.dataset.width}%`))}
+function bindTrendPointer(root,data,dims){const svg=root.querySelector('svg'),tip=$('trendTip'),{w,h,padX,padY,max}=dims;let guide=null,points=[];const clear=()=>{guide?.remove();points.forEach(p=>p.remove());guide=null;points=[];tip.classList.remove('show')};svg.onpointerleave=clear;svg.onpointermove=e=>{const rect=svg.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width*w,index=Math.max(0,Math.min(data.length-1,Math.round((x-padX)/(w-padX*2)*Math.max(1,data.length-1)))),px=padX+index*(w-padX*2)/Math.max(1,data.length-1),entry=data[index];clear();guide=document.createElementNS('http://www.w3.org/2000/svg','line');guide.setAttribute('class','chart-guide');guide.setAttribute('x1',px);guide.setAttribute('x2',px);guide.setAttribute('y1',padY);guide.setAttribute('y2',h-padY);svg.appendChild(guide);[[Number(entry.users)||0,'var(--pink)'],[Number(entry.new_unlocks)||0,'var(--violet)']].forEach(([value,color])=>{const p=document.createElementNS('http://www.w3.org/2000/svg','circle');p.setAttribute('class','chart-point');p.setAttribute('cx',px);p.setAttribute('cy',h-padY-value/max*(h-padY*2));p.setAttribute('r','6');p.setAttribute('fill',color);svg.appendChild(p);points.push(p)});tip.innerHTML=`<div class="tooltip-date">${esc(entry.date)}</div><div class="tooltip-row"><span>参与人数</span><b>${entry.users}</b></div><div class="tooltip-row" data-rollpig-metric="total-draws"><span>抽猪次数</span><b>${entry.draws}</b></div><div class="tooltip-row"><span>新解锁数</span><b>${entry.new_unlocks}</b></div>`;tip.style.left=`${px/w*100}%`;tip.style.top=`${Math.max(80,Math.min(h-20,e.clientY-rect.top))}px`;tip.classList.add('show')}}
+function renderBars(data){const root=$('barChart');if(!data.length){root.innerHTML="<div class=\"empty\">暂时还没有历史抽猪记录</div>";return}const shown=data.slice(0,7),max=Math.max(1,...shown.map(x=>Number(x.draws)||0));root.innerHTML=shown.map((x,i)=>`<div class="bar-row" title="${esc(x.name)} · ${x.draws} 次"><div class="bar-name">${i+1}. ${esc(x.name)}</div><div class="bar-track"><div class="bar-fill" style="--delay:${i*75}ms" data-width="${Math.max(4,(Number(x.draws)||0)/max*100)}"></div></div><div class="bar-value">${x.draws}</div></div>`).join('');requestAnimationFrame(()=>root.querySelectorAll('.bar-fill').forEach(bar=>bar.style.width=`${bar.dataset.width}%`))}
 function metricContext(id,html){const root=$(id);if(root)root.innerHTML=html}
 function metricDecimal(value){const number=Number(value)||0;return number.toFixed(1).replace(/\.0$/,'')}
 function renderMetricVisuals(data){
@@ -887,54 +885,54 @@ function renderMetricVisuals(data){
   metricContext('cDraws',`近 14 日 <strong>+${totalDraws14.toLocaleString()} 次</strong> · 日均 ${metricDecimal(avgDraws)}`);
   if(delta===null)metricContext('cToday',`近 14 日日均 <strong>${metricDecimal(avgUsers)} 人</strong>`);
   else{const cls=delta>0?'metric-up':delta<0?'metric-down':'metric-flat',sign=delta>0?'+':'';metricContext('cToday',`较昨日 <strong class="${cls}">${sign}${delta} 人${deltaPct===null?'':` · ${sign}${metricDecimal(deltaPct)}%`}</strong> · 14 日均 ${metricDecimal(avgUsers)}`)}
-  metricContext('cAverage',`图鉴共 <strong>${catalog.toLocaleString()} 只</strong> · 人均还有 ${metricDecimal(remaining)} 只没摸着`);
-  metricContext('cRate',`人均 <strong>${metricDecimal(averageUnlocked)} / ${catalog.toLocaleString()} 只</strong> · 按当前图鉴计算`);
-  renderMetricMeter('vUsers',today,totalUsers,'今日活跃占累计用户比例');
-  if(cumulativeDraws.length)renderSpark('vDraws',cumulativeDraws,2,'近 14 日累计抽取轨迹');else renderMetricEmptyViz('vDraws',"近 14 日还没人来抽过");
-  if(users.length)renderSpark('vToday',users,3,'近 14 日每日活跃人数');else renderMetricEmptyViz('vToday',"近 14 日还没人冒头");
-  renderMetricRuler('vAverage',averageUnlocked,catalog,'人均解锁相对当前图鉴规模');
-  renderMetricRate('vRate',rate,'平均收藏率覆盖进度')
+  metricContext('cAverage',`图鉴共 <strong>${catalog.toLocaleString()} 只</strong> · 人均还差 ${metricDecimal(remaining)} 只没摸到`);
+  metricContext('cRate',`人均 <strong>${metricDecimal(averageUnlocked)} / ${catalog.toLocaleString()} 只</strong> · 按当前图鉴核算`);
+  renderMetricMeter('vUsers',today,totalUsers,"今日活跃占总群友比例");
+  if(cumulativeDraws.length)renderSpark('vDraws',cumulativeDraws,2,"近 14 日累计抽猪曲线");else renderMetricEmptyViz('vDraws',"近 14 日还没人来抽过猪");
+  if(users.length)renderSpark('vToday',users,3,"近 14 日每日活跃群友数");else renderMetricEmptyViz('vToday',"近 14 日还没人露面");
+  renderMetricRuler('vAverage',averageUnlocked,catalog,"人均解锁占当前图鉴总量");
+  renderMetricRate('vRate',rate,"平均图鉴收集完成度")
 }
 function installImmersiveMotion(){if(reduceMotion||!window.matchMedia?.('(pointer:fine)')?.matches)return;document.querySelectorAll('#view-overview .hero,#view-overview .metric,#view-overview .panel').forEach(card=>{if(card.dataset.motionBound==='1')return;card.dataset.motionBound='1';let frame=0;card.addEventListener('pointermove',event=>{if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{const rect=card.getBoundingClientRect(),x=Math.max(0,Math.min(rect.width,event.clientX-rect.left)),y=Math.max(0,Math.min(rect.height,event.clientY-rect.top));card.style.setProperty('--mx',`${x}px`);card.style.setProperty('--my',`${y}px`);if(card.classList.contains('metric')){card.style.setProperty('--rx',`${(((y/Math.max(1,rect.height))-.5)*-3).toFixed(2)}deg`);card.style.setProperty('--ry',`${(((x/Math.max(1,rect.width))-.5)*3).toFixed(2)}deg`)}})} ,{passive:true});card.addEventListener('pointerleave',()=>{card.style.setProperty('--rx','0deg');card.style.setProperty('--ry','0deg')},{passive:true})})}
-async function loadOverview(){const d=await get('overview'),m=d.metrics;overviewData=d;publicSourceReviewEnabled=Boolean(d.public_source_review_enabled);syncReviewCapabilityUi();csrfToken=String(d.csrf_token||csrfToken);animateNumber($('mUsers'),m.total_users);animateNumber($('mDraws'),m.total_draws);animateNumber($('mToday'),m.today_users);animateNumber($('mAverage'),m.average_unlocked);animateNumber($('mRate'),m.average_unlock_rate,'%');animateNumber($('heroToday'),m.today_users);$('catalogHeroCount').textContent=Number(m.catalog_count||0).toLocaleString();$('heroInsight').textContent=m.today_users?`今天已有 ${m.today_users} 位群友踏进猪圈，本地数据刚记好账。`:"今天的猪圈静悄悄，本地数据已记好账。";const meta=d.meta||{},source=meta.source==='normalized-sql'?'SQL 规范化事实':'JSON 兼容事实';$('overviewScope').textContent=`${source} · Claim-aware 身份 · ${Number(meta.trend_days||14)} 日窗口 · ${meta.as_of||'当前'}`;$('insightAverage').textContent=`${m.average_unlocked} 只`;$('insightCatalog').textContent=`还有 ${Math.max(0,Number(m.catalog_count)-Number(m.average_unlocked))} 只小猪躲着没露面`;const rate=Math.max(0,Math.min(100,Number(m.average_unlock_rate)||0));$('ringValue').textContent=`${rate}%`;requestAnimationFrame(()=>$('rateRing').style.strokeDashoffset=339.3*(1-rate/100));renderMetricVisuals(d);renderTrend(d.trend||[]);renderBars(d.top_pigs||[]);installImmersiveMotion()}
-function renderPigs(){if(!items.length){$('pigGrid').innerHTML="<div class=\"empty\">翻遍猪圈也没找着符合条件的小猪</div>";return}$('pigGrid').innerHTML=items.map((p,i)=>{const hasPixels=Boolean(p.thumbnail?.png);return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-pig-canvas="${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span>${p.draws} 次抽中</span><span>${p.collectors} 人解锁</span></div><div class="pig-actions"><button class="btn ghost" data-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" data-delete="${i}">删除</button></div></article>`}).join('');document.querySelectorAll('[data-pig-canvas]').forEach(canvas=>{paintRgbaCanvas(canvas,items[+canvas.dataset.pigCanvas].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(items[+b.dataset.edit]));document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>removePig(items[+b.dataset.delete]))}
-async function loadPigs(){const d=await get('pigs',{page,search});items=d.items||[];page=d.page;pages=d.pages;$('catalogMeta').textContent=`找到 ${d.total} 只 · 第 ${page}/${pages} 页`;$('catalogHeroCount').textContent=Number(d.total||0).toLocaleString();$('pageText').textContent=`${page} / ${pages}`;$('prevBtn').disabled=page<=1;$('nextBtn').disabled=page>=pages;renderPigs()}
-function layerCard(p,i,kind){const hasPixels=Boolean(p.thumbnail?.png),blocked=kind==='blocked',tag=blocked?'已屏蔽':p.layer_kind==='override'?'覆盖基础源':'本地新增',detail=blocked?(p.base_exists?"基础源里还有同 ID，取消屏蔽就会立刻放出来":"基础源里没找到同 ID，取消屏蔽后得重新新增"):(p.custom_image?'使用本地图片':'沿用基础图片');return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-layer-canvas="${kind}-${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span class="layer-tag ${blocked?'blocked':''}">${esc(tag)}</span><span>${esc(detail)}</span></div><div class="pig-actions">${blocked?`<button class="btn ghost" data-unblock="${i}">取消屏蔽</button>`:`<button class="btn ghost" data-layer-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" type="button" data-submit="${i}">投稿公共源</button>`}</div></article>`}
-function renderLayers(){const total=localOverrides.length+blockedPigs.length;$('layerHeroCount').textContent=total.toLocaleString();$('overrideMeta').textContent=`${localOverrides.length} 只 · 可修改，确认无误后也能提交完整资料去 AstrBot 公共猪源排队审核`;$('blockedMeta').textContent=`${blockedPigs.length} 只 · 取消屏蔽不会找回已删除的本地专属图片`;$('overrideGrid').innerHTML=localOverrides.length?localOverrides.map((p,i)=>layerCard(p,i,'override')).join(''):"<div class=\"empty\">本地还没新增或覆盖过任何小猪</div>";$('blockedGrid').innerHTML=blockedPigs.length?blockedPigs.map((p,i)=>layerCard(p,i,'blocked')).join(''):"<div class=\"empty\">本地小黑屋目前空着，没有被屏蔽的小猪</div>";document.querySelectorAll('[data-layer-canvas]').forEach(canvas=>{const [kind,index]=canvas.dataset.layerCanvas.split('-'),source=kind==='blocked'?blockedPigs:localOverrides;paintRgbaCanvas(canvas,source[Number(index)].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-layer-edit]').forEach(b=>b.onclick=()=>openEdit(localOverrides[Number(b.dataset.layerEdit)]));document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)],b));document.querySelectorAll('[data-unblock]').forEach(b=>b.onclick=()=>unblockPig(blockedPigs[Number(b.dataset.unblock)]))}
+async function loadOverview(){const d=await get('overview'),m=d.metrics;overviewData=d;publicSourceReviewEnabled=Boolean(d.public_source_review_enabled);syncReviewCapabilityUi();csrfToken=String(d.csrf_token||csrfToken);animateNumber($('mUsers'),m.total_users);animateNumber($('mDraws'),m.total_draws);animateNumber($('mToday'),m.today_users);animateNumber($('mAverage'),m.average_unlocked);animateNumber($('mRate'),m.average_unlock_rate,'%');animateNumber($('heroToday'),m.today_users);$('catalogHeroCount').textContent=Number(m.catalog_count||0).toLocaleString();$('heroInsight').textContent=m.today_users?`今天已有 ${m.today_users} 位群友来过猪圈，本地账本刚刚记好。`:"今天的猪圈静悄悄，本地账本已经记好。";const meta=d.meta||{},source=meta.source==='normalized-sql'?"SQL 规范化数据源":"JSON 兼容数据源";$('overviewScope').textContent=`${source} · Claim-aware 身份 · ${Number(meta.trend_days||14)} 日周期 · ${meta.as_of||'当前'}`;$('insightAverage').textContent=`${m.average_unlocked} 只`;$('insightCatalog').textContent=`还有 ${Math.max(0,Number(m.catalog_count)-Number(m.average_unlocked))} 只小猪躲在暗处没露脸`;const rate=Math.max(0,Math.min(100,Number(m.average_unlock_rate)||0));$('ringValue').textContent=`${rate}%`;requestAnimationFrame(()=>$('rateRing').style.strokeDashoffset=339.3*(1-rate/100));renderMetricVisuals(d);renderTrend(d.trend||[]);renderBars(d.top_pigs||[]);installImmersiveMotion()}
+function renderPigs(){if(!items.length){$('pigGrid').innerHTML="<div class=\"empty\">把猪圈翻了个底朝天也没找着符合条件的小猪</div>";return}$('pigGrid').innerHTML=items.map((p,i)=>{const hasPixels=Boolean(p.thumbnail?.png);return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-pig-canvas="${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span>${p.draws} 次被抽中</span><span>${p.collectors} 人已解锁</span></div><div class="pig-actions"><button class="btn ghost" data-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" data-delete="${i}">删除</button></div></article>`}).join('');document.querySelectorAll('[data-pig-canvas]').forEach(canvas=>{paintRgbaCanvas(canvas,items[+canvas.dataset.pigCanvas].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(items[+b.dataset.edit]));document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>removePig(items[+b.dataset.delete]))}
+async function loadPigs(){const d=await get('pigs',{page,search});items=d.items||[];page=d.page;pages=d.pages;$('catalogMeta').textContent=`共找到 ${d.total} 只 · 第 ${page}/${pages} 页`;$('catalogHeroCount').textContent=Number(d.total||0).toLocaleString();$('pageText').textContent=`${page} / ${pages}`;$('prevBtn').disabled=page<=1;$('nextBtn').disabled=page>=pages;renderPigs()}
+function layerCard(p,i,kind){const hasPixels=Boolean(p.thumbnail?.png),blocked=kind==='blocked',tag=blocked?'已屏蔽':p.layer_kind==='override'?"覆盖基础库":'本地新增',detail=blocked?(p.base_exists?"基础库里还有同 ID，解除屏蔽就会立刻放回猪圈":"基础库里没有同 ID，解除屏蔽后需要重新新增"):(p.custom_image?'使用本地图片':"沿用基础库图片");return`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb ${hasPixels?'':'broken'}">${hasPixels?`<canvas width="${Number(p.thumbnail.width)||192}" height="${Number(p.thumbnail.height)||192}" data-layer-canvas="${kind}-${i}" aria-label="${esc(p.name)}"></canvas>`:''}<div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="pig-meta"><span class="layer-tag ${blocked?'blocked':''}">${esc(tag)}</span><span>${esc(detail)}</span></div><div class="pig-actions">${blocked?`<button class="btn ghost" data-unblock="${i}">解除屏蔽</button>`:`<button class="btn ghost" data-layer-edit="${i}">编辑</button><button class="btn ghost ex-entry" type="button" data-ex-manager="${esc(p.id)}">EX 1–5</button><button class="btn ghost" type="button" data-submit="${i}">投稿公共库</button>`}</div></article>`}
+function renderLayers(){const total=localOverrides.length+blockedPigs.length;$('layerHeroCount').textContent=total.toLocaleString();$('overrideMeta').textContent=`共 ${localOverrides.length} 只 · 支持随时修改，核对无误后也能把完整档案送往 AstrBot 公共猪源排队等审`;$('blockedMeta').textContent=`共 ${blockedPigs.length} 只 · 放出小黑屋也找不回已删掉的本地专属配图`;$('overrideGrid').innerHTML=localOverrides.length?localOverrides.map((p,i)=>layerCard(p,i,'override')).join(''):"<div class=\"empty\">本地猪圈目前还没新增或改写过任何小猪</div>";$('blockedGrid').innerHTML=blockedPigs.length?blockedPigs.map((p,i)=>layerCard(p,i,'blocked')).join(''):"<div class=\"empty\">本地小黑屋目前空荡荡，没有小猪关在里面</div>";document.querySelectorAll('[data-layer-canvas]').forEach(canvas=>{const [kind,index]=canvas.dataset.layerCanvas.split('-'),source=kind==='blocked'?blockedPigs:localOverrides;paintRgbaCanvas(canvas,source[Number(index)].thumbnail).catch(()=>canvas.closest('.pig-thumb').classList.add('broken'))});document.querySelectorAll('[data-layer-edit]').forEach(b=>b.onclick=()=>openEdit(localOverrides[Number(b.dataset.layerEdit)]));document.querySelectorAll('[data-submit]').forEach(b=>b.onclick=()=>submitPublicSource(localOverrides[Number(b.dataset.submit)],b));document.querySelectorAll('[data-unblock]').forEach(b=>b.onclick=()=>unblockPig(blockedPigs[Number(b.dataset.unblock)]))}
 async function loadLayers(){const d=await get('catalog/layers');localOverrides=d.overrides||[];blockedPigs=d.tombstones||[];renderLayers();return d}
-async function unblockPig(p){if(!window.confirm(`真要放「${p.name}」出小黑屋吗？要是基础源里没同 ID，取消屏蔽后还得重新新增。`))return;busy(true);try{const d=await post('pigs/unblock',{id:p.id});toast(d.visible?"屏蔽解除，小猪归队啦":"屏蔽解除，不过基础源里暂时没这只 ID");await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
-function resetPublicSubmitButton(button,pigId){if(!button)return;clearTimeout(button._rollpigSubmitConfirmTimer);if(button.dataset.submitConfirm===pigId)delete button.dataset.submitConfirm;button.textContent='投稿公共源';button.classList.add('ghost');button.removeAttribute('aria-label')}
-async function submitPublicSource(p,button){if(!p?.id){toast("投稿失败：没认出这只本地小猪");return}if(!button||button.dataset.submitConfirm!==p.id){if(button){button.dataset.submitConfirm=p.id;button.textContent='再次点击确认';button.classList.remove('ghost');button.setAttribute('aria-label',`再次点击确认投稿 ${p.name}`);clearTimeout(button._rollpigSubmitConfirmTimer);button._rollpigSubmitConfirmTimer=setTimeout(()=>resetPublicSubmitButton(button,p.id),7000)}toast(`再点一次确认投稿「${p.name}」；只送出 ID、名称、描述、完整文案与图片，绝不碰群友和聊天记录`);return}resetPublicSubmitButton(button,p.id);busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||"已提交进 AstrBot 公共猪源审核队列，排队等审中");try{await loadSourceReviews()}catch(reviewError){console.warn('[rollpig] public source review refresh failed after successful submission',reviewError)}}catch(e){toast(`投稿失败：${e.message}`)}finally{busy(false)}}
+async function unblockPig(p){if(!window.confirm(`真要把「${p.name}」放出小黑屋吗？要是基础源里没有同 ID，解禁后还得自己重新录入。`))return;busy(true);try{const d=await post('pigs/unblock',{id:p.id});toast(d.visible?"禁令解除，小猪重新归队啦":"禁令解除，不过基础源里暂时还没收录这只 ID");await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
+function resetPublicSubmitButton(button,pigId){if(!button)return;clearTimeout(button._rollpigSubmitConfirmTimer);if(button.dataset.submitConfirm===pigId)delete button.dataset.submitConfirm;button.textContent="投递至公共源";button.classList.add('ghost');button.removeAttribute('aria-label')}
+async function submitPublicSource(p,button){if(!p?.id){toast("投递失败：本地猪圈里没认出这只小猪");return}if(!button||button.dataset.submitConfirm!==p.id){if(button){button.dataset.submitConfirm=p.id;button.textContent="再点一次确认";button.classList.remove('ghost');button.setAttribute('aria-label',`再点一次确认投递 ${p.name}`);clearTimeout(button._rollpigSubmitConfirmTimer);button._rollpigSubmitConfirmTimer=setTimeout(()=>resetPublicSubmitButton(button,p.id),7000)}toast(`再点一次确认投递「${p.name}」；仅上传 ID、名称、简介、完整文案与配图，绝不碰群友和聊天记录`);return}resetPublicSubmitButton(button,p.id);busy(true);try{const d=await post('pigs/submit-public-source',{id:p.id,confirm:true});toast(d.message||"已送入 AstrBot 公共猪源审核队列，正在排队等审");try{await loadSourceReviews()}catch(reviewError){console.warn('[rollpig] public source review refresh failed after successful submission',reviewError)}}catch(e){toast(`投递失败：${e.message}`)}finally{busy(false)}}
 async function paintReviewCanvas(canvas,submissionId){const d=await get('source/reviews/image',{id:submissionId,__rollpig_csrf:csrfToken}),binary=atob(String(d.base64||'')),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);const bitmap=await createImageBitmap(new Blob([bytes],{type:d.mime_type||'image/png'})),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close()}
 
 async function paintPublicSourceCanvas(canvas,pigId){const d=await get('source/catalog/image',{id:pigId,__rollpig_csrf:csrfToken}),binary=atob(String(d.base64||'')),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);const bitmap=await createImageBitmap(new Blob([bytes],{type:d.mime_type||'image/png'})),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close()}
-function renderPublicSourceCatalog(){const token=++publicSourceRenderToken;$('publicSourcePageText').textContent=`${publicSourcePage} / ${publicSourcePages}`;$('publicSourcePrev').disabled=publicSourcePage<=1;$('publicSourceNext').disabled=publicSourcePage>=publicSourcePages;if(!publicSourceItems.length){$('publicSourceGrid').innerHTML="<div class=\"empty\">翻遍猪圈也没找到符合条件的公共小猪</div>";return}$('publicSourceGrid').innerHTML=publicSourceItems.map((p,i)=>`<button class="hub-card" type="button" data-public-source-card="${i}" style="--delay:${Math.min(i,18)*30}ms"><div class="hub-thumb"><canvas width="160" height="160" data-public-source-canvas="${i}" aria-label="${esc(p.name)}"></canvas><div class="image-fallback">🐽</div></div><div class="hub-title">${esc(p.name)}</div><div class="hub-file">${esc(p.id)}</div><div class="pig-desc">${esc(p.description||'')}</div></button>`).join('');document.querySelectorAll('[data-public-source-canvas]').forEach(canvas=>{if(token!==publicSourceRenderToken)return;const p=publicSourceItems[Number(canvas.dataset.publicSourceCanvas)];if(!p?.image_available){canvas.closest('.hub-thumb').classList.add('broken');return}paintPublicSourceCanvas(canvas,p.id).catch(()=>canvas.closest('.hub-thumb').classList.add('broken'))});document.querySelectorAll('[data-public-source-card]').forEach(button=>button.onclick=()=>openPublicSourceDetail(publicSourceItems[Number(button.dataset.publicSourceCard)]))}
-async function loadPublicSourceCatalog(force=false){const d=await get('source/catalog',{search:publicSourceSearch,page:publicSourcePage,refresh:force?'1':'0',__rollpig_csrf:csrfToken});publicSourceItems=Array.isArray(d.items)?d.items:[];publicSourcePage=Number(d.page||1);publicSourcePages=Math.max(1,Number(d.pages||1));$('publicSourceMeta').textContent=`${Number(d.total||0)} 只正式公共小猪 · 资源版本 ${d.resource_version||'未知'} · 搜索覆盖 ID / 名称 / 描述 / 完整文案`;renderPublicSourceCatalog();return d}
-async function openPublicSourceBrowser(initialSearch=''){publicSourceSearch=String(initialSearch||'').trim();publicSourcePage=1;$('publicSourceSearch').value=publicSourceSearch;$('publicSourceModal').classList.add('open');busy(true);try{await loadPublicSourceCatalog(false)}catch(e){$('publicSourceGrid').innerHTML=`<div class="empty">公共猪源加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}}
-function openPublicSourceDetail(p){if(!p)return;$('publicSourceDetailName').textContent=p.name||p.id;$('publicSourceDetailId').textContent=p.id||'';$('publicSourceDetailDescription').textContent=p.description||"这只小猪还没写介绍";$('publicSourceDetailAnalysis').textContent=p.analysis||"这只小猪还没编完整文案";const canvas=$('publicSourceDetailCanvas'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);$('publicSourceDetailModal').classList.add('open');if(p.image_available)paintPublicSourceCanvas(canvas,p.id).catch(()=>{})}
-function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;let panel=$('sourceReviewPanel');if(!panel){panel=document.createElement('section');panel.className='panel layer-panel';panel.id='sourceReviewPanel';panel.innerHTML='<div class="panel-head"><div><h2>公共猪源待审核</h2><div class="panel-desc" id="sourceReviewMeta">维护者专用；审核凭证只保留在服务端。</div></div><button class="btn ghost" id="sourceReviewRefreshBtn" type="button">刷新队列</button></div><div class="pig-grid" id="sourceReviewGrid"><div class="empty">正在读取待审核投稿…</div></div>';const layers=$('view-layers'),anchor=layers?.querySelector('.layer-panel');if(layers)layers.insertBefore(panel,anchor||null)}let modal=$('reviewModal');if(!modal){modal=document.createElement('div');modal.className='modal';modal.id='reviewModal';modal.innerHTML='<form class="dialog" id="reviewForm" style="max-width:540px"><div class="dialog-head"><div><div class="eyebrow" id="reviewEyebrow">Public Source Review</div><h2 id="reviewTitle">审核公共猪源投稿</h2></div><button class="close" type="button" id="reviewClose" aria-label="关闭">×</button></div><p class="panel-desc" id="reviewMessage"></p><div class="field"><label for="reviewNote">审核备注（可选）</label><textarea id="reviewNote" maxlength="300" placeholder="最多 300 字；拒绝时建议说明原因"></textarea><div class="hint">备注只写入审核记录，不会修改投稿文案。</div></div><div class="dialog-actions"><button class="btn ghost" type="button" id="reviewCancel">取消</button><button class="btn" type="submit" id="reviewConfirm">确认</button></div></form>';document.body.appendChild(modal)}const form=$('reviewForm');if(form&&form.dataset.reviewBound!=='1'){form.dataset.reviewBound='1';form.onsubmit=submitReviewDecision}const close=$('reviewClose'),cancel=$('reviewCancel');if(close)close.onclick=closeReviewModal;if(cancel)cancel.onclick=closeReviewModal;if(modal&&modal.dataset.reviewBound!=='1'){modal.dataset.reviewBound='1';modal.onclick=e=>{if(e.target===modal)closeReviewModal()}}const grid=$('sourceReviewGrid');if(grid&&grid.dataset.reviewBound!=='1'){grid.dataset.reviewBound='1';grid.addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')})}const refresh=$('sourceReviewRefreshBtn');if(refresh&&refresh.dataset.reviewBound!=='1'){refresh.dataset.reviewBound='1';refresh.onclick=()=>loadSourceReviews().catch(e=>toast(e.message))}return true}
+function renderPublicSourceCatalog(){const token=++publicSourceRenderToken;$('publicSourcePageText').textContent=`${publicSourcePage} / ${publicSourcePages}`;$('publicSourcePrev').disabled=publicSourcePage<=1;$('publicSourceNext').disabled=publicSourcePage>=publicSourcePages;if(!publicSourceItems.length){$('publicSourceGrid').innerHTML="<div class=\"empty\">把公共猪圈翻了个底朝天，也没找到符合条件的小猪</div>";return}$('publicSourceGrid').innerHTML=publicSourceItems.map((p,i)=>`<button class="hub-card" type="button" data-public-source-card="${i}" style="--delay:${Math.min(i,18)*30}ms"><div class="hub-thumb"><canvas width="160" height="160" data-public-source-canvas="${i}" aria-label="${esc(p.name)}"></canvas><div class="image-fallback">🐽</div></div><div class="hub-title">${esc(p.name)}</div><div class="hub-file">${esc(p.id)}</div><div class="pig-desc">${esc(p.description||'')}</div></button>`).join('');document.querySelectorAll('[data-public-source-canvas]').forEach(canvas=>{if(token!==publicSourceRenderToken)return;const p=publicSourceItems[Number(canvas.dataset.publicSourceCanvas)];if(!p?.image_available){canvas.closest('.hub-thumb').classList.add('broken');return}paintPublicSourceCanvas(canvas,p.id).catch(()=>canvas.closest('.hub-thumb').classList.add('broken'))});document.querySelectorAll('[data-public-source-card]').forEach(button=>button.onclick=()=>openPublicSourceDetail(publicSourceItems[Number(button.dataset.publicSourceCard)]))}
+async function loadPublicSourceCatalog(force=false){const d=await get('source/catalog',{search:publicSourceSearch,page:publicSourcePage,refresh:force?'1':'0',__rollpig_csrf:csrfToken});publicSourceItems=Array.isArray(d.items)?d.items:[];publicSourcePage=Number(d.page||1);publicSourcePages=Math.max(1,Number(d.pages||1));$('publicSourceMeta').textContent=`${Number(d.total||0)} 只已收录公共小猪 · 资源版本 ${d.resource_version||'未知'} · 支持按 ID / 名称 / 简介 / 完整文案检索`;renderPublicSourceCatalog();return d}
+async function openPublicSourceBrowser(initialSearch=''){publicSourceSearch=String(initialSearch||'').trim();publicSourcePage=1;$('publicSourceSearch').value=publicSourceSearch;$('publicSourceModal').classList.add('open');busy(true);try{await loadPublicSourceCatalog(false)}catch(e){$('publicSourceGrid').innerHTML=`<div class="empty">公共猪源读取受阻：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}}
+function openPublicSourceDetail(p){if(!p)return;$('publicSourceDetailName').textContent=p.name||p.id;$('publicSourceDetailId').textContent=p.id||'';$('publicSourceDetailDescription').textContent=p.description||"这只小猪还没填上简介";$('publicSourceDetailAnalysis').textContent=p.analysis||"这只小猪还没写好完整文案";const canvas=$('publicSourceDetailCanvas'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);$('publicSourceDetailModal').classList.add('open');if(p.image_available)paintPublicSourceCanvas(canvas,p.id).catch(()=>{})}
+function ensureReviewCapabilityUi(){if(!publicSourceReviewEnabled)return false;let panel=$('sourceReviewPanel');if(!panel){panel=document.createElement('section');panel.className='panel layer-panel';panel.id='sourceReviewPanel';panel.innerHTML="<div class=\"panel-head\"><div><h2>公共猪源待审列表</h2><div class=\"panel-desc\" id=\"sourceReviewMeta\">仅限维护者操作；审核凭证仅保存在服务端。</div></div><button class=\"btn ghost\" id=\"sourceReviewRefreshBtn\" type=\"button\">刷新列表</button></div><div class=\"pig-grid\" id=\"sourceReviewGrid\"><div class=\"empty\">正在翻阅待审投稿…</div></div>";const layers=$('view-layers'),anchor=layers?.querySelector('.layer-panel');if(layers)layers.insertBefore(panel,anchor||null)}let modal=$('reviewModal');if(!modal){modal=document.createElement('div');modal.className='modal';modal.id='reviewModal';modal.innerHTML="<form class=\"dialog\" id=\"reviewForm\" style=\"max-width:540px\"><div class=\"dialog-head\"><div><div class=\"eyebrow\" id=\"reviewEyebrow\">Public Source Review</div><h2 id=\"reviewTitle\">审阅公共猪源投稿</h2></div><button class=\"close\" type=\"button\" id=\"reviewClose\" aria-label=\"关闭\">×</button></div><p class=\"panel-desc\" id=\"reviewMessage\"></p><div class=\"field\"><label for=\"reviewNote\">审阅批注（选填）</label><textarea id=\"reviewNote\" maxlength=\"300\" placeholder=\"最多 300 字；拒绝时建议说明原因\"></textarea><div class=\"hint\">批注仅记入审核日志，不会改动投稿本身的文案。</div></div><div class=\"dialog-actions\"><button class=\"btn ghost\" type=\"button\" id=\"reviewCancel\">取消</button><button class=\"btn\" type=\"submit\" id=\"reviewConfirm\">确认</button></div></form>";document.body.appendChild(modal)}const form=$('reviewForm');if(form&&form.dataset.reviewBound!=='1'){form.dataset.reviewBound='1';form.onsubmit=submitReviewDecision}const close=$('reviewClose'),cancel=$('reviewCancel');if(close)close.onclick=closeReviewModal;if(cancel)cancel.onclick=closeReviewModal;if(modal&&modal.dataset.reviewBound!=='1'){modal.dataset.reviewBound='1';modal.onclick=e=>{if(e.target===modal)closeReviewModal()}}const grid=$('sourceReviewGrid');if(grid&&grid.dataset.reviewBound!=='1'){grid.dataset.reviewBound='1';grid.addEventListener('click',e=>{const button=e.target.closest('[data-public-source-match]');if(button)openPublicSourceBrowser(button.dataset.publicSourceMatch||'')})}const refresh=$('sourceReviewRefreshBtn');if(refresh&&refresh.dataset.reviewBound!=='1'){refresh.dataset.reviewBound='1';refresh.onclick=()=>loadSourceReviews().catch(e=>toast(e.message))}return true}
 function syncReviewCapabilityUi(){if(publicSourceReviewEnabled){ensureReviewCapabilityUi();return}$('sourceReviewPanel')?.remove();$('reviewModal')?.remove();reviewItems=[];pendingReviewDecision=null}
-function reviewDuplicateHtml(p){const hints=Array.isArray(p.duplicate_hints)?p.duplicate_hints:[];if(!hints.length)return'';return`<div class="review-dup"><b>疑似重复 ${hints.length} 项</b>${hints.map(h=>`<div class="review-dup-item"><span>${esc(h.name||h.id)} · ${esc((h.reasons||[]).join(' / '))}</span><button class="btn ghost" type="button" data-public-source-match="${esc(h.id)}">查看现有猪</button></div>`).join('')}</div>`}
-function renderSourceReviews(){if(!ensureReviewCapabilityUi())return;const panel=$('sourceReviewPanel');panel.hidden=false;$('sourceReviewMeta').textContent=`${reviewItems.length} 只待审核 · 批准后立即生成新资源版本并原子发布`;if(!reviewItems.length){$('sourceReviewGrid').innerHTML="<div class=\"empty\">目前没有待审核投稿，审稿台空空如也</div>";return}$('sourceReviewGrid').innerHTML=reviewItems.map((p,i)=>`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb"><canvas width="192" height="192" data-review-canvas="${i}" aria-label="${esc(p.name)}"></canvas><div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.pig_id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="review-analysis">${esc(p.analysis)}</div>${reviewDuplicateHtml(p)}<div class="pig-meta"><span>${esc(p.client_version||'未知版本')}</span><span>${esc(formatTime(p.submitted_at))}</span></div><div class="pig-actions"><button class="btn ghost" data-review-reject="${i}">拒绝</button><button class="btn" data-review-approve="${i}">批准发布</button></div></article>`).join('');document.querySelectorAll('[data-review-canvas]').forEach(canvas=>paintReviewCanvas(canvas,reviewItems[Number(canvas.dataset.reviewCanvas)].submission_id).catch(()=>canvas.closest('.pig-thumb').classList.add('broken')));document.querySelectorAll('[data-review-reject]').forEach(b=>b.onclick=()=>reviewPublicSource(reviewItems[Number(b.dataset.reviewReject)],'reject'));document.querySelectorAll('[data-review-approve]').forEach(b=>b.onclick=()=>reviewPublicSource(reviewItems[Number(b.dataset.reviewApprove)],'approve'))}
+function reviewDuplicateHtml(p){const hints=Array.isArray(p.duplicate_hints)?p.duplicate_hints:[];if(!hints.length)return'';return`<div class="review-dup"><b>发现 ${hints.length} 项疑似撞车</b>${hints.map(h=>`<div class="review-dup-item"><span>${esc(h.name||h.id)} · ${esc((h.reasons||[]).join(' / '))}</span><button class="btn ghost" type="button" data-public-source-match="${esc(h.id)}">查看在库小猪</button></div>`).join('')}</div>`}
+function renderSourceReviews(){if(!ensureReviewCapabilityUi())return;const panel=$('sourceReviewPanel');panel.hidden=false;$('sourceReviewMeta').textContent=`${reviewItems.length} 只待审 · 批准后可进入正式资源发布流程`;if(!reviewItems.length){$('sourceReviewGrid').innerHTML="<div class=\"empty\">眼下没有待审投稿，审稿台一片清净</div>";return}$('sourceReviewGrid').innerHTML=reviewItems.map((p,i)=>`<article class="pig-card" style="--delay:${Math.min(i,18)*35}ms"><div class="pig-thumb"><canvas width="192" height="192" data-review-canvas="${i}" aria-label="${esc(p.name)}"></canvas><div class="image-fallback">🐽</div></div><div class="pig-name">${esc(p.name)}</div><div class="pig-id">${esc(p.pig_id)}</div><div class="pig-desc">${esc(p.description)}</div><div class="review-analysis">${esc(p.analysis)}</div>${reviewDuplicateHtml(p)}<div class="pig-meta"><span>${esc(p.client_version||'未知版本')}</span><span>${esc(formatTime(p.submitted_at))}</span></div><div class="pig-actions"><button class="btn ghost" data-review-reject="${i}">驳回</button><button class="btn" data-review-approve="${i}">批准通过</button></div></article>`).join('');document.querySelectorAll('[data-review-canvas]').forEach(canvas=>paintReviewCanvas(canvas,reviewItems[Number(canvas.dataset.reviewCanvas)].submission_id).catch(()=>canvas.closest('.pig-thumb').classList.add('broken')));document.querySelectorAll('[data-review-reject]').forEach(b=>b.onclick=()=>reviewPublicSource(reviewItems[Number(b.dataset.reviewReject)],'reject'));document.querySelectorAll('[data-review-approve]').forEach(b=>b.onclick=()=>reviewPublicSource(reviewItems[Number(b.dataset.reviewApprove)],'approve'))}
 async function loadSourceReviews(){if(!publicSourceReviewEnabled){reviewItems=[];return{enabled:false,items:[]}}if(!ensureReviewCapabilityUi())return{enabled:false,items:[]};const d=await get('source/reviews',{__rollpig_csrf:csrfToken});if(!d.enabled){publicSourceReviewEnabled=false;syncReviewCapabilityUi();reviewItems=[];return d}reviewItems=Array.isArray(d.items)?d.items:[];renderSourceReviews();return d}
-function reviewPublicSource(p,decision){if(!ensureReviewCapabilityUi())return;const approving=decision==='approve';pendingReviewDecision={pig:p,decision};$('reviewTitle').textContent=approving?'批准并发布':'拒绝投稿';$('reviewEyebrow').textContent=approving?'Publish Public Source':'Reject Submission';$('reviewMessage').textContent=approving?`确定批准「${p.name}」吗？确认后会创建新的公共资源版本并原子切换正式 v1。`:`确定拒绝「${p.name}」吗？拒绝不会修改当前正式公共资源。`;$('reviewNote').value='';$('reviewConfirm').textContent=approving?'批准并立即发布':'确认拒绝';$('reviewConfirm').classList.toggle('danger',!approving);$('reviewModal').classList.add('open');$('reviewNote').focus()}
+function reviewPublicSource(p,decision){if(!ensureReviewCapabilityUi())return;const approving=decision==='approve';pendingReviewDecision={pig:p,decision};$('reviewTitle').textContent=approving?"批准通过":"驳回投稿";$('reviewEyebrow').textContent=approving?'Publish Public Source':'Reject Submission';$('reviewMessage').textContent=approving?`确定批准「${p.name}」通过审核吗？确认后将完成审核批准，后续需走正式资源发布流程。`:`确定驳回「${p.name}」吗？驳回操作不会影响当前在用的正式公共资源。`;$('reviewNote').value='';$('reviewConfirm').textContent=approving?"确认批准":"确认驳回";$('reviewConfirm').classList.toggle('danger',!approving);$('reviewModal').classList.add('open');$('reviewNote').focus()}
 function closeReviewModal(){pendingReviewDecision=null;$('reviewModal')?.classList.remove('open')}
-async function submitReviewDecision(e){e.preventDefault();if(!ensureReviewCapabilityUi())return;const pending=pendingReviewDecision;if(!pending)return;const approving=pending.decision==='approve',note=$('reviewNote').value.trim().slice(0,300);$('reviewModal').classList.remove('open');busy(true);try{const d=await post('source/reviews/decision',{id:pending.pig.submission_id,decision:pending.decision,note,confirm:true});pendingReviewDecision=null;toast(d.message||'审核完成');const refreshPublic=approving&&$('publicSourceModal').classList.contains('open')?loadPublicSourceCatalog(true):Promise.resolve();await Promise.all([loadSourceReviews(),loadResourceStatus(),refreshPublic])}catch(err){toast(err.message);pendingReviewDecision=pending;$('reviewModal')?.classList.add('open')}finally{busy(false)}}
+async function submitReviewDecision(e){e.preventDefault();if(!ensureReviewCapabilityUi())return;const pending=pendingReviewDecision;if(!pending)return;const approving=pending.decision==='approve',note=$('reviewNote').value.trim().slice(0,300);$('reviewModal').classList.remove('open');busy(true);try{const d=await post('source/reviews/decision',{id:pending.pig.submission_id,decision:pending.decision,note,confirm:true});pendingReviewDecision=null;toast(d.message||"审阅已办妥");const refreshPublic=approving&&$('publicSourceModal').classList.contains('open')?loadPublicSourceCatalog(true):Promise.resolve();await Promise.all([loadSourceReviews(),loadResourceStatus(),refreshPublic])}catch(err){toast(err.message);pendingReviewDecision=pending;$('reviewModal')?.classList.add('open')}finally{busy(false)}}
 function updateFlow(){const source=Boolean(imageData||pighubUrl||$('originalId').value),copy=Boolean($('pigId').value.trim()&&$('pigName').value.trim()&&$('pigDescription').value.trim()&&$('pigAnalysis').value.trim()),current=copy&&source?3:source?2:1;document.querySelectorAll('.flow-step').forEach(step=>{const n=Number(step.dataset.step);step.classList.toggle('done',n<current);step.classList.toggle('current',n===current);step.querySelector('.flow-node').textContent=n<current?'✓':n})}
 function clearForm(){clearInterval(aiProgressTimer);clearTimeout(aiProgressHideTimer);$('pigForm').reset();$('originalId').value='';$('downloadOriginalBtn').hidden=true;$('pigId').disabled=false;imageData='';pighubUrl='';pighubFilename='';setImageSource('local');clearPreview();$('sourceNote').textContent='';$('copyCount').textContent='0';$('aiProgress').classList.remove('open');$('aiProgress').setAttribute('aria-hidden','true');updateFlow()}
-function openCreate(){clearForm();$('dialogTitle').textContent='新增小猪';$('modal').classList.add('open');updateFlow()}
-function openEdit(p){clearForm();$('dialogTitle').textContent='编辑小猪';$('originalId').value=p.id;$('downloadOriginalBtn').hidden=false;$('pigId').value=p.id;$('pigId').disabled=true;$('pigName').value=p.name;$('pigDescription').value=p.description;$('pigAnalysis').value=p.analysis;$('copyCount').textContent=p.analysis.length;if(p.thumbnail?.png)paintRgbaCanvas($('imagePreview'),p.thumbnail).catch(()=>clearPreview());if(p.source_url){pighubUrl=p.source_url;pighubFilename='';setImageSource('pighub');$('sourceNote').textContent=`来源：${p.source_url}（可先下载原图重修，再从本地上传替换）`}$('modal').classList.add('open');updateFlow()}
+function openCreate(){clearForm();$('dialogTitle').textContent="录入新小猪";$('modal').classList.add('open');updateFlow()}
+function openEdit(p){clearForm();$('dialogTitle').textContent="编辑小猪档案";$('originalId').value=p.id;$('downloadOriginalBtn').hidden=false;$('pigId').value=p.id;$('pigId').disabled=true;$('pigName').value=p.name;$('pigDescription').value=p.description;$('pigAnalysis').value=p.analysis;$('copyCount').textContent=p.analysis.length;if(p.thumbnail?.png)paintRgbaCanvas($('imagePreview'),p.thumbnail).catch(()=>clearPreview());if(p.source_url){pighubUrl=p.source_url;pighubFilename='';setImageSource('pighub');$('sourceNote').textContent=`图源：${p.source_url}（可先下载原图精修，再从本地上传替换）`}$('modal').classList.add('open');updateFlow()}
 function closeModal(){$('modal').classList.remove('open')}
-async function downloadOriginalImage(){const pigId=$('originalId').value;if(!pigId){toast("先点开你想重修的那只小猪吧");return}const button=$('downloadOriginalBtn');button.disabled=true;button.setAttribute('aria-busy','true');try{const data=await get('pigs/original-image',{id:pigId}),encoded=String(data.base64||''),mime=String(data.mime_type||'application/octet-stream');if(!encoded)throw new Error("服务端两手空空，没把原图传回来");const binary=atob(encoded),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);const url=URL.createObjectURL(new Blob([bytes],{type:mime})),link=document.createElement('a');link.href=url;link.download=String(data.filename||`${pigId}-original.png`);document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);pighubUrl='';pighubFilename='';setImageSource('local');$('sourceNote').textContent='原图已下载；重修完成后点“本地上传”替换图片，未上传则会保留当前图片。';toast('原图已下载，可在本地重修后重新上传')}catch(e){toast(e.message)}finally{button.disabled=false;button.removeAttribute('aria-busy')}}
-let pendingDelete=null;function removePig(p){pendingDelete=p;$('confirmMessage').textContent=`确定删除「${p.name}」吗？历史解锁统计会保留。`;$('confirmModal').classList.add('open')}
-$('confirmNo').onclick=()=>{$('confirmModal').classList.remove('open');pendingDelete=null};$('confirmModal').onclick=e=>{if(e.target===$('confirmModal'))$('confirmNo').click()};$('confirmYes').onclick=async()=>{const p=pendingDelete;if(!p)return;$('confirmModal').classList.remove('open');pendingDelete=null;busy(true);try{await post('pigs/delete',{id:p.id});toast('小猪已删除并加入屏蔽清单');await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(e){toast(e.message)}finally{busy(false)}};
-$('pigForm').onsubmit=async e=>{e.preventDefault();const original=$('originalId').value,payload={original_id:original,id:original||$('pigId').value.trim(),name:$('pigName').value.trim(),description:$('pigDescription').value.trim(),analysis:$('pigAnalysis').value.trim(),image:imageData,pighub_url:pighubUrl};if(!original&&!imageData&&!pighubUrl){toast('新增小猪必须上传或从 PigHub 选择图片');return}busy(true);try{await post('pigs/save',payload);closeModal();toast('资料与图片已一条龙保存');await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(err){toast(err.message)}finally{busy(false)}};
-$('imageFile').onchange=async function(){const file=this.files&&this.files[0];if(!file)return;if(file.size>10*1024*1024){toast('图片不能超过 10MB');this.value='';return}setImageSource('local');pighubFilename='';try{const bitmap=await createImageBitmap(file);paintBitmapPreview(bitmap);bitmap.close()}catch{clearPreview();toast('无法预览这张图片，但仍可尝试保存')}const reader=new FileReader();reader.onload=()=>{pighubUrl='';imageData=String(reader.result||'');$('sourceNote').textContent='已选择本地上传图片';updateFlow()};reader.readAsDataURL(file)};
-$('pighubBtn').onclick=async()=>{$('pighubModal').classList.add('open');busy(true);try{await loadHub(false)}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};$('pighubClose').onclick=()=>$('pighubModal').classList.remove('open');$('pighubModal').onclick=e=>{if(e.target===$('pighubModal'))$('pighubClose').click()};$('hubPrev').onclick=()=>{if(hubPage>1){hubPage--;loadHub().catch(e=>toast(e.message))}};$('hubNext').onclick=()=>{if(hubPage<hubPages){hubPage++;loadHub().catch(e=>toast(e.message))}};$('pighubRandom').onclick=()=>{hubSearch='';$('pighubSearch').value='';hubPage=Math.max(1,Math.floor(Math.random()*hubPages)+1);loadHub().catch(e=>toast(e.message))};$('pighubRefresh').onclick=async()=>{busy(true);try{hubPage=1;await loadHub(true);toast('PigHub 索引已刷新')}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库加载失败：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};let hubSearchTimer;$('pighubSearch').oninput=e=>{clearTimeout(hubSearchTimer);hubSearchTimer=setTimeout(()=>{hubSearch=e.target.value.trim();hubPage=1;loadHub().catch(err=>toast(err.message))},260)};
-$('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast('公共猪源已刷新')}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()};
-$('syncBtn').onclick=startResourceSync;$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`检查失败：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
-['pigId','pigName','pigDescription','pigAnalysis'].forEach(id=>$(id).addEventListener('input',updateFlow));$('pigAnalysis').oninput=e=>{$('copyCount').textContent=e.target.value.length;updateFlow()};$('aiDraftBtn').onclick=generateAiDraft;$('chooseImageBtn').onclick=()=>$('imageFile').click();$('downloadOriginalBtn').onclick=downloadOriginalImage;$('addBtn').onclick=openCreate;$('closeBtn').onclick=$('cancelBtn').onclick=closeModal;$('prevBtn').onclick=()=>{if(page>1){page--;loadPigs()}};$('nextBtn').onclick=()=>{if(page<pages){page++;loadPigs()}};let searchTimer;$('searchInput').oninput=e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{search=e.target.value.trim();page=1;loadPigs()},260)};$('refreshBtn').onclick=async()=>{busy(true);try{await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()]);toast('数据已刷新')}catch(e){toast(e.message)}finally{busy(false)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeReviewModal();$('pighubModal').classList.remove('open');$('publicSourceModal').classList.remove('open');$('publicSourceDetailModal').classList.remove('open')}});
-if(!bridge){document.body.innerHTML='<div class="empty">AstrBot Plugin Page Bridge 不可用</div>'}else{await bridge.ready();busy(true);try{await loadOverview();await Promise.all([loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
+async function downloadOriginalImage(){const pigId=$('originalId').value;if(!pigId){toast("先挑中你想精修的那只小猪吧");return}const button=$('downloadOriginalBtn');button.disabled=true;button.setAttribute('aria-busy','true');try{const data=await get('pigs/original-image',{id:pigId}),encoded=String(data.base64||''),mime=String(data.mime_type||'application/octet-stream');if(!encoded)throw new Error("服务端两手空空，没把原图送回来");const binary=atob(encoded),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);const url=URL.createObjectURL(new Blob([bytes],{type:mime})),link=document.createElement('a');link.href=url;link.download=String(data.filename||`${pigId}-original.png`);document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);pighubUrl='';pighubFilename='';setImageSource('local');$('sourceNote').textContent="原图已存到本地；精修完毕后点“本地上传”替换即可，不传则继续沿用当前配图。";toast("原图已存好，本地精修完随时重新上传")}catch(e){toast(e.message)}finally{button.disabled=false;button.removeAttribute('aria-busy')}}
+let pendingDelete=null;function removePig(p){pendingDelete=p;$('confirmMessage').textContent=`确定删掉「${p.name}」吗？历史图鉴解锁记录仍会保留。`;$('confirmModal').classList.add('open')}
+$('confirmNo').onclick=()=>{$('confirmModal').classList.remove('open');pendingDelete=null};$('confirmModal').onclick=e=>{if(e.target===$('confirmModal'))$('confirmNo').click()};$('confirmYes').onclick=async()=>{const p=pendingDelete;if(!p)return;$('confirmModal').classList.remove('open');pendingDelete=null;busy(true);try{await post('pigs/delete',{id:p.id});toast("小猪已删掉并送入屏蔽名单");await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(e){toast(e.message)}finally{busy(false)}};
+$('pigForm').onsubmit=async e=>{e.preventDefault();const original=$('originalId').value,payload={original_id:original,id:original||$('pigId').value.trim(),name:$('pigName').value.trim(),description:$('pigDescription').value.trim(),analysis:$('pigAnalysis').value.trim(),image:imageData,pighub_url:pighubUrl};if(!original&&!imageData&&!pighubUrl){toast("录入新小猪必须本地上传或从 PigHub 挑一张配图");return}busy(true);try{await post('pigs/save',payload);closeModal();toast("档案与配图已妥妥存好");await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadResourceStatus()])}catch(err){toast(err.message)}finally{busy(false)}};
+$('imageFile').onchange=async function(){const file=this.files&&this.files[0];if(!file)return;if(file.size>10*1024*1024){toast("配图体积不能超过 10MB");this.value='';return}setImageSource('local');pighubFilename='';try{const bitmap=await createImageBitmap(file);paintBitmapPreview(bitmap);bitmap.close()}catch{clearPreview();toast("这张图暂时无法预览，不过仍可试着保存")}const reader=new FileReader();reader.onload=()=>{pighubUrl='';imageData=String(reader.result||'');$('sourceNote').textContent="已挑好本地上传配图";updateFlow()};reader.readAsDataURL(file)};
+$('pighubBtn').onclick=async()=>{$('pighubModal').classList.add('open');busy(true);try{await loadHub(false)}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库读取受阻：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};$('pighubClose').onclick=()=>$('pighubModal').classList.remove('open');$('pighubModal').onclick=e=>{if(e.target===$('pighubModal'))$('pighubClose').click()};$('hubPrev').onclick=()=>{if(hubPage>1){hubPage--;loadHub().catch(e=>toast(e.message))}};$('hubNext').onclick=()=>{if(hubPage<hubPages){hubPage++;loadHub().catch(e=>toast(e.message))}};$('pighubRandom').onclick=()=>{hubSearch='';$('pighubSearch').value='';hubPage=Math.max(1,Math.floor(Math.random()*hubPages)+1);loadHub().catch(e=>toast(e.message))};$('pighubRefresh').onclick=async()=>{busy(true);try{hubPage=1;await loadHub(true);toast("PigHub 图库索引已更新")}catch(e){$('pighubGrid').innerHTML=`<div class="empty">图库读取受阻：${esc(e.message)}</div>`;toast(e.message)}finally{busy(false)}};let hubSearchTimer;$('pighubSearch').oninput=e=>{clearTimeout(hubSearchTimer);hubSearchTimer=setTimeout(()=>{hubSearch=e.target.value.trim();hubPage=1;loadHub().catch(err=>toast(err.message))},260)};
+$('publicSourceBrowseBtn').onclick=()=>openPublicSourceBrowser();$('publicSourceClose').onclick=()=>$('publicSourceModal').classList.remove('open');$('publicSourceModal').onclick=e=>{if(e.target===$('publicSourceModal'))$('publicSourceClose').click()};$('publicSourcePrev').onclick=()=>{if(publicSourcePage>1){publicSourcePage--;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceNext').onclick=()=>{if(publicSourcePage<publicSourcePages){publicSourcePage++;loadPublicSourceCatalog().catch(e=>toast(e.message))}};$('publicSourceRefresh').onclick=async()=>{busy(true);try{publicSourcePage=1;await loadPublicSourceCatalog(true);toast("公共猪源列表已更新")}catch(e){toast(e.message)}finally{busy(false)}};let publicSourceSearchTimer;$('publicSourceSearch').oninput=e=>{clearTimeout(publicSourceSearchTimer);publicSourceSearchTimer=setTimeout(()=>{publicSourceSearch=e.target.value.trim();publicSourcePage=1;loadPublicSourceCatalog().catch(err=>toast(err.message))},260)};$('publicSourceDetailClose').onclick=$('publicSourceDetailDone').onclick=()=>$('publicSourceDetailModal').classList.remove('open');$('publicSourceDetailModal').onclick=e=>{if(e.target===$('publicSourceDetailModal'))$('publicSourceDetailClose').click()};
+$('syncBtn').onclick=startResourceSync;$('updateCheckBtn').onclick=async()=>{busy(true);try{await checkPluginUpdate()}catch(e){setUpdateFeedback(`核查出错：${e.message}`);toast(e.message)}finally{busy(false)}};$('updateApplyBtn').onclick=applyPluginUpdate;$('storageMigrateBtn').onclick=migrateStorage;$('storageVerifyBtn').onclick=verifyStorage;$('storageRebuildBtn').onclick=rebuildStorage;$('storageExportBtn').onclick=exportStorage;$('storageRollbackBtn').onclick=rollbackStorage;
+['pigId','pigName','pigDescription','pigAnalysis'].forEach(id=>$(id).addEventListener('input',updateFlow));$('pigAnalysis').oninput=e=>{$('copyCount').textContent=e.target.value.length;updateFlow()};$('aiDraftBtn').onclick=generateAiDraft;$('chooseImageBtn').onclick=()=>$('imageFile').click();$('downloadOriginalBtn').onclick=downloadOriginalImage;$('addBtn').onclick=openCreate;$('closeBtn').onclick=$('cancelBtn').onclick=closeModal;$('prevBtn').onclick=()=>{if(page>1){page--;loadPigs()}};$('nextBtn').onclick=()=>{if(page<pages){page++;loadPigs()}};let searchTimer;$('searchInput').oninput=e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{search=e.target.value.trim();page=1;loadPigs()},260)};$('refreshBtn').onclick=async()=>{busy(true);try{await Promise.all([loadOverview(),loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()]);toast("全量数据已更新")}catch(e){toast(e.message)}finally{busy(false)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeReviewModal();$('pighubModal').classList.remove('open');$('publicSourceModal').classList.remove('open');$('publicSourceDetailModal').classList.remove('open')}});
+if(!bridge){document.body.innerHTML="<div class=\"empty\">AstrBot Plugin Page Bridge 暂不可用</div>"}else{await bridge.ready();busy(true);try{await loadOverview();await Promise.all([loadPigs(),loadLayers(),loadSourceReviews(),loadResourceStatus(),loadUpdateStatus(),loadStorageStatus()])}catch(e){toast(e.message)}finally{busy(false)}}
 </script>
 </body>
 </html>
