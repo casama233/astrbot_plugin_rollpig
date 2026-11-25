@@ -21,6 +21,7 @@ except ModuleNotFoundError:
     sys.modules.setdefault("astrbot.api", api_module)
 
 from ex_variant_feature import ExVariantMixin
+from gameplay_perks import GameplayPerksMixin, serve_roast
 from gameplay_events import (
     EVENT_EX_LEVEL_UP,
     append_gameplay_event,
@@ -177,7 +178,7 @@ def _write_variant_source(
         (image_root / "sleep-pig-ex5.gif").write_bytes(b"gif")
 
 
-def _make_harness(tmp_path: Path, *, count: int = 1) -> _Harness:
+def _make_harness(tmp_path: Path, *, count: int = 1, harness_type=_Harness) -> _Harness:
     bundled = tmp_path / "bundled"
     active = tmp_path / "active"
     bundled.mkdir()
@@ -193,7 +194,7 @@ def _make_harness(tmp_path: Path, *, count: int = 1) -> _Harness:
             }
         }
     }
-    return _Harness(
+    return harness_type(
         None,
         {
             "res_dir": bundled,
@@ -206,6 +207,34 @@ def _make_harness(tmp_path: Path, *, count: int = 1) -> _Harness:
 
 def _set_count(harness: _Harness, count: int) -> None:
     harness.collections["u1"]["pigs"]["sleep-pig"]["count"] = count
+
+
+def test_group_effects_change_effective_card_level_without_changing_collection(tmp_path):
+    class PerkHarness(GameplayPerksMixin, _Harness):
+        _roast_block_reason = staticmethod(lambda _pig: None)
+        _user_read_candidates = staticmethod(lambda user: (user,))
+        _daily_group_members = staticmethod(lambda group, day: ["u1"] if group == "g1" else [])
+        _feeding_effect = staticmethod(lambda group, user, day: "rich")
+        _weekly_aura = staticmethod(lambda group, user, day: True)
+
+        async def _send_roast_card(self, event, pig, user):
+            self.render_roast_image(pig, user)
+            return True
+
+    harness = _make_harness(tmp_path, harness_type=PerkHarness)
+    event = types.SimpleNamespace(sender_id="u1", group_id="g1")
+    elsewhere = types.SimpleNamespace(sender_id="u1", group_id="g2")
+    card = asyncio.run(harness.send_rendered_pig(event, BASE_PIG, "u1"))
+    other = asyncio.run(harness.send_rendered_pig(elsewhere, BASE_PIG, "u1"))
+    tomorrow = asyncio.run(harness.send_rendered_pig(
+        event, BASE_PIG, "u1", fallback_title="明日小猪预测"
+    ))
+    assert card["_ex_level"] == 1 and len(card["_pig_card_stamps"]) == 2
+    assert other["_ex_level"] == 0 and "_pig_card_stamps" not in other
+    assert "_ex_level" not in tomorrow and "_pig_card_stamps" not in tomorrow
+    assert asyncio.run(serve_roast(harness, event, BASE_PIG, "u1"))
+    assert harness.last_roast_pig["_rich_roast"] and harness.last_roast_pig["_ex_level"] == 1
+    assert harness._ex_level_for_user("u1", "sleep-pig") == 0
 
 
 def test_owned_growth_flows_through_daily_history_weekly_roast_and_images(tmp_path):

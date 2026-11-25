@@ -5,8 +5,10 @@ import json
 from dataclasses import asdict, dataclass
 
 try:
+    from .gameplay_copy import GAMEPLAY_COPY
     from .player_copy import copy_text, normalize_player_locale
 except ImportError:  # pragma: no cover - direct module loading compatibility
+    from gameplay_copy import GAMEPLAY_COPY
     from player_copy import copy_text, normalize_player_locale
 
 
@@ -45,6 +47,8 @@ class HelpFeatureState:
     group_roast_max_charges: int = 2
     group_roast_recovery_hours: float = 8.0
     roast_reservation_max_participants: int = 12
+    enable_roast_feeding: bool = False
+    enable_weekly_tabloid: bool = False
 
 
 def _section(title: str, entries: list[HelpEntry]) -> HelpSection | None:
@@ -95,6 +99,11 @@ def build_help_sections(
     group_entries: list[HelpEntry] = []
     if state.enable_roast:
         group_entries.append(HelpEntry("/今日烤猪", t("help.group.roast_today")))
+        if state.enable_roast_feeding:
+            group_entries.extend([
+                HelpEntry("/今日烤猪 投喂 @群友", GAMEPLAY_COPY["help_feed_today"]),
+                HelpEntry("/今日烤猪 明天投喂 @群友", GAMEPLAY_COPY["help_feed_tomorrow"]),
+            ])
 
     group_roast_enabled = state.enable_roast and state.enable_group_roast
     if group_roast_enabled:
@@ -151,6 +160,11 @@ def build_help_sections(
                 HelpEntry("/猪圈日报开启／关闭", t("help.report.toggle")),
             ]
         )
+        if state.enable_weekly_tabloid:
+            report_entries.extend([
+                HelpEntry("/猪圈日报 八卦", GAMEPLAY_COPY["help_weekly_preview"]),
+                HelpEntry("/猪圈日报 投票 编号", GAMEPLAY_COPY["help_weekly_vote"]),
+            ])
         if not state.daily_report_auto_send:
             report_entries.append(
                 HelpEntry(

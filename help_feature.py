@@ -44,6 +44,7 @@ class HelpFeatureMixin:
                 getattr(self, "enable_daily_duplicate_pity", True)
             ),
             enable_roast=bool(getattr(self, "enable_roast", True)),
+            enable_roast_feeding=bool(getattr(self, "enable_roast_feeding", False)),
             enable_group_roast=bool(getattr(self, "enable_group_roast", True)),
             enable_roast_reservation=bool(
                 getattr(self, "enable_roast_reservation", True)
@@ -55,6 +56,7 @@ class HelpFeatureMixin:
             ),
             enable_ai_roast_copy=bool(getattr(self, "enable_ai_roast_copy", False)),
             enable_daily_report=bool(getattr(self, "enable_daily_report", True)),
+            enable_weekly_tabloid=bool(getattr(self, "enable_weekly_tabloid", False)),
             daily_report_auto_send=bool(
                 getattr(self, "daily_report_auto_send", True)
             ),

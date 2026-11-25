@@ -22,6 +22,7 @@ try:
     from .ex_admin_feature import ExAdminMixin
     from .ex_public_source_feature import ExPublicSourceMixin
     from .ex_variant_feature import ExVariantMixin
+    from .gameplay_perks import GameplayPerksMixin
     from .help_feature import HelpFeatureMixin
     from .installation_migrations import cleanup_legacy_installation_paths
     from .legacy_main import RollPigPlugin as _BaseRollPigPlugin
@@ -31,8 +32,10 @@ try:
     from .resource_failover_feature import ResourceFailoverMixin
     from .renderers.daily_report import render_daily_report_dashboard
     from .reservation_firewood_feature import ReservationFirewoodMixin
+    from .roast_feeding_feature import RoastFeedingMixin
     from .roast_reservation_feature import RoastReservationMixin
     from .state_persistence import DebouncedSnapshotWriter
+    from .weekly_tabloid_feature import WEEKLY_VOTE_ACTION, WeeklyTabloidMixin
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from animated_image_feature import AnimatedImageMixin
     from message_delivery import MessageDeliveryMixin
@@ -41,6 +44,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from ex_admin_feature import ExAdminMixin
     from ex_public_source_feature import ExPublicSourceMixin
     from ex_variant_feature import ExVariantMixin
+    from gameplay_perks import GameplayPerksMixin
     from help_feature import HelpFeatureMixin
     from installation_migrations import cleanup_legacy_installation_paths
     from legacy_main import RollPigPlugin as _BaseRollPigPlugin
@@ -50,8 +54,10 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
     from resource_failover_feature import ResourceFailoverMixin
     from renderers.daily_report import render_daily_report_dashboard
     from reservation_firewood_feature import ReservationFirewoodMixin
+    from roast_feeding_feature import RoastFeedingMixin
     from roast_reservation_feature import RoastReservationMixin
     from state_persistence import DebouncedSnapshotWriter
+    from weekly_tabloid_feature import WEEKLY_VOTE_ACTION, WeeklyTabloidMixin
 
 
 class RollPigPlugin(
@@ -63,6 +69,9 @@ class RollPigPlugin(
     HelpFeatureMixin,
     RandomRoastMixin,
     RoastReservationMixin,
+    GameplayPerksMixin,
+    RoastFeedingMixin,
+    WeeklyTabloidMixin,
     DailyReportMixin,
     ExPublicSourceMixin,
     ExAdminMixin,
@@ -187,7 +196,9 @@ class RollPigPlugin(
         return await super().find_pigs(event, keyword)
 
     @filter.command('今日烤猪', alias={'今日烤豬', '烤猪', '烤豬'}, priority=1000)
-    async def roast_today_pig(self, event: AstrMessageEvent):
+    async def roast_today_pig(self, event: AstrMessageEvent, args: str = ""):
+        if await self._feed_command(event, args):
+            return
         return await super().roast_today_pig(event)
 
     @filter.command('烤群友', alias={'烤群友'}, priority=1000)
@@ -225,6 +236,10 @@ class RollPigPlugin(
     @filter.command('猪圈日报', alias={'豬圈日報', '今日猪圈日报', '今日豬圈日報'}, priority=1000)
     async def pigsty_daily_report(self, event: AstrMessageEvent, args: str=''):
         return await super().pigsty_daily_report(event, args)
+
+    @getattr(filter, "button_action", lambda _: lambda handler: handler)(WEEKLY_VOTE_ACTION)
+    async def weekly_vote_button(self, event: AstrMessageEvent):
+        await self._weekly_vote_button(event)
 
     @filter.command('猪圈日报状态', alias={'豬圈日報狀態', '猪圈日报狀態', '豬圈日報状态', '今日猪圈日报状态', '今日豬圈日報狀態'}, priority=1000)
     async def pigsty_daily_report_status(self, event: AstrMessageEvent):

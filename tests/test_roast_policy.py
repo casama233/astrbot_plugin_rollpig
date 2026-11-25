@@ -1,7 +1,9 @@
 import ast
 import random
 from pathlib import Path
+from types import SimpleNamespace
 
+from gameplay_perks import roast_odds
 from services import RoastService
 
 
@@ -66,6 +68,18 @@ def test_bypass_forces_success_without_touching_rng():
     assert rng.calls == []
 
 
+def test_group_perks_transfer_risk_through_the_same_roast_service():
+    rng = FakeChoices("success")
+    plugin = SimpleNamespace(roast_service=RoastService(rng=rng), _today=lambda: "day")
+    for effects in (("spicy", False), ("rich", True), ("spicy", True), ("", False)):
+        plugin._active_pig_perks = lambda group, target, day: effects
+        assert roast_odds(plugin, "group", "target") == "success"
+    assert roast_odds(plugin, "group", "target", bypass=True) == "success"
+    assert [weights for _, weights, _ in rng.calls] == [
+        (60, 20, 20), (80, 10, 10), (70, 10, 20), (70, 20, 10)
+    ]
+
+
 def test_default_roast_rng_is_process_global_seed_isolated():
     service = RoastService()
     assert isinstance(service._rng, random.SystemRandom)
@@ -121,7 +135,8 @@ def test_random_roast_keeps_shared_outcome_and_event_pipeline():
     method = ast.get_source_segment(
         FEATURE_SOURCE, _feature_method("roast_random_group_member")
     ) or ""
-    assert "self.roast_service.choose_group_roast_outcome" in method
+    assert "roast_odds(self, group_id, target_id)" in method
+    assert "await serve_roast(self, event, target_pig, target_id)" in method
     assert '"roast_escape"' in method
     assert '"roast_backlash"' in method
     assert '"roast_success"' in method

@@ -287,7 +287,7 @@ class ExVariantMixin:
         pig_id = str(pig.get("id") or "")
         if not pig_id or pig_id == "eaten":
             return dict(pig)
-        ex_level = self._ex_level_for_user(user_id, pig_id)
+        ex_level = self._ex_level_for_user(user_id, pig_id) + int(pig.get("_extra_ex", 0))
         if self._has_local_pig_override(pig_id):
             result = dict(pig)
             result["_ex_level"] = ex_level

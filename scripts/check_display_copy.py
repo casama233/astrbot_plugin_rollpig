@@ -29,6 +29,7 @@ DISPLAY_PYTHON = [
     ROOT / "animated_image_feature.py",
     ROOT / "ex_admin_feature.py",
     ROOT / "ex_public_source_feature.py",
+    ROOT / "gameplay_copy.py",
     ROOT / "help_system.py",
     ROOT / "player_copy.py",
     ROOT / "roast_copy.py",
@@ -78,7 +79,7 @@ def main() -> int:
         for line, value in python_strings(path):
             assert_simplified(f"{path.relative_to(ROOT)}:{line}", value, failures)
             if (
-                path.name in {"help_system.py", "player_copy.py"}
+                path.name in {"gameplay_copy.py", "help_system.py", "player_copy.py"}
                 or path.parent.name == "renderers"
             ):
                 rendered.append((f"{path.relative_to(ROOT)}:{line}", value))

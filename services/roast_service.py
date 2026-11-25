@@ -122,15 +122,24 @@ class RoastService:
         chooser = rng or self._rng
         return str(chooser.choice(pool))
 
-    def choose_group_roast_outcome(self, *, bypass: bool = False, rng=None) -> str:
-        """Return the shared 70/20/10 roast outcome from one policy source."""
+    def choose_group_roast_outcome(
+        self, *, bypass: bool = False, spicy: bool = False, aura: bool = False, rng=None
+    ) -> str:
+        """Roll once after transferring the risk points from the active effects."""
         if bypass:
             return "success"
+        success, escape, backlash = self.GROUP_ROAST_WEIGHTS
+        if spicy:
+            success -= backlash
+            backlash *= 2
+        if aura:
+            success += 10
+            escape -= 10
         chooser = rng or self._rng
         return str(
             chooser.choices(
                 self.GROUP_ROAST_OUTCOMES,
-                weights=self.GROUP_ROAST_WEIGHTS,
+                weights=(success, escape, backlash),
                 k=1,
             )[0]
         )

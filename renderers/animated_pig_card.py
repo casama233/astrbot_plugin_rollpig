@@ -46,6 +46,7 @@ def render_animated_pig_card(
             if "_ex_level" in pig_data
             else None
         )
+        stamps = tuple(pig_data.get("_pig_card_stamps", ()))
         palette_mode = getattr(
             getattr(PILImage, "Palette", PILImage),
             "ADAPTIVE",
@@ -62,6 +63,7 @@ def render_animated_pig_card(
                 font_bold=font_bold,
                 font_regular=font_regular,
                 layout=layout,
+                stamps=stamps,
             ).convert("P", palette=palette_mode, colors=256)
             for avatar in animation.frames
         ]

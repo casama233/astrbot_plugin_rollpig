@@ -81,6 +81,7 @@ def _render(kind, data, tmp_path, layout, palette=PALETTES[0]):
             font_bold=bold,
             font_regular=regular,
             layout=layout,
+            stamps=data.get("_pig_card_stamps", ()),
         )
     avatar_path = tmp_path / "avatar.png"
     avatar.save(avatar_path)
@@ -236,3 +237,21 @@ def test_gif_footer_position_and_animation_timing_are_stable(tmp_path, monkeypat
             assert tuple(durations) == animation.durations
     finally:
         output.unlink(missing_ok=True)
+
+
+def test_effect_stamps_are_in_both_formats_and_keep_the_ex_footer(tmp_path):
+    layout = _layout()
+    regular = _pig(1, long=True)
+    stamped = {**regular, "_pig_card_stamps": ("Spicy", "Monday")}
+    plain = _render("static", regular, tmp_path, layout)
+    static = _render("static", stamped, tmp_path, layout)
+    animated = _render("animated", stamped, tmp_path, layout)
+    assert ImageChops.difference(static, animated).getbbox() is None
+    stamp_box = (0, 22, static.width, 61)
+    assert ImageChops.difference(plain.crop(stamp_box), static.crop(stamp_box)).getbbox()
+    assert static.height >= plain.height
+    footer_height = 69
+    assert ImageChops.difference(
+        plain.crop((0, plain.height - footer_height, plain.width, plain.height)),
+        static.crop((0, static.height - footer_height, static.width, static.height)),
+    ).getbbox() is None

@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from astrbot.api import logger
 
+try:
+    from .gameplay_perks import roast_odds, serve_roast
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from gameplay_perks import roast_odds, serve_roast
+
 
 class RandomRoastMixin:
     """Random group-roast orchestration without owning AstrBot command registration."""
@@ -86,7 +91,7 @@ class RandomRoastMixin:
         await event.send(self._random_roast_target_announcement(event, target_id))
 
         charge_note = self._roast_charge_note(charge_status)
-        result = self.roast_service.choose_group_roast_outcome()
+        result = roast_odds(self, group_id, target_id)
         logger.info(
             "随机烤群友判定：group=%s actor=%s target=%s outcome=%s "
             "charge=%s/%s rng=isolated",
@@ -156,4 +161,4 @@ class RandomRoastMixin:
             )
         )
         await self._record_group_roast(group_id, target_id)
-        await self._send_roast_card(event, target_pig, target_id)
+        await serve_roast(self, event, target_pig, target_id)

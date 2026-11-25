@@ -43,6 +43,7 @@ try:
         warn_if_legacy_loaded,
     )
     from .ex_variants import validate_ex_variants
+    from .gameplay_perks import roast_odds, serve_roast
     from .rollpig_core import consecutive_duplicate_day_streak
     from .roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
     from .player_copy import build_pig_draft_prompt
@@ -81,6 +82,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         warn_if_legacy_loaded,
     )
     from ex_variants import validate_ex_variants
+    from gameplay_perks import roast_odds, serve_roast
     from rollpig_core import consecutive_duplicate_day_streak
     from roast_charges import bootstrap_legacy_cooldown, consume_roast_charge_state
     from player_copy import build_pig_draft_prompt
@@ -3297,7 +3299,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
         *,
         bypass: bool = False,
     ) -> None:
-        """Execute the single normal group-roast flow; mixins observe via hooks."""
+        """Resolve a normal group roast."""
         actor_id = self._event_sender_id(event)
         group_id = self._event_group_id(event)
         if not group_id:
@@ -3335,7 +3337,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 return
 
         charge_note = self._roast_charge_note(charge_status)
-        result = self.roast_service.choose_group_roast_outcome(bypass=bypass)
+        result = roast_odds(self, group_id, target_id, bypass=bypass)
         if result == "escape":
             self._record_roast_outcome_event(
                 "roast_escape",
@@ -3385,7 +3387,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
             event.plain_result(f'{prefix}对方今天的小猪刚被人端走，连刷酱的边儿都没赶上。' + charge_note)
         )
         await self._record_group_roast(group_id, target_id)
-        await self._send_roast_card(event, target_pig, target_id)
+        await serve_roast(self, event, target_pig, target_id)
 
     async def _eat_group_target(
         self, event: AstrMessageEvent, target_id: str
@@ -4010,7 +4012,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 output.unlink(missing_ok=True)
 
     async def roast_today_pig(self, event: AstrMessageEvent):
-        """把自己的当天小猪做成趣味料理卡，不改变抽取结果。"""
+        """制作自己的料理卡。"""
         self._claim_command_event(event)
         if not self.enable_roast:
             await event.send(event.plain_result('🔒 今日烤猪摊休业。管理员已经把灶火熄了。'))
@@ -4023,7 +4025,7 @@ class RollPigPlugin(FelisDirectFeature, Star):
                 reason = '🐷 先发 /今日小猪 把今天的小猪领回来吧，空锅干烧可做不出料理。'
             await event.send(event.plain_result(reason))
             return
-        await self._send_roast_card(event, pig, str(user_id))
+        await serve_roast(self, event, pig, str(user_id), own=True)
 
     async def roast_group_member(self, event: AstrMessageEvent, args: str = ""):
         """在群聊中烧烤 @ 目标或引用消息的发送者。"""

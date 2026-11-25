@@ -46,7 +46,8 @@ def test_daily_report_observes_roasts_without_owning_the_flow():
 def test_normal_roast_flow_uses_service_policy_and_event_hook():
     method = _class_method("legacy_main.py", "RollPigPlugin", "_roast_group_target")
     calls = {_call_chain(node) for node in ast.walk(method) if isinstance(node, ast.Call)}
-    assert "self.roast_service.choose_group_roast_outcome" in calls
+    assert "roast_odds" in calls
+    assert "serve_roast" in calls
     assert "self._record_roast_outcome_event" in calls
     assert "random.choices" not in calls
 
@@ -54,7 +55,8 @@ def test_normal_roast_flow_uses_service_policy_and_event_hook():
 def test_reservation_uses_same_outcome_policy():
     source = (ROOT / "roast_reservation_feature.py").read_text(encoding="utf-8")
     assert "random.choices" not in source
-    assert "roast_service.choose_group_roast_outcome" in source
+    assert "roast_odds(self, group_id, target_id)" in source
+    assert "await serve_roast(self, event, target_pig, target_id" in source
 
 
 def test_roast_renderer_has_no_plugin_runtime_or_storage_dependency():

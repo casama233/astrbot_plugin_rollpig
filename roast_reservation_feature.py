@@ -22,6 +22,7 @@ try:
         resolve_reservation,
     )
     from .rollpig_core import parse_config_bool
+    from .gameplay_perks import roast_odds, serve_roast
 except ImportError:  # pragma: no cover - direct module loading compatibility
     from gameplay_events import (
         EVENT_ROAST_BACKLASH,
@@ -39,6 +40,7 @@ except ImportError:  # pragma: no cover - direct module loading compatibility
         resolve_reservation,
     )
     from rollpig_core import parse_config_bool
+    from gameplay_perks import roast_odds, serve_roast
 
 
 class RoastReservationMixin:
@@ -393,7 +395,7 @@ class RoastReservationMixin:
             event.plain_result('🔥 蹲守成功！主厨早早备好了烤箱，你刚抽出的今日小猪瞬间被烤得滋滋冒油。')
         )
         await self._record_group_roast(group_id, target_id, draw_date)
-        await self._send_roast_card(event, target_pig, target_id)
+        await serve_roast(self, event, target_pig, target_id, draw_date=draw_date)
 
     async def _trigger_roast_reservation_after_draw(
         self, event, pig_data: dict, user_id: str, fallback_title: str
@@ -419,7 +421,7 @@ class RoastReservationMixin:
                 return
             target_pig = self._get_daily_pig(target_id, today)
             blocked = self._roast_block_reason(target_pig, subject="target")
-            outcome = "blocked" if blocked else self.roast_service.choose_group_roast_outcome()
+            outcome = "blocked" if blocked else roast_odds(self, group_id, target_id)
             with self._data_lock:
                 resolved = resolve_reservation(
                     self.roast_reservation_state,

@@ -8,6 +8,11 @@ from typing import Mapping
 from PIL import Image as PILImage
 from PIL import ImageDraw, ImageFont
 
+try:
+    from ..gameplay_copy import GAMEPLAY_COPY
+except ImportError:  # pragma: no cover - direct module loading compatibility
+    from gameplay_copy import GAMEPLAY_COPY
+
 from .common import (
     ImageResolver,
     fit_card_image,
@@ -127,12 +132,14 @@ def render_roast_card(
         recipe = 'AI 猪舍主厨秘制'
         copy = str(ai_copy)
 
-    canvas = PILImage.new("RGB", (800, 870), palette["roast_canvas"])
+    rich_roast = bool(pig.get("_rich_roast"))
+    height = 964 if rich_roast else 870
+    canvas = PILImage.new("RGB", (800, height), palette["roast_canvas"])
     draw = ImageDraw.Draw(canvas)
     title_font = font_bold.font_variant(size=52)
     name_font = font_bold.font_variant(size=38)
     draw.rounded_rectangle(
-        (34, 28, 766, 830),
+        (34, 28, 766, height - 40),
         38,
         fill=palette["roast_surface"],
         outline=palette["roast_outline"],
@@ -193,6 +200,18 @@ def render_roast_card(
             line,
             font=body_font,
             fill=palette["roast_body"],
+        )
+
+    if rich_roast:
+        bonus = GAMEPLAY_COPY["feed_roast_bonus"].format(level=pig.get("_ex_level", 1))
+        stamp_font = body_font.font_variant(size=25)
+        draw.rounded_rectangle(
+            (72, 835, 728, 907), 10, outline=palette["roast_outline"], width=2
+        )
+        draw.multiline_text(
+            (400, 871), "\n".join(wrap_text(bonus, stamp_font, 610)),
+            anchor="mm", align="center", spacing=4, font=stamp_font,
+            fill=palette["roast_title"],
         )
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
