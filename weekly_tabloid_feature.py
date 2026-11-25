@@ -53,12 +53,17 @@ class WeeklyTabloidMixin:
             config.get("weekly_tabloid_ai", False), False
         )
         self.weekly_tabloid_state_path = self.plugin_data_dir / "weekly_tabloid_state.json"
-        loaded = (
-            self.load_json(self.weekly_tabloid_state_path, {})
-            if self.enable_weekly_tabloid and self.weekly_tabloid_state_path.exists()
-            else {}
-        )
-        self.weekly_tabloid_state = loaded if isinstance(loaded, dict) else {}
+        self.weekly_tabloid_state = {}
+        if self.enable_weekly_tabloid:
+            try:
+                if self.weekly_tabloid_state_path.exists():
+                    loaded = self.load_json(self.weekly_tabloid_state_path, {})
+                    if not isinstance(loaded, dict):
+                        raise ValueError("malformed weekly tabloid state")
+                    self.weekly_tabloid_state = loaded
+            except (OSError, ValueError) as exc:
+                logger.warning("猪圈周刊状态读取失败，已暂停周刊：%s", exc)
+                self.enable_weekly_tabloid = False
 
     def _weekly_name(self, group_id: str, user_id: str) -> str:
         display = self._profile_for_report(group_id, user_id)["display_name"]

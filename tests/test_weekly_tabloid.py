@@ -270,6 +270,20 @@ def test_vote_save_failure_allows_retry(tabloid, monkeypatch):
     assert plugin._weekly_poll(DISCORD_GROUP, SUNDAY)["votes"] == {"u1": 1}
 
 
+def test_unreadable_weekly_state_does_not_prevent_plugin_startup(tabloid, monkeypatch):
+    plugin, _ = tabloid
+    plugin.weekly_tabloid_state_path.write_text("{}", encoding="utf-8")
+
+    def fail(*_):
+        raise OSError("fixture read failure")
+
+    monkeypatch.setattr(type(plugin), "load_json", staticmethod(fail))
+    restarted = type(plugin)(SimpleNamespace(), {"enable_weekly_tabloid": True})
+    assert restarted.enable_daily_report
+    assert not restarted.enable_weekly_tabloid
+    assert restarted.weekly_tabloid_state_path.read_text(encoding="utf-8") == "{}"
+
+
 def test_sunday_scheduler_dispatches_weekly_once_even_without_sunday_draws(tabloid):
     plugin, _ = tabloid
     spec = importlib.util.spec_from_file_location("_daily_report_for_weekly_test", ROOT / "daily_report_feature.py")
