@@ -242,7 +242,15 @@ def test_weekly_story_uses_anonymous_counts_and_cache(tabloid):
             module._weekly_copy("stats", **report["totals"]),
         ]
         assert f'{module._weekly_copy("award_roast_maniac")} · 猪在现场 u1 (2)' in fallback
-        poll_lines = plugin._weekly_poll_text(report)
+        poll_lines = [
+            module._weekly_copy("poll_title"),
+            module._weekly_copy("poll_effect"),
+            module._weekly_copy("poll_hint"),
+            *(
+                module._weekly_copy("poll_item", number=number, name=report["names"][user_id])
+                for number, user_id in enumerate(report["candidates"], start=1)
+            ),
+        ]
         assert fallback[-len(poll_lines):] == poll_lines
     finally:
         for _chain, output in published:
