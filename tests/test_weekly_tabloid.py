@@ -139,19 +139,28 @@ def tabloid(monkeypatch, tmp_path):
 def test_silent_sunday_uses_week_and_opens_only_with_receipt(tabloid):
     plugin, module = tabloid
     chain, output = asyncio.run(plugin._prepare_scheduled_weekly_tabloid(DISCORD_GROUP, SUNDAY, "origin"))
+    poll = plugin._weekly_poll(DISCORD_GROUP, SUNDAY)
     try:
         with Image.open(output) as image:
             assert image.size[0] == WEEKLY_WIDTH
             assert 650 < image.size[1] < 1600
-        buttons = chain.chain[-1].buttons
+        image_part, vote_text, button_row = chain.chain
+        assert image_part.type == "Image" and image_part.path == str(output.absolute())
+        assert vote_text.type == "Plain"
+        buttons = button_row.buttons
         assert [item.action.data["number"] for item in buttons] == [1, 2, 3]
         assert all(item.action.data["date"] == SUNDAY for item in buttons)
         assert all(item.id == module.WEEKLY_VOTE_ACTION for item in buttons)
-        assert "/猪圈日报" in chain.chain[0].text
+        names = poll["report"]["names"]
+        choices = [
+            module._weekly_copy("poll_item", number=number, name=names[user_id])
+            for number, user_id in enumerate(poll["report"]["candidates"], start=1)
+        ]
+        assert vote_text.text.splitlines() == [module._weekly_copy("poll_hint"), *choices]
+        assert [item.label for item in buttons] == choices
     finally:
         output.unlink()
 
-    poll = plugin._weekly_poll(DISCORD_GROUP, SUNDAY)
     assert poll["report"]["totals"] == {
         "active_users": 3, "draws": 5, "roasts": 3, "eats": 1, "escapes": 0, "backlashes": 1,
     }
@@ -210,10 +219,10 @@ def test_weekly_story_uses_anonymous_counts_and_cache(tabloid):
     ]
     try:
         assert len(prompts) == 1
-        assert any("猪在现场" in line for line in published[0][0].chain[0].text.splitlines())
-        assert published[0][0].chain[0].text == published[1][0].chain[0].text
-        provider.get_model = lambda: "fixture-other"
         report = plugin._weekly_poll(DISCORD_GROUP, SUNDAY)["report"]
+        assert report["story"].startswith("猪在现场 ")
+        assert report["story"].endswith(" 督阵，炉口连续营业。")
+        provider.get_model = lambda: "fixture-other"
         assert asyncio.run(plugin._weekly_llm_story(DISCORD_GROUP, "origin", report)) == report["story"]
         assert len(prompts) == 1
         # An unavailable renderer still sends a complete election and story.
@@ -224,10 +233,52 @@ def test_weekly_story_uses_anonymous_counts_and_cache(tabloid):
         chain, output = asyncio.run(plugin._weekly_message(QQ_GROUP, report))
         assert output is None
         assert len(chain.chain) == 1
-        assert module._weekly_copy("poll_hint") in chain.chain[0].text
+        assert chain.chain[0].type == "Plain"
+        fallback = chain.chain[0].text.splitlines()
+        assert fallback[:4] == [
+            module._weekly_copy("title"),
+            "2026-11-16  →  2026-11-22",
+            report["story"],
+            module._weekly_copy("stats", **report["totals"]),
+        ]
+        assert f'{module._weekly_copy("award_roast_maniac")} · 猪在现场 u1 (2)' in fallback
+        poll_lines = [
+            module._weekly_copy("poll_title"),
+            module._weekly_copy("poll_effect"),
+            module._weekly_copy("poll_hint"),
+            *(
+                module._weekly_copy("poll_item", number=number, name=report["names"][user_id])
+                for number, user_id in enumerate(report["candidates"], start=1)
+            ),
+        ]
+        assert fallback[-len(poll_lines):] == poll_lines
     finally:
         for _chain, output in published:
             output.unlink()
+
+
+@pytest.mark.parametrize("activity_group", [DISCORD_GROUP, QQ_GROUP])
+def test_qq_weekly_image_keeps_numbered_vote_text_or_empty_notice(tabloid, activity_group):
+    plugin, module = tabloid
+    report, _ = plugin._weekly_activity(activity_group, plugin._today())
+    report["names"] = plugin._weekly_report_names(activity_group, report)
+    chain, output = asyncio.run(plugin._weekly_message(QQ_GROUP, report))
+    try:
+        image_part, vote_text = chain.chain
+        assert image_part.type == "Image" and image_part.path == str(output.absolute())
+        assert vote_text.type == "Plain"
+        if activity_group == DISCORD_GROUP:
+            assert vote_text.text.splitlines() == [
+                module._weekly_copy("poll_hint"),
+                *[
+                    module._weekly_copy("poll_item", number=number, name=report["names"][user_id])
+                    for number, user_id in enumerate(report["candidates"], start=1)
+                ],
+            ]
+        else:
+            assert vote_text.text == module._weekly_copy("poll_empty")
+    finally:
+        output.unlink()
 
 
 def test_preview_does_not_open_poll_and_midnight_drops_stale_publication(tabloid, monkeypatch):
@@ -240,7 +291,9 @@ def test_preview_does_not_open_poll_and_midnight_drops_stale_publication(tabloid
     plugin._event_group_id = lambda _event: DISCORD_GROUP
     event = SimpleNamespace(send=send)
     assert asyncio.run(plugin._weekly_command(event, "八卦"))
-    assert module._weekly_copy("preview_hint") in sent[0].chain[0].text
+    image_part, preview_text = sent[0].chain
+    assert image_part.type == "Image"
+    assert preview_text.type == "Plain" and preview_text.text == module._weekly_copy("preview_hint")
     assert not plugin.weekly_tabloid_state_path.exists()
 
     async def wait_past_midnight(*_):

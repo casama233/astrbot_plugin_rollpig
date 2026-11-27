@@ -209,12 +209,12 @@ class WeeklyTabloidMixin:
         story = re.sub(r"(?<![A-Z0-9])P\d+(?![A-Z0-9])", lambda m: names.get(m[0], m[0]), story)
         return story if len(story) <= 150 else fallback
 
-    def _weekly_poll_text(self, report: dict) -> list[str]:
+    def _weekly_poll_text(self, report: dict, *, compact: bool = False) -> list[str]:
         if not report["candidates"]:
             return [_weekly_copy("poll_empty")]
+        details = [] if compact else [_weekly_copy("poll_title"), _weekly_copy("poll_effect")]
         return [
-            _weekly_copy("poll_title"),
-            _weekly_copy("poll_effect"),
+            *details,
             _weekly_copy("poll_hint"),
             *(
                 _weekly_copy("poll_item", number=number, name=report["names"][user_id])
@@ -274,30 +274,33 @@ class WeeklyTabloidMixin:
         self, group_id: str, report: dict, *, preview: bool = False
     ) -> tuple[MessageChain, Path | None]:
         text = self._weekly_render_text(report, preview=preview)
-        awards = [f"{label} · {players} ({count})" for label, players, count in text["awards"]]
-        chain = MessageChain().message(
-            "\n".join(
-                [
-                    text["title"],
-                    text["period"],
-                    text["story"],
-                    _weekly_copy("stats", **report["totals"]),
-                    *awards,
-                    *text["poll"],
-                ]
-            )
-        )
         output = None
         try:
             output = await asyncio.to_thread(
                 self._run_with_render_slot, render_weekly_tabloid, self, text
             )
-            chain.file_image(str(output.absolute()))
+            chain = MessageChain().file_image(str(output.absolute()))
         except Exception as exc:
             logger.warning(f"Weekly RollPig image used text fallback ({type(exc).__name__})")
             if output is not None:
                 output.unlink(missing_ok=True)
                 output = None
+            awards = [f"{label} · {players} ({count})" for label, players, count in text["awards"]]
+            chain = MessageChain().message(
+                "\n".join(
+                    [
+                        text["title"],
+                        text["period"],
+                        text["story"],
+                        _weekly_copy("stats", **report["totals"]),
+                        *awards,
+                        *text["poll"],
+                    ]
+                )
+            )
+        else:
+            caption = text["poll"] if preview else self._weekly_poll_text(report, compact=True)
+            chain.message("\n".join(caption))
         if not preview:
             try:
                 if row := self._weekly_poll_buttons(group_id, report):

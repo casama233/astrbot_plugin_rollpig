@@ -3592,103 +3592,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
             image_resolver=self.find_image_file,
         )
 
-    def render_help_image(self) -> Path:
-        """渲染聊天指令帮助卡，避免在会话中输出冗长纯文本。"""
-        palette = self._image_palette()
-        at_entry = (
-            ('/今日小猪 @目标群友', '偷窥对方今日领到的小猪（单次仅限一人）')
-            if self.at_view_pig
-            else ('群友猪圈围观', '暂未开放；请管理员配置 at_view_pig 参数')
-        )
-        sections = [
-            (
-                '每日领猪日常',
-                [
-                    ("/今日小猪", '领养或回顾今日专属小猪'),
-                    at_entry,
-                    ("/昨日小猪", '翻看昨日的领猪记录'),
-                    ("/明日小猪", '占卜明日猪运，不会提前点亮图鉴'),
-                    ("/本周小猪", '汇总本周七日养猪数据周报'),
-                ],
-            ),
-            (
-                '图鉴与漫游',
-                [
-                    ("/我的猪圈 [页码]", '翻阅永久收集册，示例：/我的猪圈 2'),
-                    ("/随机小猪 [1-9]", '纯属偶遇闲逛，绝不干扰今日抽猪结果'),
-                    ("/找猪／搜猪 关键词", '通过名字、编号、简介或台词检索小猪'),
-                ],
-            ),
-            (
-                '后厨烤猪派对',
-                [
-                    ("/今日烤猪", '将今日小猪端上烤架，烘焙专属料理卡片'),
-                    ('/烤群友 @目标群友', '60/30/10·冷却8小时；目标未领猪可先预约，群友还能帮忙添柴'),
-                    ("/随机烤群友", '从今日已在群里领猪的群友中随机抓一位开烤'),
-                    ('/吃群友 @目标群友', f'{self.eat_success_percent}%几率成功开吃；失手则会把自己吃掉，保护机制照常生效'),
-                    ("/随机吃群友", '随机点名一位可食用的群友；无论成败都会挂上被吃状态'),
-                    ("/猪圈日报", '生成全套数据海报与今日群聊专属头衔'),
-                    ('后门口令 @目标群友', '疏通后厨等操作每日限一次；超管可使用 /强行点火'),
-                ],
-            ),
-            (
-                '猪场管理',
-                [
-                    ('后台控制台', '同步资源，增删改小猪档案及配置 PigHub 图库'),
-                ],
-            ),
-        ]
-        width, height = 900, 1700
-        canvas = PILImage.new("RGB", (width, height), palette["canvas"])
-        draw = ImageDraw.Draw(canvas)
-        # 帮助卡固定使用插件内置粗体：AstrBot 容器缺少完整 CJK 系统字体时，
-        # 仍可稳定显示这套简体文案。
-        title_font = self.font_bold.font_variant(size=52)
-        subtitle_font = self.font_bold.font_variant(size=21)
-        section_font = self.font_bold.font_variant(size=28)
-        command_font = self.font_bold.font_variant(size=22)
-        detail_font = self.font_bold.font_variant(size=19)
-        footer_font = self.font_bold.font_variant(size=18)
-
-        draw.rounded_rectangle((28, 24, 872, 166), 30, fill=palette["surface"])
-        draw.text((60, 47), 'RollPig 养猪指南 · 指令一览', font=title_font, fill=palette["title"])
-        draw.text(
-            (62, 116),
-            '简繁指令皆可触发 · 每天来领一只你的本命小猪',
-            font=subtitle_font,
-            fill=palette["secondary"],
-        )
-
-        y = 190
-        for section_name, entries in sections:
-            card_height = 62 + len(entries) * 62 + 14
-            draw.rounded_rectangle(
-                (28, y, 872, y + card_height), 26, fill=palette["surface"]
-            )
-            draw.rounded_rectangle(
-                (50, y + 18, 202, y + 54), 18, fill=palette["surface_muted"]
-            )
-            draw.text((68, y + 20), section_name, font=section_font, fill=palette["accent"])
-            row_y = y + 72
-            for command, detail in entries:
-                draw.text((62, row_y), command, font=command_font, fill=palette["title"])
-                draw.text((364, row_y + 2), detail, font=detail_font, fill=palette["secondary"])
-                row_y += 62
-            y += card_height + 20
-
-        footer = '随时发送 /猪猪帮助 召唤本指南，再领一张新海报'
-        footer_w, _ = self._get_text_size(footer, footer_font)
-        draw.text(
-            ((width - footer_w) // 2, height - 55),
-            footer,
-            font=footer_font,
-            fill=palette["muted"],
-        )
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            output = Path(tmp.name)
-        canvas.save(output, "PNG")
-        return output
-
     @staticmethod
     def _claim_command_event(event: AstrMessageEvent) -> None:
         """Claim a matched RollPig command so it cannot fall through to other plugins/LLM."""
@@ -3718,20 +3621,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
             if user_id and user_id != self_id and user_id not in user_ids:
                 user_ids.append(user_id)
         return user_ids
-
-    async def rollpig_help(self, event: AstrMessageEvent):
-        """展示今日小猪的完整指令说明。"""
-        self._claim_command_event(event)
-        output = None
-        try:
-            output = self.render_help_image()
-            await event.send(event.image_result(str(output.absolute())))
-        except Exception as exc:
-            logger.error(f"生成猪猪帮助图片失败：{exc}", exc_info=True)
-            await event.send(event.plain_result('指南海报渲染失败，请检查后台日志定位原因。'))
-        finally:
-            if output:
-                output.unlink(missing_ok=True)
 
     async def roll_pig(self, event: AstrMessageEvent):
         """Draw for self; mentioning another user is strictly read-only."""
@@ -4034,37 +3923,6 @@ class RollPigPlugin(FelisDirectFeature, Star):
             await event.send(event.plain_result('🔒 今日后厨不接群友这单。管理员已关闭烤群友功能。'))
             return
         target_id = self._extract_roast_target_id(event, args)
-        await self._roast_group_target(event, target_id)
-
-    async def roast_random_group_member(self, event: AstrMessageEvent):
-        """从今天在当前群聊抽过小猪的成员中随机挑选一位。"""
-        self._claim_command_event(event)
-        if not self.enable_roast or not self.enable_group_roast:
-            await event.send(event.plain_result('🔒 今日后厨不接群友这单。管理员已关闭烤群友功能。'))
-            return
-        group_id = self._event_group_id(event)
-        if not group_id:
-            await event.send(event.plain_result('🎲 命运轮盘只能在群聊里转动！私聊里就你一个光杆司令，摇起来连概率之神都要翻白眼。'))
-            return
-        actor_id = self._event_sender_id(event)
-        today = self._today()
-        members = self._daily_group_members(group_id, today.isoformat())
-        candidates = []
-        for user_id in members if isinstance(members, list) else []:
-            user_id = str(user_id)
-            if user_id == actor_id:
-                continue
-            pig = self._get_daily_pig(user_id, today)
-            if not self._roast_block_reason(pig):
-                candidates.append(user_id)
-        if not candidates:
-            await event.send(
-                event.plain_result('🎲 眼下群里还没人下场呢。快把大伙儿忽悠来 /今日小猪，后厨才好开火备菜呀！')
-            )
-            return
-        target_id = random.choice(candidates)
-        # 先公布抽中的目标；即使随后逃脱或反噬，群里也知道本次随机点名的是谁。
-        await self._send_with_mention(event, target_id, ' 🎲 轮盘指针稳稳停在了你头顶！后厨大厨拍板：今晚的主角就是你了。')
         await self._roast_group_target(event, target_id)
 
     async def eat_group_member(self, event: AstrMessageEvent, args: str = ""):
